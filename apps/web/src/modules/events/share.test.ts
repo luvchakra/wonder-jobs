@@ -43,6 +43,14 @@ describe("what Share sends about an event", () => {
     expect(JSON.stringify(s)).not.toMatch(/going|attendee/i);
   });
 
+  it("the Where line appears only when it adds to the place chip", () => {
+    // "Baner, Pune" is already the chip: no second "Where".
+    expect(shareOf({ ...own, location: "Baner, Pune" } as EventListing).lines?.some((x) => typeof x === "string" && x.startsWith("Where:"))).toBe(false);
+    // A street address the chip had to cut keeps its full form in the Where line.
+    const full = "Hall 3, Pune International Exhibition and Convention Centre, Moshi, Pune 412105";
+    expect(shareOf({ ...own, location: full } as EventListing).lines).toContain(`Where: ${full}`);
+  });
+
   it("an outside event shares WonderWorks' public page and keeps the event's own page as the original", () => {
     const s = shareOf(outside);
     expect(s.url).toBe("/s/events/ow_xyz");
@@ -54,7 +62,7 @@ describe("what Share sends about an event", () => {
     const s = shareOf(outside);
     expect(s.facts).toHaveLength(3);
     expect(s.facts?.at(-1)).toBe("");
-    expect(s.facts?.[1]).toBe("Gardens Galleria Mall, Nala Rd, Sector 38");
+    expect(s.facts?.[1]).toBe("Gardens Galleria Mall, Nala Rd");
     // The full address stays in the message's Where line.
     expect(s.lines).toContain("Where: Gardens Galleria Mall, Nala Rd, Sector 38, Noida, Uttar Pradesh 201301, India");
   });
@@ -65,14 +73,16 @@ describe("what Share sends about an event", () => {
     expect(none.lines?.some((x) => typeof x === "string" && x.startsWith("Where:"))).toBe(false);
     const online = shareOf({ ...outside, location: "", outside: { ...outside.outside!, online: true } } as EventListing);
     expect(online.facts?.[1]).toBe("Online");
-    expect(shareOf({ ...outside, outside: { ...outside.outside!, online: true } } as EventListing).facts?.[1]).toBe("Gardens Galleria Mall, Nala Rd, Sector 38");
+    expect(shareOf({ ...outside, outside: { ...outside.outside!, online: true } } as EventListing).facts?.[1]).toBe("Gardens Galleria Mall, Nala Rd");
   });
 });
 
 describe("a place cut for a chip", () => {
   it("keeps whole comma parts that fit and never cuts a word in half", () => {
     expect(cutPlace("TERI, Domlur, Bengaluru")).toBe("TERI, Domlur, Bengaluru");
-    expect(cutPlace("Gardens Galleria Mall, Nala Rd, Sector 38, Noida, Uttar Pradesh 201301, India")).toBe("Gardens Galleria Mall, Nala Rd, Sector 38");
+    expect(cutPlace("Baner, Pune")).toBe("Baner, Pune");
+    expect(cutPlace("Gardens Galleria Mall, Nala Rd, Sector 38, Noida, Uttar Pradesh 201301, India")).toBe("Gardens Galleria Mall, Nala Rd");
+    expect(cutPlace("Gardens Galleria Mall, Nala Rd, Sector 38, Noida", 44)).toBe("Gardens Galleria Mall, Nala Rd, Sector 38");
     expect(cutPlace("A, B, C", 3)).toBe("A");
   });
   it("cuts a single very long part at a word, with an ellipsis", () => {

@@ -129,7 +129,9 @@ export async function checkRobots(source) {
   catch (e) {
     // Robots missing (404) is permitted; any other uncertainty fails closed.
     if (e.code === "SOURCE_UNAVAILABLE" && e.message.endsWith("404")) return { rules: [], crawlDelay: null, sitemaps: [] };
-    throw new ApiError(403, "ROBOTS_UNAVAILABLE", "Cannot verify robots policy");
+    // Say what the site answered, so an admin can tell a site that refuses our server (403) from one that's down.
+    const status = /responded (\d{3})/.exec(e.message || "")?.[1];
+    throw new ApiError(403, "ROBOTS_UNAVAILABLE", `Cannot verify robots policy (robots.txt ${status ? `responded ${status}` : e.code === "SOURCE_TIMEOUT" ? "timed out" : "didn't load"})`);
   }
   if (!robotsAllowed(txt, base.pathname + base.search)) throw new ApiError(403, "ROBOTS_DENIED", "Robots policy disallows this path");
   return parseRobots(txt);
@@ -145,11 +147,13 @@ export function decodeEntities(s) {
   });
 }
 const strip = (s) => decodeEntities(String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, "$1").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+/** A field's inner text as the feed gave it (CDATA unwrapped), markup kept: a description's shape is read by core's richText. */
+const rawTag = (s, key) => { const m = s.match(new RegExp("<(?:[\\w]+:)?" + key + "\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w]+:)?" + key + ">", "i")); return m ? m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, "$1").trim() : ""; };
 const tag = (s, key) => { const m = s.match(new RegExp("<(?:[\\w]+:)?" + key + "\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w]+:)?" + key + ">", "i")); return m ? strip(m[1]) : ""; };
 export function parseFeed(xml) {
   return [...xml.matchAll(/<(item|entry)\b[^>]*>[\s\S]*?<\/\1>/gi)].slice(0, 500).map(([block]) => {
     const atom = block.match(/<link\b[^>]*\bhref=["']([^"']+)["']/i)?.[1];
-    return { id: tag(block, "guid") || tag(block, "id") || tag(block, "link") || atom, title: tag(block, "title"), organization: tag(block, "company") || tag(block, "organization") || tag(block, "author"), location: tag(block, "location") || tag(block, "city") || tag(block, "region"), canonicalUrl: tag(block, "link") || atom || tag(block, "url"), description: tag(block, "description") || tag(block, "summary") || tag(block, "content"), publishedAt: tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") };
+    return { id: tag(block, "guid") || tag(block, "id") || tag(block, "link") || atom, title: tag(block, "title"), organization: tag(block, "company") || tag(block, "organization") || tag(block, "author"), location: tag(block, "location") || tag(block, "city") || tag(block, "region"), canonicalUrl: tag(block, "link") || atom || tag(block, "url"), description: rawTag(block, "description") || rawTag(block, "summary") || rawTag(block, "content"), publishedAt: tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") };
   });
 }
 /**
@@ -193,8 +197,46 @@ export function businessRecord(o) {
   if (site) {
     try { const u = new URL(site); for (const k of [...u.searchParams.keys()]) if (/^utm_/i.test(k)) u.searchParams.delete(k); attributes.website = u.toString(); } catch { /* not a URL */ }
   }
-  return { id: o["@id"] || o.url, title: o.name, organization: o.name, location, description: strip(o.description || ""), canonicalUrl: o.url || o["@id"], publishedAt: null, attributes };
+  return { id: o["@id"] || o.url, title: o.name, organization: o.name, location, description: String(o.description || ""), canonicalUrl: o.url || o["@id"], publishedAt: null, attributes };
 }
+/**
+ * A Next.js page's own data (`<script id="__NEXT_DATA__">`), for sites whose listings carry no schema.org type (owner,
+ * 2026-11-03, Scholarships: Buddy4Study). `path` names the listing (or a list of them) inside it, e.g.
+ * "props.pageProps.scholarship"; `mapping` names each field's path inside that object (title, organization, location,
+ * description, canonicalUrl, publishedAt, id, and `attr.<name>` for extra fields). Only what the page states: text,
+ * numbers and true/false, a list of texts joined with ", "; nothing derived or guessed.
+ */
+export function parseNextData(html, path, mapping = {}) {
+  const m = html.match(/<script\b[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i);
+  if (!m || !path) return [];
+  let data;
+  try { data = JSON.parse(m[1]); } catch { return []; }
+  const at = (obj, p) => String(p || "").split(".").filter(Boolean).reduce((acc, k) => (acc && typeof acc === "object" ? acc[k] : undefined), obj);
+  const scalar = (v) => {
+    if (["string", "number", "boolean"].includes(typeof v)) return v;
+    if (Array.isArray(v)) { const texts = v.map((x) => (["string", "number"].includes(typeof x) ? String(x) : typeof x?.name === "string" ? x.name : "")).filter(Boolean); return texts.length ? texts.slice(0, 20).join(", ") : undefined; }
+    return undefined;
+  };
+  const found = at(data, path);
+  const list = (Array.isArray(found) ? found : [found]).filter((x) => x && typeof x === "object").slice(0, 500);
+  const FIELDS = ["id", "title", "organization", "location", "description", "canonicalUrl", "publishedAt"];
+  return list.map((o) => {
+    const rec = {};
+    for (const f of FIELDS) { const v = mapping[f] ? scalar(at(o, mapping[f])) : undefined; if (v !== undefined) rec[f] = v; }
+    const attributes = {};
+    for (const [key, p] of Object.entries(mapping)) {
+      if (!key.startsWith("attr.")) continue;
+      const v = scalar(at(o, p));
+      if (v !== undefined) attributes[key.slice(5)] = v;
+    }
+    if (Object.keys(attributes).length) rec.attributes = attributes;
+    return rec;
+  });
+}
+
+/** Whether a schema.org type is a scholarship, grant or programme (Scholarships & Projects). */
+const PROGRAM = /ScholarshipProgram|EducationalOccupationalProgram|MonetaryGrant|^Grant$/i;
+
 export function parseStructured(html) {
   const out = [];
   // A page's breadcrumb trail (schema.org BreadcrumbList) names the category a business sits in, which a LocalBusiness
@@ -216,7 +258,7 @@ export function parseStructured(html) {
         }
         return;
       }
-      if (!kinds.some((k) => /JobPosting|Event|Product|Service|LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber/i.test(String(k)))) return;
+      if (!kinds.some((k) => PROGRAM.test(String(k)) || /JobPosting|Event|Product|Service|LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber/i.test(String(k)))) return;
       const first = (v) => (Array.isArray(v) ? v[0] : v);
       const org = first(o.hiringOrganization || o.organizer || o.seller || o.provider || o.brand || o.publisher);
       // An event's place may be a list (a venue and its stream): the first one with an address, else the first.
@@ -225,7 +267,21 @@ export function parseStructured(html) {
       const event = kinds.some((k) => /Event/i.test(String(k)) && !/JobPosting/i.test(String(k)));
       const business = !event && kinds.some((k) => /LocalBusiness|HomeAndConstructionBusiness|Contractor|Electrician|HVACBusiness|HousePainter|Plumber|ProfessionalService/i.test(String(k)));
       if (business) { const rec = businessRecord(o); businesses.add(rec); out.push(rec); return; }
-      out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || (typeof place?.address === "string" ? place.address : "") || place?.name || "", description: strip(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null, ...(event ? { attributes: eventAttributes(o) } : {}) });
+      if (kinds.some((k) => PROGRAM.test(String(k)))) {
+        // A scholarship, grant or programme: who offers it, and its deadline and amount as stated.
+        const giver = first(o.provider || o.funder || o.sponsor || o.offeredBy || o.educationalProgramProvider);
+        const amount = first(o.amount || o.financialAidEligible || o.offers);
+        const value = typeof amount === "object" ? amount?.value ?? amount?.price : amount;
+        const attributes = {};
+        if (o.applicationDeadline) attributes.deadline = String(o.applicationDeadline).slice(0, 40);
+        if (o.applicationStartDate) attributes.opensOn = String(o.applicationStartDate).slice(0, 40);
+        if (["string", "number"].includes(typeof value)) attributes.amount = value;
+        const currency = typeof amount === "object" ? amount?.currency ?? amount?.priceCurrency : undefined;
+        if (typeof currency === "string") attributes.currency = currency;
+        out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.name || o.title, organization: typeof giver === "string" ? giver : giver?.name, location: typeof place === "string" ? place : place?.address?.addressCountry || place?.name || "", description: String(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePublished || null, ...(Object.keys(attributes).length ? { attributes } : {}) });
+        return;
+      }
+      out.push({ id: o.identifier?.value || o.identifier || o.url, title: o.title || o.name, organization: typeof org === "string" ? org : org?.name, location: typeof place === "string" ? place : place?.address?.addressLocality || (typeof place?.address === "string" ? place.address : "") || place?.name || "", description: String(o.description || ""), canonicalUrl: o.url || o.sameAs, publishedAt: o.datePosted || o.datePublished || o.startDate || null, ...(event ? { attributes: eventAttributes(o) } : {}) });
     };
     walk(parsed);
     if (out.length >= 500) break;
@@ -312,7 +368,7 @@ export async function pagedRecords(source, deps = {}) {
   const items = [];
   let read = 0, failed = 0;
   while (next && read < perRun) {
-    if (read > 0) { if (now() - started > 40000) break; await sleep(source.requestDelayMs ?? 1000); }
+    if (read > 0) { if (now() - started > Math.min(40000, deps.budgetMs ?? 40000)) break; await sleep(source.requestDelayMs ?? 1000); }
     let url;
     try { url = new URL(next); } catch { next = null; break; }
     if (url.hostname !== host || url.protocol !== "https:") { next = null; break; }

@@ -5,6 +5,7 @@
  * Each module lists its sources as rows with one state and at most one action, so an admin sees in one place why a
  * module's listings are where they are. Never a secret.
  */
+import { explainFailure } from "@/domain/gateway/failure";
 import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { dataTypeOf } from "@/domain/jobslake/moduleData";
 import type { CronRun } from "@/domain/scheduler/settings";
@@ -119,7 +120,10 @@ const ago = (iso: string | null | undefined) => (iso ? `${Math.max(0, Math.round
 const n = (v: number) => v.toLocaleString("en-IN");
 
 /** Why a source didn't go live lately, in a line. */
-const blockedLine = (f: { at: string; step?: string; message?: string }) => `Didn't go live ${ago(f.at)}${f.step ? ` at ${f.step}` : ""}: ${f.message ?? "failed"}. Import now leaves it out for a day.`;
+const blockedLine = (f: { at: string; step?: string; message?: string }) => {
+  const why = explainFailure(f.step, f.message);
+  return `Didn't go live ${ago(f.at)}: ${why.label}. ${why.detail} Import now leaves it out for a day.`;
+};
 
 /** A WorksLake source's recent runs, in lines. */
 function sourceHistory(v: SourceView): ImportRow["history"] {

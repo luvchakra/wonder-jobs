@@ -58,3 +58,18 @@ test("the scheduled run's floor leaves a source collected lately alone, whatever
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("a scheduled pass starts a source only with at least 8 s left, so one late crawl can't outlast the serverless call", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gw-budget-"));
+  try {
+    const store = await new JsonStore(join(dir, "g.json")).init();
+    const gw = createGateway({ store, env: { GATEWAY_ADMIN_TOKEN: "a".repeat(40), GATEWAY_CURSOR_SECRET: "c".repeat(40) } });
+    await store.change((s) => { s.sources.push({ id: "src_b", kind: "rss", url: "https://feed.example.org/rss", modules: ["jobs"], enabled: true }); });
+    const short = await gw.collectDue(5000, [], 0);
+    assert.equal(short.find((o) => o.sourceId === "src_b")?.code, "DEFERRED"); // under 8 s left: waits for the next pass
+    const roomy = await gw.collectDue(20000, [], 0);
+    assert.notEqual(roomy.find((o) => o.sourceId === "src_b")?.code, "DEFERRED"); // started (it fails here: no permission)
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

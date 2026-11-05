@@ -1,6 +1,9 @@
 import apnaInternships from "../../../../data-gateway/sources/apna-internships.json";
+import idealistInternships from "../../../../data-gateway/sources/idealist-internships.json";
+import wayupInternships from "../../../../data-gateway/sources/wayup-internships.json";
 import confsTech from "../../../../data-gateway/sources/confs-tech.json";
 import devfolioHackathons from "../../../../data-gateway/sources/devfolio-hackathons.json";
+import buddy4studyScholarships from "../../../../data-gateway/sources/buddy4study-scholarships.json";
 import districtEvents from "../../../../data-gateway/sources/district-events.json";
 import edjoin from "../../../../data-gateway/sources/edjoin-california-schools.json";
 import jobsAcUk from "../../../../data-gateway/sources/jobs-ac-uk.json";
@@ -50,8 +53,11 @@ import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.js
  */
 export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "apna-internships.json": apnaInternships as Record<string, unknown>,
+  "idealist-internships.json": idealistInternships as Record<string, unknown>,
+  "wayup-internships.json": wayupInternships as Record<string, unknown>,
   "confs-tech.json": confsTech as Record<string, unknown>,
   "devfolio-hackathons.json": devfolioHackathons as Record<string, unknown>,
+  "buddy4study-scholarships.json": buddy4studyScholarships as Record<string, unknown>,
   "district-events.json": districtEvents as Record<string, unknown>,
   "edjoin-california-schools.json": edjoin as Record<string, unknown>,
   "jobs-ac-uk.json": jobsAcUk as Record<string, unknown>,

@@ -1,12 +1,16 @@
 {
-  "url": "https://www.jobs.ac.uk/sitemapindex.xml",
+  "url": "https://www.jobs.ac.uk/search/?keywords=lecturer",
   "kind": "crawl",
-  "discover": "sitemap",
+  "discover": "links",
   "pathPrefix": "/job/",
-  "modules": ["teaching"],
-  "geography": ["GB"],
+  "modules": [
+    "teaching"
+  ],
+  "geography": [
+    "GB"
+  ],
   "permission": "terms_permit",
-  "permissionEvidence": "terms pending: confirm jobs.ac.uk's terms allow reuse of its postings (a commercial board for UK and international higher education; asking for written permission may be better). Checked 2026-11-01: robots.txt disallows only /job/feedback/ and /enhanced/fp/ and lists /sitemapindex.xml; each /job/<id>/<slug> page carries a schema.org JobPosting (hiringOrganization, datePosted, validThrough). Lecturers, professors and teaching fellows at universities and colleges.",
+  "permissionEvidence": "terms pending: confirm jobs.ac.uk's terms allow reuse of its postings (a commercial board for UK and international higher education; asking for written permission may be better). Checked 2026-11-01: robots.txt disallows only /job/feedback/ and /enhanced/fp/ and lists /sitemapindex.xml, which redirects to another host (so the gateway reads a search-results page's job links instead: the latest 25 lecturer posts per run); each /job/<id>/<slug> page carries a schema.org JobPosting (hiringOrganization, datePosted, validThrough). Lecturers, professors and teaching fellows at universities and colleges.",
   "termsReviewed": true,
   "robotsReviewed": true,
   "redistributionAllowed": true,
@@ -14,6 +18,6 @@
   "attribution": "jobs.ac.uk",
   "retentionHours": 168,
   "minIntervalMinutes": 1440,
-  "maxPagesPerRun": 30,
+  "maxPagesPerRun": 10,
   "crawlDelayMs": 2000
 }

@@ -58,6 +58,14 @@ export function checkedSummary(input: SummaryInput, reply: z.infer<typeof Reply>
   return { hook, highlights, ai: true };
 }
 
+/**
+ * The summary if it's ready within `ms`, else the rule-based one: the share image never waits long on the model (the
+ * sheet's summary call has usually produced and remembered it by then).
+ */
+export function summaryWithin(key: string, input: SummaryInput, ms: number): Promise<ShareSummary> {
+  return Promise.race([shareSummary(key, input), new Promise<ShareSummary>((r) => setTimeout(() => r(ruleSummary(input)), ms))]);
+}
+
 const memo = new Map<string, { at: number; value: ShareSummary }>();
 const MEMO_MS = 6 * 60 * 60_000;
 

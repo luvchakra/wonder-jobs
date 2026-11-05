@@ -21,7 +21,6 @@ export const shareOf = (l: TherapistListing): ListingShareProps => {
       t.languages?.length && `Languages: ${t.languages.join(", ")}`,
       t.focus?.length && `Focus: ${t.focus.join(", ")}`,
       t.approaches?.length && `Ways of working: ${t.approaches.join(", ")}`,
-      l.origin !== "outside" && t.modes?.includes("in_person") && l.location && `Where: ${l.location}`,
     ],
     details: l.description,
     // Map data keeps its credit wherever it is shown, the public page included (ODbL); it is its own field, so it never counts as the description.

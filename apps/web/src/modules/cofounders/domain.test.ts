@@ -22,6 +22,11 @@ describe("a profile shows only what its owner chose", () => {
     expect(v.equity).toBeUndefined();
     expect(viewProfile(hidden.value, "public").about).toBe(P.about);
   });
+  it("sharing off the platform is the owner's own choice: off unless the owner turned it on", () => {
+    expect(cleanProfile(P)).toMatchObject({ value: { shareable: false } });
+    expect(cleanProfile({ ...P, shareable: "true" })).toMatchObject({ value: { shareable: false } });
+    expect(cleanProfile({ ...P, shareable: true })).toMatchObject({ value: { shareable: true } });
+  });
   it("asks for what is missing, in words", () => {
     expect(cleanProfile({ ...P, name: "" })).toHaveProperty("problem");
     expect(cleanProfile({ ...P, headline: "x" })).toHaveProperty("problem");
@@ -33,6 +38,10 @@ describe("a profile shows only what its owner chose", () => {
 
 describe("a team", () => {
   const T = { name: "Chaser", idea: "Invoices that chase themselves", stage: "Prototype", openRoles: [{ role: "Business", skills: ["Sales"] }], decision: "all", open: true };
+  it("a team's sharing is off unless a founder turned it on", () => {
+    expect(cleanTeam(T)).toMatchObject({ value: { shareable: false } });
+    expect(cleanTeam({ ...T, shareable: true })).toMatchObject({ value: { shareable: true } });
+  });
   it("can be listed only with an open role", () => {
     expect(cleanTeam(T)).toMatchObject({ value: { decision: "all", openRoles: [{ role: "Business", skills: ["Sales"] }] } });
     expect(cleanTeam({ ...T, openRoles: [] })).toHaveProperty("problem");

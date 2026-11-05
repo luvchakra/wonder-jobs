@@ -26,5 +26,7 @@ describe("Therapists Share", () => {
   it("an own practitioner shares what they published", () => {
     const s = JSON.stringify(shareOf(own));
     for (const x of ["Languages: English", "Session: 50 min", "I work with stress."]) expect(s).toContain(x);
+    // The city is already a chip, so there is no "Where" row repeating it.
+    expect(JSON.stringify(shareOf({ ...own, terms: { ...own.terms, modes: ["in_person"] } }))).not.toContain("Where:");
   });
 });

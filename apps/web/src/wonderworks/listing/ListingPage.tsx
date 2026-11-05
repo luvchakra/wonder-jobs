@@ -71,7 +71,8 @@ export function ClampedText({ text, long = isLongText(text), expanded, onToggle,
   return (
     <>
       <p lang={lang} dir={dir} className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6", className)}>
-        {text}
+        {/* List items arrive as "- " lines (their sources' bullets): shown as bullets, like the source page. */}
+        {text.replace(/^[-*] /gm, "• ")}
       </p>
       {long && (
         <button type="button" aria-expanded={expanded} onClick={onToggle} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">

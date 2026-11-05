@@ -200,3 +200,65 @@ export async function fetchWorkableInternships(c: SearchCriteria): Promise<Job[]
   const pages = await Promise.all(asks.map((u, i) => getJson<{ jobs?: WorkableJob[] }>(u).catch((e) => (i === 0 ? Promise.reject(e) : { jobs: [] }))));
   return finish("intern_workable", pages.flatMap((p) => p.jobs ?? []).filter((j) => !j.state || j.state === "published").map(rawFromWorkable), c);
 }
+
+/* ---------- ReliefWeb internships (humanitarian and development, worldwide) ---------- */
+/**
+ * ReliefWeb (UN OCHA) publishes its job board through an open API, filtered here to its own "Internship" job type.
+ * The API asks every caller for an approved app name (free, on request): RELIEFWEB_APPNAME, "Needs setup" without it.
+ */
+export const reliefWebAvailable = () => !!platformKey("RELIEFWEB_APPNAME");
+
+export interface ReliefWebJob {
+  id: number | string;
+  fields: {
+    title: string;
+    url?: string;
+    url_alias?: string;
+    body?: string;
+    country?: { name?: string }[];
+    city?: { name?: string }[];
+    source?: { name?: string; homepage?: string }[];
+    type?: { name?: string }[];
+    date?: { created?: string; closing?: string };
+  };
+}
+
+export function rawFromReliefWeb(j: ReliefWebJob): RawPosting {
+  const f = j.fields;
+  const place = [...(f.city ?? []).map((c) => c.name), ...(f.country ?? []).map((c) => c.name)].filter(Boolean).join(", ");
+  let domain: string | undefined;
+  try {
+    domain = f.source?.[0]?.homepage ? new URL(f.source[0].homepage).hostname.replace(/^www\./, "") : undefined;
+  } catch {
+    domain = undefined;
+  }
+  return {
+    externalId: `reliefweb:${j.id}`,
+    title: f.title,
+    company: f.source?.[0]?.name ?? "",
+    ...(domain ? { companyDomain: domain } : {}),
+    location: place,
+    remote: /home[- ]based|remote/i.test(`${place} ${f.title}`),
+    description: f.body ?? "",
+    tags: (f.type ?? []).map((t) => t.name ?? "").filter(Boolean),
+    postedAt: f.date?.created,
+    applyUrl: f.url_alias || f.url || `https://reliefweb.int/job/${j.id}`,
+    employerSite: false,
+    applyPath: "platform" as const,
+    // Asked for ReliefWeb's own "Internship" type: the source says these are internships.
+    jobType: "internship",
+  };
+}
+
+export async function fetchReliefWebInternships(c: SearchCriteria): Promise<Job[]> {
+  const words = corePhrase(c.query);
+  const body = {
+    ...(words ? { query: { value: words } } : {}),
+    filter: { conditions: [{ field: "type.name", value: "Internship" }, { field: "status", value: "published" }], operator: "AND" },
+    fields: { include: ["title", "url", "url_alias", "body", "country.name", "city.name", "source.name", "source.homepage", "type.name", "date.created", "date.closing"] },
+    sort: ["date.created:desc"],
+    limit: 100,
+  };
+  const data = await getJson<{ data?: ReliefWebJob[] }>(`https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(platformKey("RELIEFWEB_APPNAME") ?? "")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  return finish("intern_reliefweb", (data.data ?? []).map(rawFromReliefWeb), c);
+}

@@ -59,12 +59,14 @@ export interface Profile {
   tiers: Partial<Record<ProfileField, Tier>>;
   /** Found in Find only while open. */
   open: boolean;
+  /** Others may share this profile outside WonderWorks (WhatsApp, X…). Off unless the owner turns it on: Share otherwise sends no profile content. */
+  shareable: boolean;
 }
 
 /** Everyone sees these by default: the three the manifest names. The rest start as mutual connections only. */
 export const DEFAULT_TIERS: Partial<Record<ProfileField, Tier>> = { role: "everyone", skills: "everyone", commitment: "everyone", location: "connections", idea: "connections", about: "connections", lookingFor: "connections", equity: "connections" };
 
-export const EMPTY_PROFILE: Profile = { name: "", headline: "", skills: [], location: "", ideaState: "open", idea: "", about: "", lookingFor: "", equity: "", tiers: DEFAULT_TIERS, open: false };
+export const EMPTY_PROFILE: Profile = { name: "", headline: "", skills: [], location: "", ideaState: "open", idea: "", about: "", lookingFor: "", equity: "", tiers: DEFAULT_TIERS, open: false, shareable: false };
 
 export function cleanProfile(raw: unknown): { value: Profile } | { problem: string } {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
@@ -84,7 +86,7 @@ export function cleanProfile(raw: unknown): { value: Profile } | { problem: stri
   const ideaState = r.ideaState === "idea" ? "idea" : "open";
   const idea = ideaState === "idea" ? para(r.idea, 600) : "";
   if (ideaState === "idea" && idea.length < 10) return { problem: "Describe your idea in a sentence or two, or choose “Open to any idea”." };
-  return { value: { name, headline, role, skills, commitment, location: text(r.location, 80), ideaState, idea, about: para(r.about, 1000), lookingFor: para(r.lookingFor, 600), equity: text(r.equity, 200), tiers, open: r.open === true } };
+  return { value: { name, headline, role, skills, commitment, location: text(r.location, 80), ideaState, idea, about: para(r.about, 1000), lookingFor: para(r.lookingFor, 600), equity: text(r.equity, 200), tiers, open: r.open === true, shareable: r.shareable === true } };
 }
 
 /** What the viewer's relationship allows them to see of a profile. */
@@ -148,9 +150,11 @@ export interface Team {
   location: string;
   decision: Decision;
   open: boolean;
+  /** Others may share this team outside WonderWorks. Off unless a founder turns it on. */
+  shareable: boolean;
 }
 
-export const EMPTY_TEAM: Team = { name: "", idea: "", description: "", stage: "Idea", openRoles: [], equity: "", location: "", decision: "any", open: false };
+export const EMPTY_TEAM: Team = { name: "", idea: "", description: "", stage: "Idea", openRoles: [], equity: "", location: "", decision: "any", open: false, shareable: false };
 
 export function cleanTeam(raw: unknown): { value: Team } | { problem: string } {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
@@ -168,7 +172,7 @@ export function cleanTeam(raw: unknown): { value: Team } | { problem: string } {
   }
   const open = r.open === true;
   if (open && !openRoles.length) return { problem: "Add at least one role you're looking for before listing the team. People can ask to join only for an open role." };
-  return { value: { name, idea, description: para(r.description, 1500), stage, openRoles, commitment: oneOf(r.commitment, COMMITMENTS), equity: text(r.equity, 200), location: text(r.location, 80), decision: r.decision === "all" ? "all" : "any", open } };
+  return { value: { name, idea, description: para(r.description, 1500), stage, openRoles, commitment: oneOf(r.commitment, COMMITMENTS), equity: text(r.equity, 200), location: text(r.location, 80), decision: r.decision === "all" ? "all" : "any", open, shareable: r.shareable === true } };
 }
 
 /** What a team's founders may do. A joined member (not a founder) can message and leave; only founders run the team. */
@@ -208,6 +212,8 @@ export interface CofounderListing {
   terms: CofounderTerms;
   description: string;
   postedAt?: string;
+  /** The owner allows sharing this outside WonderWorks. Missing means no: an older saved copy never shares content. */
+  shareable?: boolean;
   sourceId: string;
   sourceName: string;
 }

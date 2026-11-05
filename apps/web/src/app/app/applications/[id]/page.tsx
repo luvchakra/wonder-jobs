@@ -150,7 +150,7 @@ export default function ApplicationDetailPage({ params, searchParams }: { params
                     Original posting <ExternalLink className="size-3.5" aria-hidden />
                   </a>
                 )}
-                {/* The same Share as the job's card and page: the share image, the AI summary and the job's public link. */}
+                {/* The same Share as the job's card and page: the share image, the summary and the job's public link. */}
                 {job && <ShareJobButton job={job} className="-my-1.5 size-8 text-ink-2" />}
               </div>
             </ItemHead>
