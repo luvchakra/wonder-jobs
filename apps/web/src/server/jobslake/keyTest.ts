@@ -20,7 +20,9 @@ const PROBES: Record<string, Probe> = {
   adzuna: { needs: ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"], request: (k) => ({ url: `https://api.adzuna.com/v1/api/jobs/gb/search/1?app_id=${encodeURIComponent(k("ADZUNA_APP_ID"))}&app_key=${encodeURIComponent(k("ADZUNA_APP_KEY"))}&results_per_page=1` }) },
   usajobs: { needs: ["USAJOBS_API_KEY", "USAJOBS_EMAIL"], request: (k) => ({ url: "https://data.usajobs.gov/api/search?ResultsPerPage=1", init: { headers: { "Authorization-Key": k("USAJOBS_API_KEY"), "User-Agent": k("USAJOBS_EMAIL") } } }) },
   ticketmaster: { needs: ["TICKETMASTER_API_KEY"], request: (k) => ({ url: `https://app.ticketmaster.com/discovery/v2/events.json?size=1&apikey=${encodeURIComponent(k("TICKETMASTER_API_KEY"))}` }) },
-  jooble: { needs: ["JOOBLE_API_KEY"], request: (k) => ({ url: `https://jooble.org/api/${encodeURIComponent(k("JOOBLE_API_KEY"))}`, init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords: "", page: "1" }) } }) },
+  // Jooble answers 400 to an empty search even with a good key (owner, 2026-11-05), so the test names a common word;
+  // it's a connection check, never anyone's search.
+  jooble: { needs: ["JOOBLE_API_KEY"], request: (k) => ({ url: `https://jooble.org/api/${encodeURIComponent(k("JOOBLE_API_KEY"))}`, init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords: "engineer", page: "1" }) } }) },
   kaggle: { needs: ["KAGGLE_USERNAME", "KAGGLE_KEY"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Basic ${Buffer.from(`${k("KAGGLE_USERNAME")}:${k("KAGGLE_KEY")}`).toString("base64")}` } } }) },
   themuse: { needs: ["THEMUSE_API_KEY"], request: (k) => ({ url: `https://www.themuse.com/api/public/jobs?page=0&api_key=${encodeURIComponent(k("THEMUSE_API_KEY"))}` }) },
   reliefweb: { needs: ["RELIEFWEB_APPNAME"], request: (k) => ({ url: `https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(k("RELIEFWEB_APPNAME"))}&limit=1` }) },

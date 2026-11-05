@@ -166,3 +166,4 @@
 - ✅ impact.com site verification meta tag (WJ-702)
 - ✅ impact.com verification tag uses value= (WJ-703)
 - ✅ Admin → Keys: Test each saved key (WJ-704)
+- ✅ Jooble key Test sends a real search word (WJ-705)
