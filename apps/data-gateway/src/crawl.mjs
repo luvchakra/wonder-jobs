@@ -49,8 +49,8 @@ export function pathMatcher(pattern) {
   return new RegExp("^" + body + "/?$");
 }
 
-/** The pages a source may crawl, in a stable order: same host, HTTPS, under its prefix and pattern, allowed by robots, no repeats. */
-export function crawlTargets(urls, source, rules) {
+/** The pages a source may crawl, in a stable order (sorted, or as listed with keepOrder): same host, HTTPS, under its prefix and pattern, allowed by robots, no repeats. */
+export function crawlTargets(urls, source, rules, { keepOrder = false } = {}) {
   const host = new URL(source.url).hostname;
   const prefix = source.pathPrefix || "/";
   const pattern = source.pathPattern ? pathMatcher(source.pathPattern) : null;
@@ -67,7 +67,7 @@ export function crawlTargets(urls, source, rules) {
     seen.add(key);
     out.push(key);
   }
-  return out.sort();
+  return keepOrder ? out : out.sort();
 }
 
 /** The site a host belongs to: its last two labels, or three under a country's second level ("workindia.in", "bbc.co.uk"). */
@@ -148,7 +148,11 @@ export async function crawlRecords(source, deps = {}) {
       try { found.push(...pageLinks(await get(extra, { origin: host, accept: PAGE_ACCEPT }), extra)); } catch { /* one index page missing doesn't stop the rest */ }
     }
   }
-  const targets = crawlTargets(found, source, policy.rules);
+  // A page sitemap that lists its newest pages last (Buddy4Study's, oldest first and mostly expired) sets newestPages:
+  // only its last N pages are read, newest first, so each cycle covers what is current. Otherwise pages go in a stable
+  // sorted order.
+  const newest = source.discover === "sitemap" && Number.isInteger(source.newestPages) && source.newestPages > 0 ? source.newestPages : 0;
+  const targets = newest ? crawlTargets(found, source, policy.rules, { keepOrder: true }).slice(-newest).reverse() : crawlTargets(found, source, policy.rules);
   if (!targets.length) throw new ApiError(422, "INVALID_SOURCE", "No pages to crawl under the source's path");
 
   // Read this run's share, carrying on from the last run.
