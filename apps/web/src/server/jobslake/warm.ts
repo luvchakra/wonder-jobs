@@ -32,6 +32,12 @@ export interface GatewayRefresh {
 }
 
 const KEY = "wj.gatewayrefresh" as const;
+/**
+ * How many of a module's gateway listings one refresh stores (owner, 2026-11-05: "even after so many new sources, don't
+ * see many additions"). The gateway answered one page of 100, so Find held at most 100 per module however much was
+ * collected; it now reads page after page up to this many (the warm pool reads up to 3,000 per module).
+ */
+export const REFRESH_MAX = 1000;
 
 /** A source whose listings are the data gateway's: read in process (`liveRead`) or through its API (WWDG). */
 export const isGatewayFed = (s: Pick<SourceRecord, "id" | "liveRead">) => !!s.liveRead || !!gatewayModuleForSource(s.id);
@@ -69,7 +75,7 @@ export async function refreshGatewayListings(modules?: Iterable<string>, now = n
       const base = { id: `run_${randomBytes(9).toString("base64url")}`, sourceId: s.id, trigger: "refresh" as const, startedAt: new Date(started).toISOString(), duplicates: 0 };
       try {
         if (!(await isAvailable(s))) continue;
-        const r = await runConnector(s, { query: "", locations: [] }, "shallow");
+        const r = await runConnector(s, { query: "", locations: [], maxResults: REFRESH_MAX }, "shallow");
         const jobs = placeWithCountry(r.jobs, s.geography);
         for (const job of jobs) observations.push({ source: s, job });
         runs.push({ ...base, durationMs: Date.now() - started, outcome: jobs.length ? "ok" : "empty", retrieved: jobs.length, valid: jobs.length });

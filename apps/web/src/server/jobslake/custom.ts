@@ -23,6 +23,11 @@ export interface JsonApiConfig {
   /** Richer auth (API key header / bearer / key in the URL / OAuth 2.0 client credentials). Wins over `credentialHeader`. */
   auth?: ConnectorAuth;
   mapping: ResponseMapping;
+  /**
+   * Cursor paging, for an API that answers one page at a time (the data gateway: `cursor` in, `nextCursor` out). Pages
+   * are read only while a search asks for more than one page (`SearchCriteria.maxResults`), at most 20 of them.
+   */
+  pagination?: { cursorParam: string; nextCursorPath: string; pageSize: number };
 }
 
 export interface FeedConfig {
@@ -164,10 +169,11 @@ interface GetTarget {
 }
 
 /** One authenticated GET; an OAuth token the source refuses is renewed once. */
-async function authedGet(t: GetTarget, c: SearchCriteria | undefined, secret: string | undefined, timeoutMs: number) {
+async function authedGet(t: GetTarget, c: SearchCriteria | undefined, secret: string | undefined, timeoutMs: number, extra: Record<string, string> = {}) {
   const call = async () => {
     const auth = t.auth ? await resolveAuth(t.auth, secret, timeoutMs) : { headers: authHeaders(t.credentialHeader, t.credentialPrefix, secret), query: {} };
     const url = new URL(t.endpoint);
+    for (const [k, v] of Object.entries(extra)) url.searchParams.set(k, v);
     if (t.queryParam && c?.query) url.searchParams.set(t.queryParam, c.query);
     if (t.locationParam && c?.locations[0]) url.searchParams.set(t.locationParam, c.locations[0]);
     for (const [k, v] of Object.entries(auth.query)) url.searchParams.set(k, v);
@@ -215,17 +221,34 @@ function fromMapped(result: MappingResult): RawPosting[] {
 /* ------------------------------------------------------------ JSON API */
 
 export async function fetchJsonApi(cfg: JsonApiConfig, c: SearchCriteria, secret?: string, timeoutMs = 10_000): Promise<CustomFetchResult> {
-  const res = await authedGet(cfg, c, secret, timeoutMs);
-  if (res.status === 401 || res.status === 403) throw Object.assign(new Error(`The source rejected the credentials (${res.status})`), { code: "SOURCE_NEEDS_SETUP" });
-  if (res.status >= 400) throw new Error(`The source responded ${res.status}`);
-  let json: unknown;
-  try {
-    json = JSON.parse(res.text);
-  } catch {
-    throw new Error("The source didn't return JSON");
-  }
+  const page = async (extra: Record<string, string>) => {
+    const res = await authedGet(cfg, c, secret, timeoutMs, extra);
+    if (res.status === 401 || res.status === 403) throw Object.assign(new Error(`The source rejected the credentials (${res.status})`), { code: "SOURCE_NEEDS_SETUP" });
+    if (res.status >= 400) throw new Error(`The source responded ${res.status}`);
+    try {
+      return JSON.parse(res.text) as unknown;
+    } catch {
+      throw new Error("The source didn't return JSON");
+    }
+  };
+  const json = await page({});
   const mapping = applyMapping(json, cfg.mapping);
-  return { raws: fromMapped(mapping), mapping, sample: firstItem(json, cfg.mapping.itemsPath) };
+  const raws = fromMapped(mapping);
+  const p = cfg.pagination;
+  const want = c.maxResults ?? 0;
+  let cursor = p ? pathValue(json, p.nextCursorPath) : undefined;
+  for (let n = 1; p && typeof cursor === "string" && cursor && raws.length < want && n < 20; n++) {
+    const next = await page({ [p.cursorParam]: cursor });
+    raws.push(...fromMapped(applyMapping(next, cfg.mapping)));
+    cursor = pathValue(next, p.nextCursorPath);
+  }
+  return { raws, mapping, sample: firstItem(json, cfg.mapping.itemsPath) };
+}
+
+function pathValue(json: unknown, path: string): unknown {
+  let cur: unknown = json;
+  for (const k of path.split(".")) cur = cur && typeof cur === "object" ? (cur as Record<string, unknown>)[k] : undefined;
+  return cur;
 }
 
 function firstItem(json: unknown, path: string) {

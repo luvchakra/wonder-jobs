@@ -287,14 +287,16 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       }
       if (method === "GET" && p[1] === "workslake" && p[3] === "listings" && p.length === 4) {
         checkScope(caller, module);
-        const plan = await store.read((s) => searchPlan(s, caller, { module, query: url.searchParams.get("q") || "", locations: url.searchParams.has("location") ? [url.searchParams.get("location")] : [], limit: Math.min(100, Number(url.searchParams.get("limit")) || 100) }, cursorSecret));
-        const result = { results: (await listings.search(plan)).rows };
+        const plan = await store.read((s) => searchPlan(s, caller, { module, query: url.searchParams.get("q") || "", locations: url.searchParams.has("location") ? [url.searchParams.get("location")] : [], limit: Math.min(100, Number(url.searchParams.get("limit")) || 100), ...(url.searchParams.get("cursor") ? { cursor: url.searchParams.get("cursor") } : {}) }, cursorSecret));
+        // Paged (owner, 2026-11-05: Find held at most 100 per module because this answered one page and no more).
+        const found = await listings.search(plan);
+        const result = { results: found.rows, nextCursor: searchResponse(plan, [], found.matched, cursorSecret).nextCursor };
         // Undated items go too: WorksLake records when it first saw them and says so (postedAtFrom "first_seen"), never
         // presenting that as a posting date.
         const countries = await store.read((s) => new Map(s.sources.map((x) => [x.id, sourceCountry(x)])));
         const items = result.results.map((x) => workslakeItem(x, countries.get(x.sourceId) ?? null));
         store.lazy((s) => recordUsage(s, caller, "/v1/workslake", module, items.length));
-        return reply(200, { items });
+        return reply(200, { items, nextCursor: result.nextCursor });
       }
       if (method === "GET" && p[1] === "listings" && p.length === 3) {
         const found = await listings.get(p[2]);
