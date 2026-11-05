@@ -197,29 +197,34 @@ function ContinueImport() {
   );
 }
 
-const ITEM_TONE: Record<string, string> = { live: "text-success-600", collected: "text-success-600", failed: "text-danger-600", running: "text-brand-600", pending: "text-ink-4" };
+const ITEM_TONE: Record<string, "success" | "danger" | "brand" | "neutral"> = { live: "success", collected: "success", failed: "danger", running: "brand", pending: "neutral" };
 const ITEM_LABEL: Record<string, string> = { live: "Live", collected: "Collected", failed: "Didn't go live", running: "Working", pending: "Waiting" };
 
-/** A run's sources, folded: each one's outcome and, when it failed, the step and why. */
+/**
+ * A run's sources, folded: each one's name with its outcome under it, and its status as a badge on the right, so every
+ * row lines up the same way (owner, 2026-11-05: "align the elements properly in each card").
+ */
 function RunItems({ items }: { items: { name: string; status: string; step?: string; message?: string; valid?: number }[] }) {
   if (!items.length) return null;
   return (
     <details className="mt-2">
       <summary className="cursor-pointer text-[12px] font-medium text-brand-600">Every source ({num(items.length)})</summary>
-      <ul className="mt-1.5 flex flex-col divide-y divide-line/60 text-[12px]">
-        {items.map((i, n) => (
-          <li key={`${i.name}-${n}`} className="py-1">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="min-w-0 text-ink-2">{i.name}</span>
-              <span className={ITEM_TONE[i.status] ?? "text-ink-3"}>
-                {i.status === "failed" ? explainFailure(i.step, i.message).label : (ITEM_LABEL[i.status] ?? i.status)}
-                {i.valid != null && (i.status === "live" || i.status === "collected") ? ` · ${num(i.valid)} listings` : ""}
-                {i.status === "running" && i.step ? ` · ${i.step}` : ""}
+      <ul className="mt-1.5 flex flex-col divide-y divide-line/60">
+        {items.map((i, n) => {
+          const why = i.status === "failed" ? explainFailure(i.step, i.message) : null;
+          const line = why ? why.detail : i.valid != null && (i.status === "live" || i.status === "collected") ? `${num(i.valid)} listings` : i.status === "running" && i.step ? i.step : "";
+          return (
+            <li key={`${i.name}-${n}`} className="flex items-start justify-between gap-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-medium text-ink">{i.name}</p>
+                {line && <p className="mt-0.5 text-[12px] leading-snug text-ink-3">{line}</p>}
+              </div>
+              <span className="shrink-0 pt-px">
+                <Badge tone={ITEM_TONE[i.status] ?? "neutral"}>{why ? why.label : (ITEM_LABEL[i.status] ?? i.status)}</Badge>
               </span>
-            </div>
-            {i.status === "failed" && <p className="mt-0.5 text-[11.5px] leading-snug text-ink-3">{explainFailure(i.step, i.message).detail}</p>}
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </details>
   );
@@ -462,26 +467,32 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
   const shared = { rowId: r.id, busy, act, setBusy, setMsg, reload };
   return (
     <li className="py-2.5 text-[13px]">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <Badge tone={s.tone}>{s.label}</Badge>
-            <span className="font-medium text-ink">{r.name}</span>
-            <span className="text-[12px] text-ink-4">{r.kind}</span>
+      {/* Name and where it comes from on the left, its state on the right; the detail and the buttons take the full width
+          below, so every row lines up the same on a phone (owner, 2026-11-05: "align the elements properly"). */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-ink">{r.name}</p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-4">
+            <span>{r.kind}</span>
             {(r.history.length > 0 || (r.more.length > 0 && r.state !== "needs_you")) && (
-              <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-[12px] text-ink-3 hover:text-ink">
+              <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-ink-3 hover:text-ink">
                 {details ? "Hide details" : "Details"}
               </button>
             )}
-          </span>
-          <span className="mt-0.5 block text-[12px] text-ink-3">{msg ?? r.detail}</span>
+          </p>
+        </div>
+        <span className="shrink-0 pt-px">
+          <Badge tone={s.tone}>{s.label}</Badge>
         </span>
-        <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+      </div>
+      <p className="mt-1 text-[12px] leading-snug text-ink-3">{msg ?? r.detail}</p>
+      {(r.action || (r.state === "needs_you" && r.more.length > 0)) && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           {r.action && <ActionButton a={r.action} {...shared} />}
           {/* A row that needs you shows every option on the row, not behind Details. */}
           {r.state === "needs_you" && r.more.map((a) => <ActionButton key={a.label} a={a} {...shared} />)}
-        </span>
-      </div>
+        </div>
+      )}
       {details && (
         <div className="mt-2 flex flex-col gap-2 rounded-[10px] bg-bg-soft px-3 py-2">
           {r.history.length > 0 && (
@@ -659,17 +670,20 @@ function RecentRuns({ d }: { d: ImportView }) {
     <Fold title="Recent collections" hint={rows.length ? `The newest ${num(d.recentRuns.length)}${failing ? ` · ${num(failing)} failing; each says why and what to do` : ""}` : "None yet"}>
       <ul className="flex flex-col divide-y divide-line pb-4">
         {rows.map((r) => (
-          <li key={`${r.source}${r.ok}${r.code}${r.kind}`} className="py-2 text-[13px]">
-            <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="font-medium text-ink">
+          <li key={`${r.source}${r.ok}${r.code}${r.kind}`} className="flex items-start justify-between gap-3 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium text-ink">
                 {r.source}
                 {r.count > 1 ? <span className="font-normal text-ink-3"> ×{r.count}</span> : null}
-              </span>
-              <span className="text-[12px] text-ink-3">
+              </p>
+              <p className="mt-0.5 text-[12px] leading-snug text-ink-3">
                 {r.kind} · {when(r.at)}
-              </span>
+                {r.ok ? ` · ${num(r.valid)} listings` : ` · ${reasonFor(r.code)}`}
+              </p>
+            </div>
+            <span className="shrink-0 pt-px">
+              <Badge tone={r.ok ? "success" : "danger"}>{r.ok ? "OK" : "Failed"}</Badge>
             </span>
-            <span className={`block text-[12px] ${r.ok ? "text-success-600" : "text-danger-600"}`}>{r.ok ? `${num(r.valid)} listings` : reasonFor(r.code)}</span>
           </li>
         ))}
       </ul>
