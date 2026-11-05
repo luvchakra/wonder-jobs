@@ -93,6 +93,18 @@ export default function ImportPage() {
   );
 }
 
+/**
+ * Where a row's data comes from, in the admin's words (owner, 2026-11-05: "create some clear difference between data which
+ * is only retrieved when searched, compared to data which is fetched regularly").
+ */
+const KIND: Record<ImportRow["kind"], { label: string; text: string }> = {
+  WorksLake: { label: "On search", text: "Asked live only when someone searches with words; nothing is fetched in between. You: set its key on Admin → Keys if it needs one." },
+  Gateway: { label: "Collected regularly", text: "Collected every few hours and stored; searches read what was collected. You: Test & activate it once; then nothing." },
+  Partner: { label: "Uploaded", text: "A partner's own list. You: upload it, then Activate." },
+  Catalogue: { label: "Not added yet", text: "A reviewed source we can collect regularly. You: Add & activate." },
+  Decision: { label: "Your decision", text: "A call only you can make. Do what it says (Open shows where), then Mark decided." },
+};
+
 /** What each source's state means and what's expected of the admin (owner, 2026-11-05: "put a legend section briefly"). */
 const LEGEND: { state: ImportRow["state"]; text: string }[] = [
   { state: "needs_you", text: "Can't go further without you: a key to set, a decision or terms check, or it failed lately (its line says why). Its button says what to do." },
@@ -103,9 +115,22 @@ const LEGEND: { state: ImportRow["state"]; text: string }[] = [
   // Sources that failed three tries in a row, and dismissed ones, are listed in Archived at the end of the page.
 ];
 
+/** What each row button does (owner, 2026-11-05: "what do you mean by Mark decided? create a small legend section"). */
+const BUTTONS: { label: string; text: string }[] = [
+  { label: "Mark decided", text: "For a Decision row: you've made that call or done what it asks (applied for access, checked a setting). It only takes the row off the list and records who and when; it changes nothing else." },
+  { label: "Terms confirmed", text: "You've checked the source's terms allow our use. Recorded, and the row stops asking." },
+  { label: "Test & activate", text: "Fetches a sample now; if it reads well the source goes live. Try again does the same after a failure." },
+  { label: "Add & activate", text: "Adds a reviewed catalogue source, then tests and activates it." },
+  { label: "Collect now / Test", text: "Collects a live source now, or only tests it without changing anything." },
+  { label: "Pause / Resume", text: "Stops or restarts a source; what Find already has stays." },
+  { label: "Dismiss / Restore", text: "Moves a source that keeps failing to Archived so Import stops trying it; Restore brings it back." },
+  { label: "Upload list", text: "A partner's own list (CSV or JSON). Nothing is fetched for these." },
+  { label: "Open", text: "Goes to the page where the step is done (a key, a setting, the source)." },
+];
+
 function StateLegend() {
   return (
-    <Fold title="What the states mean" hint="Needs you, Waiting, Live, Down, Off">
+    <Fold title="What the states and buttons mean" hint="Needs you, Waiting, Live, Down, Off · Mark decided, Test & activate…">
       <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-2">
         {LEGEND.map((l) => (
           <li key={l.state} className="flex items-baseline gap-2">
@@ -114,6 +139,24 @@ function StateLegend() {
           </li>
         ))}
       </ul>
+      <p className="mt-3 text-[12px] font-semibold text-ink-2">Where the data comes from</p>
+      <ul className="mt-1 flex flex-col gap-1.5 text-[12.5px] text-ink-2">
+        {(Object.keys(KIND) as ImportRow["kind"][]).map((k) => (
+          <li key={k} className="flex items-baseline gap-2">
+            <span className="shrink-0 font-medium text-ink">{KIND[k].label}</span>
+            <span>{KIND[k].text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[12px] font-semibold text-ink-2">Buttons</p>
+      <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 pb-3 text-[12.5px]">
+        {BUTTONS.map((b) => (
+          <Fragment key={b.label}>
+            <dt className="font-medium text-ink">{b.label}</dt>
+            <dd className="text-ink-2">{b.text}</dd>
+          </Fragment>
+        ))}
+      </dl>
     </Fold>
   );
 }
@@ -501,7 +544,7 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
         <div className="min-w-0 flex-1">
           <p className="font-medium text-ink">{r.name}</p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-4">
-            <span>{r.kind}</span>
+            <span title={KIND[r.kind].text}>{KIND[r.kind].label}</span>
             {(r.history.length > 0 || (r.more.length > 0 && r.state !== "needs_you")) && (
               <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-ink-3 hover:text-ink">
                 {details ? "Hide details" : "Details"}
