@@ -91,13 +91,18 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Himalayas part-time | aggregator | public API | **Live** | Part Time mode |
 | Freelancer.com gigs | aggregator | public API | **Live** · responds | Gig mode; client not named publicly |
 | Working Nomads | aggregator | public JSON (`/api/exposed_jobs/`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). ~35 newest remote jobs, no search. Confirm with Working Nomads that reuse of the feed's listings is allowed |
-| We Work Remotely | aggregator | public RSS (`/remote-jobs.rss`) | **Live — terms pending** | Added 2026-11-01 (WJ-544). Newest 100 remote jobs, no search. Confirm with We Work Remotely that showing the RSS listings in another product is allowed |
+| We Work Remotely | aggregator | public RSS (`/remote-jobs.rss`) | **Live** | Added 2026-11-01 (WJ-544). Newest 100 remote jobs, no search. Its feed page allows any use with attribution ("Anyone can use the feed, all we ask is that you attribute the links back to We Work Remotely"); cards name it as the source. Read by the app directly, so the gateway's 2 MB limit doesn't apply here |
 | Remotive | aggregator | public API | **Off by default** · responds | Public feed exposes only a handful of listings |
 | Arbeitnow | aggregator | public API | **Off by default** · responds | Europe-focused |
 | Adzuna India | aggregator | official API, free tier | **Needs key** | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` |
 | Adzuna India part-time | aggregator | same keys | **Needs key** | Part Time mode |
 | Cutshort (gateway crawl, `apps/data-gateway/sources/cutshort-jobs.json`) | Indian job board | sitemap + schema.org JobPosting | **Paused until Test & Activate — terms pending** | Added 2026-11-01 (WJ-546), geography IN. Live crawl returned real postings. Confirm Cutshort's terms allow reuse |
 | apna (gateway crawl, `apps/data-gateway/sources/apna-jobs.json`) | Indian job board | sitemap + schema.org JobPosting | **Paused until Test & Activate — terms pending** | Added 2026-11-01 (WJ-546), geography IN. Entry-level and field jobs across Indian cities. Live crawl returned real postings. Confirm apna's terms allow reuse |
+| Recruitee career sites | ATS | official public API (Offers, no key) | **Live** | Added 2026-11-05 (WJ-550) through WorksLake's shared connector `server/jobslake/recruitee.ts` (company list exported for other modules). bunq, Channable, Holded (24/12/6 offers, checked live) |
+| Personio career sites | ATS | official public XML feed (no key) | **Live** | Added 2026-11-05 (WJ-550) through `server/jobslake/personio.ts`. 1KOMMA5° (325), ottonova, CLARK, tado°, hokify. Mostly DACH |
+| NAV pam-stilling-feed (Norway) | government | official feed, private token by email | **Needs key — not built** | `NAV_PAM_STILLING_FEED_TOKEN` in Settings → API keys; owner decision `nav-feed-token`. Built against the real feed once the token exists (incremental, inactive ads removed) |
+| CareerOneStop / NLx (US state job banks) | government | needs NLx Governance Board approval | **Researched** | Owner decision `nlx-approval` |
+| JSearch (RapidAPI) | reseller | paid | **Rejected** | Resells scraped listings |
 | Jooble | aggregator | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545) through WorksLake's shared connector. `JOOBLE_API_KEY` |
 | USAJOBS | portal | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545), US federal jobs. `USAJOBS_API_KEY`, `USAJOBS_EMAIL` |
 | TheirStack | aggregator | **licensed, paid per job** | **Needs key** | `THEIRSTACK`; asked only when free sources fall short |
@@ -424,7 +429,9 @@ Dataset `marketplace`. WonderWorks listings (`server/marketplace/sources.ts`), p
 
 | Option | Open/paid | Verdict |
 |---|---|---|
-| eBay Browse API | Sandbox open; production needs a contract and partner programme approval; results capped at 10,000 | Not a casual feed; items link to eBay for commission. Only for a deliberate partnership. |
+| eBay Browse API | Free self-serve keyset (shared-layer report, 2026-11-05: 5,000 calls a day; an earlier note here said production needs approval, and eBay's developer pages refuse our server's fetch with 403, so this is unconfirmed: the key's Test and the first live search settle it) | Built 2026-11-05 as `mkt_ebay` (`server/marketplace/ebay.ts`): fixed-price items only, price in its own currency, "eBay seller", links to eBay; "Needs setup" until `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` are set on Admin → Keys. Terms pending: the eBay API licence (caching, display) and EPN attribution. |
+| Flipkart Affiliate API | Free self-serve (affiliate.flipkart.com): tracking ID + API token | Built 2026-11-05 as `mkt_flipkart` (`server/marketplace/flipkart.ts`): keyword search (10 items a call; marked "deprecated soon" in Flipkart's docs), in-stock INR items only, "Flipkart seller", links to Flipkart; "Needs setup" until `FLIPKART_AFFILIATE_ID` and `FLIPKART_AFFILIATE_TOKEN` are set. Terms pending (af_tou.html): no use "in a similar or competitive platform", no use of Flipkart's name without written consent, 20 calls a second. |
+| Best Buy Products API, Etsy v3 | Free key (Best Buy; temporary caching only); Etsy needs Commercial Access review | Not built (shared-layer suggestion, 2026-11-05: possible later). Etsy's review is an owner decision. |
 | Craigslist (scraper services) | Paid per result, unofficial | Rejected: no official API, terms risk. |
 | OLX, Mercari, Gumtree | No public API found | Not possible. |
 | Open datasets of used goods or rentals | None found | — |
@@ -522,7 +529,7 @@ Run with the gateway's own fetcher and robots check, from the sandbox. Nothing w
 
 | Candidate | Module | Robots | Permission found | Result |
 |---|---|---|---|---|
-| We Work Remotely RSS (`/remote-jobs.rss`) | Jobs | Allowed | Written, on its feed page: "Anyone can use the feed, all we ask is that you attribute the links back to We Work Remotely." | **Eligible.** Tested end to end on a local gateway: 99 items, 98 valid (company read from its "Company: Title" format, region as location, remote-only), searched, module-isolated (0 in Internships), plain text only. Definition: `sources/we-work-remotely.json`. **Live in the gateway since 2026-10-31** (production check: registered paused → test 99 found / 98 valid → activated → collected 98; Jobs search returns them, Internships 0, plain text only). Attribution to We Work Remotely must show wherever a listing does. |
+| We Work Remotely RSS (`/remote-jobs.rss`) | Jobs | Allowed | Written, on its feed page: "Anyone can use the feed, all we ask is that you attribute the links back to We Work Remotely." | **Eligible.** Tested end to end on a local gateway: 99 items, 98 valid (company read from its "Company: Title" format, region as location, remote-only), searched, module-isolated (0 in Internships), plain text only. Definitions: `sources/we-work-remotely-<category>.json` (11 category feeds, WJ-549, 2026-11-05: the all-jobs feed grew past the gateway's 2 MB limit and failed TOO_LARGE; each category feed is 0.1–1.8 MB, product the largest at 1.74 MB). Was `sources/we-work-remotely.json`, **live in the gateway since 2026-10-31** (production check: registered paused → test 99 found / 98 valid → activated → collected 98; Jobs search returns them, Internships 0, plain text only). Attribution to We Work Remotely must show wherever a listing does. |
 | Working Nomads API (`/api/exposed_jobs/`) | Jobs | Allowed | None found (no API page; terms bar commercial exploitation of the service) | `do_not_use` until Working Nomads confirms reuse in writing. |
 | Jobspresso RSS (`/feed/?post_type=job_listing`) | Jobs | **Disallows the path** | n/a | `do_not_use`. The gateway refuses it. |
 

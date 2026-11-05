@@ -3,7 +3,7 @@ import { loadPlatformKeys, platformKey, PLATFORM_KEYS } from "./platformKeys";
 /**
  * Test (Admin → Keys): one small request to the provider with the saved key, so the admin knows the key works before a
  * source relies on it. Never a search on anyone's behalf, never stored; the answer names only the HTTP outcome, never
- * the key. Paired keys (Adzuna, USAJOBS) test together, whichever of the pair is pressed.
+ * the key. Paired keys (Adzuna, USAJOBS, Flipkart, eBay) test together, whichever of the pair is pressed.
  */
 export interface KeyTestResult {
   ok: boolean;
@@ -28,6 +28,10 @@ const PROBES: Record<string, Probe> = {
   kaggleToken: { needs: ["KAGGLE_API_TOKEN"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Bearer ${k("KAGGLE_API_TOKEN")}` } } }) },
   themuse: { needs: ["THEMUSE_API_KEY"], request: (k) => ({ url: `https://www.themuse.com/api/public/jobs?page=0&api_key=${encodeURIComponent(k("THEMUSE_API_KEY"))}` }) },
   reliefweb: { needs: ["RELIEFWEB_APPNAME"], request: (k) => ({ url: `https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(k("RELIEFWEB_APPNAME"))}&limit=1` }) },
+  // Flipkart's product directory answers only to a valid tracking ID and token.
+  flipkart: { needs: ["FLIPKART_AFFILIATE_ID", "FLIPKART_AFFILIATE_TOKEN"], request: (k) => ({ url: `https://affiliate-api.flipkart.net/affiliate/api/${encodeURIComponent(k("FLIPKART_AFFILIATE_ID"))}.json`, init: { headers: { "Fk-Affiliate-Id": k("FLIPKART_AFFILIATE_ID"), "Fk-Affiliate-Token": k("FLIPKART_AFFILIATE_TOKEN") } } }) },
+  // eBay: asking for an application token checks the keyset itself (a wrong one is refused with 401); no item is searched.
+  ebay: { needs: ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"], request: (k) => ({ url: "https://api.ebay.com/identity/v1/oauth2/token", init: { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", authorization: `Basic ${Buffer.from(`${k("EBAY_CLIENT_ID")}:${k("EBAY_CLIENT_SECRET")}`).toString("base64")}` }, body: "grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope" } }) },
 };
 
 /** The probe a key belongs to, if any. */
