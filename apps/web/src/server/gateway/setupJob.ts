@@ -54,9 +54,18 @@ export interface SetupJob {
 const KEY = "wj.setupjob" as const;
 /** Pause between sources, so shared servers aren't asked in a burst. */
 export const SETUP_PAUSE_MS = 5000;
-/** How long one server call works on the job before handing the rest on. */
-export const SETUP_BUDGET_MS = 45_000;
+/**
+ * How long into one server call a new source may still start; then the rest is handed on. One source takes at most
+ * about two step budgets (test + first collection), so a call that starts its last source by 12 s ends well inside 60 s.
+ */
+export const SETUP_BUDGET_MS = 12_000;
 const LEASE_MS = 70_000;
+/**
+ * Each step's crawl time (a test, then the first collection). The job runs inside 60 s serverless calls: a crawl's test
+ * took up to 45 s and its first collection another 45 s, so crawl sources were cut off and none went live
+ * (owner, 2026-11-05: "0 live · 16 didn't go live"). A crawl stops early with what it read; later collections go on.
+ */
+export const SETUP_STEP_BUDGET_MS = 20_000;
 const MAX_ITEMS = 200;
 
 export async function readSetupJob(): Promise<SetupJob | null> {
@@ -84,7 +93,7 @@ export async function runSetupItem(run: SetupRun, onStep: (s: string) => void = 
   const msg = (b: Record<string, unknown>, fallback: string) => String((b.error as { message?: string } | undefined)?.message ?? fallback);
   if (run.kind === "collect") {
     onStep("Collect");
-    const c = await collectGatewaySource(run.sourceId);
+    const c = await collectGatewaySource(run.sourceId, SETUP_STEP_BUDGET_MS);
     return c.ok ? { ok: true, valid: c.valid ?? 0, sourceId: run.sourceId } : { ok: false, step: "Collect", message: c.code };
   }
   let sourceId = run.kind === "activate" ? run.sourceId : "";
@@ -96,7 +105,7 @@ export async function runSetupItem(run: SetupRun, onStep: (s: string) => void = 
     if (!sourceId) return { ok: false, step: "Add", message: "The gateway didn't return the new source." };
   }
   onStep("Test");
-  const t = await testGatewaySource(sourceId);
+  const t = await testGatewaySource(sourceId, SETUP_STEP_BUDGET_MS);
   if (t.status >= 300) return { ok: false, step: "Test", message: msg(t.body, `Test failed (${t.status})`) };
   const valid = Number(t.body.valid ?? 0);
   if (!valid) return { ok: false, step: "Test", message: "The test found no valid listings, so it stays paused." };
@@ -104,7 +113,7 @@ export async function runSetupItem(run: SetupRun, onStep: (s: string) => void = 
   const a = await setGatewaySource(sourceId, "activate");
   if (a.status >= 300) return { ok: false, step: "Activate", message: msg(a.body, `Activate failed (${a.status})`) };
   onStep("Collect");
-  const c = await collectGatewaySource(sourceId);
+  const c = await collectGatewaySource(sourceId, SETUP_STEP_BUDGET_MS);
   // Live either way; a failed first collection is retried by the hourly run.
   return { ok: true, valid: c.ok ? (c.valid ?? valid) : valid, sourceId };
 }
