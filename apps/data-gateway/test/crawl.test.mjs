@@ -204,6 +204,27 @@ test("sitemapOrder newest reads the last children of a sitemap index (dated site
   assert.deepEqual(read.filter((u) => u.includes("sitemap-")), dated.slice(-5).reverse());
 });
 
+test("newestPages reads only a page sitemap's last N pages, newest first, and carries on from its cursor", async () => {
+  // Listed oldest first, as Buddy4Study's sitemap is: z, y, x, ... a; only the last three (c, b, a) are current.
+  const pages = ["z", "y", "x", "w", "c", "b", "a"].map((p) => "/jobs/" + p);
+  assert.throws(() => validateSource({ ...base, newestPages: 0 }), /newestPages/);
+  assert.throws(() => validateSource({ ...base, discover: "links", url: "https://jobs.example.org/", newestPages: 3 }), /newestPages/);
+  const src = validateSource({ ...base, newestPages: 3, maxPagesPerRun: 2 });
+  assert.equal(src.newestPages, 3);
+  const { calls, deps } = site(pages);
+  const first = await crawlRecords(src, deps);
+  assert.deepEqual(calls.filter((c) => c.includes("/jobs/")), ["https://jobs.example.org/jobs/a", "https://jobs.example.org/jobs/b"]);
+  assert.equal(first.crawl.pages, 3);
+  const again = site(pages);
+  await crawlRecords({ ...src, crawlCursor: first.crawl.cursor }, again.deps);
+  assert.deepEqual(again.calls.filter((c) => c.includes("/jobs/")), ["https://jobs.example.org/jobs/c", "https://jobs.example.org/jobs/a"]);
+  // Without it, pages keep their stable sorted order.
+  const plain = site(pages);
+  await crawlRecords(validateSource({ ...base, maxPagesPerRun: 2 }), plain.deps);
+  assert.deepEqual(plain.calls.filter((c) => c.includes("/jobs/")), ["https://jobs.example.org/jobs/a", "https://jobs.example.org/jobs/b"]);
+  assert.deepEqual(crawlTargets(["https://jobs.example.org/jobs/b", "https://jobs.example.org/jobs/a"], base, [], { keepOrder: true }), ["https://jobs.example.org/jobs/b", "https://jobs.example.org/jobs/a"]);
+});
+
 test("a crawl source may read a Next.js listing from its page data: a dot path, and a mapping that names its title", () => {
   const nd = { ...base, nextDataPath: "props.pageProps.scholarship.scholarship", mapping: { title: "scholarshipMultilinguals.0.title" } };
   assert.equal(validateSource(nd).nextDataPath, "props.pageProps.scholarship.scholarship");
