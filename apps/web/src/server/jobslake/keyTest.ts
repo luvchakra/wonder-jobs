@@ -23,6 +23,7 @@ const PROBES: Record<string, Probe> = {
   // Jooble answers 400 to an empty search even with a good key (owner, 2026-11-05), so the test names a common word;
   // it's a connection check, never anyone's search.
   jooble: { needs: ["JOOBLE_API_KEY"], request: (k) => ({ url: `https://jooble.org/api/${encodeURIComponent(k("JOOBLE_API_KEY"))}`, init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords: "engineer", page: "1" }) } }) },
+  kaggleToken: { needs: ["KAGGLE_API_TOKEN"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Bearer ${k("KAGGLE_API_TOKEN")}` } } }) },
   kaggle: { needs: ["KAGGLE_USERNAME", "KAGGLE_KEY"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Basic ${Buffer.from(`${k("KAGGLE_USERNAME")}:${k("KAGGLE_KEY")}`).toString("base64")}` } } }) },
   themuse: { needs: ["THEMUSE_API_KEY"], request: (k) => ({ url: `https://www.themuse.com/api/public/jobs?page=0&api_key=${encodeURIComponent(k("THEMUSE_API_KEY"))}` }) },
   reliefweb: { needs: ["RELIEFWEB_APPNAME"], request: (k) => ({ url: `https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(k("RELIEFWEB_APPNAME"))}&limit=1` }) },

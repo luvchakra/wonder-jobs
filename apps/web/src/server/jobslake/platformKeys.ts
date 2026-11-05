@@ -28,7 +28,8 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "USAJOBS_EMAIL", label: "USAJOBS email", usedBy: "The email the USAJOBS key was registered to", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "TICKETMASTER_API_KEY", label: "Ticketmaster API key", usedBy: "Events: concerts, sport, theatre and family events", signup: "https://developer.ticketmaster.com/", free: true },
   { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Jobs, Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
-  { name: "KAGGLE_USERNAME", label: "Kaggle username", usedBy: "Scholarships & Projects: Kaggle competitions (with the Kaggle key)", signup: "https://www.kaggle.com/settings/account", free: true },
+  { name: "KAGGLE_API_TOKEN", label: "Kaggle API token", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Generate New Token, starts KGAT_; replaces the username + key below)", signup: "https://www.kaggle.com/settings/account", free: true },
+  { name: "KAGGLE_USERNAME", label: "Kaggle username", usedBy: "Scholarships & Projects: Kaggle competitions (with the Kaggle key; older tokens only)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "KAGGLE_KEY", label: "Kaggle API key", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Create New Token)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
   { name: "RELIEFWEB_APPNAME", label: "ReliefWeb app name", usedBy: "Internships: humanitarian and development internships worldwide from ReliefWeb", signup: "https://apidoc.reliefweb.int/parameters#appname", free: true },
@@ -111,6 +112,18 @@ export async function setPlatformKey(name: string, value: string | null, now = n
   cache = null;
   await loadPlatformKeys(Date.now(), true);
   return { ok: true, message: value === null ? `${name} removed.` : `${name} saved. Sources that need it can run now.` };
+}
+
+/**
+ * The Authorization header for Kaggle's API: the new single token (KGAT_…, sent as Bearer) when set, else the older
+ * username + key pair (Basic). Undefined when neither is set ("Needs setup").
+ */
+export function kaggleAuthorization(): string | undefined {
+  const token = platformKey("KAGGLE_API_TOKEN");
+  if (token) return `Bearer ${token}`;
+  const user = platformKey("KAGGLE_USERNAME");
+  const key = platformKey("KAGGLE_KEY");
+  return user && key ? `Basic ${Buffer.from(`${user}:${key}`).toString("base64")}` : undefined;
 }
 
 /** Tests only. */
