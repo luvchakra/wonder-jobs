@@ -175,5 +175,6 @@
 - ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
 - 2026-11-05 Talent & Services: Houzz and WedMeGood refused from our server, recorded and put to the owner (WJ-598)
 - ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
+- ✅ Scholarships & Projects: Buddy4Study crawl reads the newest pages and finds current listings (WJ-532)
 - ✅ Jobs: We Work Remotely's gateway source reads its 11 category feeds, each under the gateway's size limit (WJ-549)
 - ✅ Jobs: Recruitee and Personio career sites (European employers); NAV and NLx on the owner's Setup to-do (WJ-550)
