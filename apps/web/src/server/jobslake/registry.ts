@@ -42,6 +42,7 @@ function builtin(p: Pick<SourceRecord, "id" | "name" | "provider" | "category" |
 
 const boardsOf = (ats: "greenhouse" | "lever" | "ashby"): AtsBoard[] => CAREER_BOARDS.filter((b) => b.ats === ats).map((b) => ({ platform: b.ats, slug: b.slug, company: b.company, domain: b.domain }));
 const companies = (ats: "greenhouse" | "lever" | "ashby") => boardsOf(ats).map((b) => b.company).join(", ");
+const JSEARCH_TERMS = "terms pending: JSearch collects Google for Jobs listings; neither Google nor the boards have agreed; confirm JSearch/RapidAPI terms on storing and showing results";
 const legacyNote = (id: string) => JOB_SOURCES.find((s) => s.id === id)?.note ?? "";
 
 export const BUILTIN_SOURCES: SourceRecord[] = [
@@ -68,6 +69,9 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
   // Recruitee's Offers API and Personio's XML feed: public, documented, no key (WJ-550). WorksLake's shared connectors.
   builtin({ id: "recruitee", name: "Recruitee career sites", provider: "Recruitee", category: "ats", accessStrategy: "official_api", geography: ["EU", "global"], legacySourceId: "recruitee", capabilities: ATS_CAPS, description: legacyNote("recruitee") }),
   builtin({ id: "personio", name: "Personio career sites", provider: "Personio", category: "ats", accessStrategy: "official_feed", geography: ["DE", "EU"], legacySourceId: "personio", capabilities: ATS_CAPS, description: legacyNote("personio") }),
+  // JSearch: Google for Jobs (LinkedIn, Indeed, Naukri, foundit, TimesJobs, career sites) through RapidAPI (owner, 2026-11-05: "yes add JSearch").
+  // Metered per request, so asked once per search, under a daily cap (JSEARCH_DAILY_MAX); licensed, so never reachable by an API key.
+  builtin({ id: "jsearch", name: "JSearch (Google for Jobs)", provider: "OpenWeb Ninja", category: "aggregator", accessStrategy: "licensed", geography: ["global", "IN"], legacySourceId: "jsearch", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:JSEARCH", onePhrasing: true, statusReason: JSEARCH_TERMS, description: legacyNote("jsearch") }),
   builtin({ id: "jooble", name: "Jooble", provider: "Jooble", category: "aggregator", accessStrategy: "official_api", geography: ["global", "IN"], legacySourceId: "jooble", capabilities: FEED_CAPS, secretRef: "env:JOOBLE", description: legacyNote("jooble") }),
   builtin({ id: "usajobs", name: "USAJOBS", provider: "USAJOBS", category: "portal", accessStrategy: "official_api", geography: ["US"], legacySourceId: "usajobs", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:USAJOBS", description: legacyNote("usajobs") }),
   builtin({ id: "adzuna_in", name: "Adzuna India", provider: "Adzuna", category: "aggregator", accessStrategy: "official_api", geography: ["IN"], legacySourceId: "adzuna_in", capabilities: [...FEED_CAPS, "Salary"], secretRef: "env:ADZUNA", description: legacyNote("adzuna_in") }),

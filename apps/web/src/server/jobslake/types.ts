@@ -81,6 +81,8 @@ export interface SourceRecord extends JobSourceDescriptor {
   agreement?: PartnerAgreement;
   /** Charged per result: asked last, only to top up a thin search, within a monthly credit budget — and never for API keys. */
   paid?: boolean;
+  /** Metered per request (a daily quota): asked once per search with its own words, not again with each broader phrasing. */
+  onePhrasing?: boolean;
   /** Lists only these job types (a part-time or gig board): planned after the general sources unless the search asks for one of them. */
   jobTypes?: JobType[];
   /** The WonderWorks module whose dataset this source feeds (absent: "jobs"). A module's search asks only its own sources. */

@@ -7,6 +7,7 @@
 import type { Job } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
 import { theirstack } from "./theirstack";
+import { jsearch } from "./jsearch";
 import { corePhrase, htmlToText, matchesLocations, matchesQuery, normalizePosting, remotiveCategory, titleMatches, type RawPosting } from "@/services/jobs/normalize";
 import { platformKey } from "@/server/jobslake/platformKeys";
 import { fetchJooble, joobleAvailable } from "@/server/jobslake/jooble";
@@ -655,7 +656,7 @@ const employers: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, workingnomads, weworkremotely, usajobs, jooble, recruitee, personio, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, workingnomads, weworkremotely, usajobs, jooble, recruitee, personio, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack, jsearch };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,

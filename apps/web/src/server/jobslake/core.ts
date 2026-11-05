@@ -326,7 +326,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
     emit({ type: "source_started", sourceId, sourceName: src.name });
     const started = Date.now();
     const startedAt = new Date(started).toISOString();
-    const results = await Promise.all((src.paid ? phrasings.slice(0, 1) : phrasings).map((q) => attempt(src, q)));
+    const results = await Promise.all((src.paid || src.onePhrasing ? phrasings.slice(0, 1) : phrasings).map((q) => attempt(src, q)));
     const durationMs = Date.now() - started;
     const seen = new Set<string>();
     const jobs: Job[] = [];
