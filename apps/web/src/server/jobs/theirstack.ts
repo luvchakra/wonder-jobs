@@ -11,6 +11,7 @@ import { recordCompanyFacts } from "@/server/jobslake/companies";
 import { locationScope } from "@/domain/jobslake/planner";
 import { corePhrase, normalizePosting, type RawPosting } from "@/services/jobs/normalize";
 import type { SearchCriteria, SourceFetcher } from "./providers";
+import { adminKeyList } from "@/server/jobslake/platformKeys";
 
 const API = "https://api.theirstack.com";
 /** Jobs asked for per search — each one is a credit. */
@@ -18,11 +19,13 @@ export const PER_SEARCH = 25;
 const MAX_AGE_DAYS = 21;
 
 /**
- * Every configured key: THEIRSTACK_API_KEYS (comma-separated) and/or THEIRSTACK_API_KEY. Several keys
+ * Every configured key: the admin's on Admin → Keys, then THEIRSTACK_API_KEYS (comma-separated) and/or THEIRSTACK_API_KEY. Several keys
  * are used with TheirStack's agreement (owner confirmed with TheirStack, 2026-10-09). Never logged.
  */
 export function theirStackKeys(env: Record<string, string | undefined> = process.env): string[] {
-  const all = [...(env.THEIRSTACK_API_KEYS ?? "").split(","), env.THEIRSTACK_API_KEY ?? ""].map((k) => k.trim()).filter(Boolean);
+  // The keys an admin added on Admin → Keys come first (owner, 2026-11-05: "configure multiple key setup in admin"), then
+  // any the deployment sets.
+  const all = [...adminKeyList("THEIRSTACK_API_KEYS"), ...(env.THEIRSTACK_API_KEYS ?? "").split(","), env.THEIRSTACK_API_KEY ?? ""].map((k) => k.trim()).filter(Boolean);
   return [...new Set(all)];
 }
 
