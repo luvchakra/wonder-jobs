@@ -17,7 +17,7 @@ describe("Test on Admin → Keys", () => {
   });
 
   it("every key has a test", () => {
-    expect(TESTABLE.size).toBe(9);
+    expect(TESTABLE.size).toBe(13);
   });
 
   it("asks for the other half of a pair before testing", async () => {
@@ -52,6 +52,28 @@ describe("Test on Admin → Keys", () => {
     expect((await testPlatformKey("JOOBLE_API_KEY", f)).ok).toBe(true);
     const init = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0][1];
     expect(JSON.parse(String(init.body)).keywords).not.toBe("");
+  });
+
+  it("tests Flipkart's and eBay's pairs together, with the credentials in headers, never the address", async () => {
+    await setPlatformKey("FLIPKART_AFFILIATE_ID", "fk-track-1");
+    const none = reply(200);
+    expect(await testPlatformKey("FLIPKART_AFFILIATE_ID", none)).toEqual({ ok: false, message: "Set FLIPKART_AFFILIATE_TOKEN first." });
+    expect(none).not.toHaveBeenCalled();
+    await setPlatformKey("FLIPKART_AFFILIATE_TOKEN", "fk-token-secret");
+    const f = reply(200);
+    expect((await testPlatformKey("FLIPKART_AFFILIATE_TOKEN", f)).ok).toBe(true);
+    const [, fkInit] = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
+    expect(fkInit.headers).toMatchObject({ "Fk-Affiliate-Id": "fk-track-1", "Fk-Affiliate-Token": "fk-token-secret" });
+    await setPlatformKey("EBAY_CLIENT_ID", "ebay-app-1");
+    await setPlatformKey("EBAY_CLIENT_SECRET", "ebay-cert-secret");
+    const e = reply(401);
+    const bad = await testPlatformKey("EBAY_CLIENT_ID", e);
+    expect(bad.message).toContain("Rejected (401)");
+    const [url, init] = (e as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
+    expect(url).toBe("https://api.ebay.com/identity/v1/oauth2/token");
+    expect(url).not.toMatch(/ebay-app|ebay-cert/);
+    expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from("ebay-app-1:ebay-cert-secret").toString("base64")}`);
+    expect(JSON.stringify(bad)).not.toContain("ebay-cert");
   });
 
   it("tests Kaggle's new token as a Bearer token, on its own", async () => {

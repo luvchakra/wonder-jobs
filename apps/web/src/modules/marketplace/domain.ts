@@ -127,6 +127,12 @@ export function readTerms(raw: unknown): ListingTerms {
 
 export const priceLabel = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
+/** The price as a card shows it: a shop's own foreign-currency price as stated, else rupees. */
+export const listingPrice = (l: Pick<MarketListing, "terms" | "outside">) => l.outside?.priceText ?? priceLabel(l.terms.price);
+
+/** Whether a price is in rupees, so a rupee filter or sort can compare it. */
+export const inRupees = (l: Pick<MarketListing, "outside">) => !l.outside?.currency;
+
 /* ------------------------------------------------------------------ a listing as Find shows it */
 
 export type ListingState = "draft" | "open" | "sold" | "hidden" | "closed";
@@ -139,7 +145,19 @@ export interface MarketListing {
    * An item a shop or dealer lists on its own website, read from a WorksLake outside source: WonderWorks shows it and links to
    * the shop. It is never messaged about, offered on or paid for here, and carries no seller's personal details.
    */
-  outside?: { url: string; business: string; /** The shop's own product photo, through WonderWorks' signed image proxy (/api/img). */ image?: string };
+  outside?: {
+    url: string;
+    business: string;
+    /** The shop's own product photo, through WonderWorks' signed image proxy (/api/img). */
+    image?: string;
+    /**
+     * Set only when the shop states its price in another currency than rupees (ISO code). `priceText` is then the exact price
+     * as the shop states it ("$12.50"); `terms.price` is only that amount rounded, never converted: WonderWorks has no exchange
+     * rate to compute with, so a price filter and a price sort never mix currencies.
+     */
+    currency?: string;
+    priceText?: string;
+  };
   title: string;
   description: string;
   area: string;
@@ -191,8 +209,9 @@ export interface Facets {
 }
 export const EMPTY_FACETS: Facets = { category: "", condition: "", maxPrice: undefined };
 
-export function applyFacets<T extends Pick<MarketListing, "terms">>(items: T[], f: Facets): { kept: T[]; hidden: number } {
-  const kept = items.filter((l) => (!f.category || l.terms.category === f.category) && (!f.condition || l.terms.condition === f.condition) && (f.maxPrice === undefined || l.terms.price <= f.maxPrice));
+export function applyFacets<T extends Pick<MarketListing, "terms" | "outside">>(items: T[], f: Facets): { kept: T[]; hidden: number } {
+  // A rupee cap never lets a price in another currency through: the two can't be compared honestly.
+  const kept = items.filter((l) => (!f.category || l.terms.category === f.category) && (!f.condition || l.terms.condition === f.condition) && (f.maxPrice === undefined || (inRupees(l) && l.terms.price <= f.maxPrice)));
   return { kept, hidden: items.length - kept.length };
 }
 

@@ -17,7 +17,7 @@ import { ReportBlock } from "@/wonderworks/pipeline/ReportBlock";
 import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
-import { MAX_MESSAGE, priceLabel, STATUS_LABEL, type ListingState, type MarketListing } from "../domain";
+import { listingPrice, MAX_MESSAGE, priceLabel, STATUS_LABEL, type ListingState, type MarketListing } from "../domain";
 import type { ThreadView } from "../threads";
 import { useMarketplaceStore } from "../store";
 import { MARKETPLACE_OUTSIDE } from "../outside";
@@ -179,7 +179,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
   const [expanded, setExpanded] = useState(false);
   const t = l.terms;
   const rows: [string, string][] = [
-    ["Price", `${priceLabel(t.price)}${t.negotiable ? " · negotiable" : ""}`],
+    ["Price", `${listingPrice(l)}${t.negotiable ? " · negotiable" : ""}`],
     ["Condition", t.condition],
     ["Category", t.category],
     ["Area", l.area],
@@ -204,7 +204,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
           company={owner ? "You" : l.seller}
           name={owner ? "You" : l.seller}
           facts={[
-            <span key="p" className="font-semibold text-ink">{priceLabel(t.price)}</span>,
+            <span key="p" className="font-semibold text-ink">{listingPrice(l)}</span>,
             <span key="c" className="inline-flex items-center gap-1"><Tag className="size-3.5" aria-hidden /> {t.condition}</span>,
             <span key="a" className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden /> {l.area}</span>,
           ]}
@@ -213,7 +213,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
         <TranslatedText id={l.id} title={l.title} heading={l.outside ? `From ${l.outside.business}` : "From the seller"} text={l.description} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
-            <Fold title="Details" hint={[priceLabel(t.price), t.condition].join(" · ")}>
+            <Fold title="Details" hint={[listingPrice(l), t.condition].join(" · ")}>
               <dl className="grid grid-cols-2 gap-3 text-[13px]">
                 {rows.map(([k, v]) => (
                   <div key={k}>
@@ -222,7 +222,7 @@ function Page({ l, owner }: { l: MarketListing; owner?: ListingState }) {
                   </div>
                 ))}
               </dl>
-              <p className="mt-3 text-[12px] text-ink-4">{l.outside ? `As ${l.outside.business} lists it on its own site${l.postedAt ? `, published ${relativeTime(l.postedAt)}` : ""}, via ${l.sourceName}. Prices are in rupees.` : `As ${l.seller} listed it on WonderWorks${l.postedAt ? `, updated ${relativeTime(l.postedAt)}` : ""}. Prices are in rupees. Contact details stay private until the seller shares them.`}</p>
+              <p className="mt-3 text-[12px] text-ink-4">{l.outside ? `As ${l.outside.business} lists it on its own site${l.postedAt ? `, published ${relativeTime(l.postedAt)}` : ""}, via ${l.sourceName}. ${l.outside.currency ? `The price is in ${l.outside.currency}, as it states it.` : "Prices are in rupees."}` : `As ${l.seller} listed it on WonderWorks${l.postedAt ? `, updated ${relativeTime(l.postedAt)}` : ""}. Prices are in rupees. Contact details stay private until the seller shares them.`}</p>
             </Fold>
             {!owner && !l.outside && <Fold title="Stay safe" hint="Report or block">
               <ReportBlock noun={l.seller} onBlock={() => call(`/api/m/marketplace/listings/${encodeURIComponent(l.listingId)}`, { method: "PATCH", body: { action: "block" } })} onReport={(reason) => call(`/api/m/marketplace/listings/${encodeURIComponent(l.listingId)}`, { method: "PATCH", body: { action: "report", reason } })} onBlocked={() => router.push(FIND.href)} />
