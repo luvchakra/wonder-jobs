@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { PlatformKeyStatus } from "@/server/jobslake/platformKeys";
 import { Button } from "@/components/common/Button";
-import { Input } from "@/components/common/Input";
+import { Input, Textarea } from "@/components/common/Input";
 import { adminFetch, LoadError, Loading, PageTitle, Panel, useAdmin } from "@/components/jobslake/ui";
 import { CredentialsPanel } from "@/components/jobslake/CredentialsPanel";
 
@@ -45,6 +45,14 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
     if (r.ok) setValue("");
     onChanged();
   };
+  const removeAt = async (i: number) => {
+    setBusy(true);
+    setMsg(null);
+    const r = await adminFetch<{ message: string }>("keys", { method: "POST", body: JSON.stringify({ name: k.name, removeAt: i }) });
+    setBusy(false);
+    setMsg(r.ok ? r.data.message : r.error.message);
+    onChanged();
+  };
   const test = async () => {
     setBusy(true);
     setMsg(null);
@@ -61,7 +69,38 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
         </span>
         <span className={k.set ? "text-[12px] font-medium text-success-600" : "text-[12px] font-medium text-warning-600"}>{k.masked}</span>
       </div>
-      {k.from !== "environment" && (
+      {k.multi && (
+        <div className="flex flex-col gap-2">
+          {/* Several keys, used in turn (owner, 2026-11-05: "configure multiple key setup in admin"): each masked, each removable. */}
+          {k.keys && k.keys.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {k.keys.map((m, i) => (
+                <li key={`${m}-${i}`} className="flex items-center justify-between gap-2 rounded-[8px] bg-bg-soft px-2.5 py-1.5">
+                  <code className="text-[12px] text-ink-2">{m}</code>
+                  <button type="button" disabled={busy} onClick={() => void removeAt(i)} className="text-[12px] font-medium text-danger-600 hover:underline">
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form
+            className="flex flex-col gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send(value);
+            }}
+          >
+            <Textarea autoComplete="off" rows={2} value={value} onChange={(e) => setValue(e.target.value)} placeholder="Paste one or more keys, one per line" aria-label={k.label} className="[-webkit-text-security:disc]" />
+            <span>
+              <Button type="submit" size="sm" loading={busy} disabled={value.trim().length < 4}>
+                Add {value.split(/[\s,]+/).filter((x) => x.trim().length >= 4).length > 1 ? "keys" : "key"}
+              </Button>
+            </span>
+          </form>
+        </div>
+      )}
+      {!k.multi && k.from !== "environment" && (
         <form
           className="flex flex-wrap items-center gap-2"
           onSubmit={(e) => {

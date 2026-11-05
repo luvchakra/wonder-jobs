@@ -113,3 +113,16 @@ describe("Test on Admin → Keys", () => {
     expect((init.headers as Record<string, string>).authorization).toBe("Bearer KGAT_abc123");
   });
 });
+
+describe("TheirStack's keys are tested one by one (2026-11-05)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    __resetPlatformKeys();
+  });
+  it("says how many of the keys work", async () => {
+    vi.stubEnv("THEIRSTACK_API_KEYS", "good-key-1111,bad-key-2222");
+    const fetcher = vi.fn(async (_u: string | URL | Request, init?: RequestInit) => new Response("{}", { status: String((init?.headers as Record<string, string>).authorization).includes("good") ? 200 : 401 }));
+    const r = await testPlatformKey("THEIRSTACK_API_KEYS", fetcher as unknown as typeof fetch);
+    expect(r).toEqual({ ok: true, message: "1 of 2 keys work, 1 rejected. Credits aren't checked here; a key out of credits is skipped during searches." });
+  });
+});

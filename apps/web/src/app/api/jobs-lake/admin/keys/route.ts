@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { json, readJson } from "@/server/jobslake/http";
-import { platformKeyStatus, setPlatformKey } from "@/server/jobslake/platformKeys";
+import { platformKeyStatus, removePlatformKeyAt, setPlatformKey } from "@/server/jobslake/platformKeys";
 import { TESTABLE, testPlatformKey } from "@/server/jobslake/keyTest";
 
 export const runtime = "nodejs";
@@ -18,13 +18,19 @@ export async function GET() {
 export async function POST(req: Request) {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
-  const body = (await readJson(req, 10_000)) as { name?: unknown; value?: unknown; test?: unknown } | null;
+  const body = (await readJson(req, 10_000)) as { name?: unknown; value?: unknown; test?: unknown; removeAt?: unknown } | null;
   const name = typeof body?.name === "string" ? body.name.slice(0, 64) : "";
   // Test: one small request to the provider with the saved key (keyTest.ts); audited by name and outcome only.
   if (body?.test === true && name) {
     const r = await testPlatformKey(name);
     await audit(a.actor, "platform_key.tested", undefined, { name, ok: r.ok });
     return json(r);
+  }
+  // One key of a multi-key entry (TheirStack's), by its place in the list.
+  if (typeof body?.removeAt === "number" && name) {
+    const r = await removePlatformKeyAt(name, body.removeAt);
+    await audit(a.actor, "platform_key.removed", undefined, { name, ok: r.ok, one: true });
+    return json(r.ok ? r : { ...r, error: { code: "INVALID_REQUEST", message: r.message } }, r.ok ? 200 : 400);
   }
   const value = body?.value === null ? null : typeof body?.value === "string" ? body.value : undefined;
   if (!name || value === undefined) return jlError("INVALID_REQUEST", "Name the key and give its value (or null to remove it).", 400);
