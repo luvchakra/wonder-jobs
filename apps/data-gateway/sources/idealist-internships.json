@@ -1,0 +1,19 @@
+{
+  "url": "https://www.idealist.org/sitemap-internships-en-1.xml",
+  "kind": "crawl",
+  "discover": "sitemap",
+  "pathPrefix": "/en/nonprofit-internship/",
+  "modules": ["internships"],
+  "geography": ["US", "global"],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm Idealist's terms allow reuse of its internship listings (a nonprofit job board). Checked 2026-11-05: robots.txt disallows only third-party login (and /en/careers/ for Google-Extended) and lists /sitemap.xml; its internships sitemap holds about 160 open nonprofit internships, each /en/nonprofit-internship/<id> page a schema.org JobPosting typed INTERN with datePosted and validThrough.",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "Idealist",
+  "retentionHours": 168,
+  "minIntervalMinutes": 720,
+  "maxPagesPerRun": 30,
+  "crawlDelayMs": 2000
+}

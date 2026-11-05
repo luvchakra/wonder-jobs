@@ -31,6 +31,7 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "KAGGLE_USERNAME", label: "Kaggle username", usedBy: "Scholarships & Projects: Kaggle competitions (with the Kaggle key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "KAGGLE_KEY", label: "Kaggle API key", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Create New Token)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
+  { name: "RELIEFWEB_APPNAME", label: "ReliefWeb app name", usedBy: "Internships: humanitarian and development internships worldwide from ReliefWeb", signup: "https://apidoc.reliefweb.int/parameters#appname", free: true },
 ];
 
 const NAMES = new Set(PLATFORM_KEYS.map((k) => k.name));
