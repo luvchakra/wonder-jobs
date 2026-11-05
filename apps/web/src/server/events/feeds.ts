@@ -9,13 +9,20 @@ const inflight = new Map<string, Promise<unknown>>();
 
 export const FEED_USER_AGENT = "WonderWorks/1.0 (+https://jobs.wonderapps.biz; events directory; reads each public feed at most every few hours)";
 
-export async function readFeed<T>(url: string, o: { ttlMs: number; timeoutMs: number; name: string; keep: (json: unknown) => T }, now = Date.now()): Promise<T> {
+/**
+ * `headers` are extra request headers (a source's key goes here, never in the URL); they are not part of what a read is kept
+ * under, so two keys read the same public list once.
+ */
+export async function readFeed<T>(url: string, o: { ttlMs: number; timeoutMs: number; name: string; keep: (json: unknown) => T; headers?: Record<string, string> }, now = Date.now()): Promise<T> {
   const hit = kept.get(url);
   if (hit && now - hit.at < o.ttlMs) return hit.value as T;
   let run = inflight.get(url) as Promise<T> | undefined;
   if (!run) {
     run = (async () => {
-      const res = await fetch(url, { headers: { accept: "application/json", "user-agent": FEED_USER_AGENT }, signal: AbortSignal.timeout(o.timeoutMs) });
+      const res = await fetch(url, { headers: { accept: "application/json", "user-agent": FEED_USER_AGENT, ...o.headers }, signal: AbortSignal.timeout(o.timeoutMs) });
+      // Never the URL or headers (a key may be in them): the status only.
+      if (res.status === 401 || res.status === 403) throw new Error(`${o.name} refused the request (${res.status}).`);
+      if (res.status === 429) throw new Error(`${o.name} is rate limited right now.`);
       if (!res.ok) throw new Error(`${o.name} answered ${res.status}.`);
       const value = o.keep((await res.json()) as unknown);
       kept.set(url, { at: now, value });

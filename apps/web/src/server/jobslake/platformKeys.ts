@@ -27,6 +27,8 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "USAJOBS_API_KEY", label: "USAJOBS API key", usedBy: "Jobs, Teaching and Internships: US government roles", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "USAJOBS_EMAIL", label: "USAJOBS email", usedBy: "The email the USAJOBS key was registered to", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "TICKETMASTER_API_KEY", label: "Ticketmaster API key", usedBy: "Events: concerts, sport, theatre and family events", signup: "https://developer.ticketmaster.com/", free: true },
+  { name: "OPENAGENDA_API_KEY", label: "OpenAgenda API key", usedBy: "Events: the public agendas of French and European towns, museums and associations (a public key, oa_pk_…)", signup: "https://developers.openagenda.com/authentification/", free: true },
+  { name: "THESPORTSDB_API_KEY", label: "TheSportsDB API key (optional)", usedBy: "Events: cricket and Indian Super League fixtures; without one the free test key is used (about three results a call)", signup: "https://www.thesportsdb.com/pricing", free: false },
   { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Jobs, Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
   { name: "KAGGLE_API_TOKEN", label: "Kaggle API token", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Generate New Token, starts KGAT_; replaces the older username + key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },

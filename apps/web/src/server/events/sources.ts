@@ -15,6 +15,8 @@ import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
 import { DEVELOPERS_EVENTS, developersEventsSearch } from "./developersEvents";
 import { DEVPOST_EVENTS, devpostSearch } from "./devpost";
+import { OPENAGENDA, OPENAGENDA_KEY, openAgendaAvailable, openAgendaSearch } from "./openAgenda";
+import { THESPORTSDB, theSportsDbSearch } from "./theSportsDb";
 import { TICKETMASTER, TICKETMASTER_KEY, ticketmasterAvailable, ticketmasterSearch } from "./ticketmaster";
 
 const EPOCH = "2026-10-31T00:00:00.000Z";
@@ -88,6 +90,49 @@ export const EVENTS_SOURCES: SourceRecord[] = [
   },
   {
     protocolVersion: PROTOCOL_VERSION,
+    id: OPENAGENDA,
+    name: "OpenAgenda",
+    provider: "OpenAgenda",
+    category: "aggregator",
+    geography: ["FR", "EU"],
+    description: "Events from the public agendas of French and European towns, museums and associations on OpenAgenda, with their dates, place and own page. Needs a free API key; searched by words or a place.",
+    status: "active",
+    statusReason: "terms pending: each event carries its own licence; only open ones (Licence Ouverte, CC BY, CC0, ODbL) are shown, with credit; confirm OpenAgenda's API terms for this use",
+    roleFamilies: [],
+    config: { kind: "builtin" },
+    limits: { ...DEFAULT_LIMITS, timeoutMs: 15_000, maxResults: 100, refreshMinutes: 60 },
+    secretRef: `env:${OPENAGENDA_KEY}`,
+    builtin: true,
+    createdAt: "2026-11-05T00:00:00.000Z",
+    updatedAt: "2026-11-05T00:00:00.000Z",
+    accessStrategy: "official_api",
+    capabilities: ["Search", "Freshness", "Apply URL"],
+    jobTypes: [],
+    module: "events",
+  },
+  {
+    protocolVersion: PROTOCOL_VERSION,
+    id: THESPORTSDB,
+    name: "TheSportsDB fixtures",
+    provider: "TheSportsDB",
+    category: "aggregator",
+    geography: ["global", "IN"],
+    description: "Upcoming cricket and Indian Super League fixtures from TheSportsDB, with their venue and own page. Read with TheSportsDB's free key until a paid key is set.",
+    status: "active",
+    statusReason: "terms pending: the free key 123 is TheSportsDB's shared test key (about three results a call); production use needs a paid supporter key, the owner's call",
+    roleFamilies: [],
+    config: { kind: "builtin" },
+    limits: { ...DEFAULT_LIMITS, timeoutMs: 20_000, maxResults: 100, refreshMinutes: 360 },
+    builtin: true,
+    createdAt: "2026-11-05T00:00:00.000Z",
+    updatedAt: "2026-11-05T00:00:00.000Z",
+    accessStrategy: "official_api",
+    capabilities: ["Search", "Freshness", "Apply URL"],
+    jobTypes: [],
+    module: "events",
+  },
+  {
+    protocolVersion: PROTOCOL_VERSION,
     id: TICKETMASTER,
     name: "Ticketmaster",
     provider: "Ticketmaster",
@@ -111,13 +156,15 @@ export const EVENTS_SOURCES: SourceRecord[] = [
 ];
 
 /** Whether this deployment can ask the source now: WonderWorks' own events need no credential; Ticketmaster needs its key. */
-export const eventsSourceAvailable = (s: SourceRecord) => (s.id === TICKETMASTER ? ticketmasterAvailable() : EVENTS_SOURCES.some((x) => x.id === s.id));
+export const eventsSourceAvailable = (s: SourceRecord) => (s.id === TICKETMASTER ? ticketmasterAvailable() : s.id === OPENAGENDA ? openAgendaAvailable() : EVENTS_SOURCES.some((x) => x.id === s.id));
 
 /** Fetch one Events source. */
 export async function runEventsSource(s: SourceRecord, c: SearchCriteria, needsSetup: (m: string) => Error = (m) => new Error(m)): Promise<{ jobs: Job[]; warnings: string[] }> {
   if (s.id === TICKETMASTER) return { jobs: await ticketmasterSearch(s, c, needsSetup), warnings: [] };
   if (s.id === DEVELOPERS_EVENTS) return { jobs: await developersEventsSearch(s, c), warnings: [] };
   if (s.id === DEVPOST_EVENTS) return { jobs: await devpostSearch(s, c), warnings: [] };
+  if (s.id === OPENAGENDA) return openAgendaSearch(s, c, needsSetup);
+  if (s.id === THESPORTSDB) return { jobs: await theSportsDbSearch(s, c), warnings: [] };
   if (s.id !== WONDERWORKS_EVENTS) throw new Error("No connector");
   const { openEventPosts } = await import("./listings");
   // The person's words and places narrow the events, as every source's postings (finish).

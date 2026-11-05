@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __MemoryStore, __setJobsLakeStore } from "./store";
-import { __resetPlatformKeys, setPlatformKey } from "./platformKeys";
+import { __resetPlatformKeys, PLATFORM_KEYS, setPlatformKey } from "./platformKeys";
 import { TESTABLE, testPlatformKey } from "./keyTest";
 
 const reply = (status: number) => vi.fn(async () => new Response("{}", { status })) as unknown as typeof fetch;
@@ -17,7 +17,10 @@ describe("Test on Admin → Keys", () => {
   });
 
   it("every key has a test", () => {
-    expect(TESTABLE.size).toBe(13);
+    // Every key on the Keys page has a Test, however many there are, except those named here (other sessions' keys, whose
+    // Tests they add and then take their name out); a new key without a Test fails this, a new key with one needs no edit.
+    const untested = PLATFORM_KEYS.map((k) => k.name).filter((n) => !TESTABLE.has(n));
+    expect(untested.sort()).toEqual(["FIND_APPRENTICESHIP_API_KEY", "NAV_PAM_STILLING_FEED_TOKEN"]);
   });
 
   it("asks for the other half of a pair before testing", async () => {
