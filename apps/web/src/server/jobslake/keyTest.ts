@@ -1,0 +1,59 @@
+import { loadPlatformKeys, platformKey, PLATFORM_KEYS } from "./platformKeys";
+
+/**
+ * Test (Admin → Keys): one small request to the provider with the saved key, so the admin knows the key works before a
+ * source relies on it. Never a search on anyone's behalf, never stored; the answer names only the HTTP outcome, never
+ * the key. Paired keys (Adzuna, USAJOBS, Kaggle) test together, whichever of the pair is pressed.
+ */
+export interface KeyTestResult {
+  ok: boolean;
+  message: string;
+}
+
+interface Probe {
+  /** Every key the request needs. */
+  needs: string[];
+  request: (k: (name: string) => string) => { url: string; init?: RequestInit };
+}
+
+const PROBES: Record<string, Probe> = {
+  adzuna: { needs: ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"], request: (k) => ({ url: `https://api.adzuna.com/v1/api/jobs/gb/search/1?app_id=${encodeURIComponent(k("ADZUNA_APP_ID"))}&app_key=${encodeURIComponent(k("ADZUNA_APP_KEY"))}&results_per_page=1` }) },
+  usajobs: { needs: ["USAJOBS_API_KEY", "USAJOBS_EMAIL"], request: (k) => ({ url: "https://data.usajobs.gov/api/search?ResultsPerPage=1", init: { headers: { "Authorization-Key": k("USAJOBS_API_KEY"), "User-Agent": k("USAJOBS_EMAIL") } } }) },
+  ticketmaster: { needs: ["TICKETMASTER_API_KEY"], request: (k) => ({ url: `https://app.ticketmaster.com/discovery/v2/events.json?size=1&apikey=${encodeURIComponent(k("TICKETMASTER_API_KEY"))}` }) },
+  jooble: { needs: ["JOOBLE_API_KEY"], request: (k) => ({ url: `https://jooble.org/api/${encodeURIComponent(k("JOOBLE_API_KEY"))}`, init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords: "", page: "1" }) } }) },
+  kaggle: { needs: ["KAGGLE_USERNAME", "KAGGLE_KEY"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Basic ${Buffer.from(`${k("KAGGLE_USERNAME")}:${k("KAGGLE_KEY")}`).toString("base64")}` } } }) },
+  themuse: { needs: ["THEMUSE_API_KEY"], request: (k) => ({ url: `https://www.themuse.com/api/public/jobs?page=0&api_key=${encodeURIComponent(k("THEMUSE_API_KEY"))}` }) },
+  reliefweb: { needs: ["RELIEFWEB_APPNAME"], request: (k) => ({ url: `https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(k("RELIEFWEB_APPNAME"))}&limit=1` }) },
+};
+
+/** The probe a key belongs to, if any. */
+export function probeFor(name: string): Probe | undefined {
+  return Object.values(PROBES).find((p) => p.needs.includes(name));
+}
+
+/** Every key that has a Test. */
+export const TESTABLE = new Set(PLATFORM_KEYS.map((k) => k.name).filter((n) => !!probeFor(n)));
+
+function outcome(status: number): KeyTestResult {
+  if (status >= 200 && status < 300) return { ok: true, message: "Works: the provider accepted the key." };
+  if (status === 401 || status === 403) return { ok: false, message: `Rejected (${status}): the provider didn't accept the key.` };
+  if (status === 429) return { ok: false, message: "Rate limited (429): the key may be fine; try again later." };
+  return { ok: false, message: `The provider answered ${status}.` };
+}
+
+export async function testPlatformKey(name: string, fetcher: typeof fetch = fetch): Promise<KeyTestResult> {
+  const probe = probeFor(name);
+  if (!probe) return { ok: false, message: "No test for this key." };
+  await loadPlatformKeys(Date.now(), true);
+  const missing = probe.needs.filter((n) => !platformKey(n));
+  if (missing.length) return { ok: false, message: `Set ${missing.join(" and ")} first.` };
+  const { url, init } = probe.request((n) => platformKey(n) ?? "");
+  try {
+    const res = await fetcher(url, { ...init, signal: AbortSignal.timeout(10_000), redirect: "follow" });
+    await res.body?.cancel().catch(() => undefined);
+    return outcome(res.status);
+  } catch (e) {
+    const timeout = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+    return { ok: false, message: timeout ? "Unavailable: the provider didn't answer in 10 s." : "Unavailable: couldn't reach the provider." };
+  }
+}
