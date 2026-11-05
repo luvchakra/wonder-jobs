@@ -186,3 +186,4 @@
 - ✅ Jobs: We Work Remotely's gateway source reads its 11 category feeds, each under the gateway's size limit (WJ-549)
 - ✅ Jobs: Recruitee and Personio career sites (European employers); NAV and NLx on the owner's Setup to-do (WJ-550)
 - ✅ Internships: internships and working-student roles from Personio and Recruitee career sites (WJ-584)
+- ✅ Jobs: job type read from underscore and hyphen spellings such as "working_student" and "FULL_TIME" (WJ-551)
