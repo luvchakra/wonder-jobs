@@ -19,7 +19,7 @@ import type { Job } from "@/domain/jobs/types";
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
 import { adzunaAvailable, adzunaSearch, finish, getJson, rawFromHimalayas, type HimalayasJob, type SearchCriteria } from "@/server/jobs/providers";
 import { fetchUsaJobs, usaJobsAvailable } from "@/server/jobslake/usajobs";
-import { fetchAdzunaTeaching } from "./adzuna";
+import { runAdzunaTeaching } from "./adzuna";
 import { fetchTeachingPersonio, fetchTeachingRecruitee } from "./boards";
 import { fetchJobTechTeaching } from "./jobtech";
 import { corePhrase, type RawPosting } from "@/services/jobs/normalize";
@@ -102,7 +102,10 @@ export async function runTeachingSource(s: SourceRecord, c: SearchCriteria, need
       return { jobs: (await fetchJooble("teach_jooble", asTeachingQuery(c.query), c)).filter(isTeaching), warnings: [] };
     case "teach_adzuna_world":
       if (!adzunaAvailable()) throw needsSetup(`${s.name} needs the Adzuna credentials on this deployment.`);
-      return { jobs: (await fetchAdzunaTeaching("teach_adzuna_world", c)).filter(isTeaching), warnings: [] };
+    {
+      const r = await runAdzunaTeaching("teach_adzuna_world", c);
+      return { jobs: r.jobs.filter(isTeaching), warnings: r.warnings };
+    }
     case "teach_usajobs":
       if (!usaJobsAvailable()) throw needsSetup(`${s.name} needs USAJOBS_API_KEY and USAJOBS_EMAIL on this deployment.`);
       return { jobs: (await fetchUsaJobs("teach_usajobs", { ...c, query: asTeachingQuery(c.query) })).filter(isTeaching), warnings: [] };

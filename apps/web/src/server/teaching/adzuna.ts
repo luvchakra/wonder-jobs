@@ -58,17 +58,42 @@ export function rawFromAdzunaTeaching(j: AdzunaTeachingJob, country: AdzunaCount
   return { ...base, location: j.location?.display_name || country.name, salaryMin: stated ? base.salaryMin : null, salaryMax: stated ? base.salaryMax : null, currency: stated ? country.currency : null };
 }
 
-export async function fetchAdzunaTeaching(sourceId: string, c: SearchCriteria): Promise<Job[]> {
+/** A pause between Adzuna's countries: its free key is rate-limited, and seven calls at once drew a 429 on most runs. */
+export const ADZUNA_PAUSE_MS = 350;
+
+const rateLimited = (e: unknown) => /responded 429\b/.test(String((e as Error)?.message ?? e));
+
+/**
+ * One search across the countries it names, one country at a time with a short pause. A 429 (Adzuna's rate limit) stops
+ * the search at once: the countries already answered are kept and the warning says how many were asked; with none
+ * answered it throws, so the run shows "Unavailable" rather than an empty result.
+ */
+export async function runAdzunaTeaching(sourceId: string, c: SearchCriteria, pauseMs = ADZUNA_PAUSE_MS): Promise<{ jobs: Job[]; warnings: string[] }> {
   const id = platformKey("ADZUNA_APP_ID");
   const key = platformKey("ADZUNA_APP_KEY");
   const asks = adzunaAsks(c);
-  if (!id || !key || !asks.length) return [];
+  if (!id || !key || !asks.length) return { jobs: [], warnings: [] };
   const what = encodeURIComponent(corePhrase(asTeachingQuery(c.query)));
-  const pages = await Promise.all(
-    asks.map(({ country, where }) =>
-      getJson<{ results: AdzunaTeachingJob[] }>(`https://api.adzuna.com/v1/api/jobs/${country.code}/search/1?app_id=${id}&app_key=${key}&results_per_page=50&what=${what}${where ? `&where=${encodeURIComponent(where)}` : ""}${c.since ? `&max_days_old=${daysSince(c.since)}` : ""}&content-type=application/json`).then((r) => (r.results ?? []).map((j) => rawFromAdzunaTeaching(j, country))),
-    ),
-  );
+  const raws: RawPosting[] = [];
+  const warnings: string[] = [];
+  let asked = 0;
+  for (const { country, where } of asks) {
+    if (asked > 0 && pauseMs > 0) await new Promise((r) => setTimeout(r, pauseMs));
+    try {
+      const r = await getJson<{ results: AdzunaTeachingJob[] }>(`https://api.adzuna.com/v1/api/jobs/${country.code}/search/1?app_id=${id}&app_key=${key}&results_per_page=50&what=${what}${where ? `&where=${encodeURIComponent(where)}` : ""}${c.since ? `&max_days_old=${daysSince(c.since)}` : ""}&content-type=application/json`);
+      raws.push(...(r.results ?? []).map((j) => rawFromAdzunaTeaching(j, country)));
+      asked++;
+    } catch (e) {
+      if (!rateLimited(e)) throw e;
+      if (!asked) throw e;
+      warnings.push(`Adzuna's rate limit (429) stopped this search after ${asked} of ${asks.length} countries.`);
+      break;
+    }
+  }
   // Adzuna already searched the place ("London, UK" comes back as "London, Greater London"), so only the words are checked again.
-  return finish(sourceId, pages.flat(), { ...c, locations: [] });
+  return { jobs: finish(sourceId, raws, { ...c, locations: [] }), warnings };
+}
+
+export async function fetchAdzunaTeaching(sourceId: string, c: SearchCriteria): Promise<Job[]> {
+  return (await runAdzunaTeaching(sourceId, c)).jobs;
 }
