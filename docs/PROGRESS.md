@@ -189,4 +189,5 @@
 - ✅ Jobs: Recruitee and Personio career sites (European employers); NAV and NLx on the owner's Setup to-do (WJ-550)
 - ✅ Internships: internships and working-student roles from Personio and Recruitee career sites (WJ-584)
 - ✅ Jobs: job type read from underscore and hyphen spellings such as "working_student" and "FULL_TIME" (WJ-551)
+- ✅ Admin → Keys can test the Find an apprenticeship key (WJ-585)
 - ✅ Scholarships & Projects: Simpler.Grants.gov and clist.by programming contests added (Needs setup until their keys are set) (WJ-533)
