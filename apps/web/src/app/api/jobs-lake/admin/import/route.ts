@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     if (r.queued)
       after(async () => {
         const c = await continueSetupJob();
-        if (c.left && c.ran) await handOnSetupJob(origin);
+        if (c.more) await handOnSetupJob(origin);
       });
     return json({ ok: true, queued: r.queued, skipped: r.skipped });
   }
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     // A running import whose hand-on was lost (2026-11-02: stuck at 13 of 16 for two hours): carry it on now.
     after(async () => {
       const c = await continueSetupJob();
-      if (c.left && c.ran) await handOnSetupJob(origin);
+      if (c.more) await handOnSetupJob(origin);
     });
     await audit(a.actor, "import.continued", undefined, {});
     return json({ ok: true });
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     await audit(a.actor, "import.module_started", undefined, { module: mod, queued: r.queued });
     after(async () => {
       const c = await continueSetupJob();
-      if (c.left && c.ran) await handOnSetupJob(origin);
+      if (c.more) await handOnSetupJob(origin);
     });
     return json({ ok: true, queued: r.queued });
   }

@@ -17,7 +17,7 @@ describe("Sources → Import's server job (2026-11-02: backend, not the page)", 
     const run = vi.fn(async (r: SetupRun) => (r.kind === "activate" && r.sourceId === "src_2" ? { ok: false as const, step: "Test", message: "no valid listings" } : { ok: true as const, valid: 5, sourceId: (r as { sourceId: string }).sourceId }));
     const refresh = vi.fn(async () => ({ stored: { therapists: 5, services: 660 } }));
     const r = await continueSetupJob({ run, sleep: async () => undefined, refresh });
-    expect(r).toEqual({ ran: 3, left: 0, done: true, refreshed: true });
+    expect(r).toEqual({ ran: 3, left: 0, done: true, refreshed: true, more: false });
     const job = (await readSetupJob())!;
     expect(job.items.map((i) => i.status)).toEqual(["live", "failed", "live"]);
     expect(job.items[1]).toMatchObject({ step: "Test", message: "no valid listings" });
@@ -36,7 +36,7 @@ describe("Sources → Import's server job (2026-11-02: backend, not the page)", 
     });
     const refresh = vi.fn(async () => ({ stored: {} }));
     const deps = { run, now: () => t, sleep: async () => undefined, refresh };
-    expect(await continueSetupJob(deps)).toEqual({ ran: 1, left: 2, done: false, refreshed: false });
+    expect(await continueSetupJob(deps)).toEqual({ ran: 1, left: 2, done: false, refreshed: false, more: true });
     expect(refresh).not.toHaveBeenCalled(); // not until the job is done
     expect((await readSetupJob())!.finishedAt).toBeUndefined();
     t += 100_000; // past any lease
@@ -109,7 +109,22 @@ describe("Sources → Import's server job (2026-11-02: backend, not the page)", 
   });
 
   it("does nothing with no job, and nothing to queue is refused", async () => {
-    expect(await continueSetupJob()).toEqual({ ran: 0, left: 0, done: true });
+    expect(await continueSetupJob()).toEqual({ ran: 0, left: 0, done: true, more: false });
     expect(await startSetupJob([], "admin")).toMatchObject({ ok: false });
+  });
+});
+
+describe("the job's Find refresh fits its call (2026-11-05: refreshing every module in one call ran past 60 s)", () => {
+  it("leaves the modules it had no time for to the next call, which finishes the job", async () => {
+    await startSetupJob([{ id: "gateway:a", name: "A", run: { kind: "activate", sourceId: "a" } }], "admin@x");
+    const calls: (string[] | undefined)[] = [];
+    const refresh = async (m: string[] | undefined): Promise<{ stored: Record<string, number>; remaining?: string[] }> => { calls.push(m); return calls.length === 1 ? { stored: { jobs: 5 }, remaining: ["events", "teaching"] } : { stored: { events: 2, teaching: 3 } }; };
+    const deps = { run: async () => ({ ok: true as const, sourceId: "a", valid: 4 }), refresh, notify: async () => {}, sleep: async () => {} };
+    const first = await continueSetupJob(deps);
+    expect(first).toMatchObject({ done: false, more: true });
+    const second = await continueSetupJob(deps);
+    expect(second).toMatchObject({ done: true, more: false });
+    expect(calls).toEqual([undefined, ["events", "teaching"]]);
+    expect((await readSetupJob())?.stored).toEqual({ jobs: 5, events: 2, teaching: 3 });
   });
 });

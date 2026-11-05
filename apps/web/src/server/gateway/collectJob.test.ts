@@ -23,7 +23,7 @@ describe("a scheduled run right after the last one", () => {
   it("still refreshes every module when Find is stale and no Setup job runs", async () => {
     runs = [{ stored: { jobs: 4 }, finishedAt: new Date(Date.now() - REFRESH_STALE_MS - 60_000).toISOString() }];
     const r = await runGatewayCollection("cron", "https://x", async () => {});
-    expect(refresh).toHaveBeenCalledWith();
+    expect(refresh).toHaveBeenCalledWith(undefined, expect.any(Date), expect.any(Number));
     expect(r.refreshed).toEqual({ jobs: 5 });
     expect(recorded).toHaveLength(1);
   });
@@ -53,7 +53,7 @@ describe("a collection chain (2026-11-05: each call collected 2-3 of ~15 due sou
     const handOn = vi.fn(async () => true);
     const notify = vi.fn(async () => {});
     const r = await runGatewayCollection("cron", "https://x", notify, 1, handOn, "abc123");
-    expect(handOn).toHaveBeenCalledWith("https://x", 2, "abc123");
+    expect(handOn).toHaveBeenCalledWith("https://x", 2, "abc123", []);
     expect(notify).not.toHaveBeenCalled();
     expect(r.summary).toMatch(/1 carried to the next call · call 2/);
     expect((recorded.at(-1) as { id: string }).id).toBe("hourly_abc123");
