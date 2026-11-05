@@ -12,7 +12,9 @@ import { sourceInsights, type InsightsView } from "@/domain/jobslake/insights";
 import { ACCESS_LABEL, CATEGORY_LABEL, STATUS_LABEL, type CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import { partnerPreset, partnerReadiness, type PartnerPreset, type PartnerReadiness } from "@/domain/jobslake/partners";
 import { credentialStatus, type CredentialStatus } from "./credentials";
-import { healthBySource } from "./core";
+import { gatewayFed, healthBySource } from "./core";
+import { adminTodo, type FetchMode } from "@/domain/jobslake/fetchMode";
+import { isGatewayBridge } from "./gatewaySources";
 import { isAvailable, listSources } from "./registry";
 import { MODULES, MODULE_IDS, type ModuleId } from "@/modules/registry";
 import { jobsLakeStore } from "./store";
@@ -31,22 +33,33 @@ export interface SourceView extends Omit<SourceRecord, "secretRef"> {
   credential: CredentialStatus | null;
   /** Partner portals only: what's known about the portal, and what's left before it can be activated. */
   partner?: { preset?: PartnerPreset; readiness: PartnerReadiness };
+  /** When its data is fetched: live on a worded search, or collected on the gateway's schedule (domain/jobslake/fetchMode.ts). */
+  fetchMode: FetchMode;
+  /** What the admin needs to do for it, in a line ("Nothing…" when nothing). */
+  todo: string;
 }
 
 /** A source for an API response. `secretRef` is dropped; only masked credential status is kept. */
 export async function sourceView(s: SourceRecord, health: Record<string, SourceHealth>): Promise<SourceView> {
   const { secretRef, ...rest } = s;
   const credential = await credentialStatus(secretRef);
+  const available = await isAvailable(s);
+  // A built-in that shows the gateway's collected listings is read from what was collected, not asked live.
+  const fed = gatewayFed(s) || isGatewayBridge(s.id);
+  const fetchMode: FetchMode = fed ? "scheduled" : "on_search";
+  const missingKey = credential && !credential.present ? (/^Not set \((.+)\)$/.exec(credential.masked)?.[1] ?? "its key") : null;
   const partner = s.config.kind === "partnership" ? { preset: partnerPreset(s.id), readiness: partnerReadiness({ connection: s.config.connection, credentialPresent: !!credential?.present, lastTest: s.lastTest, agreement: s.agreement, active: s.status === "active" || s.status === "degraded" }) } : undefined;
   return {
     ...rest,
     statusLabel: STATUS_LABEL[s.status],
     accessLabel: ACCESS_LABEL[s.accessStrategy],
     categoryLabel: CATEGORY_LABEL[s.category],
-    available: await isAvailable(s),
+    available,
     health: health[s.id] ?? null,
     credential,
     ...(partner ? { partner } : {}),
+    fetchMode,
+    todo: adminTodo({ mode: fetchMode, status: s.status, available, missingKey, keyOnSource: !!credential && !credential.present && credential.managedBy === "jobslake", gatewayFed: fed }),
   };
 }
 
