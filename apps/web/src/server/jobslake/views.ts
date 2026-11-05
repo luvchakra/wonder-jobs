@@ -59,7 +59,7 @@ export async function sourceView(s: SourceRecord, health: Record<string, SourceH
     credential,
     ...(partner ? { partner } : {}),
     fetchMode,
-    todo: adminTodo({ mode: fetchMode, status: s.status, available, missingKey, keyOnSource: !!credential && !credential.present && credential.managedBy === "jobslake", gatewayFed: fed }),
+    todo: adminTodo({ mode: fetchMode, status: s.status, available, missingKey, keyOnSource: !!credential && !credential.present && credential.managedBy === "jobslake", gatewayFed: fed, partner: s.config.kind === "partnership" }),
   };
 }
 
