@@ -1,0 +1,29 @@
+{
+  "url": "https://www.buddy4study.com/sitemap.xml",
+  "kind": "crawl",
+  "discover": "sitemap",
+  "pathPrefix": "/scholarship/",
+  "nextDataPath": "props.pageProps.scholarship.scholarship",
+  "mapping": {
+    "title": "scholarshipMultilinguals.0.title",
+    "organization": "scholarshipMultilinguals.0.providerName",
+    "description": "scholarshipMultilinguals.0.applicableFor",
+    "attr.deadline": "deadlineDate",
+    "attr.award": "scholarshipMultilinguals.0.purposeAward"
+  },
+  "organizationOptional": true,
+  "dropPastAfter": "deadline",
+  "modules": ["scholarships"],
+  "geography": ["IN"],
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm Buddy4Study allows reuse of its scholarship listings (owner decision 'buddy4study-crawl' in Setup to-do). Checked 2026-11-03: robots.txt disallows only /media-url/ and /UID/ and lists /sitemap.xml (about 1,370 /scholarship/ pages, many expired); each page's Next.js data holds the scholarship's title, provider, deadline, eligibility and award. India's largest scholarship list; no open API or feed.",
+  "termsReviewed": true,
+  "robotsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "Buddy4Study",
+  "retentionHours": 168,
+  "minIntervalMinutes": 1440,
+  "maxPagesPerRun": 30,
+  "crawlDelayMs": 3000
+}

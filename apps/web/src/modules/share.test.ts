@@ -6,6 +6,7 @@ import { shareOf as therapists } from "./therapists/share";
 import { shareOf as events } from "./events/share";
 import { shareOf as marketplace } from "./marketplace/share";
 import { shareOf as cofounders } from "./cofounders/share";
+import type { CofounderListing } from "./cofounders/domain";
 
 const base = { company: "Acme", location: "Pune, Maharashtra", sourceId: "s", sourceName: "WonderWorks X", description: "The full description of the thing." };
 /** What a share is made from: the details its image shows and its summary is written from (the message itself is crisp). */
@@ -50,10 +51,24 @@ describe("every module's Share carries the listing's own details", () => {
     expect(JSON.stringify(marketplace(l))).not.toContain("p1");
   });
 
-  it("Co-founders: what the listing shows other people, and a link to the module — a person has no public page", () => {
-    const p = cofounders({ id: "cfp_1", kind: "person", title: "Product-minded engineer", company: "Founder", location: "Mumbai", terms: { role: "Tech", skills: ["React", "Node"], commitment: "Full time", idea: "Fintech for gig workers", equity: "Open to discuss" }, description: "I have built two products.", sourceId: "s", sourceName: "WonderWorks founders" });
-    const m = text(p);
+  it("Co-founders: a profile shares content only when its owner allowed it; otherwise a generic message, whatever the listing holds", () => {
+    const listing: CofounderListing = { id: "cfp_1", kind: "person", title: "Product-minded engineer", company: "Founder", location: "Mumbai", terms: { role: "Tech", skills: ["React", "Node"], commitment: "Full time", idea: "Fintech for gig workers", equity: "Open to discuss" }, description: "I have built two products.", sourceId: "s", sourceName: "WonderWorks founders" };
+    const on = cofounders({ ...listing, shareable: true });
+    const m = text(on);
     for (const x of ["Product-minded engineer", "Tech founder", "Skills: React, Node", "Idea: Fintech for gig workers", "Equity: Open to discuss", "I have built two products."]) expect(m).toContain(x);
-    expect(p.url).toBe("/app/m/cofounders");
+    expect(on.url).toBe("/app/m/cofounders");
+    // Off, missing (an older saved copy) or anything but true: nothing about the person leaves.
+    for (const l of [{ ...listing, shareable: false }, listing, { ...listing, shareable: "yes" as never }]) {
+      const off = cofounders(l);
+      const t = JSON.stringify(off);
+      for (const x of ["Product-minded", "engineer", "Mumbai", "React", "Node", "Fintech", "Open to discuss", "two products", "Tech founder", "Full time", "WonderWorks founders"]) expect(t, x).not.toContain(x);
+      expect(off).toMatchObject({ title: "Co-founders on WonderWorks", url: "/app/m/cofounders" });
+      expect(off.lines).toEqual([]);
+      expect(off.details).toBeUndefined();
+    }
+    // A team follows the same rule.
+    const team: CofounderListing = { id: "cft_1", kind: "team", title: "Chaser", company: "Invoices that chase themselves", location: "Pune", terms: { stage: "Prototype", founders: 2, openRoles: [{ role: "Business", skills: ["Sales"] }] }, description: "A longer story.", sourceId: "s", sourceName: "WonderWorks founders" };
+    expect(text(cofounders({ ...team, shareable: true }))).toContain("Looking for: Business (Sales)");
+    expect(JSON.stringify(cofounders(team))).not.toMatch(/Chaser|Invoices|Pune|Sales/);
   });
 });

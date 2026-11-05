@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __MemoryStore, __setJobsLakeStore } from "./store";
-import { __resetPlatformKeys, loadPlatformKeys, PLATFORM_KEYS, platformKey, platformKeyStatus, setPlatformKey } from "./platformKeys";
+import { __resetPlatformKeys, kaggleAuthorization, loadPlatformKeys, PLATFORM_KEYS, platformKey, platformKeyStatus, setPlatformKey } from "./platformKeys";
 
 describe("platform API keys — set on the platform, not the hosting dashboard", () => {
   beforeEach(() => {
@@ -47,5 +47,14 @@ describe("platform API keys — set on the platform, not the hosting dashboard",
     await loadPlatformKeys(Date.now(), true);
     expect(platformKey("ADZUNA_APP_KEY")).toBe("fromenv");
     expect((await platformKeyStatus()).find((k) => k.name === "ADZUNA_APP_KEY")).toMatchObject({ from: "environment", masked: "Set in the deployment" });
+  });
+
+  it("gives Kaggle the new token as Bearer, else the old pair (deployment variables only) as Basic, else nothing", async () => {
+    expect(kaggleAuthorization()).toBeUndefined();
+    vi.stubEnv("KAGGLE_USERNAME", "someone");
+    vi.stubEnv("KAGGLE_KEY", "abcd1234");
+    expect(kaggleAuthorization()).toBe(`Basic ${Buffer.from("someone:abcd1234").toString("base64")}`);
+    await setPlatformKey("KAGGLE_API_TOKEN", "KGAT_abc123");
+    expect(kaggleAuthorization()).toBe("Bearer KGAT_abc123");
   });
 });

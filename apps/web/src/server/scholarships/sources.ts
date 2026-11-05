@@ -11,9 +11,10 @@
  * - Devpost: its public hackathon list (open hackathons only), as projects with their submission deadline and prizes.
  * - Unstop: its public opportunity list (scholarships, hackathons, competitions for Indian students); paid ones are left out.
  * - EU Funding & Tenders: the portal's search API (public key SEDIA), open fellowship calls only (MSCA, ERA).
- * - Opportunity Desk and Scholars4Dev: their public WordPress RSS feeds (one post, one opportunity, its stated deadline).
+ * - Opportunity Desk, Scholars4Dev, Opportunities for Africans and Mladiinfo: their public WordPress RSS feeds (one post, one opportunity, its stated deadline).
+ * - HackerEarth: its public challenge list (ongoing and upcoming hackathons).
  * - Devfolio: hackathons open for applications in India (the public search its site uses).
- * - Kaggle: its API's open competitions — needs KAGGLE_USERNAME + KAGGLE_KEY ("Needs setup" without).
+ * - Kaggle: its API's open competitions — needs KAGGLE_API_TOKEN, or the older KAGGLE_USERNAME + KAGGLE_KEY ("Needs setup" without).
  * Devpost, Unstop and EU Funding & Tenders are live with "terms pending" (CLAUDE.md, "Finding data sources"): the
  * owner confirms their terms later; `statusReason` says what to confirm.
  * - Partner uploads arrive through the WorksLake gateway's own source (`works_gateway_scholarships`,
@@ -28,7 +29,7 @@ import type { RawPosting } from "@/services/jobs/normalize";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { platformKey } from "@/server/jobslake/platformKeys";
+import { kaggleAuthorization } from "@/server/jobslake/platformKeys";
 
 const EPOCH = "2026-11-01T00:00:00.000Z";
 const FEED_CAPS = ["Search", "Freshness", "Apply URL"];
@@ -46,15 +47,20 @@ export const KAGGLE = "schol_kaggle";
 export const DEVFOLIO = "schol_devfolio";
 export const OPPORTUNITY_DESK = "schol_opportunity_desk";
 export const SCHOLARS4DEV = "schol_scholars4dev";
+export const OPPORTUNITIES_FOR_AFRICANS = "schol_opportunities_for_africans";
+export const MLADIINFO = "schol_mladiinfo";
+export const HACKEREARTH = "schol_hackerearth";
 
 /** Scholarship blogs' public WordPress RSS feeds: each post names one opportunity and states its deadline. */
 const FEEDS: Record<string, { url: string; name: string }> = {
   [OPPORTUNITY_DESK]: { url: "https://opportunitydesk.org/category/fellowships-and-scholarships/feed/", name: "Opportunity Desk" },
   [SCHOLARS4DEV]: { url: "https://www.scholars4dev.com/feed/", name: "Scholars4Dev" },
+  [OPPORTUNITIES_FOR_AFRICANS]: { url: "https://www.opportunitiesforafricans.com/feed/", name: "Opportunities for Africans" },
+  [MLADIINFO]: { url: "https://mladiinfo.eu/feed/", name: "Mladiinfo" },
 };
 
-/** Kaggle's key, from the deployment or Admin → Settings → API (`platformKey`). */
-const kaggleAvailable = () => !!(platformKey("KAGGLE_USERNAME") && platformKey("KAGGLE_KEY"));
+/** Kaggle's token (or the older username + key), from the deployment or Admin → Keys (`kaggleAuthorization`). */
+const kaggleAvailable = () => !!kaggleAuthorization();
 
 /** Required by Grants.gov's API terms next to its data. */
 export const GRANTS_GOV_NOTICE = "This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services.";
@@ -68,7 +74,10 @@ export const SCHOLARSHIP_SOURCES: SourceRecord[] = [
   source({ id: OPPORTUNITY_DESK, name: "Opportunity Desk scholarships and fellowships", provider: "Opportunity Desk", category: "aggregator", geography: ["global"], statusReason: "terms pending: Opportunity Desk's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "Scholarships and fellowships from Opportunity Desk's public RSS feed, each with the deadline its post states." }),
   source({ id: SCHOLARS4DEV, name: "Scholars4Dev scholarships", provider: "Scholars4Dev", category: "aggregator", geography: ["global"], statusReason: "terms pending: Scholars4Dev's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "International scholarships from Scholars4Dev's public RSS feed, each with the deadline its post states." }),
   source({ id: DEVFOLIO, name: "Devfolio hackathons", provider: "Devfolio", category: "aggregator", geography: ["IN"], statusReason: "terms pending: Devfolio's public hackathon search (the one its site uses) has no published reuse terms; confirm with Devfolio", description: "Hackathons open for applications in India from Devfolio, each with its registration deadline." }),
-  source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API." }),
+  source({ id: OPPORTUNITIES_FOR_AFRICANS, name: "Opportunities for Africans", provider: "Opportunities for Africans", category: "aggregator", geography: ["global"], statusReason: "terms pending: the site's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "Scholarships, fellowships and programmes for young Africans from the site's public RSS feed, each with the deadline its post states." }),
+  source({ id: MLADIINFO, name: "Mladiinfo scholarships and opportunities", provider: "Mladiinfo", category: "aggregator", geography: ["global", "EU"], statusReason: "terms pending: Mladiinfo's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "Scholarships, competitions and youth opportunities from Mladiinfo's public RSS feed, each with the deadline its post states." }),
+  source({ id: HACKEREARTH, name: "HackerEarth hackathons", provider: "HackerEarth", category: "aggregator", geography: ["global", "IN"], statusReason: "terms pending: HackerEarth's public challenge list (the one its browser extension reads) has no published reuse terms; confirm with HackerEarth", description: "Hackathons and challenges open or starting soon on HackerEarth, each closing when its submissions end." }),
+  source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_API_TOKEN (free: kaggle.com → Settings → API → Generate New Token), or the older KAGGLE_USERNAME + KAGGLE_KEY, set in Admin → Keys." }),
 ];
 
 export function scholarshipSourceAvailable(s: SourceRecord): boolean {
@@ -414,6 +423,43 @@ export async function fetchDevfolio(c: SearchCriteria): Promise<Job[]> {
   return finish(DEVFOLIO, (body.hits?.hits ?? []).flatMap((h) => rawFromDevfolio(h._source) ?? []), c);
 }
 
+// ---- HackerEarth -----------------------------------------------------------------------------------------------
+
+interface HackerEarthChallenge {
+  title: string;
+  url: string;
+  description?: string;
+  status?: string;
+  college?: boolean;
+  challenge_type?: string;
+  end_date?: string;
+  end_timestamp?: string;
+}
+
+/** A HackerEarth hackathon or challenge as a project: closes when submissions end; only ongoing or upcoming ones. */
+export function rawFromHackerEarth(h: HackerEarthChallenge): RawPosting | null {
+  if (!h.url || !/^https:\/\//.test(h.url) || (h.status && !/^(ONGOING|UPCOMING)$/.test(h.status))) return null;
+  const t = Date.parse(`${(h.end_date ?? "").replace(/,/g, "")} 00:00:00 UTC`);
+  const deadline = Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : undefined;
+  return {
+    externalId: h.url,
+    title: h.title,
+    company: NO_PROVIDER,
+    location: "Online",
+    remote: true,
+    description: [h.description ?? "", h.challenge_type ? `${h.challenge_type} on HackerEarth.` : "", h.college ? "For college students." : ""].filter(Boolean).join(" "),
+    tags: [],
+    applyUrl: h.url,
+    employerSite: true,
+    attributes: { kind: "project", ...(deadline ? { deadline } : {}), officialUrl: h.url, ...(h.college ? { levels: "ug;pg" } : {}), currency: "USD" },
+  };
+}
+
+export async function fetchHackerEarth(c: SearchCriteria): Promise<Job[]> {
+  const body = await getJson<{ response?: HackerEarthChallenge[] }>("https://www.hackerearth.com/chrome-extension/events/");
+  return finish(HACKEREARTH, (body.response ?? []).flatMap((h) => rawFromHackerEarth(h) ?? []), c);
+}
+
 // ---- Kaggle (needs a key) --------------------------------------------------------------------------------------
 
 interface KaggleCompetition {
@@ -447,9 +493,8 @@ export function rawFromKaggle(k: KaggleCompetition): RawPosting | null {
 }
 
 export async function fetchKaggle(c: SearchCriteria): Promise<Job[]> {
-  const auth = Buffer.from(`${platformKey("KAGGLE_USERNAME")}:${platformKey("KAGGLE_KEY")}`).toString("base64");
   const q = c.query.trim() ? `&search=${encodeURIComponent(c.query.trim().slice(0, 80))}` : "";
-  const list = await getJson<KaggleCompetition[]>(`https://www.kaggle.com/api/v1/competitions/list?page=1${q}`, { headers: { authorization: `Basic ${auth}` } });
+  const list = await getJson<KaggleCompetition[]>(`https://www.kaggle.com/api/v1/competitions/list?page=1${q}`, { headers: { authorization: kaggleAuthorization()! } });
   return finish(KAGGLE, (Array.isArray(list) ? list : []).flatMap((k) => rawFromKaggle(k) ?? []), c);
 }
 
@@ -485,11 +530,15 @@ export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria, n
       return { jobs: await fetchEuFellowships(c), warnings: [] };
     case OPPORTUNITY_DESK:
     case SCHOLARS4DEV:
+    case OPPORTUNITIES_FOR_AFRICANS:
+    case MLADIINFO:
       return { jobs: await fetchFeed(s.id, c), warnings: [] };
+    case HACKEREARTH:
+      return { jobs: await fetchHackerEarth(c), warnings: [] };
     case DEVFOLIO:
       return { jobs: await fetchDevfolio(c), warnings: [] };
     case KAGGLE:
-      if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API.`);
+      if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_API_TOKEN (free: kaggle.com → Settings → API → Generate New Token), or the older KAGGLE_USERNAME + KAGGLE_KEY, set in Admin → Keys.`);
       return { jobs: await fetchKaggle(c), warnings: [] };
     default:
       throw new Error("No connector");

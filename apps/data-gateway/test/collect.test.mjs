@@ -46,3 +46,24 @@ test("the pinned lookup answers in the shape the caller asked for", () => {
   pinnedLookup(pin)("example.org", { all: true }, (err, list) => { assert.equal(err, null); assert.deepEqual(list, [{ address: pin.address, family: 4 }]); });
   pinnedLookup(pin)("example.org", {}, (err, address, family) => { assert.equal(err, null); assert.equal(address, pin.address); assert.equal(family, 4); });
 });
+
+import { parseNextData as readNextData, parseStructured as readStructured } from "../src/collect.mjs";
+
+test("a Next.js page's own data is read through the source's mapping (path, fields, attr.*), nothing guessed", () => {
+  const data = { props: { pageProps: { scholarship: { scholarship: { deadlineDate: "2026-12-01", tags: ["Engineering", "Women"], scholarshipMultilinguals: [{ title: "QuTech Scholarship 2026", applicableFor: "Master's students at TU Delft", purposeAward: "Full tuition fee", providerName: null }] } } } } };
+  const html = `<html><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(data)}</script></html>`;
+  const mapping = { title: "scholarshipMultilinguals.0.title", organization: "scholarshipMultilinguals.0.providerName", description: "scholarshipMultilinguals.0.applicableFor", "attr.deadline": "deadlineDate", "attr.award": "scholarshipMultilinguals.0.purposeAward", "attr.fields": "tags" };
+  assert.deepEqual(readNextData(html, "props.pageProps.scholarship.scholarship", mapping), [
+    { title: "QuTech Scholarship 2026", description: "Master's students at TU Delft", attributes: { deadline: "2026-12-01", award: "Full tuition fee", fields: "Engineering, Women" } },
+  ]);
+  assert.deepEqual(readNextData("<html>no data</html>", "props.x", mapping), []);
+  assert.deepEqual(readNextData(html.replace("QuTech", "Q"), "props.pageProps.missing", mapping), []);
+});
+
+test("a schema.org ScholarshipProgram or Grant is a listing: who offers it, its deadline and amount as stated", () => {
+  const ld = { "@context": "https://schema.org", "@type": "ScholarshipProgram", name: "Women in STEM Scholarship", provider: { "@type": "Organization", name: "Acme Foundation" }, applicationDeadline: "2026-12-31", amount: { "@type": "MonetaryAmount", value: 50000, currency: "INR" }, url: "https://acme.example/stem", description: "For women in engineering." };
+  const [rec] = readStructured(`<script type="application/ld+json">${JSON.stringify(ld)}</script>`);
+  assert.equal(rec.title, "Women in STEM Scholarship");
+  assert.equal(rec.organization, "Acme Foundation");
+  assert.deepEqual(rec.attributes, { deadline: "2026-12-31", amount: 50000, currency: "INR" });
+});

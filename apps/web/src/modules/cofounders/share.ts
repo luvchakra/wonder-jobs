@@ -2,12 +2,15 @@ import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 import type { CofounderListing } from "./domain";
 
 /**
- * What Share sends about a founder or team, everything the listing shows to other people as it reads now: their headline,
- * role, commitment, place, skills, idea, equity, stage and open roles, and the description. A person's listing is what
- * they chose to show other WonderWorks users, not the open web, so it has no public page: the link opens the module, and
- * whoever opens it signs in. Contact details are never part of a listing and never shared.
+ * What Share sends about a founder or team (owner, 2026-11-03: "go with b"). A profile's fields are shown to everyone on
+ * WonderWorks, not to the open web, so sharing one off WonderWorks is the owner's own choice, "Let others share my
+ * profile", off by default. Off (or an older saved copy that doesn't say): Share sends only a generic Co-founders on
+ * WonderWorks message and the module's link, with no headline, role, skills or place. On: the crisp message, built from the
+ * fields the owner shows everyone. Another person's Share reads the choice and never overrides it. A person's listing has
+ * no public page, so the link opens the module and whoever opens it signs in. Contact details are never part of a listing.
  */
 export const shareOf = (l: CofounderListing): ListingShareProps => {
+  if (l.shareable !== true) return { module: "cofounders", noun: "place to find a co-founder", title: "Co-founders on WonderWorks", facts: ["Find someone to build with"], lines: [], url: "/app/m/cofounders" };
   const t = l.terms;
   const team = l.kind === "team";
   return {

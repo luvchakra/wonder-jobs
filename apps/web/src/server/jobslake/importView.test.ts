@@ -43,7 +43,7 @@ describe("Import page: a module's sources as rows with one state and one action 
     const failed = new Map([["gateway:src_h", { at: new Date(Date.now() - 2 * 3_600_000).toISOString(), step: "Test", message: "Cannot verify robots policy" }]]);
     const [row] = moduleRows("services", [], [gw("src_h", "services")], [item("gateway:src_h", "services", "activate", { run: { kind: "activate", sourceId: "src_h" } })], failed);
     expect(row).toMatchObject({ state: "needs_you", action: { kind: "run", label: "Try again" } });
-    expect(row.detail).toMatch(/^Didn't go live 2 h ago at Test: Cannot verify robots policy\. Import now leaves it out for a day\.$/);
+    expect(row.detail).toMatch(/^Didn't go live 2 h ago: Robots.txt didn't load\. The site's robots.txt couldn't be read \(during its test\).* Import now leaves it out for a day\.$/);
   });
 
   it("a failing source can be dismissed; a dismissed one is off, not counted as waiting, with Restore", () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { setAssistModelForTests } from "@/server/ai/assist";
-import { checkedSummary, clean, ruleSummary, shareSummary } from "./summary";
+import { checkedSummary, clean, ruleSummary, shareSummary, summaryWithin } from "./summary";
 
 const input = { noun: "teaching job", title: "Maths Teacher", facts: ["Walderslade School", "Chatham"], lines: ["Subject: Mathematics", "Grades: Secondary", "From: WorksLake Data Gateway · Teaching"], details: "Maths Teacher Wanted. Do you have enthusiasm in abundance and the ability to explain algebra? Apply at https://x.test." };
 
@@ -43,5 +43,13 @@ describe("a share's summary", () => {
     const ev = { noun: "event", title: "Gaming hobby group for Minecraft adventurers for 3.-6. graders", facts: ["6 Nov 2026", "Entresse Library, Espoo, Finland", ""], lines: ["Where: Entresse Library, Espoo, Finland"] };
     const s = checkedSummary(ev, { hook: "A Minecraft hobby group for young players at a library.", highlights: ["For 3rd-6th graders", "Takes place at Entresse Library, Espoo, Finland", "Date: 6 Nov 2026", "Free to join, no sign-up needed"] });
     expect(s!.highlights).toEqual(["For 3rd-6th graders", "Free to join, no sign-up needed"]);
+  });
+
+  it("the share image doesn't wait long on a slow model: the rule-based summary after the limit", async () => {
+    setAssistModelForTests(() => new Promise((r) => setTimeout(() => r(JSON.stringify({ hook: "A slow but good summary sentence.", highlights: [] })), 300)));
+    const t = Date.now();
+    const s = await summaryWithin("slow:1", input, 50);
+    expect(Date.now() - t).toBeLessThan(250);
+    expect(s.ai).toBe(false);
   });
 });

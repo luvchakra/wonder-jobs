@@ -14,7 +14,7 @@ export interface Gateway {
   /** `floorMinutes`: no source collected more often than this (the scheduled run's budget). */
   collectDue(budgetMs?: number, skipModules?: string[], floorMinutes?: number): Promise<CollectOutcome[]>;
   /** Collects one active source now (or only tests it). Throws with a `code` when it can't. */
-  collectOne(sourceId: string, testOnly?: boolean): Promise<{ ok: boolean; discovered: number; valid: number; crawl?: unknown }>;
+  collectOne(sourceId: string, testOnly?: boolean, budgetMs?: number): Promise<{ ok: boolean; discovered: number; valid: number; crawl?: unknown }>;
 }
 export function createGateway(options: { store: GatewayStore; env?: Record<string, string | undefined>; storage?: string }): Gateway;
 /** The one country a source covers (its geography, or its site's country domain), or null. */

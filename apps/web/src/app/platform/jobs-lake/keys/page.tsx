@@ -45,6 +45,13 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
     if (r.ok) setValue("");
     onChanged();
   };
+  const test = async () => {
+    setBusy(true);
+    setMsg(null);
+    const r = await adminFetch<{ ok: boolean; message: string }>("keys", { method: "POST", body: JSON.stringify({ name: k.name, test: true }) });
+    setBusy(false);
+    setMsg(r.ok ? r.data.message : r.error.message);
+  };
   return (
     <li className="flex flex-col gap-2 py-3 text-[13px]">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -78,6 +85,14 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
         <a href={k.signup} target="_blank" rel="noreferrer" className="font-medium text-brand-600 hover:underline">
           Get a key
         </a>
+        {k.set && k.testable && (
+          <>
+            {" · "}
+            <button type="button" disabled={busy} onClick={() => void test()} className="font-medium text-brand-600 hover:underline">
+              Test
+            </button>
+          </>
+        )}
         {msg ? ` · ${msg}` : ""}
       </span>
     </li>

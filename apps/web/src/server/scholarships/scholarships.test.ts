@@ -12,7 +12,7 @@ import { __MemoryStore, __setJobsLakeStore } from "@/server/jobslake/store";
 import * as H from "@/server/hiring";
 import { applyToScholarship, decideScholarship, myScholarshipApplication, myScholarshipApplications, orgScholarshipApplications, saveScholarship, setScholarshipStatus, withdrawScholarship } from "./applications";
 import { outside, searchScholarships, termsFromAttributes } from "./search";
-import { NO_PROVIDER, rawFromDevfolio, providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
+import { NO_PROVIDER, rawFromHackerEarth, rawFromDevfolio, providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, fetchKaggle, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
 
 const owner: Session = { userId: "u-org", tenantId: "u-org", email: "team@foundation.test" };
 const student: Session = { userId: "u-stu", tenantId: "u-stu", email: "asha@student.test" };
@@ -54,11 +54,11 @@ afterEach(() => __setJobsLakeStore(undefined));
 describe("its own WorksLake dataset", () => {
   it("every built-in source is the Scholarships module's, never Jobs'", () => {
     expect(new Set(SCHOLARSHIP_SOURCES.map((s) => s.module))).toEqual(new Set(["scholarships"]));
-    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_devfolio", "schol_kaggle"]);
+    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_devfolio", "schol_opportunities_for_africans", "schol_mladiinfo", "schol_hackerearth", "schol_kaggle"]);
   });
 
   it("sources whose terms aren't confirmed say what's pending; Kaggle needs its key", () => {
-    for (const id of ["schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_devfolio"]) expect(SCHOLARSHIP_SOURCES.find((s) => s.id === id)?.statusReason).toMatch(/^terms pending: /);
+    for (const id of ["schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_opportunities_for_africans", "schol_mladiinfo", "schol_hackerearth", "schol_devfolio"]) expect(SCHOLARSHIP_SOURCES.find((s) => s.id === id)?.statusReason).toMatch(/^terms pending: /);
     expect(scholarshipSourceAvailable(SCHOLARSHIP_SOURCES.find((s) => s.id === "schol_kaggle")!)).toBe(false);
   });
 
@@ -151,6 +151,34 @@ describe("Devpost, Unstop, EU fellowships and Kaggle map only what they state", 
     const l = outside(opp({ employer: { name: NO_PROVIDER } } as never))!;
     expect(l.company).toBe("");
     expect(l.sourceName).toBe("Partner: Example Trust");
+  });
+
+  it("HackerEarth: an ongoing or upcoming challenge is an online project closing when submissions end", () => {
+    const h = { title: "IBM Z Day", url: "https://www.hackerearth.com/challenges/hackathon/ibm-z-day/", status: "ONGOING", college: true, end_date: "Nov 18, 2026", challenge_type: "Monthly Challenges" };
+    expect(rawFromHackerEarth(h)).toMatchObject({ company: NO_PROVIDER, remote: true, attributes: { kind: "project", deadline: "2026-11-18", levels: "ug;pg", officialUrl: h.url } });
+    expect(rawFromHackerEarth({ ...h, status: "ENDED" })).toBeNull();
+  });
+
+  it("Kaggle: the new API token is sent as Bearer, the older username + key as Basic", async () => {
+    const kaggle = SCHOLARSHIP_SOURCES.find((s) => s.id === "schol_kaggle")!;
+    const fetchMock = vi.fn(async () => new Response("[]", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      vi.stubEnv("KAGGLE_API_TOKEN", "KGAT_test");
+      expect(scholarshipSourceAvailable(kaggle)).toBe(true);
+      await fetchKaggle({ query: "bearer", locations: [] });
+      vi.stubEnv("KAGGLE_API_TOKEN", "");
+      expect(scholarshipSourceAvailable(kaggle)).toBe(false);
+      vi.stubEnv("KAGGLE_USERNAME", "u");
+      vi.stubEnv("KAGGLE_KEY", "k");
+      expect(scholarshipSourceAvailable(kaggle)).toBe(true);
+      await fetchKaggle({ query: "basic", locations: [] });
+      const auth = (fetchMock.mock.calls as unknown as [string, RequestInit][]).map(([, init]) => (init.headers as Record<string, string>).authorization);
+      expect(auth).toEqual(["Bearer KGAT_test", `Basic ${Buffer.from("u:k").toString("base64")}`]);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("Kaggle: a competition is an online project with its deadline", () => {
