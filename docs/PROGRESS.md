@@ -170,3 +170,4 @@
 - ✅ Kaggle API token (KGAT_) on Admin → Keys with Test (WJ-706)
 - ✅ Scholarships & Projects: Kaggle source uses the new API token, or the older username + key (WJ-531)
 - ✅ Admin → Keys: old Kaggle username + key fields hidden (WJ-707)
+- ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
