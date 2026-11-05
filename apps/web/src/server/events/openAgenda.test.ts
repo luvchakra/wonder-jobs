@@ -115,14 +115,15 @@ describe("the OpenAgenda source", () => {
     const r = await openAgendaSearch(src, { query: "festival", locations: ["Lyon, France"] }, needs);
     // The same event id in two agendas is two events (their uid is per agenda here), the non-commercial one is left out.
     expect(r.jobs.map((j) => j.title)).toEqual(["Music festival", "Music festival"]);
-    const [first, agendasInit] = [fetchMock.mock.calls[0][0] as string, fetchMock.mock.calls[0][1] as { headers: Record<string, string> }];
+    const calls = fetchMock.mock.calls as unknown as [string, { headers: Record<string, string> }][];
+    const [first, agendasInit] = [calls[0][0], calls[0][1]];
     expect(first).toContain("https://api.openagenda.com/v2/agendas?");
     expect(first).toContain("official=1");
     expect(first).toContain("search=festival+Lyon");
     expect(agendasInit.headers.key).toBe("oa_pk_secret123");
     expect(agendasInit.headers["user-agent"]).toMatch(/WonderWorks\/1\.0/);
-    for (const [url] of fetchMock.mock.calls) expect(String(url)).not.toContain("secret123");
-    expect(String(fetchMock.mock.calls[1][0])).toContain("relative%5B%5D=upcoming");
+    for (const [url] of calls) expect(String(url)).not.toContain("secret123");
+    expect(String(calls[1][0])).toContain("relative%5B%5D=upcoming");
   });
 
   it("a refused key is Needs setup without naming the key; a rate limit is an ordinary failure", async () => {
