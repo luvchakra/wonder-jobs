@@ -92,11 +92,11 @@ export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview
 }
 
 /** Collects one source now (platform admin only, checked by the route). */
-export async function collectGatewaySource(sourceId: string) {
+export async function collectGatewaySource(sourceId: string, budgetMs?: number) {
   const hosted = hostedGateway();
   if (!hosted) return { ok: false as const, code: "NOT_CONFIGURED" };
   try {
-    const r = await hosted.gateway.collectOne(sourceId);
+    const r = await hosted.gateway.collectOne(sourceId, false, budgetMs);
     return { ok: true as const, valid: r.valid, discovered: r.discovered };
   } catch (e) {
     return { ok: false as const, code: (e as { code?: string }).code ?? "SOURCE_UNAVAILABLE" };
@@ -153,8 +153,9 @@ export function registerFromCatalogue(file: string) {
 }
 
 /** Tests a source now (a dry fetch through the gateway's own checks); activation needs a passing test. */
-export function testGatewaySource(sourceId: string) {
-  return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/test`, {});
+/** A source's test; `budgetMs` (5–45 s) caps a crawl's time, so a step fits inside one serverless call. */
+export function testGatewaySource(sourceId: string, budgetMs?: number) {
+  return adminCall(`/v1/admin/sources/${encodeURIComponent(sourceId)}/test`, budgetMs ? { budgetMs } : {});
 }
 
 /**
