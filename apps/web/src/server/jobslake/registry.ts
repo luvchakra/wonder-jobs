@@ -177,6 +177,9 @@ export function asksSince(s: Pick<SourceRecord, "id" | "config">): boolean {
 }
 
 export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: Depth): Promise<ConnectorResult> {
+  // The keys an admin set on Admin → Keys, read before any connector checks for one: a source's Test runs on a fresh
+  // server that hadn't read them yet, so USAJOBS said "needs credentials" though both keys were set (owner, 2026-11-05).
+  await loadPlatformKeys();
   const cfg = s.config;
   switch (cfg.kind) {
     case "builtin": {
