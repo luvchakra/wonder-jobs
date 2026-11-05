@@ -36,9 +36,17 @@ export interface ImportRun {
 const KEY = "wj.importruns" as const;
 export const MAX_IMPORT_RUNS = 60;
 
+/** A source's own tries from its row (Try again, Test & activate), newest first: not runs, so not in Run history. */
+type Tries = Record<string, { at: string; ok: boolean }[]>;
+interface Doc { runs?: ImportRun[]; tries?: Tries }
+
+async function readDoc(): Promise<{ runs: ImportRun[]; tries: Tries }> {
+  const d = (await stateStore.get(PLATFORM_TENANT, KEY))?.state as Doc | undefined;
+  return { runs: Array.isArray(d?.runs) ? d.runs : [], tries: d?.tries && typeof d.tries === "object" ? d.tries : {} };
+}
+
 export async function listImportRuns(): Promise<ImportRun[]> {
-  const runs = ((await stateStore.get(PLATFORM_TENANT, KEY))?.state as { runs?: ImportRun[] } | undefined)?.runs;
-  return Array.isArray(runs) ? runs : [];
+  return (await readDoc()).runs;
 }
 
 const empty = (r: ImportRun) => r.kind === "hourly" && r.items.length === 0 && !Object.keys(r.stored ?? {}).length;
@@ -46,15 +54,54 @@ const empty = (r: ImportRun) => r.kind === "hourly" && r.items.length === 0 && !
 /** Adds a run (newest first). Never throws: a log write must not fail an import. */
 export async function recordImportRun(run: ImportRun): Promise<void> {
   try {
-    const runs = await listImportRuns();
+    const { runs, tries } = await readDoc();
     const last = runs[0];
     if (empty(run) && last && empty(last)) {
       runs[0] = { ...last, finishedAt: run.finishedAt, repeats: (last.repeats ?? 1) + 1, summary: run.summary };
     } else runs.unshift({ ...run, summary: run.summary.slice(0, 300), items: run.items.slice(0, 200).map((i) => ({ ...i, ...(i.message ? { message: i.message.slice(0, 300) } : {}) })) });
-    await stateStore.put(PLATFORM_TENANT, KEY, { runs: runs.slice(0, MAX_IMPORT_RUNS) });
+    await stateStore.put(PLATFORM_TENANT, KEY, { runs: runs.slice(0, MAX_IMPORT_RUNS), tries });
   } catch (e) {
     console.warn(`[import] could not record the run: ${e instanceof Error ? e.message : "unknown"}`);
   }
+}
+
+/** Failed tries in a row after which a source is archived (owner, 2026-11-05: "the sources which are failing even after multiple tries and fixes, move them to an archived section"). */
+export const ARCHIVE_AFTER = 3;
+const MAX_TRIED = 400;
+
+/** Records one try of a source from its row. Never throws. */
+export async function recordTry(id: string, ok: boolean, at = new Date().toISOString()): Promise<void> {
+  try {
+    const { runs, tries } = await readDoc();
+    const next: Tries = { [id]: [{ at, ok }, ...(tries[id] ?? [])].slice(0, ARCHIVE_AFTER + 2) };
+    for (const [k, v] of Object.entries(tries)) if (k !== id && Object.keys(next).length < MAX_TRIED) next[k] = v;
+    await stateStore.put(PLATFORM_TENANT, KEY, { runs, tries: next });
+  } catch (e) {
+    console.warn(`[import] could not record the try: ${e instanceof Error ? e.message : "unknown"}`);
+  }
+}
+
+/** Pure: each source's failed tries in a row, newest first, from the kept runs and its own tries; a success ends it. */
+export function failStreaksOf(runs: ImportRun[], tries: Tries): Map<string, number> {
+  const events = new Map<string, { at: string; ok: boolean }[]>();
+  const add = (id: string, at: string, ok: boolean) => events.set(id, [...(events.get(id) ?? []), { at, ok }]);
+  for (const r of runs) for (const i of r.items) if (i.id && (i.status === "failed" || i.status === "live")) add(i.id, r.finishedAt, i.status === "live");
+  for (const [id, list] of Object.entries(tries)) for (const t of list) add(id, t.at, t.ok);
+  const out = new Map<string, number>();
+  for (const [id, list] of events) {
+    let n = 0;
+    for (const e of list.sort((a, b) => b.at.localeCompare(a.at))) {
+      if (e.ok) break;
+      n++;
+    }
+    if (n) out.set(id, n);
+  }
+  return out;
+}
+
+export async function failStreaks(): Promise<Map<string, number>> {
+  const { runs, tries } = await readDoc();
+  return failStreaksOf(runs, tries);
 }
 
 /** How long a source that didn't go live is left out of Import now and the hourly set-up before it's tried again. */

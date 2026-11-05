@@ -14,6 +14,7 @@ import { gatewayOverview, type GatewayRunRow, type GatewaySourceRow } from "@/se
 import { readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
 import { listImportRuns, type ImportRun } from "@/server/gateway/importRuns";
 import { failedLately } from "@/server/gateway/collectJob";
+import { ARCHIVE_AFTER, failStreaks } from "@/server/gateway/importRuns";
 import { listCronRuns, loadScheduler } from "@/server/scheduler/store";
 import { parseEmailList, smtpConfig } from "@/server/notify";
 import { isGatewayBridge } from "./gatewaySources";
@@ -91,6 +92,8 @@ export interface ImportModule {
   /** Rows that are down or need you, in a line, so a problem is seen without opening the card. */
   problems: string[];
   rows: ImportRow[];
+  /** Sources that failed ARCHIVE_AFTER tries in a row, or that an admin dismissed: shown in Archived at the page's end. */
+  archived: ImportRow[];
 }
 
 export interface ImportView {
@@ -145,6 +148,36 @@ function gatewayHistory(g: GatewaySourceRow): ImportRow["history"] {
   if (g.enabled) out.push({ label: "Next collection", value: `${g.nextRunAt ? ago(g.nextRunAt).replace(" ago", "") : "soon"} · every ${g.intervalMinutes >= 1440 ? `${Math.round(g.intervalMinutes / 1440)} d` : `${Math.round(g.intervalMinutes / 60)} h`}` });
   if (g.crawl?.progress) out.push({ label: "Crawl", value: g.crawl.progress });
   if (g.termsPending) out.push({ label: "Terms", value: "pending: confirm its reuse terms (Setup decision)" });
+  return out;
+}
+
+/**
+ * Pure: splits a module's rows into the ones on its card and the archived ones (owner, 2026-11-05: "the sources which are
+ * failing even after multiple tries and fixes, move them to an archived section at the end of the page"): dismissed, or
+ * failed ARCHIVE_AFTER tries in a row (`streaks`, by row id). Archived rows keep their buttons, so one can still be tried.
+ */
+export function splitArchived(rows: ImportRow[], streaks: Map<string, number>): { rows: ImportRow[]; archived: ImportRow[] } {
+  const out = { rows: [] as ImportRow[], archived: [] as ImportRow[] };
+  for (const r of rows) {
+    const n = streaks.get(r.id) ?? 0;
+    const dismissed = r.action?.kind === "dismiss" && r.action.dismissed === false;
+    const failing = n >= ARCHIVE_AFTER && (r.state === "needs_you" || r.state === "down");
+    if (dismissed) out.archived.push(r);
+    else if (failing) out.archived.push({ ...r, detail: `${r.state === "down" ? `Its last ${n} collections failed; it still retries on its schedule.` : `Failed ${n} tries in a row, so Import no longer tries it on its own.`} ${r.detail.replace(/ Import now leaves it out for a day\.$/, "")}`, more: r.more.filter((a) => a.kind !== "dismiss") });
+    else out.rows.push(r);
+  }
+  return out;
+}
+
+/** Pure: each live gateway source's failed collections in a row, newest first (by "gateway:<id>"). */
+export function collectStreaks(runs: GatewayRunRow[]): Map<string, number> {
+  const out = new Map<string, number>();
+  const settled = new Set<string>();
+  for (const r of [...runs].sort((a, b) => b.at.localeCompare(a.at))) {
+    if (settled.has(r.sourceId)) continue;
+    if (r.ok) settled.add(r.sourceId);
+    else out.set(`gateway:${r.sourceId}`, (out.get(`gateway:${r.sourceId}`) ?? 0) + 1);
+  }
   return out;
 }
 
@@ -237,7 +270,7 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
 export async function importView(): Promise<ImportView> {
   const store = jobsLakeStore();
   const fortnight = new Date(Date.now() - MAX_POSTING_AGE_DAYS * DAY).toISOString();
-  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed] = await Promise.all([
+  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed, tried] = await Promise.all([
     listAllSourceViews(),
     gatewayOverview().catch(() => null),
     setupTodo(),
@@ -248,12 +281,14 @@ export async function importView(): Promise<ImportView> {
     Promise.all(MODULES.map(async (m) => [m.id, await store.countOpportunities({ sinceIso: fortnight, module: m.id }).catch(() => null)] as const)),
     listImportRuns().catch(() => [] as ImportRun[]),
     failedLately().catch(() => new Map<string, { at: string; step?: string; message?: string }>()),
+    failStreaks().catch(() => new Map<string, number>()),
   ]);
+  const streaks = new Map([...tried, ...collectStreaks(gw?.runs ?? [])]);
   const held = new Map((gw?.byModule ?? []).map((b) => [b.module, b.listings]));
   const found = new Map(inFind);
   const paused = new Set(settings.gateway.pausedModules);
   const modules: ImportModule[] = MODULES.map((m) => {
-    const rows = moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed));
+    const { rows, archived } = splitArchived(moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed)), streaks);
     return {
       id: m.id,
       label: m.label,
@@ -266,6 +301,7 @@ export async function importView(): Promise<ImportView> {
       paused: paused.has(m.id),
       problems: rows.filter((r) => r.state === "down" || r.state === "needs_you").map((r) => `${r.name}: ${r.detail}`),
       rows,
+      archived,
     };
   });
   const enabled = (gw?.sources ?? []).filter((s) => s.enabled);

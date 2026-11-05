@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GatewaySourceRow } from "@/server/gateway/admin";
-import { moduleRows } from "./importView";
+import { collectStreaks, moduleRows, splitArchived } from "./importView";
 import type { SetupItem } from "./setup";
 import type { SourceView } from "./views";
 
@@ -70,5 +70,26 @@ describe("Import page: a module's sources as rows with one state and one action 
     expect(r.state).toBe("needs_you");
     expect(r.action).toMatchObject({ kind: "decide", label: "Terms confirmed", decision: "terms:workingnomads" });
     expect(r.more.map((a) => a.label)).toEqual(["Pause", "Open source"]);
+  });
+});
+
+describe("Archived: sources that keep failing move to the page's end (2026-11-05)", () => {
+  const failed = new Map([["gateway:src_h", { at: new Date().toISOString(), step: "Test", message: "HTTP 403" }]]);
+  const rows = () => moduleRows("services", [], [gw("src_h", "services"), gw("src_ok", "services")], [], failed, new Set(["gateway:src_ok"]));
+  it("archives a row after three failed tries in a row, and a dismissed one; the rest stay on the card", () => {
+    const { rows: card, archived } = splitArchived(rows(), new Map([["gateway:src_h", 3]]));
+    expect(card).toEqual([]);
+    expect(archived.map((r) => r.id).sort()).toEqual(["gateway:src_h", "gateway:src_ok"]);
+    const h = archived.find((r) => r.id === "gateway:src_h")!;
+    expect(h.detail).toMatch(/^Failed 3 tries in a row/);
+    expect(h.action).toMatchObject({ label: "Try again" });
+    expect(h.more.some((a) => a.kind === "dismiss")).toBe(false);
+  });
+  it("keeps a row with fewer than three failures on its card", () => {
+    expect(splitArchived(rows(), new Map([["gateway:src_h", 2]])).rows.map((r) => r.id)).toEqual(["gateway:src_h"]);
+  });
+  it("counts a live source's failed collections in a row, newest first; a success ends the streak", () => {
+    const run = (at: string, ok: boolean) => ({ at, sourceId: "s", source: "s", trigger: "cron", ok });
+    expect(collectStreaks([run("2026-11-05T03:00:00Z", false), run("2026-11-05T02:00:00Z", false), run("2026-11-05T01:00:00Z", true), run("2026-11-05T00:00:00Z", false)]).get("gateway:s")).toBe(2);
   });
 });
