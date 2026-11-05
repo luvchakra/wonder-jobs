@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __MemoryStore, __setJobsLakeStore } from "./store";
-import { __resetPlatformKeys, kaggleAuthorization, loadPlatformKeys, PLATFORM_KEYS, platformKey, platformKeyStatus, setPlatformKey } from "./platformKeys";
+import { __resetPlatformKeys, kaggleAuthorization, loadPlatformKeys, PLATFORM_KEYS, platformKey, platformKeyStatus, importPlatformKeysFromEnv, removePlatformKeyAt, setPlatformKey } from "./platformKeys";
 
 describe("platform API keys — set on the platform, not the hosting dashboard", () => {
   beforeEach(() => {
@@ -56,5 +56,60 @@ describe("platform API keys — set on the platform, not the hosting dashboard",
     expect(kaggleAuthorization()).toBe(`Basic ${Buffer.from("someone:abcd1234").toString("base64")}`);
     await setPlatformKey("KAGGLE_API_TOKEN", "KGAT_abc123");
     expect(kaggleAuthorization()).toBe("Bearer KGAT_abc123");
+  });
+});
+
+describe("several TheirStack keys on Admin → Keys (2026-11-05)", () => {
+  beforeEach(() => {
+    __setJobsLakeStore(new __MemoryStore());
+    __resetPlatformKeys();
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", "k".repeat(40));
+    vi.stubEnv("THEIRSTACK_API_KEYS", "envkey-111111");
+    vi.stubEnv("THEIRSTACK_API_KEY", "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    __resetPlatformKeys();
+  });
+
+  it("adds keys to the list, lists them masked, removes one, and the source uses the admin's first, then the deployment's", async () => {
+    const { theirStackKeys } = await import("@/server/jobs/theirstack");
+    expect((await setPlatformKey("THEIRSTACK_API_KEYS", "adminkey-aaaa1111\nadminkey-bbbb2222")).ok).toBe(true);
+    expect((await setPlatformKey("THEIRSTACK_API_KEYS", "adminkey-bbbb2222, adminkey-cccc3333")).message).toMatch(/^1 key added \(3 saved\)/);
+    const row = (await platformKeyStatus()).find((k) => k.name === "THEIRSTACK_API_KEYS")!;
+    expect(row).toMatchObject({ set: true, from: "platform", envCount: 1, masked: "3 keys + 1 in the deployment" });
+    expect(row.keys).toEqual(["••••••••1111", "••••••••2222", "••••••••3333"]);
+    expect(JSON.stringify(row)).not.toContain("adminkey");
+    expect(theirStackKeys()).toEqual(["adminkey-aaaa1111", "adminkey-bbbb2222", "adminkey-cccc3333", "envkey-111111"]);
+    expect((await removePlatformKeyAt("THEIRSTACK_API_KEYS", 1)).ok).toBe(true);
+    expect(theirStackKeys()).toEqual(["adminkey-aaaa1111", "adminkey-cccc3333", "envkey-111111"]);
+    expect((await removePlatformKeyAt("THEIRSTACK_API_KEYS", 9)).ok).toBe(false);
+  });
+});
+
+describe("copying the deployment's TheirStack keys to Admin (2026-11-05)", () => {
+  beforeEach(() => {
+    __setJobsLakeStore(new __MemoryStore());
+    __resetPlatformKeys();
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", "k".repeat(40));
+    vi.stubEnv("THEIRSTACK_API_KEYS", "envkey-aaaa1111,envkey-bbbb2222");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    __resetPlatformKeys();
+  });
+  it("adds them to the admin's list, masked, and says the variable can go", async () => {
+    const r = await importPlatformKeysFromEnv("THEIRSTACK_API_KEYS");
+    expect(r.ok).toBe(true);
+    expect(r.message).toMatch(/2 keys added \(2 saved\).*delete THEIRSTACK_API_KEYS in Vercel/);
+    expect(r.message).not.toContain("envkey");
+    vi.stubEnv("THEIRSTACK_API_KEYS", "");
+    const row = (await platformKeyStatus()).find((k) => k.name === "THEIRSTACK_API_KEYS")!;
+    expect(row).toMatchObject({ set: true, from: "platform", keys: ["••••••••1111", "••••••••2222"] });
+  });
+  it("refuses a key that isn't a multi-key entry, and an empty deployment", async () => {
+    expect((await importPlatformKeysFromEnv("ADZUNA_APP_KEY")).ok).toBe(false);
+    vi.stubEnv("THEIRSTACK_API_KEYS", "");
+    expect((await importPlatformKeysFromEnv("THEIRSTACK_API_KEYS")).ok).toBe(false);
   });
 });

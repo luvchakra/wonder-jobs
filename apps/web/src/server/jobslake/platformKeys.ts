@@ -19,6 +19,8 @@ export interface PlatformKeySpec {
   usedBy: string;
   signup: string;
   free: boolean;
+  /** Holds several keys (one per line), used in turn; each is shown masked and can be removed on its own. */
+  multi?: boolean;
 }
 
 export const PLATFORM_KEYS: PlatformKeySpec[] = [
@@ -30,6 +32,7 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "OPENAGENDA_API_KEY", label: "OpenAgenda API key", usedBy: "Events: the public agendas of French and European towns, museums and associations (a public key, oa_pk_…)", signup: "https://developers.openagenda.com/authentification/", free: true },
   { name: "THESPORTSDB_API_KEY", label: "TheSportsDB API key (optional)", usedBy: "Events: cricket and Indian Super League fixtures; without one the free test key is used (about three results a call)", signup: "https://www.thesportsdb.com/pricing", free: false },
   { name: "JSEARCH_API_KEY", label: "JSearch API key (RapidAPI)", usedBy: "Jobs: Google for Jobs results (LinkedIn, Indeed, Naukri, foundit, TimesJobs, career sites) through JSearch, at most JSEARCH_DAILY_MAX requests a day (default 150). The small free tier needs a RapidAPI account", signup: "https://rapidapi.com/letscrunch/api/jsearch", free: true },
+  { name: "THEIRSTACK_API_KEYS", label: "TheirStack API keys", usedBy: "Jobs: licensed jobs from LinkedIn, Indeed, ATS boards and career sites. Add one or several keys; Wonder takes them in turn and skips one that is out of credits. Keys set in the deployment are used too.", signup: "https://app.theirstack.com/settings/api-key", free: true, multi: true },
   { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Jobs, Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
   { name: "KAGGLE_API_TOKEN", label: "Kaggle API token", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Generate New Token, starts KGAT_; replaces the older username + key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
@@ -46,6 +49,7 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
 ];
 
 const NAMES = new Set(PLATFORM_KEYS.map((k) => k.name));
+const SPEC = new Map(PLATFORM_KEYS.map((k) => [k.name, k]));
 const ref = (name: string) => `platform:${name}`;
 const TTL = 60_000;
 let cache: { at: number; values: Record<string, string> } | null = null;
@@ -89,8 +93,17 @@ export function platformKey(name: string): string | undefined {
   return cache?.values[name]?.trim() || undefined;
 }
 
+/** The keys the admin set for a multi-key entry, in order (the deployment's own variable is not included). */
+export function adminKeyList(name: string): string[] {
+  return splitKeys(cache?.values[name]);
+}
+const splitKeys = (v: string | undefined) => [...new Set((v ?? "").split(/[\s,]+/).map((k) => k.trim()).filter(Boolean))];
+
 export interface PlatformKeyStatus extends PlatformKeySpec {
   set: boolean;
+  /** A multi-key entry: each admin key, masked, and how many more the deployment sets. */
+  keys?: string[];
+  envCount?: number;
   /** Admin → Keys shows a Test for it (keyTest.ts). */
   testable?: boolean;
   from: "platform" | "environment" | null;
@@ -103,6 +116,13 @@ export async function platformKeyStatus(): Promise<PlatformKeyStatus[]> {
   return PLATFORM_KEYS.map((k) => {
     const env = process.env[k.name]?.trim();
     const mine = cache?.values[k.name];
+    if (k.multi) {
+      // Several keys: the admin's are listed (masked) and editable even when the deployment also sets some.
+      const keys = splitKeys(mine).map(maskCredential);
+      const envCount = splitKeys(env).length;
+      const masked = keys.length ? `${keys.length} key${keys.length === 1 ? "" : "s"}${envCount ? ` + ${envCount} in the deployment` : ""}` : envCount ? `${envCount} in the deployment` : "Not set";
+      return { ...k, set: keys.length + envCount > 0, from: keys.length ? ("platform" as const) : envCount ? ("environment" as const) : null, masked, keys, envCount };
+    }
     return { ...k, set: !!(env || mine), from: env ? "environment" : mine ? "platform" : null, masked: env ? "Set in the deployment" : mine ? maskCredential(mine) : "Not set" };
   });
 }
@@ -113,6 +133,19 @@ export async function setPlatformKey(name: string, value: string | null, now = n
   const store = jobsLakeStore();
   if (value === null) {
     await store.deleteCredential(ref(name));
+  } else if (SPEC.get(name)?.multi) {
+    // A multi-key entry adds the pasted keys (one per line or comma-separated) to the ones already saved.
+    const existing = await store.getCredential(ref(name));
+    const before = existing ? splitKeys(decrypt(existing.ciphertext)) : [];
+    const added = splitKeys(value).filter((k) => k.length >= 4 && k.length <= 512);
+    if (!added.length) return { ok: false, message: "Paste at least one key (one per line)." };
+    const all = [...new Set([...before, ...added])];
+    if (all.join(",").length > 4096 || all.length > 30) return { ok: false, message: "Too many keys (at most 30)." };
+    await store.putCredential({ ref: ref(name), ciphertext: encrypt(all.join(",")), masked: `${all.length} keys`, createdAt: existing?.createdAt ?? now, replacedAt: existing ? now : undefined });
+    cache = null;
+    await loadPlatformKeys(Date.now(), true);
+    const n = all.length - before.length;
+    return { ok: true, message: `${n} key${n === 1 ? "" : "s"} added (${all.length} saved).` };
   } else {
     const v = value.trim();
     if (v.length < 4 || v.length > 4096) return { ok: false, message: "That doesn't look like a key (4–4,096 characters)." };
@@ -122,6 +155,34 @@ export async function setPlatformKey(name: string, value: string | null, now = n
   cache = null;
   await loadPlatformKeys(Date.now(), true);
   return { ok: true, message: value === null ? `${name} removed.` : `${name} saved. Sources that need it can run now.` };
+}
+
+/**
+ * Copies the keys the deployment sets for a multi-key entry into the admin's list (owner, 2026-11-05: "copy from vercel to
+ * admin"), so they can be seen, tested and removed one by one; the deployment's variable can then be deleted. The values
+ * go from the server's environment to the encrypted store and are never shown.
+ */
+export async function importPlatformKeysFromEnv(name: string, now = new Date().toISOString()): Promise<{ ok: boolean; message: string }> {
+  if (!SPEC.get(name)?.multi) return { ok: false, message: "Unknown key." };
+  const fromEnv = splitKeys(process.env[name]);
+  if (!fromEnv.length) return { ok: false, message: "The deployment sets no keys for this." };
+  const r = await setPlatformKey(name, fromEnv.join("\n"), now);
+  return r.ok ? { ok: true, message: `Copied from the deployment: ${r.message} You can now delete ${name} in Vercel.` } : r;
+}
+
+/** Removes one key of a multi-key entry, by its place in the masked list. */
+export async function removePlatformKeyAt(name: string, index: number, now = new Date().toISOString()): Promise<{ ok: boolean; message: string }> {
+  if (!SPEC.get(name)?.multi) return { ok: false, message: "Unknown key." };
+  const store = jobsLakeStore();
+  const existing = await store.getCredential(ref(name));
+  const keys = existing ? splitKeys(decrypt(existing.ciphertext)) : [];
+  if (!Number.isInteger(index) || index < 0 || index >= keys.length) return { ok: false, message: "That key isn't there any more." };
+  keys.splice(index, 1);
+  if (keys.length) await store.putCredential({ ref: ref(name), ciphertext: encrypt(keys.join(",")), masked: `${keys.length} keys`, createdAt: existing!.createdAt, replacedAt: now });
+  else await store.deleteCredential(ref(name));
+  cache = null;
+  await loadPlatformKeys(Date.now(), true);
+  return { ok: true, message: `Key removed (${keys.length} left).` };
 }
 
 /**

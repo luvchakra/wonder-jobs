@@ -45,7 +45,7 @@ export function probeFor(name: string): Probe | undefined {
 }
 
 /** Every key that has a Test. */
-export const TESTABLE = new Set(PLATFORM_KEYS.map((k) => k.name).filter((n) => !!probeFor(n)));
+export const TESTABLE = new Set(PLATFORM_KEYS.map((k) => k.name).filter((n) => !!probeFor(n) || n === "THEIRSTACK_API_KEYS"));
 
 function outcome(status: number): KeyTestResult {
   if (status >= 200 && status < 300) return { ok: true, message: "Works: the provider accepted the key." };
@@ -54,7 +54,38 @@ function outcome(status: number): KeyTestResult {
   return { ok: false, message: `The provider answered ${status}.` };
 }
 
+/**
+ * TheirStack's keys, each tested on its own against its free location catalogue (no credits used): "2 of 3 keys work"
+ * (owner, 2026-11-05: several keys on Admin → Keys).
+ */
+async function testTheirStackKeys(fetcher: typeof fetch): Promise<KeyTestResult> {
+  const { theirStackKeys } = await import("@/server/jobs/theirstack");
+  const keys = theirStackKeys();
+  if (!keys.length) return { ok: false, message: "Add a TheirStack key first." };
+  const results = await Promise.all(
+    keys.map(async (key) => {
+      try {
+        const res = await fetcher("https://api.theirstack.com/v0/catalog/locations?name=London&limit=1", { headers: { authorization: `Bearer ${key}`, accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
+        await res.body?.cancel().catch(() => undefined);
+        return res.status;
+      } catch {
+        return 0;
+      }
+    }),
+  );
+  const ok = results.filter((st) => st >= 200 && st < 300).length;
+  const rejected = results.filter((st) => st === 401 || st === 403).length;
+  const parts = [`${ok} of ${keys.length} key${keys.length === 1 ? "" : "s"} work`];
+  if (rejected) parts.push(`${rejected} rejected`);
+  if (keys.length - ok - rejected) parts.push(`${keys.length - ok - rejected} didn't answer`);
+  return { ok: ok > 0, message: `${parts.join(", ")}. Credits aren't checked here; a key out of credits is skipped during searches.` };
+}
+
 export async function testPlatformKey(name: string, fetcher: typeof fetch = fetch): Promise<KeyTestResult> {
+  if (name === "THEIRSTACK_API_KEYS") {
+    await loadPlatformKeys(Date.now(), true);
+    return testTheirStackKeys(fetcher);
+  }
   const probe = probeFor(name);
   if (!probe) return { ok: false, message: "No test for this key." };
   await loadPlatformKeys(Date.now(), true);
