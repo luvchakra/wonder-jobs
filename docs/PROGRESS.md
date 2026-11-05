@@ -1,3 +1,5 @@
+> Since 2026-11-05 each finished change has its own file in `docs/changes/` (see its README). This log is history and takes no new lines.
+
 
 - ✅ Events: developers.events (797 upcoming conferences) is added, paused until the owner confirms its terms; the same event from two sources is listed once (WJ-571)
 - ✅ Events: Ticketmaster as a source (needs a free key) and OpenStreetMap Calendar defined for the gateway; other feeds researched and ruled out with reasons (WJ-570)
@@ -175,5 +177,16 @@
 - ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
 - 2026-11-05 Talent & Services: Houzz and WedMeGood refused from our server, recorded and put to the owner (WJ-598)
 - ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
+- ✅ Events: OpenAgenda (needs a key) and TheSportsDB fixtures added as sources (WJ-730)
+- ✅ Teaching: more-sources pass; Norway NAV token decision added to Setup to-do (WJ-567)
+- ✅ Buy, Sell & Rent: Flipkart and eBay sources (keys on Admin → Keys with Test, Needs setup until set), foreign-currency prices as stated (WJ-623)
+- ✅ Events: Hasgeek's event pages are read again — the crawler asks for pages as HTML, not JSON (WJ-579)
+- ✅ Gateway asks for */* on feeds and HTML on pages: EdJOIN and Hasgeek read again (WJ-710)
+- 2026-11-05 Talent & Services: business-listing APIs researched, none built, licence question put to the owner (WJ-599)
 - ✅ Scholarships & Projects: Buddy4Study crawl reads the newest pages and finds current listings (WJ-532)
+- ✅ Internships: UK apprenticeships from Find an apprenticeship (DfE API v2; needs its free key) (WJ-583)
+- ✅ Jobs: We Work Remotely's gateway source reads its 11 category feeds, each under the gateway's size limit (WJ-549)
+- ✅ Jobs: Recruitee and Personio career sites (European employers); NAV and NLx on the owner's Setup to-do (WJ-550)
+- ✅ Internships: internships and working-student roles from Personio and Recruitee career sites (WJ-584)
+- ✅ Jobs: job type read from underscore and hyphen spellings such as "working_student" and "FULL_TIME" (WJ-551)
 - ✅ Scholarships & Projects: Simpler.Grants.gov and clist.by programming contests added (Needs setup until their keys are set) (WJ-533)

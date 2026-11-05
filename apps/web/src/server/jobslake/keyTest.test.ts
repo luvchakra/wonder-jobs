@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __MemoryStore, __setJobsLakeStore } from "./store";
-import { __resetPlatformKeys, setPlatformKey } from "./platformKeys";
+import { __resetPlatformKeys, PLATFORM_KEYS, setPlatformKey } from "./platformKeys";
 import { TESTABLE, testPlatformKey } from "./keyTest";
 
 const reply = (status: number) => vi.fn(async () => new Response("{}", { status })) as unknown as typeof fetch;
@@ -17,7 +17,10 @@ describe("Test on Admin → Keys", () => {
   });
 
   it("every key has a test", () => {
-    expect(TESTABLE.size).toBe(12);
+    // Every key on the Keys page has a Test, however many there are, except those named here (other sessions' keys, whose
+    // Tests they add and then take their name out); a new key without a Test fails this, a new key with one needs no edit.
+    const untested = PLATFORM_KEYS.map((k) => k.name).filter((n) => !TESTABLE.has(n));
+    expect(untested.sort()).toEqual(["FIND_APPRENTICESHIP_API_KEY", "NAV_PAM_STILLING_FEED_TOKEN"]);
   });
 
   it("asks for the other half of a pair before testing", async () => {
@@ -52,6 +55,28 @@ describe("Test on Admin → Keys", () => {
     expect((await testPlatformKey("JOOBLE_API_KEY", f)).ok).toBe(true);
     const init = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0][1];
     expect(JSON.parse(String(init.body)).keywords).not.toBe("");
+  });
+
+  it("tests Flipkart's and eBay's pairs together, with the credentials in headers, never the address", async () => {
+    await setPlatformKey("FLIPKART_AFFILIATE_ID", "fk-track-1");
+    const none = reply(200);
+    expect(await testPlatformKey("FLIPKART_AFFILIATE_ID", none)).toEqual({ ok: false, message: "Set FLIPKART_AFFILIATE_TOKEN first." });
+    expect(none).not.toHaveBeenCalled();
+    await setPlatformKey("FLIPKART_AFFILIATE_TOKEN", "fk-token-secret");
+    const f = reply(200);
+    expect((await testPlatformKey("FLIPKART_AFFILIATE_TOKEN", f)).ok).toBe(true);
+    const [, fkInit] = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
+    expect(fkInit.headers).toMatchObject({ "Fk-Affiliate-Id": "fk-track-1", "Fk-Affiliate-Token": "fk-token-secret" });
+    await setPlatformKey("EBAY_CLIENT_ID", "ebay-app-1");
+    await setPlatformKey("EBAY_CLIENT_SECRET", "ebay-cert-secret");
+    const e = reply(401);
+    const bad = await testPlatformKey("EBAY_CLIENT_ID", e);
+    expect(bad.message).toContain("Rejected (401)");
+    const [url, init] = (e as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
+    expect(url).toBe("https://api.ebay.com/identity/v1/oauth2/token");
+    expect(url).not.toMatch(/ebay-app|ebay-cert/);
+    expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from("ebay-app-1:ebay-cert-secret").toString("base64")}`);
+    expect(JSON.stringify(bad)).not.toContain("ebay-cert");
   });
 
   it("tests Simpler.Grants.gov with X-API-Key and clist.by with ApiKey username:key", async () => {
