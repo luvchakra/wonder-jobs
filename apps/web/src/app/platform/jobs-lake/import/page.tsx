@@ -28,7 +28,7 @@ const STATE: Record<ImportRow["state"], { label: string; tone: "success" | "warn
 };
 
 /**
- * Admin → Data → Import (owner, 2026-11-02): the whole way from a source to a listing in Find, managed here and
+ * Sources → Import (owner, 2026-11-02): the whole way from a source to a listing in Find, managed here and
  * nowhere else. One press, Import now, runs the pipeline on the server: it sets up the sources that are waiting,
  * collects, and refreshes every module's Find. The same job runs on a schedule that fits the free plans (domain/gateway/budget.ts). Each module shows its three numbers
  * (sources, collected, in Find) and, opened, its sources with one state and one action each.
@@ -76,6 +76,7 @@ export default function ImportPage() {
           <Pipeline d={data} />
           <Schedule d={data} reload={reload} />
           <div className="flex flex-col gap-3">
+            <StateLegend />
             {data.modules.map((m) => (
               <ModuleCard key={m.id} m={m} busy={running} reload={reload} />
             ))}
@@ -85,9 +86,78 @@ export default function ImportPage() {
           <Emails d={data} reload={reload} />
           <RecentRuns d={data} />
           <DataTypes />
+          <Archived d={data} reload={reload} />
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Where a row's data comes from, in the admin's words (owner, 2026-11-05: "create some clear difference between data which
+ * is only retrieved when searched, compared to data which is fetched regularly").
+ */
+const KIND: Record<ImportRow["kind"], { label: string; text: string }> = {
+  WorksLake: { label: "On search", text: "Asked live only when someone searches with words; nothing is fetched in between. You: set its key on Admin → Keys if it needs one." },
+  Gateway: { label: "Collected regularly", text: "Collected every few hours and stored; searches read what was collected. You: Test & activate it once; then nothing." },
+  Partner: { label: "Uploaded", text: "A partner's own list. You: upload it, then Activate." },
+  Catalogue: { label: "Not added yet", text: "A reviewed source we can collect regularly. You: Add & activate." },
+  Decision: { label: "Your decision", text: "A call only you can make. Do what it says (Open shows where), then Mark decided." },
+};
+
+/** What each source's state means and what's expected of the admin (owner, 2026-11-05: "put a legend section briefly"). */
+const LEGEND: { state: ImportRow["state"]; text: string }[] = [
+  { state: "needs_you", text: "Can't go further without you: a key to set, a decision or terms check, or it failed lately (its line says why). Its button says what to do." },
+  { state: "waiting", text: "Added but not on yet. Nothing to do: Import now, or the scheduled run, tests it and switches it on. Press its button to do it now." },
+  { state: "live", text: "Collecting on its schedule. Nothing to do." },
+  { state: "down", text: "Was live, but its last collections failed. It retries on its own; Details says why." },
+  { state: "off", text: "Paused or dismissed by an admin; Import skips it. Its button turns it back on." },
+  // Sources that failed three tries in a row, and dismissed ones, are listed in Archived at the end of the page.
+];
+
+/** What each row button does (owner, 2026-11-05: "what do you mean by Mark decided? create a small legend section"). */
+const BUTTONS: { label: string; text: string }[] = [
+  { label: "Mark decided", text: "For a Decision row: you've made that call or done what it asks (applied for access, checked a setting). It only takes the row off the list and records who and when; it changes nothing else." },
+  { label: "Terms confirmed", text: "You've checked the source's terms allow our use. Recorded, and the row stops asking." },
+  { label: "Test & activate", text: "Fetches a sample now; if it reads well the source goes live. Try again does the same after a failure." },
+  { label: "Add & activate", text: "Adds a reviewed catalogue source, then tests and activates it." },
+  { label: "Collect now / Test", text: "Collects a live source now, or only tests it without changing anything." },
+  { label: "Pause / Resume", text: "Stops or restarts a source; what Find already has stays." },
+  { label: "Dismiss / Restore", text: "Moves a source that keeps failing to Archived so Import stops trying it; Restore brings it back." },
+  { label: "Upload list", text: "A partner's own list (CSV or JSON). Nothing is fetched for these." },
+  { label: "Open", text: "Goes to the page where the step is done (a key, a setting, the source)." },
+];
+
+function StateLegend() {
+  return (
+    <Fold title="What the states and buttons mean" hint="Needs you, Waiting, Live, Down, Off · Mark decided, Test & activate…">
+      <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-2">
+        {LEGEND.map((l) => (
+          <li key={l.state} className="flex items-baseline gap-2">
+            <span className="shrink-0"><Badge tone={STATE[l.state].tone}>{STATE[l.state].label}</Badge></span>
+            <span>{l.text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[12px] font-semibold text-ink-2">Where the data comes from</p>
+      <ul className="mt-1 flex flex-col gap-1.5 text-[12.5px] text-ink-2">
+        {(Object.keys(KIND) as ImportRow["kind"][]).map((k) => (
+          <li key={k} className="flex items-baseline gap-2">
+            <span className="shrink-0 font-medium text-ink">{KIND[k].label}</span>
+            <span>{KIND[k].text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[12px] font-semibold text-ink-2">Buttons</p>
+      <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 pb-3 text-[12.5px]">
+        {BUTTONS.map((b) => (
+          <Fragment key={b.label}>
+            <dt className="font-medium text-ink">{b.label}</dt>
+            <dd className="text-ink-2">{b.text}</dd>
+          </Fragment>
+        ))}
+      </dl>
+    </Fold>
   );
 }
 
@@ -172,29 +242,34 @@ function ContinueImport() {
   );
 }
 
-const ITEM_TONE: Record<string, string> = { live: "text-success-600", collected: "text-success-600", failed: "text-danger-600", running: "text-brand-600", pending: "text-ink-4" };
+const ITEM_TONE: Record<string, "success" | "danger" | "brand" | "neutral"> = { live: "success", collected: "success", failed: "danger", running: "brand", pending: "neutral" };
 const ITEM_LABEL: Record<string, string> = { live: "Live", collected: "Collected", failed: "Didn't go live", running: "Working", pending: "Waiting" };
 
-/** A run's sources, folded: each one's outcome and, when it failed, the step and why. */
+/**
+ * A run's sources, folded: each one's name with its outcome under it, and its status as a badge on the right, so every
+ * row lines up the same way (owner, 2026-11-05: "align the elements properly in each card").
+ */
 function RunItems({ items }: { items: { name: string; status: string; step?: string; message?: string; valid?: number }[] }) {
   if (!items.length) return null;
   return (
     <details className="mt-2">
       <summary className="cursor-pointer text-[12px] font-medium text-brand-600">Every source ({num(items.length)})</summary>
-      <ul className="mt-1.5 flex flex-col divide-y divide-line/60 text-[12px]">
-        {items.map((i, n) => (
-          <li key={`${i.name}-${n}`} className="py-1">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="min-w-0 text-ink-2">{i.name}</span>
-              <span className={ITEM_TONE[i.status] ?? "text-ink-3"}>
-                {i.status === "failed" ? explainFailure(i.step, i.message).label : (ITEM_LABEL[i.status] ?? i.status)}
-                {i.valid != null && (i.status === "live" || i.status === "collected") ? ` · ${num(i.valid)} listings` : ""}
-                {i.status === "running" && i.step ? ` · ${i.step}` : ""}
+      <ul className="mt-1.5 flex flex-col divide-y divide-line/60">
+        {items.map((i, n) => {
+          const why = i.status === "failed" ? explainFailure(i.step, i.message) : null;
+          const line = why ? why.detail : i.valid != null && (i.status === "live" || i.status === "collected") ? `${num(i.valid)} listings` : i.status === "running" && i.step ? i.step : "";
+          return (
+            <li key={`${i.name}-${n}`} className="flex items-start justify-between gap-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-medium text-ink">{i.name}</p>
+                {line && <p className="mt-0.5 text-[12px] leading-snug text-ink-3">{line}</p>}
+              </div>
+              <span className="shrink-0 pt-px">
+                <Badge tone={ITEM_TONE[i.status] ?? "neutral"}>{why ? why.label : (ITEM_LABEL[i.status] ?? i.status)}</Badge>
               </span>
-            </div>
-            {i.status === "failed" && <p className="mt-0.5 text-[11.5px] leading-snug text-ink-3">{explainFailure(i.step, i.message).detail}</p>}
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </details>
   );
@@ -387,7 +462,11 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
 /** One action button, for a row's main action and its Details. */
 function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm" }: { a: ImportAction; rowId: string; busy: boolean; act: (body: Record<string, unknown>, done: (d: Record<string, unknown>) => string) => Promise<void>; setBusy: (b: boolean) => void; setMsg: (m: string | null) => void; reload: () => void; size?: "sm" }) {
   if (a.kind === "link")
-    return (
+    return /^https?:/.test(a.href) ? (
+      <a href={a.href} target="_blank" rel="noreferrer" className="text-[12px] font-medium text-brand-600 hover:underline">
+        {a.label}
+      </a>
+    ) : (
       <Link href={a.href} className="text-[12px] font-medium text-brand-600 hover:underline">
         {a.label}
       </Link>
@@ -416,6 +495,32 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
 }
 
 /** A source: its state, a line on it, its one action, and Details (what it did lately, and the ways to fix or pause it). */
+/**
+ * Archived, at the page's end (owner, 2026-11-05): sources that failed three tries in a row, or that an admin dismissed,
+ * by module. Import leaves them out; each keeps its own button, and a success moves it back to its module's card.
+ */
+function Archived({ d, reload }: { d: ImportView; reload: () => void }) {
+  const mods = d.modules.filter((m) => m.archived.length);
+  const total = mods.reduce((n, m) => n + m.archived.length, 0);
+  if (!total) return null;
+  return (
+    <Fold title="Archived" hint={`${num(total)} sources that kept failing or were dismissed. Import leaves them out; Try again on one brings it back once it works.`}>
+      <div className="flex flex-col gap-3">
+        {mods.map((m) => (
+          <div key={m.id}>
+            <p className="text-[12px] font-semibold text-ink-2">{m.label}</p>
+            <ul className="flex flex-col divide-y divide-line">
+              {m.archived.map((r) => (
+                <Row key={r.id} r={r} reload={reload} />
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Fold>
+  );
+}
+
 function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -433,22 +538,32 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
   const shared = { rowId: r.id, busy, act, setBusy, setMsg, reload };
   return (
     <li className="py-2.5 text-[13px]">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <Badge tone={s.tone}>{s.label}</Badge>
-            <span className="font-medium text-ink">{r.name}</span>
-            <span className="text-[12px] text-ink-4">{r.kind}</span>
-            {(r.history.length > 0 || r.more.length > 0) && (
-              <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-[12px] text-ink-3 hover:text-ink">
+      {/* Name and where it comes from on the left, its state on the right; the detail and the buttons take the full width
+          below, so every row lines up the same on a phone (owner, 2026-11-05: "align the elements properly"). */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-ink">{r.name}</p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-4">
+            <span title={KIND[r.kind].text}>{KIND[r.kind].label}</span>
+            {(r.history.length > 0 || (r.more.length > 0 && r.state !== "needs_you")) && (
+              <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-ink-3 hover:text-ink">
                 {details ? "Hide details" : "Details"}
               </button>
             )}
-          </span>
-          <span className="mt-0.5 block text-[12px] text-ink-3">{msg ?? r.detail}</span>
+          </p>
+        </div>
+        <span className="shrink-0 pt-px">
+          <Badge tone={s.tone}>{s.label}</Badge>
         </span>
-        {r.action && <ActionButton a={r.action} {...shared} />}
       </div>
+      <p className="mt-1 text-[12px] leading-snug text-ink-3">{msg ?? r.detail}</p>
+      {(r.action || (r.state === "needs_you" && r.more.length > 0)) && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {r.action && <ActionButton a={r.action} {...shared} />}
+          {/* A row that needs you shows every option on the row, not behind Details. */}
+          {r.state === "needs_you" && r.more.map((a) => <ActionButton key={a.label} a={a} {...shared} />)}
+        </div>
+      )}
       {details && (
         <div className="mt-2 flex flex-col gap-2 rounded-[10px] bg-bg-soft px-3 py-2">
           {r.history.length > 0 && (
@@ -461,7 +576,7 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
               ))}
             </dl>
           )}
-          {r.more.length > 0 && (
+          {r.more.length > 0 && r.state !== "needs_you" && (
             <div className="flex flex-wrap items-center gap-2">
               {r.more.map((a) => (
                 <ActionButton key={a.label} a={a} {...shared} />
@@ -626,17 +741,20 @@ function RecentRuns({ d }: { d: ImportView }) {
     <Fold title="Recent collections" hint={rows.length ? `The newest ${num(d.recentRuns.length)}${failing ? ` · ${num(failing)} failing; each says why and what to do` : ""}` : "None yet"}>
       <ul className="flex flex-col divide-y divide-line pb-4">
         {rows.map((r) => (
-          <li key={`${r.source}${r.ok}${r.code}${r.kind}`} className="py-2 text-[13px]">
-            <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="font-medium text-ink">
+          <li key={`${r.source}${r.ok}${r.code}${r.kind}`} className="flex items-start justify-between gap-3 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium text-ink">
                 {r.source}
                 {r.count > 1 ? <span className="font-normal text-ink-3"> ×{r.count}</span> : null}
-              </span>
-              <span className="text-[12px] text-ink-3">
+              </p>
+              <p className="mt-0.5 text-[12px] leading-snug text-ink-3">
                 {r.kind} · {when(r.at)}
-              </span>
+                {r.ok ? ` · ${num(r.valid)} listings` : ` · ${reasonFor(r.code)}`}
+              </p>
+            </div>
+            <span className="shrink-0 pt-px">
+              <Badge tone={r.ok ? "success" : "danger"}>{r.ok ? "OK" : "Failed"}</Badge>
             </span>
-            <span className={`block text-[12px] ${r.ok ? "text-success-600" : "text-danger-600"}`}>{r.ok ? `${num(r.valid)} listings` : reasonFor(r.code)}</span>
           </li>
         ))}
       </ul>

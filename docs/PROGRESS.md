@@ -1,3 +1,5 @@
+> Since 2026-11-05 each finished change has its own file in `docs/changes/` (see its README). This log is history and takes no new lines.
+
 
 - ✅ Events: developers.events (797 upcoming conferences) is added, paused until the owner confirms its terms; the same event from two sources is listed once (WJ-571)
 - ✅ Events: Ticketmaster as a source (needs a free key) and OpenStreetMap Calendar defined for the gateway; other feeds researched and ruled out with reasons (WJ-570)
@@ -160,6 +162,7 @@
 - ✅ Share opens fast: buttons wait at most 2.5 s, image never waits long on the model (WJ-697)
 - ✅ Gateway crawler reads Next.js page data and schema.org scholarship/grant types (WJ-698)
 - ✅ Scholarships & Projects: Opportunities for Africans and Mladiinfo feeds, HackerEarth hackathons as live sources (WJ-529)
+- ✅ Gateway: Scholarships listings with no provider kept as "Provider not stated" (WJ-699)
 - ✅ Scholarships & Projects: Buddy4Study added as a paused gateway crawl (WJ-530)
 - ✅ Gateway collection fits its call; Find refreshes so fixed descriptions show (WJ-700)
 - ✅ A "ran recently" collection still refreshes a stale Find (WJ-701)
@@ -175,6 +178,7 @@
 - ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
 - 2026-11-05 Talent & Services: Houzz and WedMeGood refused from our server, recorded and put to the owner (WJ-598)
 - ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
+- ✅ Events: OpenAgenda (needs a key) and TheSportsDB fixtures added as sources (WJ-730)
 - ✅ Teaching: more-sources pass; Norway NAV token decision added to Setup to-do (WJ-567)
 - ✅ Buy, Sell & Rent: Flipkart and eBay sources (keys on Admin → Keys with Test, Needs setup until set), foreign-currency prices as stated (WJ-623)
 - ✅ Events: Hasgeek's event pages are read again — the crawler asks for pages as HTML, not JSON (WJ-579)
@@ -186,3 +190,6 @@
 - ✅ Jobs: Recruitee and Personio career sites (European employers); NAV and NLx on the owner's Setup to-do (WJ-550)
 - ✅ Teaching: school boards on Recruitee and Personio added as sources (WJ-568)
 - ✅ Internships: internships and working-student roles from Personio and Recruitee career sites (WJ-584)
+- ✅ Jobs: job type read from underscore and hyphen spellings such as "working_student" and "FULL_TIME" (WJ-551)
+- ✅ Admin → Keys can test the Find an apprenticeship key (WJ-585)
+- ✅ Scholarships & Projects: Simpler.Grants.gov and clist.by programming contests added (Needs setup until their keys are set) (WJ-533)

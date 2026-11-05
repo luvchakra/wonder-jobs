@@ -78,6 +78,8 @@ export async function setupTodo(): Promise<{ items: SetupItem[]; gatewayConfigur
     const mod = g.modules[0] ?? "jobs";
     items.push({ id: `gateway:${g.id}`, name: g.name, module: mod, moduleLabel: label(mod), dataType: dataTypeOf(mod).type, countries: g.geography, need: "activate", detail: g.lastTest ? (g.lastTest.ok ? `Gateway: tested (${g.lastTest.valid} valid), not active` : "Gateway: last test failed") : "Gateway: added, paused — Test, then Activate", action: { label: "Test & activate", href: `${LAKE}/gateway` }, run: { kind: "activate", sourceId: g.id } });
   }
+  // Terms the owner confirmed on the Import page ("terms:<id>") leave the list; the source's own record is unchanged.
+  for (let k = items.length - 1; k >= 0; k--) if (items[k].need === "terms" && done[`terms:${items[k].id}`]) items.splice(k, 1);
   const order: SetupNeed[] = ["decision", "key", "terms", "add", "activate", "connection", "other"];
   items.sort((a, b) => order.indexOf(a.need) - order.indexOf(b.need) || a.moduleLabel.localeCompare(b.moduleLabel) || a.name.localeCompare(b.name));
   return { items, gatewayConfigured: !!gw?.configured };

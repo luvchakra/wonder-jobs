@@ -183,7 +183,7 @@ function Page({ l }: { l: ScholarshipListing }) {
             </p>
           )}
         </Fold>
-        <TranslatedText id={l.id} title={l.title} heading={"About the {noun}"} text={l.description || "The listing shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={`About the ${noun}`} text={l.description || "The listing shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <>
             <div className="mt-3 flex min-w-0 flex-col gap-3">

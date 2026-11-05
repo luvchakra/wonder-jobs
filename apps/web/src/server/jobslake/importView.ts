@@ -1,5 +1,5 @@
 /**
- * Admin → Data → Import (owner, 2026-11-02: "design the entire data import from sources to appearing in find in a way
+ * Sources → Import (owner, 2026-11-02: "design the entire data import from sources to appearing in find in a way
  * so that it can be managed from one page"): the one read model behind that page. Three stages, for every module:
  *   Sources (live, waiting, needs you) → Collected (what the gateway holds) → In Find (what WorksLake stores).
  * Each module lists its sources as rows with one state and at most one action, so an admin sees in one place why a
@@ -14,6 +14,7 @@ import { gatewayOverview, type GatewayRunRow, type GatewaySourceRow } from "@/se
 import { readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
 import { listImportRuns, type ImportRun } from "@/server/gateway/importRuns";
 import { failedLately } from "@/server/gateway/collectJob";
+import { ARCHIVE_AFTER, failStreaks } from "@/server/gateway/importRuns";
 import { listCronRuns, loadScheduler } from "@/server/scheduler/store";
 import { parseEmailList, smtpConfig } from "@/server/notify";
 import { isGatewayBridge } from "./gatewaySources";
@@ -91,6 +92,8 @@ export interface ImportModule {
   /** Rows that are down or need you, in a line, so a problem is seen without opening the card. */
   problems: string[];
   rows: ImportRow[];
+  /** Sources that failed ARCHIVE_AFTER tries in a row, or that an admin dismissed: shown in Archived at the page's end. */
+  archived: ImportRow[];
 }
 
 export interface ImportView {
@@ -148,6 +151,36 @@ function gatewayHistory(g: GatewaySourceRow): ImportRow["history"] {
   return out;
 }
 
+/**
+ * Pure: splits a module's rows into the ones on its card and the archived ones (owner, 2026-11-05: "the sources which are
+ * failing even after multiple tries and fixes, move them to an archived section at the end of the page"): dismissed, or
+ * failed ARCHIVE_AFTER tries in a row (`streaks`, by row id). Archived rows keep their buttons, so one can still be tried.
+ */
+export function splitArchived(rows: ImportRow[], streaks: Map<string, number>): { rows: ImportRow[]; archived: ImportRow[] } {
+  const out = { rows: [] as ImportRow[], archived: [] as ImportRow[] };
+  for (const r of rows) {
+    const n = streaks.get(r.id) ?? 0;
+    const dismissed = r.action?.kind === "dismiss" && r.action.dismissed === false;
+    const failing = n >= ARCHIVE_AFTER && (r.state === "needs_you" || r.state === "down");
+    if (dismissed) out.archived.push(r);
+    else if (failing) out.archived.push({ ...r, detail: `${r.state === "down" ? `Its last ${n} collections failed; it still retries on its schedule.` : `Failed ${n} tries in a row, so Import no longer tries it on its own.`} ${r.detail.replace(/ Import now leaves it out for a day\.$/, "")}`, more: r.more.filter((a) => a.kind !== "dismiss") });
+    else out.rows.push(r);
+  }
+  return out;
+}
+
+/** Pure: each live gateway source's failed collections in a row, newest first (by "gateway:<id>"). */
+export function collectStreaks(runs: GatewayRunRow[]): Map<string, number> {
+  const out = new Map<string, number>();
+  const settled = new Set<string>();
+  for (const r of [...runs].sort((a, b) => b.at.localeCompare(a.at))) {
+    if (settled.has(r.sourceId)) continue;
+    if (r.ok) settled.add(r.sourceId);
+    else out.set(`gateway:${r.sourceId}`, (out.get(`gateway:${r.sourceId}`) ?? 0) + 1);
+  }
+  return out;
+}
+
 /** Pure: a module's rows from its WorksLake sources, its gateway sources and its Setup items (exported for tests). */
 export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewaySourceRow[], items: SetupItem[], failed: Map<string, { at: string; step?: string; message?: string }> = new Map(), dismissed: Set<string> = new Set()): ImportRow[] {
   const rows: ImportRow[] = [];
@@ -155,7 +188,7 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
   // Owner decisions and catalogue sources not yet added: only the Setup list knows them.
   for (const i of items) {
     if (i.module !== mod && !(i.module === "all" && mod === "jobs")) continue;
-    if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") }, more: i.action.href.startsWith("/") && i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link", label: i.action.label, href: i.action.href }] : [], history: [] });
+    if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") }, more: i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link", label: i.action.label, href: i.action.href }] : [], history: [] });
     else if (i.run?.kind === "add") {
       const f = failed.get(i.id);
       if (dismissed.has(i.id)) rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: "off", detail: "Dismissed: Import never tries it.", action: { kind: "dismiss", label: "Restore", id: i.id, dismissed: false }, more: [], history: [] });
@@ -171,7 +204,10 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
     const open: ImportAction = { kind: "link", label: "Open source", href };
     if (item) {
       const state: ImportState = item.need === "activate" ? "waiting" : "needs_you";
-      rows.push({ id: v.id, name: v.name, kind: "WorksLake", state, detail: item.detail, termsPending: item.need === "terms", action: { kind: "link", label: item.action.label, href: item.action.href }, more: item.action.href === href ? [] : [open], history: sourceHistory(v) });
+      // Terms pending on a live source: confirm them here, or pause it (owner, 2026-11-05: "give direct action buttons").
+      const terms = item.need === "terms";
+      const termsActions: ImportAction[] = terms ? [{ kind: "decide", label: "Terms confirmed", decision: `terms:${v.id}` }, ...(v.status === "paused" ? [] : [{ kind: "source_status" as const, label: "Pause", id: v.id, status: "paused" as const }])] : [];
+      rows.push({ id: v.id, name: v.name, kind: "WorksLake", state, detail: item.detail, termsPending: terms, action: terms ? termsActions[0] : { kind: "link", label: item.action.label, href: item.action.href }, more: [...termsActions.slice(1), ...(item.action.href === href ? [] : [open]), ...(terms ? [open] : [])].filter((a, n, all) => all.findIndex((b) => b.label === a.label) === n), history: sourceHistory(v) });
       continue;
     }
     if (liveStatus(v)) rows.push({ id: v.id, name: v.name, kind: "WorksLake", state: v.health?.state === "down" ? "down" : "live", detail: v.health?.state === "down" ? "Down: its last runs failed" : v.statusLabel, action: v.health?.state === "down" ? open : undefined, more: [{ kind: "source_status", label: "Pause", id: v.id, status: "paused" }, ...(v.health?.state === "down" ? [] : [open])], history: sourceHistory(v) });
@@ -234,7 +270,7 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
 export async function importView(): Promise<ImportView> {
   const store = jobsLakeStore();
   const fortnight = new Date(Date.now() - MAX_POSTING_AGE_DAYS * DAY).toISOString();
-  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed] = await Promise.all([
+  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed, tried] = await Promise.all([
     listAllSourceViews(),
     gatewayOverview().catch(() => null),
     setupTodo(),
@@ -245,12 +281,14 @@ export async function importView(): Promise<ImportView> {
     Promise.all(MODULES.map(async (m) => [m.id, await store.countOpportunities({ sinceIso: fortnight, module: m.id }).catch(() => null)] as const)),
     listImportRuns().catch(() => [] as ImportRun[]),
     failedLately().catch(() => new Map<string, { at: string; step?: string; message?: string }>()),
+    failStreaks().catch(() => new Map<string, number>()),
   ]);
+  const streaks = new Map([...tried, ...collectStreaks(gw?.runs ?? [])]);
   const held = new Map((gw?.byModule ?? []).map((b) => [b.module, b.listings]));
   const found = new Map(inFind);
   const paused = new Set(settings.gateway.pausedModules);
   const modules: ImportModule[] = MODULES.map((m) => {
-    const rows = moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed));
+    const { rows, archived } = splitArchived(moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed)), streaks);
     return {
       id: m.id,
       label: m.label,
@@ -263,6 +301,7 @@ export async function importView(): Promise<ImportView> {
       paused: paused.has(m.id),
       problems: rows.filter((r) => r.state === "down" || r.state === "needs_you").map((r) => `${r.name}: ${r.detail}`),
       rows,
+      archived,
     };
   });
   const enabled = (gw?.sources ?? []).filter((s) => s.enabled);

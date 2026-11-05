@@ -15,7 +15,7 @@ describe("Jobs' USAJOBS and Jooble sources (WJ-545)", () => {
     expect(SOURCE_FETCHERS.usajobs.available()).toBe(true);
   });
 
-  it("are Jobs' own WorksLake sources, with the key they need named for Setup to-do", () => {
+  it("are Jobs' own WorksLake sources, with the key they need named for Sources → Import", () => {
     const byId = new Map(BUILTIN_SOURCES.map((s) => [s.id, s]));
     expect(byId.get("jooble")).toMatchObject({ module: "jobs", secretRef: "env:JOOBLE" });
     expect(byId.get("usajobs")).toMatchObject({ module: "jobs", secretRef: "env:USAJOBS", geography: ["US"] });

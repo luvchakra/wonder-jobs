@@ -1,3 +1,4 @@
+import { explainFailure } from "@/domain/gateway/failure";
 import { after, NextResponse } from "next/server";
 import { siteUrl } from "@/lib/siteUrl";
 import { startImport, startModuleImport } from "@/server/gateway/collectJob";
@@ -5,6 +6,7 @@ import { collectGatewaySource, registerFromCatalogue, registerPartner, setGatewa
 import { updateSource } from "@/server/jobslake/admin";
 import { MODULE_IDS } from "@/wonderworks/manifest";
 import { continueSetupJob, handOnSetupJob, runSetupItem } from "@/server/gateway/setupJob";
+import { recordTry } from "@/server/gateway/importRuns";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { setDecision } from "@/server/jobslake/decisions";
@@ -18,7 +20,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Admin → Data → Import: every module's sources, what the gateway holds and what Find shows, in one read. */
+/** Sources → Import: every module's sources, what the gateway holds and what Find shows, in one read. */
 export async function GET() {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
@@ -68,11 +70,18 @@ export async function POST(req: Request) {
     const item = (await setupTodo()).items.find((i) => i.id === id && i.run);
     if (!item?.run) return jlError("NOT_FOUND", "That source isn't waiting any more.", 404);
     const r = await runSetupItem(item.run);
+    // Counted towards archiving: a source that fails ARCHIVE_AFTER tries in a row moves to Archived.
+    await recordTry(id, r.ok);
     await audit(a.actor, "import.item", r.ok ? r.sourceId : undefined, { id, ok: r.ok, ...(r.ok ? { valid: r.valid } : { step: r.step }) });
-    return json(r, r.ok ? 200 : 422);
+    // A failure says why in words (domain/gateway/failure.ts), not a bare "Request failed (422)" (owner, 2026-11-05).
+    if (!r.ok) {
+      const why = explainFailure(r.step, r.message);
+      return json({ ...r, error: { code: "ITEM_FAILED", message: `${why.label}. ${why.detail}` } }, 422);
+    }
+    return json(r);
   }
   if (action === "emails") {
-    // The "import finished" email's settings (Data → Import → Emails); every field checked by cleanScheduler.
+    // The "import finished" email's settings (Sources → Import → Emails); every field checked by cleanScheduler.
     const current = await loadScheduler();
     const next = { ...current.importEmail, ...(typeof body?.imports === "boolean" ? { imports: body.imports } : {}), ...(typeof body?.hourly === "boolean" ? { hourly: body.hourly } : {}), ...(body?.to !== undefined ? { to: cleanEmailList(body.to) } : {}) };
     const saved = await saveScheduler({ ...current, importEmail: next }, a.actor);
@@ -162,7 +171,12 @@ export async function POST(req: Request) {
   if (action === "collect") {
     const r = await collectGatewaySource(sourceId);
     await audit(a.actor, "gateway.collect", sourceId, { ok: r.ok, ...(r.ok ? { valid: r.valid } : { code: r.code }) });
-    return json(r, r.ok ? 200 : 422);
+    // A failure says why in words (domain/gateway/failure.ts), not a bare "Request failed (422)" (owner, 2026-11-05).
+    if (!r.ok) {
+      const why = explainFailure("Collect", r.code);
+      return json({ ...r, error: { code: r.code, message: `${why.label}. ${why.detail}` } }, 422);
+    }
+    return json(r);
   }
   if (action === "test") {
     const r = await testGatewaySource(sourceId);

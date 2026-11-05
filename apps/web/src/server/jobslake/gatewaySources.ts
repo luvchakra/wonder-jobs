@@ -9,6 +9,13 @@ import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
 import { checkDestination } from "@/domain/jobslake/ssrf";
 import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 
+/**
+ * A gateway listing that names no organisation, where the module shows that honestly: Scholarships says "Provider not
+ * stated" (its `NO_PROVIDER`, which the module turns back into "no provider"; asked for by the Scholarships session for
+ * Buddy4Study, 2026-11-03). Every other module keeps dropping a listing with no employer.
+ */
+const NO_ORG: Partial<Record<string, { defaultEmployer: string }>> = { scholarships: { defaultEmployer: "Provider not stated" } };
+
 const prefix = "works_gateway_";
 const base = process.env.WORKSLAKE_GATEWAY_URL?.replace(/\/$/, "") ?? "";
 function enabled() {
@@ -53,7 +60,7 @@ export const GATEWAY_SOURCES: SourceRecord[] = enabled() ? MODULE_IDS.map((modul
   // Active whenever the gateway is configured (owner, 2026-11-02: one import pipeline, no second approval here): every
   // gateway source was already tested and activated by an admin in the gateway itself.
   status: "active",
-  config: { kind: "json_api", api: { endpoint: base + "/v1/workslake/" + module + "/listings", queryParam: "q", locationParam: "location", credentialHeader: "Authorization", credentialPrefix: "Bearer ", mapping: { itemsPath: "items", fields: FIELDS, attributesPath: "attributes", kindPath: "kind", domainPath: "employerDomain" } } },
+  config: { kind: "json_api", api: { endpoint: base + "/v1/workslake/" + module + "/listings", queryParam: "q", locationParam: "location", credentialHeader: "Authorization", credentialPrefix: "Bearer ", mapping: { itemsPath: "items", fields: FIELDS, attributesPath: "attributes", kindPath: "kind", domainPath: "employerDomain", ...NO_ORG[module] }, pagination: { cursorParam: "cursor", nextCursorPath: "nextCursor", pageSize: 100 } } },
   secretRef: "env:WORKSLAKE_GATEWAY_API_KEY",
   limits: { ...DEFAULT_LIMITS, timeoutMs: 12000, maxResults: 100 },
   roleFamilies: [],

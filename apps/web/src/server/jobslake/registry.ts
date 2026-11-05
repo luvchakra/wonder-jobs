@@ -177,6 +177,9 @@ export function asksSince(s: Pick<SourceRecord, "id" | "config">): boolean {
 }
 
 export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: Depth): Promise<ConnectorResult> {
+  // The keys an admin set on Admin → Keys, read before any connector checks for one: a source's Test runs on a fresh
+  // server that hadn't read them yet, so USAJOBS said "needs credentials" though both keys were set (owner, 2026-11-05).
+  await loadPlatformKeys();
   const cfg = s.config;
   switch (cfg.kind) {
     case "builtin": {
@@ -205,7 +208,9 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
       const secret = await readCredential(s.secretRef);
       if ((cfg.api.credentialHeader || cfg.api.auth) && !secret) throw new NeedsSetupError("The API credential is missing.");
       const r = await eachPlace(cfg.api.locationParam ? c : undefined, c, (one) => fetchJsonApi(cfg.api, one, secret, s.limits.timeoutMs));
-      return { jobs: finish(s.id, r.raws, c).slice(0, s.limits.maxResults), warnings: [], sample: r.sample, mapping: r.mapping };
+      // A paged API read for Find's refresh asks for more than a search's page (warm.ts); otherwise the source's own cap.
+      const cap = cfg.api.pagination && c.maxResults ? Math.max(c.maxResults, s.limits.maxResults) : s.limits.maxResults;
+      return { jobs: finish(s.id, r.raws, c).slice(0, cap), warnings: [], sample: r.sample, mapping: r.mapping };
     }
     case "feed": {
       const r = await fetchFeed(cfg.feed, s.limits.timeoutMs);

@@ -13,6 +13,18 @@ describe("readJobType — a source's own employment-type field", () => {
     expect(readJobType("freelance")).toBe("gig");
     expect(readJobType(["permanent", "full_time"])).toBe("full_time"); // Adzuna
   });
+  it("reads underscore and hyphen spellings (Personio, enum-style feeds)", () => {
+    expect(readJobType("working_student")).toBe("internship");
+    expect(readJobType("working-student")).toBe("internship");
+    expect(readJobType("WORKING_STUDENT")).toBe("internship");
+    expect(readJobType("full_time")).toBe("full_time");
+    expect(readJobType("FULL_TIME")).toBe("full_time");
+    expect(readJobType("part_time")).toBe("part_time");
+    expect(readJobType("part-time")).toBe("part_time");
+    expect(readJobType("fixed_term")).toBe("temporary");
+    expect(readJobType("short_term")).toBe("temporary");
+    expect(jobTypeFromTitle("Working-Student Marketing")).toBe("internship");
+  });
   it("takes the most specific of several values", () => {
     expect(readJobType(["full_time", "contract"])).toBe("contract");
     expect(readJobType(["part_time", "contract"])).toBe("part_time");

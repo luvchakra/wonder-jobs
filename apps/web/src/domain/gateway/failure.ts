@@ -16,7 +16,7 @@ export function explainFailure(step: string | undefined, message: string | undef
   const m = (message ?? "").trim();
   const at = step && STEP[step] ? ` (during ${STEP[step]})` : "";
   const responded = /responded (\d{3})/i.exec(m)?.[1];
-  if (/found no valid listings/i.test(m) || /^EMPTY$/.test(m))
+  if (/found no valid listings|no records found|quality below|No pages to crawl/i.test(m) || /^EMPTY$/.test(m))
     return { label: "Found nothing", detail: `The site answered, but the test found no listings it could use${at}: the page layout may have changed, or the site lists none right now. It stays paused; its Test & activate tries again.` };
   if (/SOURCE_TIMEOUT|timed? ?out|didn't answer|aborted|FUNCTION_INVOCATION_TIMEOUT|\b504\b/i.test(m))
     return { label: "Took too long", detail: `The site didn't answer in the time one step is allowed${at}. The next import tries it again.` };
@@ -35,7 +35,8 @@ export function explainFailure(step: string | undefined, message: string | undef
   if (/UNSAFE_REDIRECT|redirect/i.test(m))
     return { label: "Redirects to another site", detail: `The source's address sends us to a different website${at}, which the gateway doesn't follow. Its catalogue entry needs the address it ends up at.` };
   if (/TOO_LARGE|size limit|too large/i.test(m))
-    return { label: "Feed too large", detail: `The site's feed is bigger than the gateway reads in one go${at}. Its catalogue entry needs a smaller feed or a page limit.` };
+    // Feeds are read up to the limit now (collect.mjs::readBody, 2026-11-05), so only a JSON file or a page lands here.
+    return { label: "Response too large", detail: `The site's answer (a JSON file or a page) is bigger than the gateway reads in one go${at}, and those can't be read in part. Its catalogue entry needs a smaller file or a page limit. (Feeds are fine: the gateway reads their newest part.)` };
   if (/SOURCE_NOT_PERMITTED|permission|robots review/i.test(m))
     return { label: "Permission details missing", detail: `The source's entry is missing a required permission note (terms, robots review)${at}. Its catalogue entry needs it filled in.` };
   if (/INVALID_SOURCE|INVALID_REQUEST|mapping|invalid/i.test(m))

@@ -24,11 +24,11 @@ export type StateStoreName = (typeof STATE_STORES)[number];
 // wj.companynames: names whose Wikidata website lookup found nothing, with the date (nameDomains.ts), platform tenant only.
 // wj.ratingruns: the company-ratings job's run history (counts and masked key names only), platform tenant only.
 // wj.notifyprefs: what the person wants pushed or emailed (Notification center).
-// wj.setupdecisions: which data-source decisions the owner marked done on Setup to-do (id → when, by whom, note), platform tenant only.
+// wj.setupdecisions: which data-source decisions the owner marked done on Sources → Import (id → when, by whom, note), platform tenant only.
 // wj.moderation: listings hidden, banned or deleted (by reports past the threshold, an admin or their poster) and the report threshold, platform tenant only; never a reporter.
 // wj.importruns: every import run (Import now, a module's import, each hourly collection) with each source's outcome, the newest 60, platform tenant only.
 // wj.gatewayrefresh: when gateway listings were last stored in WorksLake for every module, and how many per module, platform tenant only.
-// wj.setupjob: Setup to-do's server job (Test & activate all): its items, each one's outcome, and its lease, platform tenant only.
+// wj.setupjob: Sources → Import's server job (Test & activate all): its items, each one's outcome, and its lease, platform tenant only.
 // wj.datadb: the optional WorksLake data database's connection (URL, encrypted service key, on/off), platform tenant only.
 // wj.dbsafeguards: the storage safeguards' settings and last run (Admin → Settings → Storage), platform tenant only.
 // wj.schedruns: each module scheduled search's run state (next run, what it last found, listing ids seen), cron-written.

@@ -12,11 +12,11 @@ export interface SchedulerSettings {
   ratings: { enabled: boolean; frequency: RatingsFrequency; notifyEmail: string };
   /**
    * The gateway collection (`/api/cron/gateway-collect`, hourly): whether each run also tests and activates the gateway
-   * sources waiting on Setup to-do (added, not yet live), as one server job. Off: only an admin's press does it.
+   * sources waiting on Sources → Import (added, not yet live), as one server job. Off: only an admin's press does it.
    */
-  gateway: { activateWaiting: boolean; /** Modules whose import is paused (Data → Import): not collected, set up or refreshed until resumed. */ pausedModules: string[]; /** Sources an admin dismissed (Data → Import): never tried by Import now or the hourly run, and not counted as waiting. */ dismissed: string[] };
+  gateway: { activateWaiting: boolean; /** Modules whose import is paused (Sources → Import): not collected, set up or refreshed until resumed. */ pausedModules: string[]; /** Sources an admin dismissed (Sources → Import): never tried by Import now or the hourly run, and not counted as waiting. */ dismissed: string[] };
   /**
-   * The "import finished" email (Data → Import → Emails, owner 2026-11-03): whether import jobs and the hourly collection
+   * The "import finished" email (Sources → Import → Emails, owner 2026-11-03): whether import jobs and the hourly collection
    * send it, and to whom. An empty `to` means the platform admins (JOBSLAKE_ADMIN_EMAILS).
    */
   importEmail: { imports: boolean; hourly: boolean; to: string[] };
@@ -129,7 +129,7 @@ export const CRON_JOBS = [
   { id: "jobslake-companies", runner: "vercel", path: "/api/cron/jobslake-companies", schedule: "30 1 * * *", label: "Company refresh", description: "WorksLake's company directory from the last two weeks of postings, their posting counts and missing logos." },
   { id: "jobslake-ratings", runner: "vercel", path: "/api/cron/jobslake-ratings", schedule: "50 1 * * *", label: "Company ratings", description: "Looks up employee-review ratings from Explorium for companies never looked up (or not for 90 days), on the frequency set in Company ratings. Emails the owner when no API key is left." },
   { id: "application-reminders", runner: "vercel", path: "/api/cron/application-reminders", schedule: "30 3 * * *", label: "Application reminders", description: "Deletes career-site applications past their site's retention period, then reminds hiring teams of applications with no decision for two days (every two days, at most three times)." },
-  { id: "gateway-collect", runner: "vercel", path: "/api/cron/gateway-collect", schedule: "0 23 * * *", label: "Gateway collection", description: "Collects the gateway sources that are live and due (robots and permission checked again each time), carries on an unfinished Setup job and, when switched on below, tests and activates the sources waiting on Setup to-do. When anything new arrives, every module's Find is refreshed with it. Called every hour by GitHub Actions (gateway-collect.yml) and daily by Vercel." },
+  { id: "gateway-collect", runner: "vercel", path: "/api/cron/gateway-collect", schedule: "0 23 * * *", label: "Gateway collection", description: "Collects the gateway sources that are live and due (robots and permission checked again each time), carries on an unfinished Setup job and, when switched on below, tests and activates the sources waiting on Sources → Import. When anything new arrives, every module's Find is refreshed with it. Called every hour by GitHub Actions (gateway-collect.yml) and daily by Vercel." },
   // Called by GitHub Actions (.github/workflows/reminders.yml): Vercel's plan runs its own crons once a day.
   { id: "reminders", runner: "github", path: "/api/cron/reminders", schedule: "17 * * * *", label: "Reminders", description: "Interview and follow-up reminders between daily runs, so one due this evening isn't raised tomorrow morning. Called by GitHub Actions; the daily run raises them too." },
 ] as const satisfies readonly { id: CronRun["job"]; runner: "vercel" | "github"; path: string; schedule: string; label: string; description: string }[];

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __MemoryStore, __setJobsLakeStore } from "./store";
-import { __resetPlatformKeys, setPlatformKey } from "./platformKeys";
+import { __resetPlatformKeys, PLATFORM_KEYS, setPlatformKey } from "./platformKeys";
 import { TESTABLE, testPlatformKey } from "./keyTest";
 
 const reply = (status: number) => vi.fn(async () => new Response("{}", { status })) as unknown as typeof fetch;
@@ -17,7 +17,10 @@ describe("Test on Admin → Keys", () => {
   });
 
   it("every key has a test", () => {
-    expect(TESTABLE.size).toBe(13);
+    // Every key on the Keys page has a Test, however many there are, except those named here (other sessions' keys, whose
+    // Tests they add and then take their name out); a new key without a Test fails this, a new key with one needs no edit.
+    const untested = PLATFORM_KEYS.map((k) => k.name).filter((n) => !TESTABLE.has(n));
+    expect(untested.sort()).toEqual(["NAV_PAM_STILLING_FEED_TOKEN"]);
   });
 
   it("asks for the other half of a pair before testing", async () => {
@@ -44,6 +47,16 @@ describe("Test on Admin → Keys", () => {
     const down = vi.fn(async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch;
     expect((await testPlatformKey("JOOBLE_API_KEY", down)).message).toMatch(/^Unavailable/);
     expect((await testPlatformKey("NOPE")).message).toBe("No test for this key.");
+  });
+
+  it("tests the Find an apprenticeship key with one small Display Advert API v2 request, the key in its header", async () => {
+    await setPlatformKey("FIND_APPRENTICESHIP_API_KEY", "fa-secret-77");
+    const f = reply(200);
+    expect((await testPlatformKey("FIND_APPRENTICESHIP_API_KEY", f)).ok).toBe(true);
+    const [url, init] = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
+    expect(url).toBe("https://api.apprenticeships.education.gov.uk/vacancies/vacancy?PageSize=1&PageNumber=1");
+    expect(init.headers).toMatchObject({ "Ocp-Apim-Subscription-Key": "fa-secret-77", "X-Version": "2" });
+    expect(JSON.stringify(await testPlatformKey("FIND_APPRENTICESHIP_API_KEY", reply(401)))).not.toContain("fa-secret");
   });
 
   it("sends Jooble a real word: it answers 400 to an empty search even with a good key", async () => {
@@ -74,6 +87,22 @@ describe("Test on Admin → Keys", () => {
     expect(url).not.toMatch(/ebay-app|ebay-cert/);
     expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from("ebay-app-1:ebay-cert-secret").toString("base64")}`);
     expect(JSON.stringify(bad)).not.toContain("ebay-cert");
+  });
+
+  it("tests Simpler.Grants.gov with X-API-Key and clist.by with ApiKey username:key", async () => {
+    await setPlatformKey("SIMPLER_GRANTS_API_KEY", "sg-key-1234");
+    const sg = reply(200);
+    expect((await testPlatformKey("SIMPLER_GRANTS_API_KEY", sg)).ok).toBe(true);
+    const [sgUrl, sgInit] = (sg as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
+    expect(sgUrl).toBe("https://api.simpler.grants.gov/v1/opportunities/search");
+    expect((sgInit.headers as Record<string, string>)["X-API-Key"]).toBe("sg-key-1234");
+    await setPlatformKey("CLIST_API_KEY", "cl-key-1234");
+    expect((await testPlatformKey("CLIST_API_KEY", reply(200))).message).toBe("Set CLIST_USERNAME first.");
+    await setPlatformKey("CLIST_USERNAME", "someone");
+    const cl = reply(200);
+    expect((await testPlatformKey("CLIST_USERNAME", cl)).ok).toBe(true);
+    const clInit = (cl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0][1];
+    expect((clInit.headers as Record<string, string>).authorization).toBe("ApiKey someone:cl-key-1234");
   });
 
   it("tests Kaggle's new token as a Bearer token, on its own", async () => {

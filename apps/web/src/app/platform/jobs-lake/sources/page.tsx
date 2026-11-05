@@ -11,6 +11,8 @@ import { Button } from "@/components/common/Button";
 import { Chip, Input } from "@/components/common/Input";
 import {
   AccessBadge,
+  FetchModeBadge,
+  FetchModeLegend,
   HealthChip,
   LoadError,
   Loading,
@@ -18,13 +20,14 @@ import {
   Panel,
   ResponsiveTable,
   SourceStatusChip,
+  TodoLine,
   ms,
   num,
   pct,
   useAdmin,
 } from "@/components/jobslake/ui";
 
-type Filter = "all" | "active" | "setup" | "draft" | "paused" | "partnership";
+type Filter = "all" | "on_search" | "scheduled" | "active" | "setup" | "draft" | "paused" | "partnership";
 
 /** Can't be queried yet: an active source without its credentials, or a partner portal still waiting for its endpoint or credential. */
 const needsSetup = (s: SourceView) =>
@@ -40,6 +43,8 @@ const FILTERS: {
   test: (s: SourceView) => boolean;
 }[] = [
   { value: "all", label: "All", test: () => true },
+  { value: "on_search", label: "On search", test: (s) => s.fetchMode === "on_search" },
+  { value: "scheduled", label: "Collected regularly", test: (s) => s.fetchMode === "scheduled" },
   {
     value: "active",
     label: "Active",
@@ -111,6 +116,7 @@ function Sources() {
       {!data && !error && <Loading />}
       {data && (
         <Panel>
+          <FetchModeLegend />
           <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div
               className="flex flex-wrap gap-1.5"
@@ -179,13 +185,20 @@ function Sources() {
                 ),
               },
               {
+                header: "When fetched",
+                cell: (r) => <FetchModeBadge mode={r.fetchMode} />,
+              },
+              {
                 header: "Access",
                 cell: (r) => <AccessBadge label={r.accessLabel} />,
               },
               {
                 header: "Status",
                 cell: (r) => (
-                  <SourceStatusChip status={r.status} label={statusLabel(r)} />
+                  <span>
+                    <SourceStatusChip status={r.status} label={statusLabel(r)} />
+                    <TodoLine todo={r.todo} className="mt-1 block max-w-[16rem] text-[11px]" />
+                  </span>
                 ),
               },
               {
@@ -222,7 +235,7 @@ function Sources() {
               >
                 <span className="flex items-center justify-between gap-2">
                   <span className="font-medium text-ink">
-                    {r.name} <AccessBadge label={r.accessLabel} />
+                    {r.name} <FetchModeBadge mode={r.fetchMode} /> <AccessBadge label={r.accessLabel} />
                   </span>
                   <SourceStatusChip status={r.status} label={statusLabel(r)} />
                 </span>
@@ -232,6 +245,7 @@ function Sources() {
                   retrieved (7 d) · {pct(r.health?.successRate)} success ·{" "}
                   {ms(r.health?.p50LatencyMs)}
                 </span>
+                <TodoLine todo={r.todo} className="text-[12px]" />
               </Link>
             )}
           />
