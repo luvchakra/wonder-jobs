@@ -14,7 +14,7 @@
  * - Opportunity Desk, Scholars4Dev, Opportunities for Africans and Mladiinfo: their public WordPress RSS feeds (one post, one opportunity, its stated deadline).
  * - HackerEarth: its public challenge list (ongoing and upcoming hackathons).
  * - Devfolio: hackathons open for applications in India (the public search its site uses).
- * - Kaggle: its API's open competitions — needs KAGGLE_USERNAME + KAGGLE_KEY ("Needs setup" without).
+ * - Kaggle: its API's open competitions — needs KAGGLE_API_TOKEN, or the older KAGGLE_USERNAME + KAGGLE_KEY ("Needs setup" without).
  * Devpost, Unstop and EU Funding & Tenders are live with "terms pending" (CLAUDE.md, "Finding data sources"): the
  * owner confirms their terms later; `statusReason` says what to confirm.
  * - Partner uploads arrive through the WorksLake gateway's own source (`works_gateway_scholarships`,
@@ -29,7 +29,7 @@ import type { RawPosting } from "@/services/jobs/normalize";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { platformKey } from "@/server/jobslake/platformKeys";
+import { kaggleAuthorization } from "@/server/jobslake/platformKeys";
 
 const EPOCH = "2026-11-01T00:00:00.000Z";
 const FEED_CAPS = ["Search", "Freshness", "Apply URL"];
@@ -59,8 +59,8 @@ const FEEDS: Record<string, { url: string; name: string }> = {
   [MLADIINFO]: { url: "https://mladiinfo.eu/feed/", name: "Mladiinfo" },
 };
 
-/** Kaggle's key, from the deployment or Admin → Settings → API (`platformKey`). */
-const kaggleAvailable = () => !!(platformKey("KAGGLE_USERNAME") && platformKey("KAGGLE_KEY"));
+/** Kaggle's token (or the older username + key), from the deployment or Admin → Keys (`kaggleAuthorization`). */
+const kaggleAvailable = () => !!kaggleAuthorization();
 
 /** Required by Grants.gov's API terms next to its data. */
 export const GRANTS_GOV_NOTICE = "This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services.";
@@ -77,7 +77,7 @@ export const SCHOLARSHIP_SOURCES: SourceRecord[] = [
   source({ id: OPPORTUNITIES_FOR_AFRICANS, name: "Opportunities for Africans", provider: "Opportunities for Africans", category: "aggregator", geography: ["global"], statusReason: "terms pending: the site's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "Scholarships, fellowships and programmes for young Africans from the site's public RSS feed, each with the deadline its post states." }),
   source({ id: MLADIINFO, name: "Mladiinfo scholarships and opportunities", provider: "Mladiinfo", category: "aggregator", geography: ["global", "EU"], statusReason: "terms pending: Mladiinfo's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "Scholarships, competitions and youth opportunities from Mladiinfo's public RSS feed, each with the deadline its post states." }),
   source({ id: HACKEREARTH, name: "HackerEarth hackathons", provider: "HackerEarth", category: "aggregator", geography: ["global", "IN"], statusReason: "terms pending: HackerEarth's public challenge list (the one its browser extension reads) has no published reuse terms; confirm with HackerEarth", description: "Hackathons and challenges open or starting soon on HackerEarth, each closing when its submissions end." }),
-  source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API." }),
+  source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_API_TOKEN (free: kaggle.com → Settings → API → Generate New Token), or the older KAGGLE_USERNAME + KAGGLE_KEY, set in Admin → Keys." }),
 ];
 
 export function scholarshipSourceAvailable(s: SourceRecord): boolean {
@@ -493,9 +493,8 @@ export function rawFromKaggle(k: KaggleCompetition): RawPosting | null {
 }
 
 export async function fetchKaggle(c: SearchCriteria): Promise<Job[]> {
-  const auth = Buffer.from(`${platformKey("KAGGLE_USERNAME")}:${platformKey("KAGGLE_KEY")}`).toString("base64");
   const q = c.query.trim() ? `&search=${encodeURIComponent(c.query.trim().slice(0, 80))}` : "";
-  const list = await getJson<KaggleCompetition[]>(`https://www.kaggle.com/api/v1/competitions/list?page=1${q}`, { headers: { authorization: `Basic ${auth}` } });
+  const list = await getJson<KaggleCompetition[]>(`https://www.kaggle.com/api/v1/competitions/list?page=1${q}`, { headers: { authorization: kaggleAuthorization()! } });
   return finish(KAGGLE, (Array.isArray(list) ? list : []).flatMap((k) => rawFromKaggle(k) ?? []), c);
 }
 
@@ -539,7 +538,7 @@ export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria, n
     case DEVFOLIO:
       return { jobs: await fetchDevfolio(c), warnings: [] };
     case KAGGLE:
-      if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_USERNAME and KAGGLE_KEY (free: kaggle.com → Settings → API → Create New Token), set in Admin → Settings → API.`);
+      if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_API_TOKEN (free: kaggle.com → Settings → API → Generate New Token), or the older KAGGLE_USERNAME + KAGGLE_KEY, set in Admin → Keys.`);
       return { jobs: await fetchKaggle(c), warnings: [] };
     default:
       throw new Error("No connector");

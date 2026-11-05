@@ -168,3 +168,4 @@
 - ✅ Admin → Keys: Test each saved key (WJ-704)
 - ✅ Jooble key Test sends a real search word (WJ-705)
 - ✅ Kaggle API token (KGAT_) on Admin → Keys with Test (WJ-706)
+- ✅ Scholarships & Projects: Kaggle source uses the new API token, or the older username + key (WJ-531)
