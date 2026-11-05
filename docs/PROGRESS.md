@@ -184,3 +184,4 @@
 - ✅ Internships: UK apprenticeships from Find an apprenticeship (DfE API v2; needs its free key) (WJ-583)
 - ✅ Jobs: We Work Remotely's gateway source reads its 11 category feeds, each under the gateway's size limit (WJ-549)
 - ✅ Jobs: Recruitee and Personio career sites (European employers); NAV and NLx on the owner's Setup to-do (WJ-550)
+- ✅ Teaching: school boards on Recruitee and Personio added as sources (WJ-568)
