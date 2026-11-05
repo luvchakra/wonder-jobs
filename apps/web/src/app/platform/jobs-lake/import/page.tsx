@@ -86,6 +86,7 @@ export default function ImportPage() {
           <Emails d={data} reload={reload} />
           <RecentRuns d={data} />
           <DataTypes />
+          <Archived d={data} reload={reload} />
         </div>
       )}
     </>
@@ -99,6 +100,7 @@ const LEGEND: { state: ImportRow["state"]; text: string }[] = [
   { state: "live", text: "Collecting on its schedule. Nothing to do." },
   { state: "down", text: "Was live, but its last collections failed. It retries on its own; Details says why." },
   { state: "off", text: "Paused or dismissed by an admin; Import skips it. Its button turns it back on." },
+  // Sources that failed three tries in a row, and dismissed ones, are listed in Archived at the end of the page.
 ];
 
 function StateLegend() {
@@ -450,6 +452,32 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
 }
 
 /** A source: its state, a line on it, its one action, and Details (what it did lately, and the ways to fix or pause it). */
+/**
+ * Archived, at the page's end (owner, 2026-11-05): sources that failed three tries in a row, or that an admin dismissed,
+ * by module. Import leaves them out; each keeps its own button, and a success moves it back to its module's card.
+ */
+function Archived({ d, reload }: { d: ImportView; reload: () => void }) {
+  const mods = d.modules.filter((m) => m.archived.length);
+  const total = mods.reduce((n, m) => n + m.archived.length, 0);
+  if (!total) return null;
+  return (
+    <Fold title="Archived" hint={`${num(total)} sources that kept failing or were dismissed. Import leaves them out; Try again on one brings it back once it works.`}>
+      <div className="flex flex-col gap-3">
+        {mods.map((m) => (
+          <div key={m.id}>
+            <p className="text-[12px] font-semibold text-ink-2">{m.label}</p>
+            <ul className="flex flex-col divide-y divide-line">
+              {m.archived.map((r) => (
+                <Row key={r.id} r={r} reload={reload} />
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Fold>
+  );
+}
+
 function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);

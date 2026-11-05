@@ -6,6 +6,7 @@ import { collectGatewaySource, registerFromCatalogue, registerPartner, setGatewa
 import { updateSource } from "@/server/jobslake/admin";
 import { MODULE_IDS } from "@/wonderworks/manifest";
 import { continueSetupJob, handOnSetupJob, runSetupItem } from "@/server/gateway/setupJob";
+import { recordTry } from "@/server/gateway/importRuns";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { setDecision } from "@/server/jobslake/decisions";
@@ -69,6 +70,8 @@ export async function POST(req: Request) {
     const item = (await setupTodo()).items.find((i) => i.id === id && i.run);
     if (!item?.run) return jlError("NOT_FOUND", "That source isn't waiting any more.", 404);
     const r = await runSetupItem(item.run);
+    // Counted towards archiving: a source that fails ARCHIVE_AFTER tries in a row moves to Archived.
+    await recordTry(id, r.ok);
     await audit(a.actor, "import.item", r.ok ? r.sourceId : undefined, { id, ok: r.ok, ...(r.ok ? { valid: r.valid } : { step: r.step }) });
     // A failure says why in words (domain/gateway/failure.ts), not a bare "Request failed (422)" (owner, 2026-11-05).
     if (!r.ok) {
