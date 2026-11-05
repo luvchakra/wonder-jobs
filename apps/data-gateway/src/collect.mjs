@@ -57,7 +57,7 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
     const req = request(url, {
       method: "GET",
       timeout: requestTimeoutMs(input),
-      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept: "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8" },
+      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept: "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8, */*;q=0.1" },
       lookup: pinnedLookup(selected),
     }, (res) => {
       const chunks = []; let bytes = 0;
