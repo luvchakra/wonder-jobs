@@ -89,6 +89,22 @@ describe("Test on Admin → Keys", () => {
     expect(JSON.stringify(bad)).not.toContain("ebay-cert");
   });
 
+  it("tests Simpler.Grants.gov with X-API-Key and clist.by with ApiKey username:key", async () => {
+    await setPlatformKey("SIMPLER_GRANTS_API_KEY", "sg-key-1234");
+    const sg = reply(200);
+    expect((await testPlatformKey("SIMPLER_GRANTS_API_KEY", sg)).ok).toBe(true);
+    const [sgUrl, sgInit] = (sg as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
+    expect(sgUrl).toBe("https://api.simpler.grants.gov/v1/opportunities/search");
+    expect((sgInit.headers as Record<string, string>)["X-API-Key"]).toBe("sg-key-1234");
+    await setPlatformKey("CLIST_API_KEY", "cl-key-1234");
+    expect((await testPlatformKey("CLIST_API_KEY", reply(200))).message).toBe("Set CLIST_USERNAME first.");
+    await setPlatformKey("CLIST_USERNAME", "someone");
+    const cl = reply(200);
+    expect((await testPlatformKey("CLIST_USERNAME", cl)).ok).toBe(true);
+    const clInit = (cl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0][1];
+    expect((clInit.headers as Record<string, string>).authorization).toBe("ApiKey someone:cl-key-1234");
+  });
+
   it("tests Kaggle's new token as a Bearer token, on its own", async () => {
     await setPlatformKey("KAGGLE_API_TOKEN", "KGAT_abc123");
     const f = reply(200);

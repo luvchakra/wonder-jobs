@@ -162,6 +162,7 @@
 - ✅ Share opens fast: buttons wait at most 2.5 s, image never waits long on the model (WJ-697)
 - ✅ Gateway crawler reads Next.js page data and schema.org scholarship/grant types (WJ-698)
 - ✅ Scholarships & Projects: Opportunities for Africans and Mladiinfo feeds, HackerEarth hackathons as live sources (WJ-529)
+- ✅ Gateway: Scholarships listings with no provider kept as "Provider not stated" (WJ-699)
 - ✅ Scholarships & Projects: Buddy4Study added as a paused gateway crawl (WJ-530)
 - ✅ Gateway collection fits its call; Find refreshes so fixed descriptions show (WJ-700)
 - ✅ A "ran recently" collection still refreshes a stale Find (WJ-701)
@@ -190,3 +191,4 @@
 - ✅ Internships: internships and working-student roles from Personio and Recruitee career sites (WJ-584)
 - ✅ Jobs: job type read from underscore and hyphen spellings such as "working_student" and "FULL_TIME" (WJ-551)
 - ✅ Admin → Keys can test the Find an apprenticeship key (WJ-585)
+- ✅ Scholarships & Projects: Simpler.Grants.gov and clist.by programming contests added (Needs setup until their keys are set) (WJ-533)
