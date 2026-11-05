@@ -29,6 +29,8 @@ export interface ImportRun {
   /** Listings in Find per module after the run's refresh. */
   stored?: Record<string, number>;
   summary: string;
+  /** A collection chain's calls recorded into this run (collectJob.ts::handOnCollection). */
+  calls?: number;
   /** Hourly runs that found nothing, folded into this one (counting it). */
   repeats?: number;
 }
@@ -56,7 +58,18 @@ export async function recordImportRun(run: ImportRun): Promise<void> {
   try {
     const { runs, tries } = await readDoc();
     const last = runs[0];
-    if (empty(run) && last && empty(last)) {
+    const same = runs.findIndex((r) => r.id === run.id);
+    if (same >= 0) {
+      // A collection chain's later call (collectJob.ts::handOnCollection) adds to its first call's run: one run, not 20.
+      const prev = runs[same];
+      const items = [...prev.items, ...run.items].slice(0, 200);
+      const calls = (prev.calls ?? 1) + 1;
+      const ok = items.filter((i) => i.status === "collected").length;
+      const bad = items.filter((i) => i.status === "failed").length;
+      const tail = run.summary.match(/ · (Find refreshed.*)$/)?.[1];
+      const summary = `${ok} collected${bad ? ` · ${bad} failed` : ""} over ${calls} calls${/carried to the next call/.test(run.summary) ? " · continuing" : ""}${tail ? ` · ${tail}` : ""}`;
+      runs[same] = { ...prev, calls, finishedAt: run.finishedAt, summary: summary.slice(0, 300), items, ...(prev.stored || run.stored ? { stored: { ...prev.stored, ...run.stored } } : {}) };
+    } else if (empty(run) && last && empty(last)) {
       runs[0] = { ...last, finishedAt: run.finishedAt, repeats: (last.repeats ?? 1) + 1, summary: run.summary };
     } else runs.unshift({ ...run, summary: run.summary.slice(0, 300), items: run.items.slice(0, 200).map((i) => ({ ...i, ...(i.message ? { message: i.message.slice(0, 300) } : {}) })) });
     await stateStore.put(PLATFORM_TENANT, KEY, { runs: runs.slice(0, MAX_IMPORT_RUNS), tries });

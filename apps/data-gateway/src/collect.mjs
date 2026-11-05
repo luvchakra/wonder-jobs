@@ -400,7 +400,7 @@ export async function pagedRecords(source, deps = {}) {
   const perRun = Math.max(1, Math.min(50, source.maxPagesPerRun ?? 5));
   let next = typeof source.crawlCursor === "string" && source.crawlCursor ? source.crawlCursor : source.url;
   const items = [];
-  let read = 0, failed = 0;
+  let read = 0, failed = 0, restarted = false;
   while (next && read < perRun) {
     if (read > 0) { if (now() - started > Math.min(40000, deps.budgetMs ?? 40000)) break; await sleep(source.requestDelayMs ?? 1000); }
     let url;
@@ -409,9 +409,17 @@ export async function pagedRecords(source, deps = {}) {
     read++;
     let parsed;
     try { parsed = JSON.parse(await get(url.toString(), { origin: host })); }
-    catch (e) { failed++; if (read === 1) throw e.code ? e : new ApiError(502, "INVALID_SOURCE", "Source did not return JSON"); break; }
+    catch (e) {
+      // A saved place that no longer exists (2026-11-05: Helsinki's events failed for days with INVALID_SOURCE: its saved
+      // "page 10" of a list that starts today had shrunk away) starts again from the first page, once.
+      if (read === 1 && url.toString() !== source.url && !restarted) { restarted = true; read = 0; next = source.url; continue; }
+      failed++; if (read === 1) throw e.code ? e : new ApiError(502, "INVALID_SOURCE", "Source did not return JSON"); break;
+    }
     const page = dig(parsed, source.itemsPath);
-    if (!Array.isArray(page)) { if (read === 1) throw new ApiError(502, "INVALID_SOURCE", "Configured itemsPath is not an array"); break; }
+    if (!Array.isArray(page)) {
+      if (read === 1 && url.toString() !== source.url && !restarted) { restarted = true; read = 0; next = source.url; continue; }
+      if (read === 1) throw new ApiError(502, "INVALID_SOURCE", "Configured itemsPath is not an array"); break;
+    }
     items.push(...page.slice(0, 500));
     const n = dig(parsed, source.nextPath);
     next = typeof n === "string" && n ? new URL(n, url).toString() : null;
