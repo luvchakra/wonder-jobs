@@ -1,3 +1,5 @@
+> Since 2026-11-05 each finished change has its own file in `docs/changes/` (see its README). This log is history and takes no new lines.
+
 
 - ✅ Events: developers.events (797 upcoming conferences) is added, paused until the owner confirms its terms; the same event from two sources is listed once (WJ-571)
 - ✅ Events: Ticketmaster as a source (needs a free key) and OpenStreetMap Calendar defined for the gateway; other feeds researched and ruled out with reasons (WJ-570)

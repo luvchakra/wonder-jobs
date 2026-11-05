@@ -6,6 +6,8 @@ responsive behavior works, no obvious console/runtime errors (Rule 5).
 
 Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root Directory = `apps/web`.
 
+> Since 2026-11-05 each change has its own file in `docs/changes/` (see its README). This tracker is history up to WJ-710 and takes no new rows.
+
 | ID | Area | Requirement | Status | Notes |
 |---|---|---|---|---|
 | WJ-551 | Jobs | Job type read from underscore and hyphen spellings | DONE | Shared-layer session (2026-11-05, found by Internships): `readJobType` missed "working_student" (Personio) because `\b` treats `_` as a word character. Underscores now read as spaces in a source's own field ("FULL_TIME", "part_time", "fixed_term"), and "working-student" / "working_student" count as working-student roles. Test: `jobType.test.ts`. |
