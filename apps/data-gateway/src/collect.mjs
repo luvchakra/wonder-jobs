@@ -52,7 +52,39 @@ export const PAGE_ACCEPT = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5";
 // Ends with */* (Teaching, 2026-11-05): edjoin.org answers 406 to a request whose Accept has no */*, so its robots.txt "didn't load".
 const FEED_ACCEPT = "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8, */*;q=0.1";
 
-export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redirects = 2, accept = FEED_ACCEPT } = {}) {
+/**
+ * Reads a response body up to `maxBytes`. Past it: refused (TOO_LARGE), or, with `partial`, cut at the limit and the
+ * connection closed (exported for tests).
+ */
+export function readBody(res, { maxBytes, partial = false, abort }) {
+  return new Promise((resolve, reject) => {
+    const chunks = []; let bytes = 0, done = false;
+    const finish = () => { if (!done) { done = true; resolve(Buffer.concat(chunks).toString("utf8")); } };
+    res.on("data", (chunk) => {
+      if (done) return;
+      if (bytes + chunk.length > maxBytes) {
+        if (!partial) { done = true; const e = new ApiError(413, "TOO_LARGE", "Source response exceeds size limit"); abort(e); reject(e); return; }
+        chunks.push(chunk.subarray(0, maxBytes - bytes));
+        bytes = maxBytes;
+        finish();
+        abort();
+        return;
+      }
+      bytes += chunk.length;
+      chunks.push(chunk);
+    });
+    res.on("end", finish);
+    res.on("error", (e) => { if (!done) { done = true; reject(e); } });
+  });
+}
+
+/**
+ * `partial` (feeds only): a response bigger than `maxBytes` is cut at the limit instead of refused. A feed lists its
+ * newest items first and is read item by item, so its first 2 MB are its newest listings; the item the cut lands in is
+ * incomplete and parseFeed leaves it out (owner, 2026-11-05: We Work Remotely's feed "too large" — fix it by design,
+ * not per source). JSON and pages can't be read in part, so they are still refused.
+ */
+export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redirects = 2, accept = FEED_ACCEPT, partial = false } = {}) {
   const url = checkPublicUrl(input);
   if (origin && url.hostname !== origin) throw new ApiError(403, "UNSAFE_REDIRECT", "Cross-host redirects are not allowed");
   const addresses = await lookup(url.hostname, { all: true, verbatim: true });
@@ -65,10 +97,7 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
       headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept },
       lookup: pinnedLookup(selected),
     }, (res) => {
-      const chunks = []; let bytes = 0;
-      res.on("data", (chunk) => { bytes += chunk.length; if (bytes > maxBytes) { req.destroy(new ApiError(413, "TOO_LARGE", "Source response exceeds size limit")); return; } chunks.push(chunk); });
-      res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, text: Buffer.concat(chunks).toString("utf8") }));
-      res.on("error", reject);
+      readBody(res, { maxBytes, partial: partial && res.statusCode === 200, abort: (e) => req.destroy(e) }).then((text) => resolve({ status: res.statusCode, headers: res.headers, text }), reject);
     });
     req.on("timeout", () => req.destroy(new ApiError(504, "SOURCE_TIMEOUT", "Source timed out")));
     req.on("error", reject);
@@ -76,7 +105,7 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
   });
   if ([301, 302, 303, 307, 308].includes(response.status)) {
     if (!redirects || !response.headers.location) throw new ApiError(502, "UNSAFE_REDIRECT", "Too many redirects");
-    return safeGet(new URL(response.headers.location, url).toString(), { origin: origin || url.hostname, maxBytes, redirects: redirects - 1, accept });
+    return safeGet(new URL(response.headers.location, url).toString(), { origin: origin || url.hostname, maxBytes, redirects: redirects - 1, accept, partial });
   }
   if (response.status !== 200) throw new ApiError(502, "SOURCE_UNAVAILABLE", "Source responded " + response.status);
   return response.text;
@@ -347,7 +376,7 @@ export async function fetchRecords(source, deps = {}) {
       items.push(...list.slice(0, 500));
     }
   } else {
-    const body = await get(source.url);
+    const body = await get(source.url, source.kind === "rss" ? { partial: true } : undefined);
     items = source.kind === "rss" ? parseFeed(body) : parseStructured(body);
   }
   const n = normalizeAll(source, items, new Date(now()).toISOString(), now());
