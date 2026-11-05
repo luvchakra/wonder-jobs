@@ -173,3 +173,4 @@
 - ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
 - ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
 - ✅ Events: Hasgeek's event pages are read again — the crawler asks for pages as HTML, not JSON (WJ-579)
+- ✅ Gateway asks for */* on feeds and HTML on pages: EdJOIN and Hasgeek read again (WJ-710)

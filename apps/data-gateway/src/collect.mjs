@@ -49,7 +49,8 @@ export function requestTimeoutMs(input) {
 }
 /** What a page crawl asks for: the page as a browser gets it. (A site that negotiates content, like Hasgeek, answers a request that prefers JSON with a JSON version of the page that has no JSON-LD.) */
 export const PAGE_ACCEPT = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5";
-const FEED_ACCEPT = "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8";
+// Ends with */* (Teaching, 2026-11-05): edjoin.org answers 406 to a request whose Accept has no */*, so its robots.txt "didn't load".
+const FEED_ACCEPT = "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8, */*;q=0.1";
 
 export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redirects = 2, accept = FEED_ACCEPT } = {}) {
   const url = checkPublicUrl(input);
