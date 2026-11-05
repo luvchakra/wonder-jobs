@@ -45,4 +45,12 @@ describe("Test on Admin → Keys", () => {
     expect((await testPlatformKey("JOOBLE_API_KEY", down)).message).toMatch(/^Unavailable/);
     expect((await testPlatformKey("NOPE")).message).toBe("No test for this key.");
   });
+
+  it("sends Jooble a real word: it answers 400 to an empty search even with a good key", async () => {
+    await setPlatformKey("JOOBLE_API_KEY", "jb-1234");
+    const f = reply(200);
+    expect((await testPlatformKey("JOOBLE_API_KEY", f)).ok).toBe(true);
+    const init = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0][1];
+    expect(JSON.parse(String(init.body)).keywords).not.toBe("");
+  });
 });
