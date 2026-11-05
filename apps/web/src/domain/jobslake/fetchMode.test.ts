@@ -17,5 +17,6 @@ describe("what the admin needs to do for a source (2026-11-05)", () => {
     expect(adminTodo({ mode: "on_search", status: "draft", available: true })).toBe("Run its test, then activate it.");
     expect(adminTodo({ mode: "uploaded", status: "paused", available: true })).toMatch(/^Upload the partner's list/);
     expect(adminTodo({ mode: "on_search", status: "do_not_use", available: false })).toBe("Nothing: it's never used.");
+    expect(adminTodo({ mode: "on_search", status: "do_not_use", available: false, partner: true })).toMatch(/^Nothing now\. It needs a partnership/);
   });
 });

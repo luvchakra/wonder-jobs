@@ -28,11 +28,13 @@ export interface TodoInput {
   keyOnSource?: boolean;
   /** A built-in that shows what the gateway collected (its listings come from the gateway's sources). */
   gatewayFed?: boolean;
+  /** A partner portal that needs a signed partnership (LinkedIn, Indeed, Naukri…). */
+  partner?: boolean;
 }
 
 /** Pure: what the admin needs to do for a source, in one line ("Nothing" when nothing). */
 export function adminTodo(i: TodoInput): string {
-  if (i.status === "do_not_use") return "Nothing: it's never used.";
+  if (i.status === "do_not_use") return i.partner ? "Nothing now. It needs a partnership with the site; once one is signed, add its endpoint and credential on its page." : "Nothing: it's never used.";
   const live = i.status === "active" || i.status === "degraded";
   if (i.mode === "uploaded") return live ? "Nothing. Upload a new list on Sources → Import when the partner sends one." : "Upload the partner's list on Sources → Import, then activate it.";
   if (i.gatewayFed) return "Nothing here. Its listings come from the gateway's sources: switch those on with Test & activate on Sources → Import.";

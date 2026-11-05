@@ -30,12 +30,16 @@ import {
 type Filter = "all" | "on_search" | "scheduled" | "active" | "setup" | "draft" | "paused" | "partnership";
 
 /** Can't be queried yet: an active source without its credentials, or a partner portal still waiting for its endpoint or credential. */
+// A partner portal kept off ("Do not use": LinkedIn, Indeed, Naukri…) reads "Partnership only", not "Needs setup":
+// there's nothing to set up until a partnership is signed (owner, 2026-11-05).
+const partnershipOnly = (s: SourceView) => s.status === "do_not_use" && !!s.partner;
 const needsSetup = (s: SourceView) =>
-  ((s.status === "active" || s.status === "degraded") && !s.available) ||
-  s.partner?.readiness.next === "connection" ||
-  s.partner?.readiness.next === "credential";
+  !partnershipOnly(s) &&
+  (((s.status === "active" || s.status === "degraded") && !s.available) ||
+    s.partner?.readiness.next === "connection" ||
+    s.partner?.readiness.next === "credential");
 const statusLabel = (s: SourceView) =>
-  needsSetup(s) ? "Needs setup" : s.statusLabel;
+  partnershipOnly(s) ? "Partnership only" : needsSetup(s) ? "Needs setup" : s.statusLabel;
 
 const FILTERS: {
   value: Filter;
@@ -64,7 +68,7 @@ const FILTERS: {
   },
   {
     value: "partnership",
-    label: "Do not use",
+    label: "Off / partnership only",
     test: (s) => s.status === "do_not_use",
   },
 ];
