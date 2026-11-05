@@ -98,6 +98,11 @@ Dataset `jobs`. Source of truth: `server/jobslake/registry.ts`, `domain/jobs/sou
 | Adzuna India part-time | aggregator | same keys | **Needs key** | Part Time mode |
 | Cutshort (gateway crawl, `apps/data-gateway/sources/cutshort-jobs.json`) | Indian job board | sitemap + schema.org JobPosting | **Paused until Test & Activate — terms pending** | Added 2026-11-01 (WJ-546), geography IN. Live crawl returned real postings. Confirm Cutshort's terms allow reuse |
 | apna (gateway crawl, `apps/data-gateway/sources/apna-jobs.json`) | Indian job board | sitemap + schema.org JobPosting | **Paused until Test & Activate — terms pending** | Added 2026-11-01 (WJ-546), geography IN. Entry-level and field jobs across Indian cities. Live crawl returned real postings. Confirm apna's terms allow reuse |
+| Recruitee career sites | ATS | official public API (Offers, no key) | **Live** | Added 2026-11-05 (WJ-550) through WorksLake's shared connector `server/jobslake/recruitee.ts` (company list exported for other modules). bunq, Channable, Holded (24/12/6 offers, checked live) |
+| Personio career sites | ATS | official public XML feed (no key) | **Live** | Added 2026-11-05 (WJ-550) through `server/jobslake/personio.ts`. 1KOMMA5° (325), ottonova, CLARK, tado°, hokify. Mostly DACH |
+| NAV pam-stilling-feed (Norway) | government | official feed, private token by email | **Needs key — not built** | `NAV_PAM_STILLING_FEED_TOKEN` in Settings → API keys; owner decision `nav-feed-token`. Built against the real feed once the token exists (incremental, inactive ads removed) |
+| CareerOneStop / NLx (US state job banks) | government | needs NLx Governance Board approval | **Researched** | Owner decision `nlx-approval` |
+| JSearch (RapidAPI) | reseller | paid | **Rejected** | Resells scraped listings |
 | Jooble | aggregator | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545) through WorksLake's shared connector. `JOOBLE_API_KEY` |
 | USAJOBS | portal | official API, free key | **Needs key** | Added 2026-11-01 (WJ-545), US federal jobs. `USAJOBS_API_KEY`, `USAJOBS_EMAIL` |
 | TheirStack | aggregator | **licensed, paid per job** | **Needs key** | `THEIRSTACK`; asked only when free sources fall short |
