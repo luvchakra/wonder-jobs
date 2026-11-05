@@ -5,6 +5,8 @@ describe("why a source didn't go live, in plain words", () => {
   it("names each gateway failure the import job records", () => {
     expect(explainFailure("Test", "The test found no valid listings, so it stays paused.").label).toBe("Found nothing");
     expect(explainFailure("Test", "Source timed out").label).toBe("Took too long");
+    expect(explainFailure("Test", "Source quality below 90% or no records found").label).toBe("Found nothing");
+    expect(explainFailure("Test", "No pages to crawl under the source's path").label).toBe("Found nothing");
     expect(explainFailure("Test", "Source responded 403").label).toBe("Site refused us");
     expect(explainFailure("Test", "Source responded 404").label).toBe("Address not found");
     expect(explainFailure("Test", "Cannot verify robots policy").label).toBe("Robots.txt didn't load");

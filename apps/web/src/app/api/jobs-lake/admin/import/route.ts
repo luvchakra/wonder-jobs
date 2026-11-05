@@ -1,3 +1,4 @@
+import { explainFailure } from "@/domain/gateway/failure";
 import { after, NextResponse } from "next/server";
 import { siteUrl } from "@/lib/siteUrl";
 import { startImport, startModuleImport } from "@/server/gateway/collectJob";
@@ -69,7 +70,12 @@ export async function POST(req: Request) {
     if (!item?.run) return jlError("NOT_FOUND", "That source isn't waiting any more.", 404);
     const r = await runSetupItem(item.run);
     await audit(a.actor, "import.item", r.ok ? r.sourceId : undefined, { id, ok: r.ok, ...(r.ok ? { valid: r.valid } : { step: r.step }) });
-    return json(r, r.ok ? 200 : 422);
+    // A failure says why in words (domain/gateway/failure.ts), not a bare "Request failed (422)" (owner, 2026-11-05).
+    if (!r.ok) {
+      const why = explainFailure(r.step, r.message);
+      return json({ ...r, error: { code: "ITEM_FAILED", message: `${why.label}. ${why.detail}` } }, 422);
+    }
+    return json(r);
   }
   if (action === "emails") {
     // The "import finished" email's settings (Sources → Import → Emails); every field checked by cleanScheduler.
@@ -162,7 +168,12 @@ export async function POST(req: Request) {
   if (action === "collect") {
     const r = await collectGatewaySource(sourceId);
     await audit(a.actor, "gateway.collect", sourceId, { ok: r.ok, ...(r.ok ? { valid: r.valid } : { code: r.code }) });
-    return json(r, r.ok ? 200 : 422);
+    // A failure says why in words (domain/gateway/failure.ts), not a bare "Request failed (422)" (owner, 2026-11-05).
+    if (!r.ok) {
+      const why = explainFailure("Collect", r.code);
+      return json({ ...r, error: { code: r.code, message: `${why.label}. ${why.detail}` } }, 422);
+    }
+    return json(r);
   }
   if (action === "test") {
     const r = await testGatewaySource(sourceId);

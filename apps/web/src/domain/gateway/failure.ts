@@ -16,7 +16,7 @@ export function explainFailure(step: string | undefined, message: string | undef
   const m = (message ?? "").trim();
   const at = step && STEP[step] ? ` (during ${STEP[step]})` : "";
   const responded = /responded (\d{3})/i.exec(m)?.[1];
-  if (/found no valid listings/i.test(m) || /^EMPTY$/.test(m))
+  if (/found no valid listings|no records found|quality below|No pages to crawl/i.test(m) || /^EMPTY$/.test(m))
     return { label: "Found nothing", detail: `The site answered, but the test found no listings it could use${at}: the page layout may have changed, or the site lists none right now. It stays paused; its Test & activate tries again.` };
   if (/SOURCE_TIMEOUT|timed? ?out|didn't answer|aborted|FUNCTION_INVOCATION_TIMEOUT|\b504\b/i.test(m))
     return { label: "Took too long", detail: `The site didn't answer in the time one step is allowed${at}. The next import tries it again.` };
