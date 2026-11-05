@@ -12,14 +12,26 @@
     "description": "scholarshipMultilinguals.0.applicableFor",
     "attr.deadline": "deadlineDate",
     "attr.award": "scholarshipMultilinguals.0.purposeAward",
-    "attr.officialUrl": "scholarshipWebsiteLinks.0.url"
+    "attr.officialUrl": "scholarshipWebsiteLinks.0.url",
+    "attr.type": "oppurtunityType"
   },
   "organizationOptional": true,
   "dropPastAfter": "deadline",
-  "modules": ["scholarships"],
+  "modules": ["scholarships", "internships"],
+  "moduleFilter": {
+    "internships": {
+      "field": "attr.type",
+      "match": "^internship$"
+    },
+    "scholarships": {
+      "field": "attr.type",
+      "match": "^internship$",
+      "negate": true
+    }
+  },
   "geography": ["IN"],
   "permission": "terms_permit",
-  "permissionEvidence": "terms pending: confirm Buddy4Study allows reuse of its scholarship listings (owner decision 'buddy4study-crawl' in Setup to-do). Checked 2026-11-03: robots.txt disallows only /media-url/ and /UID/ and lists /sitemap.xml, whose sitemap1.xml holds about 1,380 /scholarship/ pages, oldest first and mostly expired, so only the newest 300 are read, newest first; each page's Next.js data holds the scholarship's title, provider, deadline, eligibility and award. India's largest scholarship list; no open API or feed.",
+  "permissionEvidence": "terms pending: confirm Buddy4Study allows reuse of its listings (owner decision 'buddy4study-crawl' in Setup to-do). Checked 2026-11-05: robots.txt disallows only /media-url/ and /UID/ and lists /sitemap.xml; sitemap1.xml holds about 1,380 /scholarship/ pages, oldest first, so only the newest 300 are read. Each page's Next.js data holds title, provider, type, deadline, eligibility and award; its type sends internships to Internships, the rest to Scholarships. No open API or feed.",
   "termsReviewed": true,
   "robotsReviewed": true,
   "redistributionAllowed": true,
