@@ -49,10 +49,10 @@ describe("platform API keys — set on the platform, not the hosting dashboard",
     expect((await platformKeyStatus()).find((k) => k.name === "ADZUNA_APP_KEY")).toMatchObject({ from: "environment", masked: "Set in the deployment" });
   });
 
-  it("gives Kaggle the new token as Bearer, else the old pair as Basic, else nothing", async () => {
+  it("gives Kaggle the new token as Bearer, else the old pair (deployment variables only) as Basic, else nothing", async () => {
     expect(kaggleAuthorization()).toBeUndefined();
-    await setPlatformKey("KAGGLE_USERNAME", "someone");
-    await setPlatformKey("KAGGLE_KEY", "abcd1234");
+    vi.stubEnv("KAGGLE_USERNAME", "someone");
+    vi.stubEnv("KAGGLE_KEY", "abcd1234");
     expect(kaggleAuthorization()).toBe(`Basic ${Buffer.from("someone:abcd1234").toString("base64")}`);
     await setPlatformKey("KAGGLE_API_TOKEN", "KGAT_abc123");
     expect(kaggleAuthorization()).toBe("Bearer KGAT_abc123");

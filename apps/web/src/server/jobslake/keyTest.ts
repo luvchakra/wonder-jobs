@@ -3,7 +3,7 @@ import { loadPlatformKeys, platformKey, PLATFORM_KEYS } from "./platformKeys";
 /**
  * Test (Admin → Keys): one small request to the provider with the saved key, so the admin knows the key works before a
  * source relies on it. Never a search on anyone's behalf, never stored; the answer names only the HTTP outcome, never
- * the key. Paired keys (Adzuna, USAJOBS, Kaggle) test together, whichever of the pair is pressed.
+ * the key. Paired keys (Adzuna, USAJOBS) test together, whichever of the pair is pressed.
  */
 export interface KeyTestResult {
   ok: boolean;
@@ -24,7 +24,6 @@ const PROBES: Record<string, Probe> = {
   // it's a connection check, never anyone's search.
   jooble: { needs: ["JOOBLE_API_KEY"], request: (k) => ({ url: `https://jooble.org/api/${encodeURIComponent(k("JOOBLE_API_KEY"))}`, init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords: "engineer", page: "1" }) } }) },
   kaggleToken: { needs: ["KAGGLE_API_TOKEN"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Bearer ${k("KAGGLE_API_TOKEN")}` } } }) },
-  kaggle: { needs: ["KAGGLE_USERNAME", "KAGGLE_KEY"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Basic ${Buffer.from(`${k("KAGGLE_USERNAME")}:${k("KAGGLE_KEY")}`).toString("base64")}` } } }) },
   themuse: { needs: ["THEMUSE_API_KEY"], request: (k) => ({ url: `https://www.themuse.com/api/public/jobs?page=0&api_key=${encodeURIComponent(k("THEMUSE_API_KEY"))}` }) },
   reliefweb: { needs: ["RELIEFWEB_APPNAME"], request: (k) => ({ url: `https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(k("RELIEFWEB_APPNAME"))}&limit=1` }) },
 };

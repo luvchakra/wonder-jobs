@@ -17,7 +17,7 @@ describe("Test on Admin → Keys", () => {
   });
 
   it("every key has a test", () => {
-    expect(TESTABLE.size).toBe(11);
+    expect(TESTABLE.size).toBe(9);
   });
 
   it("asks for the other half of a pair before testing", async () => {
