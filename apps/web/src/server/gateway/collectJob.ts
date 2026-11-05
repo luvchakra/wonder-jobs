@@ -1,7 +1,7 @@
 /**
  * The gateway's one scheduled job (Scheduler → Gateway collection), run by the cron (hourly through GitHub Actions,
  * daily by Vercel) and by an admin's Run now: the same code either way, so there is one job, not two.
- *  1. When the Scheduler says so, queues the gateway sources waiting on Setup to-do (added, not live; not ones that just
+ *  1. When the Scheduler says so, queues the gateway sources waiting on Sources → Import (added, not live; not ones that just
  *     failed) as a Setup job. Adding a new catalogue source stays an admin's press.
  *  2. Collects the live sources that are due.
  *  3. Hands an unfinished Setup job on to its own call; that job refreshes every module when it finishes.
@@ -118,7 +118,7 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   const summary = parts.join(" · ");
   const finishedAt = new Date().toISOString();
   await recordCronRun({ job: "gateway-collect", trigger, startedAt, finishedAt, outcome: failed && !collected.length ? "failed" : "ok", summary });
-  // The run's own record, with each source's outcome (Data → Import → Runs).
+  // The run's own record, with each source's outcome (Sources → Import → Runs).
   const names = await hosted.store.read((s) => new Map((s.sources as { id: string; attribution?: string }[]).map((x) => [x.id, String(x.attribution ?? x.id)]))).catch(() => new Map<string, string>());
   const record: ImportRun = {
     id: `hourly_${Date.parse(startedAt).toString(36)}`,
@@ -138,7 +138,7 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
 }
 
 /**
- * Import now (Admin → Data → Import): the one press that runs the whole pipeline. Waiting sources (added, not live:
+ * Import now (Sources → Import): the one press that runs the whole pipeline. Waiting sources (added, not live:
  * catalogue entries to add, gateway sources to test and activate) are queued as a Setup job, which refreshes every
  * module's Find when it finishes; with nothing waiting, the collection runs now and refreshes every module itself.
  * Either way the work runs on the server after the answer; the page shows how far it got.
@@ -165,7 +165,7 @@ export async function startImport(by: string, origin: string): Promise<{ ok: tru
 }
 
 /**
- * Import this module now (Data → Import, on a module's card): its waiting sources are set up and its live gateway
+ * Import this module now (Sources → Import, on a module's card): its waiting sources are set up and its live gateway
  * sources collected, as one server job; every module's Find is refreshed when it finishes. A paused module is refused.
  */
 export async function startModuleImport(module: string, by: string, origin: string): Promise<{ ok: true; queued: number } | { ok: false; message: string }> {

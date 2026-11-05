@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Setup to-do's server job, continued (server/gateway/setupJob.ts): works on what's left for up to its time budget and,
+ * Sources → Import's server job, continued (server/gateway/setupJob.ts): works on what's left for up to its time budget and,
  * if items remain, hands them to the next call. Called by the job itself and by the hourly gateway collection, with
  * `CRON_SECRET` as `Authorization: Bearer …`. Answers at once; the work runs after the answer.
  */

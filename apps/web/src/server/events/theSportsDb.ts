@@ -2,7 +2,7 @@
  * TheSportsDB as an Events source: fixtures (cricket, India's football leagues) from its public API
  * (https://www.thesportsdb.com/api/v1/json/<key>/…). The free key "123" is a shared test key and is what this uses until the
  * server has THESPORTSDB_API_KEY (a paid supporter key lifts the free tier's caps, about three results a call).
- * Terms pending: the free key is for development; the owner decides on a paid key (Setup to-do).
+ * Terms pending: the free key is for development; the owner decides on a paid key (Sources → Import).
  *
  * What it asks, once every six hours at most (feeds.ts keeps each answer): for each of the next seven days, that day's cricket
  * and that day's Indian Super League; plus the next Indian Premier League match. That is 15 requests, under the free

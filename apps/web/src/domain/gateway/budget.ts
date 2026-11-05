@@ -8,7 +8,7 @@
  *   at all when busy; Vercel's daily cron is the backstop.
  * - Supabase Free: 500 MB; listings are replaced per source, so collecting more often doesn't grow the database.
  *
- * Each source keeps its own interval (Admin → Data → Import → Details); these only set the floor. Admin presses
+ * Each source keeps its own interval (Sources → Import → Details); these only set the floor. Admin presses
  * (Import now, a module's import, a source's Collect) are never held back.
  */
 
@@ -22,5 +22,5 @@ export const SOURCE_FLOOR_MINUTES = 360;
 /** At most this many scheduled collections a month, and at most this many collections of one source. */
 export const MONTHLY = { runs: Math.ceil((30 * 24) / TRIGGER_EVERY_HOURS), perSource: Math.ceil((30 * 24 * 60) / SOURCE_FLOOR_MINUTES) };
 
-/** The line Admin → Data → Import shows for the schedule. */
+/** The line Sources → Import shows for the schedule. */
 export const SCHEDULE_LINE = `Every ${TRIGGER_EVERY_HOURS} hours, each source at most every ${SOURCE_FLOOR_MINUTES / 60} hours: at most ${MONTHLY.runs} runs and ${MONTHLY.perSource} collections per source a month, within the free plans.`;

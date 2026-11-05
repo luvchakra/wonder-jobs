@@ -182,7 +182,7 @@ function AddSource() {
                   <span>
                     A partner&apos;s list (CSV or JSON), or a reviewed catalogue source?{" "}
                     <Link href="/platform/jobs-lake/import" className="font-medium text-brand-600 hover:underline">
-                      Data → Import
+                      Sources → Import
                     </Link>
                   </span>
                 </p>

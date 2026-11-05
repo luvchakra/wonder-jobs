@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { decisionsDone, OWNER_DECISIONS, setDecision } from "./decisions";
 import { MODULES } from "@/modules/registry";
 
-describe("owner decisions on Setup to-do", () => {
+describe("owner decisions on Sources → Import", () => {
   it("are unique, name a real module (or all), and say what to decide", () => {
     const ids = OWNER_DECISIONS.map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -26,7 +26,7 @@ describe("owner decisions on Setup to-do", () => {
   });
 });
 
-describe("Setup to-do links", () => {
+describe("Sources → Import links", () => {
   it("every in-app link opens a page that exists (a decision once linked to /platform/data, which doesn't)", async () => {
     const { existsSync } = await import("node:fs");
     const { join } = await import("node:path");
