@@ -6,6 +6,8 @@ responsive behavior works, no obvious console/runtime errors (Rule 5).
 
 Repo layout: `apps/web` (Next.js 16, App Router, TS, Tailwind v4). Vercel Root Directory = `apps/web`.
 
+> Since 2026-11-05 each change has its own file in `docs/changes/` (see its README). This tracker is history up to WJ-710 and takes no new rows.
+
 | ID | Area | Requirement | Status | Notes |
 |---|---|---|---|---|
 | WJ-730 | Events & Social, WorksLake | Two more keyed sources: OpenAgenda (France/EU public agendas, needs `OPENAGENDA_API_KEY`) and TheSportsDB (cricket and Indian Super League fixtures, free test key until a paid one is set) | DONE | Owner via the shared-layer session (2026-11-05: more key-based sources). `server/events/openAgenda.ts` and `theSportsDb.ts`, registered in `sources.ts`; keys in `platformKeys.ts` (OpenAgenda free, TheSportsDB paid and optional) with admin Tests in `keyTest.ts`; `readFeed` takes request headers (a key never goes in a URL). OpenAgenda lists events per agenda only, so a search reads the matching official agendas then their upcoming events; licences are per event and only open ones are shown, with credit. **OpenAgenda is built from its documentation and tested on fixtures; never run with a real key.** TheSportsDB was run against the real free-key API (15 requests, thin results). One owner call added (`thesportsdb-key`). Not built: Paris Que faire, football-data.org, ATDW; skipped PredictHQ, Songkick, Bandsintown, Humanitix. `keyTest.test.ts` now checks every key on the page has a Test instead of a fixed count. Security: the key is a header (OpenAgenda) or path part (TheSportsDB) only in the request, never logged or returned; read-only public data. |
