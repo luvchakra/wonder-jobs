@@ -24,6 +24,8 @@ const PROBES: Record<string, Probe> = {
   // it's a connection check, never anyone's search.
   jooble: { needs: ["JOOBLE_API_KEY"], request: (k) => ({ url: `https://jooble.org/api/${encodeURIComponent(k("JOOBLE_API_KEY"))}`, init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords: "engineer", page: "1" }) } }) },
   kaggleToken: { needs: ["KAGGLE_API_TOKEN"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Bearer ${k("KAGGLE_API_TOKEN")}` } } }) },
+  simplerGrants: { needs: ["SIMPLER_GRANTS_API_KEY"], request: (k) => ({ url: "https://api.simpler.grants.gov/v1/opportunities/search", init: { method: "POST", headers: { "content-type": "application/json", "X-API-Key": k("SIMPLER_GRANTS_API_KEY") }, body: JSON.stringify({ pagination: { page_offset: 1, page_size: 1, sort_order: [{ order_by: "post_date", sort_direction: "descending" }] } }) } }) },
+  clist: { needs: ["CLIST_USERNAME", "CLIST_API_KEY"], request: (k) => ({ url: "https://clist.by/api/v4/contest/?limit=1&format=json", init: { headers: { authorization: `ApiKey ${k("CLIST_USERNAME")}:${k("CLIST_API_KEY")}` } } }) },
   themuse: { needs: ["THEMUSE_API_KEY"], request: (k) => ({ url: `https://www.themuse.com/api/public/jobs?page=0&api_key=${encodeURIComponent(k("THEMUSE_API_KEY"))}` }) },
   reliefweb: { needs: ["RELIEFWEB_APPNAME"], request: (k) => ({ url: `https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(k("RELIEFWEB_APPNAME"))}&limit=1` }) },
 };

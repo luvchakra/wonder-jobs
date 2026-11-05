@@ -30,6 +30,9 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Jobs, Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
   { name: "KAGGLE_API_TOKEN", label: "Kaggle API token", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Generate New Token, starts KGAT_; replaces the older username + key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
+  { name: "SIMPLER_GRANTS_API_KEY", label: "Simpler.Grants.gov API key", usedBy: "Scholarships & Projects: US federal funding open to individuals, with summaries, from Simpler.Grants.gov (self-serve key via Login.gov; disabled after 30 days unused)", signup: "https://simpler.grants.gov/developers", free: true },
+  { name: "CLIST_USERNAME", label: "clist.by username", usedBy: "Scholarships & Projects: upcoming programming contests on about 200 platforms (with the clist.by API key)", signup: "https://clist.by/api/v4/doc/", free: true },
+  { name: "CLIST_API_KEY", label: "clist.by API key", usedBy: "Scholarships & Projects: upcoming programming contests from clist.by (log in, then API → your key; 10 requests a minute)", signup: "https://clist.by/api/v4/doc/", free: true },
   { name: "RELIEFWEB_APPNAME", label: "ReliefWeb app name", usedBy: "Internships: humanitarian and development internships worldwide from ReliefWeb", signup: "https://apidoc.reliefweb.int/parameters#appname", free: true },
 ];
 
