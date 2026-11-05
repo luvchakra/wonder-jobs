@@ -57,7 +57,7 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
     const req = request(url, {
       method: "GET",
       timeout: requestTimeoutMs(input),
-      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept: "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8, */*;q=0.1" },
+      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept: "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8" },
       lookup: pinnedLookup(selected),
     }, (res) => {
       const chunks = []; let bytes = 0;
@@ -129,7 +129,9 @@ export async function checkRobots(source) {
   catch (e) {
     // Robots missing (404) is permitted; any other uncertainty fails closed.
     if (e.code === "SOURCE_UNAVAILABLE" && e.message.endsWith("404")) return { rules: [], crawlDelay: null, sitemaps: [] };
-    throw new ApiError(403, "ROBOTS_UNAVAILABLE", "Cannot verify robots policy");
+    // Say what the site answered, so an admin can tell a site that refuses our server (403) from one that's down.
+    const status = /responded (\d{3})/.exec(e.message || "")?.[1];
+    throw new ApiError(403, "ROBOTS_UNAVAILABLE", `Cannot verify robots policy (robots.txt ${status ? `responded ${status}` : e.code === "SOURCE_TIMEOUT" ? "timed out" : "didn't load"})`);
   }
   if (!robotsAllowed(txt, base.pathname + base.search)) throw new ApiError(403, "ROBOTS_DENIED", "Robots policy disallows this path");
   return parseRobots(txt);
