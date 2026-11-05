@@ -179,7 +179,14 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         }
         if (method === "POST" && p[2] === "sources" && p.length === 5) {
           const id = p[3], action = p[4];
-          if (action === "test" || action === "refresh") return reply(200, await collectOne(id, action === "test"));
+          if (action === "test" || action === "refresh") {
+            // An optional time limit (5–45 s): the app's import job runs each step inside a 60 s serverless call, and a
+            // full 45 s crawl test followed by a 45 s first collection was cut off there.
+            const body = await readBody(request).catch(() => null);
+            const asked = Number(body?.budgetMs);
+            const budgetMs = Number.isFinite(asked) && asked > 0 ? Math.min(45000, Math.max(5000, asked)) : undefined;
+            return reply(200, await collectOne(id, action === "test", budgetMs));
+          }
           if (action === "upload") {
             // A partner's list, uploaded by an admin: checked like any source's records, then it replaces the partner's
             // listings. The check counts as the source's test (so it can be activated after a good upload).
