@@ -543,8 +543,13 @@ export async function testSource(src: SourceRecord, actor: string): Promise<Test
       r = await run("");
       if (word && !r.jobs.length && !(r.mapping?.totalItems ?? 0)) r = await run(word);
     } catch (e) {
-      if (!word || e instanceof NeedsSetupError) throw e;
-      r = await run(word);
+      // Only a refusal of the empty search itself (400/422) is retried; any other error is the source's real answer.
+      if (!word || e instanceof NeedsSetupError || !/\b(400|422)\b/.test(e instanceof Error ? e.message : "")) throw e;
+      try {
+        r = await run(word);
+      } catch {
+        throw e;
+      }
     }
     checks.push({ label: "Connection", ok: true, detail: `Responded in ${((Date.now() - started) / 1000).toFixed(1)}s` });
     if (src.secretRef) checks.push({ label: "Authentication", ok: true, detail: "Credential accepted" });
