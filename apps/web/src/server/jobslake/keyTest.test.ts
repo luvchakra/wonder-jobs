@@ -17,7 +17,7 @@ describe("Test on Admin → Keys", () => {
   });
 
   it("every key has a test", () => {
-    expect(TESTABLE.size).toBe(10);
+    expect(TESTABLE.size).toBe(11);
   });
 
   it("asks for the other half of a pair before testing", async () => {
@@ -52,5 +52,13 @@ describe("Test on Admin → Keys", () => {
     expect((await testPlatformKey("JOOBLE_API_KEY", f)).ok).toBe(true);
     const init = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0][1];
     expect(JSON.parse(String(init.body)).keywords).not.toBe("");
+  });
+
+  it("tests Kaggle's new token as a Bearer token, on its own", async () => {
+    await setPlatformKey("KAGGLE_API_TOKEN", "KGAT_abc123");
+    const f = reply(200);
+    expect((await testPlatformKey("KAGGLE_API_TOKEN", f)).ok).toBe(true);
+    const init = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0][1];
+    expect((init.headers as Record<string, string>).authorization).toBe("Bearer KGAT_abc123");
   });
 });
