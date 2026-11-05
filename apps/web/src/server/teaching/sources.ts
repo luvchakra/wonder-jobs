@@ -20,6 +20,7 @@ import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
 import { adzunaAvailable, adzunaSearch, finish, getJson, rawFromHimalayas, type HimalayasJob, type SearchCriteria } from "@/server/jobs/providers";
 import { fetchUsaJobs, usaJobsAvailable } from "@/server/jobslake/usajobs";
 import { fetchAdzunaTeaching } from "./adzuna";
+import { fetchTeachingPersonio, fetchTeachingRecruitee } from "./boards";
 import { fetchJobTechTeaching } from "./jobtech";
 import { corePhrase, type RawPosting } from "@/services/jobs/normalize";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
@@ -44,6 +45,8 @@ export const TEACHING_SOURCES: SourceRecord[] = [
   source({ id: "teach_adzuna_world", name: "Adzuna teaching jobs — UK, US, Canada, Australia, NZ, South Africa, Singapore", provider: "Adzuna", category: "aggregator", geography: ["GB", "US", "CA", "AU", "NZ", "ZA", "SG"], secretRef: "env:ADZUNA", capabilities: [...FEED_CAPS, "Salary"], description: "Adzuna's search API in seven English-speaking countries, asked for teaching jobs; pay only where the posting states it." }),
   source({ id: "teach_usajobs", name: "USAJOBS teaching and education jobs", provider: "USAJOBS", category: "portal", geography: ["US"], secretRef: "env:USAJOBS", capabilities: [...FEED_CAPS, "Salary"], description: "US federal teaching and education roles from the USAJOBS Search API." }),
   source({ id: "teach_jobtech", name: "Arbetsförmedlingen teaching jobs (Sweden)", provider: "Arbetsförmedlingen", category: "portal", geography: ["SE"], description: "Sweden's public employment service's job ads in the education field, from its open JobSearch API (licence CC0)." }),
+  source({ id: "teach_recruitee", name: "School boards on Recruitee", provider: "Recruitee", category: "ats", geography: ["global"], description: "Teaching posts from schools and teaching companies whose own Recruitee job boards are public (no key)." }),
+  source({ id: "teach_personio", name: "School boards on Personio", provider: "Personio", category: "ats", geography: ["DE"], description: "Teaching posts from international schools and universities whose own Personio job boards are public (no key)." }),
   source({ id: "teach_himalayas", name: "Himalayas teaching jobs", provider: "Himalayas", category: "aggregator", geography: ["remote"], capabilities: [...FEED_CAPS, "Salary"], description: "Remote and online teaching and tutoring from Himalayas' search API." }),
 ];
 
@@ -105,6 +108,10 @@ export async function runTeachingSource(s: SourceRecord, c: SearchCriteria, need
       return { jobs: (await fetchUsaJobs("teach_usajobs", { ...c, query: asTeachingQuery(c.query) })).filter(isTeaching), warnings: [] };
     case "teach_jobtech":
       return { jobs: (await fetchJobTechTeaching("teach_jobtech", c)).filter(isTeaching), warnings: [] };
+    case "teach_recruitee":
+      return { jobs: (await fetchTeachingRecruitee("teach_recruitee", c)).filter(isTeaching), warnings: [] };
+    case "teach_personio":
+      return { jobs: (await fetchTeachingPersonio("teach_personio", c)).filter(isTeaching), warnings: [] };
     case "teach_himalayas":
       return { jobs: (await fetchHimalayasTeaching(c)).filter(isTeaching), warnings: [] };
     default:
