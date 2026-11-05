@@ -38,6 +38,8 @@ export interface GatewayRunResult {
   outcomes?: { sourceId: string; ok: boolean; code?: string; valid?: number }[];
   queued?: number;
   refreshed?: Record<string, number>;
+  /** More to do: the call that carries on (hop, chain id, modules still to refresh). An outside driver calls it next. */
+  next?: { hop: number; chain: string; refresh: string[] };
 }
 
 /**
@@ -69,9 +71,12 @@ async function waitingItems(pausedModules: string[], dismissed: string[] = []) {
 /**
  * Calls a run's collection hands on to when sources are still due after its time ran out (owner, 2026-11-05: "identify
  * all the issues": each call collected 2-3 of ~15 due sources, so most were days overdue). Each follow-up call collects
- * the next ones; the chain stops when nothing is left due or after this many calls.
+ * the next ones; the chain stops when nothing is left due or after this many calls. Vercel refuses a call from this
+ * app to itself after about five in a row (508 Loop Detected, 2026-11-05), so the scheduled workflow drives the chain
+ * from outside (`x-wj-driver: external`, gateway-collect.yml), calling each `next` itself; the self-call is the fallback
+ * for Vercel's own daily cron.
  */
-export const MAX_COLLECT_HOPS = 20;
+export const MAX_COLLECT_HOPS = 30;
 /** How long into a call its Find refresh may still start a module (the rest of the 60 s is the run's record). */
 export const CALL_DEADLINE_MS = 48_000;
 
@@ -121,12 +126,12 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
     if (!running && (await findStale())) {
       const r = await refreshGatewayListings(undefined, new Date(), deadline).catch(() => null);
       const stored = r?.stored;
-      if (r?.remaining?.length) await handOn(origin, 1, runId.slice("hourly_".length), r.remaining);
+      const next = r?.remaining?.length && (await handOn(origin, 1, runId.slice("hourly_".length), r.remaining)) ? { hop: 1, chain: runId.slice("hourly_".length), refresh: r.remaining } : undefined;
       if (stored) {
         const summary = `Ran recently · Find refreshed: ${Object.entries(stored).map(([m, n]) => `${n} ${m}`).join(", ")}`;
         const finishedAt = new Date().toISOString();
         await recordImportRun({ id: runId, kind: "hourly", trigger: "cron", startedAt, finishedAt, items: [], stored, summary });
-        return { ok: true, skipped: "ran recently", summary, refreshed: stored };
+        return { ok: true, skipped: "ran recently", summary, refreshed: stored, ...(next ? { next } : {}) };
       }
     }
     return { ok: true, skipped: "ran recently", summary: running ? "Ran recently · Setup job continuing" : "Ran recently: nothing to do" };
@@ -183,7 +188,7 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // The admins hear about every collection that collected or refreshed anything, like an import (importEmail.ts); a chain
   // is one email, from its last call.
   if (!continues) await notify(record, earlier);
-  return { ok: !failed, summary, outcomes, queued, ...(refreshed ? { refreshed } : {}) };
+  return { ok: !failed, summary, outcomes, queued, ...(refreshed ? { refreshed } : {}), ...(continues ? { next: { hop: hop + 1, chain: runId.slice("hourly_".length), refresh: refreshLeft } } : {}) };
 }
 
 /**
