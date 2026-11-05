@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __MemoryStore, __setJobsLakeStore } from "./store";
-import { __resetPlatformKeys, setPlatformKey } from "./platformKeys";
+import { __resetPlatformKeys, PLATFORM_KEYS, setPlatformKey } from "./platformKeys";
 import { TESTABLE, testPlatformKey } from "./keyTest";
 
 const reply = (status: number) => vi.fn(async () => new Response("{}", { status })) as unknown as typeof fetch;
@@ -17,7 +17,8 @@ describe("Test on Admin → Keys", () => {
   });
 
   it("every key has a test", () => {
-    expect(TESTABLE.size).toBe(9);
+    // Every key on the Keys page, however many there are.
+    expect(TESTABLE.size).toBe(PLATFORM_KEYS.length);
   });
 
   it("asks for the other half of a pair before testing", async () => {
