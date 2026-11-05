@@ -20,7 +20,7 @@ describe("Test on Admin → Keys", () => {
     // Every key on the Keys page has a Test, however many there are, except those named here (other sessions' keys, whose
     // Tests they add and then take their name out); a new key without a Test fails this, a new key with one needs no edit.
     const untested = PLATFORM_KEYS.map((k) => k.name).filter((n) => !TESTABLE.has(n));
-    expect(untested.sort()).toEqual(["FIND_APPRENTICESHIP_API_KEY", "NAV_PAM_STILLING_FEED_TOKEN"]);
+    expect(untested.sort()).toEqual(["NAV_PAM_STILLING_FEED_TOKEN"]);
   });
 
   it("asks for the other half of a pair before testing", async () => {
@@ -47,6 +47,16 @@ describe("Test on Admin → Keys", () => {
     const down = vi.fn(async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch;
     expect((await testPlatformKey("JOOBLE_API_KEY", down)).message).toMatch(/^Unavailable/);
     expect((await testPlatformKey("NOPE")).message).toBe("No test for this key.");
+  });
+
+  it("tests the Find an apprenticeship key with one small Display Advert API v2 request, the key in its header", async () => {
+    await setPlatformKey("FIND_APPRENTICESHIP_API_KEY", "fa-secret-77");
+    const f = reply(200);
+    expect((await testPlatformKey("FIND_APPRENTICESHIP_API_KEY", f)).ok).toBe(true);
+    const [url, init] = (f as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0];
+    expect(url).toBe("https://api.apprenticeships.education.gov.uk/vacancies/vacancy?PageSize=1&PageNumber=1");
+    expect(init.headers).toMatchObject({ "Ocp-Apim-Subscription-Key": "fa-secret-77", "X-Version": "2" });
+    expect(JSON.stringify(await testPlatformKey("FIND_APPRENTICESHIP_API_KEY", reply(401)))).not.toContain("fa-secret");
   });
 
   it("sends Jooble a real word: it answers 400 to an empty search even with a good key", async () => {
