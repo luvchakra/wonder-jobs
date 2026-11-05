@@ -27,6 +27,7 @@ const PROBES: Record<string, Probe> = {
   jooble: { needs: ["JOOBLE_API_KEY"], request: (k) => ({ url: `https://jooble.org/api/${encodeURIComponent(k("JOOBLE_API_KEY"))}`, init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keywords: "engineer", page: "1" }) } }) },
   kaggleToken: { needs: ["KAGGLE_API_TOKEN"], request: (k) => ({ url: "https://www.kaggle.com/api/v1/competitions/list?page=1", init: { headers: { authorization: `Bearer ${k("KAGGLE_API_TOKEN")}` } } }) },
   themuse: { needs: ["THEMUSE_API_KEY"], request: (k) => ({ url: `https://www.themuse.com/api/public/jobs?page=0&api_key=${encodeURIComponent(k("THEMUSE_API_KEY"))}` }) },
+  findApprenticeship: { needs: ["FIND_APPRENTICESHIP_API_KEY"], request: (k) => ({ url: "https://api.apprenticeships.education.gov.uk/vacancies/vacancy?PageSize=1&PageNumber=1", init: { headers: { "Ocp-Apim-Subscription-Key": k("FIND_APPRENTICESHIP_API_KEY"), "X-Version": "2" } } }) },
   reliefweb: { needs: ["RELIEFWEB_APPNAME"], request: (k) => ({ url: `https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(k("RELIEFWEB_APPNAME"))}&limit=1` }) },
   // Flipkart's product directory answers only to a valid tracking ID and token.
   flipkart: { needs: ["FLIPKART_AFFILIATE_ID", "FLIPKART_AFFILIATE_TOKEN"], request: (k) => ({ url: `https://affiliate-api.flipkart.net/affiliate/api/${encodeURIComponent(k("FLIPKART_AFFILIATE_ID"))}.json`, init: { headers: { "Fk-Affiliate-Id": k("FLIPKART_AFFILIATE_ID"), "Fk-Affiliate-Token": k("FLIPKART_AFFILIATE_TOKEN") } } }) },
