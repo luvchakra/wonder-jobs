@@ -57,6 +57,8 @@ describe("a collection chain (2026-11-05: each call collected 2-3 of ~15 due sou
     expect(notify).not.toHaveBeenCalled();
     expect(r.summary).toMatch(/1 carried to the next call · call 2/);
     expect((recorded.at(-1) as { id: string }).id).toBe("hourly_abc123");
+    // An outside driver (the GitHub workflow) calls this next; the app never calls itself.
+    expect(r.next).toEqual({ hop: 2, chain: "abc123", refresh: [] });
   });
   it("stops at the last allowed call", async () => {
     const handOn = vi.fn(async () => true);
@@ -68,5 +70,6 @@ describe("a collection chain (2026-11-05: each call collected 2-3 of ~15 due sou
     expect(handOn).not.toHaveBeenCalled();
     expect(notify).toHaveBeenCalled();
     expect(r.summary).toMatch(/left for the next run/);
+    expect(r.next).toBeUndefined();
   });
 });

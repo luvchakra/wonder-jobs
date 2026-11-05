@@ -19,16 +19,25 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 30
     env:
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
       SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
     steps:
       - name: Collect due gateway sources
+        # Each call collects what fits in its 60 s and answers with `next` when more is due (or Find still has modules to
+        # refresh). This job calls each `next` in turn: the app never calls itself, which Vercel refuses after about five
+        # in a row (508 Loop Detected, 2026-11-05). At most 30 calls; a failed call is tried once more.
         run: |
           if [ -z "$CRON_SECRET" ]; then
             echo "::warning::CRON_SECRET isn't set as a repository secret, so the gateway collects only with Vercel's daily cron."
             exit 0
           fi
-          curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$SITE/api/cron/gateway-collect"
-          echo
+          url="$SITE/api/cron/gateway-collect"
+          for i in $(seq 1 30); do
+            r=$(curl -fsS --max-time 75 -H "Authorization: Bearer $CRON_SECRET" -H "x-wj-driver: external" "$url" || curl -fsS --max-time 75 -H "Authorization: Bearer $CRON_SECRET" -H "x-wj-driver: external" "$url" || echo '{"summary":"call failed twice"}')
+            echo "call $i: $(echo "$r" | jq -r '.summary // "no summary"')"
+            next=$(echo "$r" | jq -r 'if .next then "hop=\(.next.hop)&chain=\(.next.chain)&refresh=\(.next.refresh | join(","))" else "" end')
+            [ -z "$next" ] && break
+            url="$SITE/api/cron/gateway-collect?$next"
+          done
