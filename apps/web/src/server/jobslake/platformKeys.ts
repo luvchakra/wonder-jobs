@@ -31,6 +31,7 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "KAGGLE_API_TOKEN", label: "Kaggle API token", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Generate New Token, starts KGAT_; replaces the older username + key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
   { name: "NAV_PAM_STILLING_FEED_TOKEN", label: "NAV job feed token (Norway)", usedBy: "Jobs: every Norwegian vacancy from NAV's pam-stilling-feed, once its connector is built (WJ-550)", signup: "https://navikt.github.io/pam-stilling-feed/", free: true },
+  { name: "FIND_APPRENTICESHIP_API_KEY", label: "Find an apprenticeship API key (UK)", usedBy: "Internships: live apprenticeship vacancies in England (DfE Display Advert API v2)", signup: "https://developer.apprenticeships.education.gov.uk/third-party-accounts/register", free: true },
   { name: "RELIEFWEB_APPNAME", label: "ReliefWeb app name", usedBy: "Internships: humanitarian and development internships worldwide from ReliefWeb", signup: "https://apidoc.reliefweb.int/parameters#appname", free: true },
 ];
 

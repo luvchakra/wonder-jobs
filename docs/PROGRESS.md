@@ -179,5 +179,6 @@
 - ✅ Gateway asks for */* on feeds and HTML on pages: EdJOIN and Hasgeek read again (WJ-710)
 - 2026-11-05 Talent & Services: business-listing APIs researched, none built, licence question put to the owner (WJ-599)
 - ✅ Scholarships & Projects: Buddy4Study crawl reads the newest pages and finds current listings (WJ-532)
+- ✅ Internships: UK apprenticeships from Find an apprenticeship (DfE API v2; needs its free key) (WJ-583)
 - ✅ Jobs: We Work Remotely's gateway source reads its 11 category feeds, each under the gateway's size limit (WJ-549)
 - ✅ Jobs: Recruitee and Personio career sites (European employers); NAV and NLx on the owner's Setup to-do (WJ-550)
