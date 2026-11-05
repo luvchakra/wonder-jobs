@@ -21,7 +21,7 @@ export function explainFailure(step: string | undefined, message: string | undef
   if (/SOURCE_TIMEOUT|timed? ?out|didn't answer|aborted|FUNCTION_INVOCATION_TIMEOUT|\b504\b/i.test(m))
     return { label: "Took too long", detail: `The site didn't answer in the time one step is allowed${at}. The next import tries it again.` };
   if (responded === "401" || responded === "403" || /\bFORBIDDEN\b/.test(m))
-    return { label: "Site refused us", detail: `The site answered ${responded ?? "403"}${at}: it blocks automated requests from our server. WonderWorks never gets around a block, so this source stays off unless the site allows us.` };
+    return { label: "Site refused us", detail: `The site answered ${responded ?? "403"}${/robots/i.test(m) ? " to its robots.txt" : ""}${at}: it blocks automated requests from our server. WonderWorks never gets around a block, so this source stays off unless the site allows us; Dismiss it on its module's card to stop retrying.` };
   if (responded === "429" || /RATE_LIMITED|rate limit/i.test(m))
     return { label: "Rate limited", detail: `The site asked us to slow down (429)${at}. The next import tries again.` };
   if (responded === "404" || responded === "410")

@@ -8,6 +8,8 @@ describe("why a source didn't go live, in plain words", () => {
     expect(explainFailure("Test", "Source responded 403").label).toBe("Site refused us");
     expect(explainFailure("Test", "Source responded 404").label).toBe("Address not found");
     expect(explainFailure("Test", "Cannot verify robots policy").label).toBe("Robots.txt didn't load");
+    expect(explainFailure("Test", "Cannot verify robots policy (robots.txt responded 403)").label).toBe("Site refused us");
+    expect(explainFailure("Test", "Cannot verify robots policy (robots.txt responded 403)").detail).toContain("403 to its robots.txt");
     expect(explainFailure("Test", "Cross-host redirects are not allowed").label).toBe("Redirects to another site");
     expect(explainFailure("Test", "Source response exceeds size limit").label).toBe("Feed too large");
     expect(explainFailure("Collect", "SOURCE_UNAVAILABLE").label).toBe("Couldn't reach the site");
