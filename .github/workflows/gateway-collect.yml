@@ -34,6 +34,9 @@ jobs:
             exit 0
           fi
           url="$SITE/api/cron/gateway-collect"
+          # Started by hand (Run workflow): collect now, even right after a scheduled run (a chain's later call skips the
+          # "ran recently" check; each source's own 6-hour floor still holds).
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then url="$url?hop=1"; fi
           for i in $(seq 1 30); do
             r=$(curl -fsS --max-time 75 -H "Authorization: Bearer $CRON_SECRET" -H "x-wj-driver: external" "$url" || curl -fsS --max-time 75 -H "Authorization: Bearer $CRON_SECRET" -H "x-wj-driver: external" "$url" || echo '{"summary":"call failed twice"}')
             echo "call $i: $(echo "$r" | jq -r '.summary // "no summary"')"
