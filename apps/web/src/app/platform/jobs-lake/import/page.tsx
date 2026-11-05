@@ -1,4 +1,5 @@
 "use client";
+import { explainFailure, failureSummary } from "@/domain/gateway/failure";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, Play } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
@@ -137,7 +138,7 @@ function ProgressBanner({ d }: { d: ImportView }) {
             {j.current.since ? ` · ${when(j.current.since)}` : ""} ·{" "}
           </>
         ) : null}
-        {num(j.live)} live · {num(j.failed)} didn&apos;t go live · {num(j.total - j.done)} to go
+        {num(j.live)} live · {num(j.failed)} didn&apos;t go live{j.failed ? ` (${failureSummary(j.items)})` : ""} · {num(j.total - j.done)} to go
         {j.stored && Object.keys(j.stored).length ? ` · In Find: ${Object.entries(j.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}` : ""}
         {j.running ? ". It runs on the server; you can leave this page." : "."}
       </p>
@@ -182,14 +183,16 @@ function RunItems({ items }: { items: { name: string; status: string; step?: str
       <summary className="cursor-pointer text-[12px] font-medium text-brand-600">Every source ({num(items.length)})</summary>
       <ul className="mt-1.5 flex flex-col divide-y divide-line/60 text-[12px]">
         {items.map((i, n) => (
-          <li key={`${i.name}-${n}`} className="flex flex-wrap items-baseline justify-between gap-x-3 py-1">
-            <span className="min-w-0 text-ink-2">{i.name}</span>
-            <span className={ITEM_TONE[i.status] ?? "text-ink-3"}>
-              {ITEM_LABEL[i.status] ?? i.status}
-              {i.valid != null && (i.status === "live" || i.status === "collected") ? ` · ${num(i.valid)} listings` : ""}
-              {i.status === "running" && i.step ? ` · ${i.step}` : ""}
-              {i.status === "failed" ? ` · ${i.step ? `${i.step}: ` : ""}${i.message ?? ""}` : ""}
-            </span>
+          <li key={`${i.name}-${n}`} className="py-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span className="min-w-0 text-ink-2">{i.name}</span>
+              <span className={ITEM_TONE[i.status] ?? "text-ink-3"}>
+                {i.status === "failed" ? explainFailure(i.step, i.message).label : (ITEM_LABEL[i.status] ?? i.status)}
+                {i.valid != null && (i.status === "live" || i.status === "collected") ? ` · ${num(i.valid)} listings` : ""}
+                {i.status === "running" && i.step ? ` · ${i.step}` : ""}
+              </span>
+            </div>
+            {i.status === "failed" && <p className="mt-0.5 text-[11.5px] leading-snug text-ink-3">{explainFailure(i.step, i.message).detail}</p>}
           </li>
         ))}
       </ul>
