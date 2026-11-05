@@ -53,6 +53,14 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
     setMsg(r.ok ? r.data.message : r.error.message);
     onChanged();
   };
+  const importEnv = async () => {
+    setBusy(true);
+    setMsg(null);
+    const r = await adminFetch<{ message: string }>("keys", { method: "POST", body: JSON.stringify({ name: k.name, importEnv: true }) });
+    setBusy(false);
+    setMsg(r.ok ? r.data.message : r.error.message);
+    onChanged();
+  };
   const test = async () => {
     setBusy(true);
     setMsg(null);
@@ -92,7 +100,12 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
             }}
           >
             <Textarea autoComplete="off" rows={2} value={value} onChange={(e) => setValue(e.target.value)} placeholder="Paste one or more keys, one per line" aria-label={k.label} className="[-webkit-text-security:disc]" />
-            <span>
+            <span className="flex flex-wrap items-center gap-2">
+              {(k.envCount ?? 0) > 0 && (
+                <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void importEnv()}>
+                  Copy {k.envCount} from the deployment
+                </Button>
+              )}
               <Button type="submit" size="sm" loading={busy} disabled={value.trim().length < 4}>
                 Add {value.split(/[\s,]+/).filter((x) => x.trim().length >= 4).length > 1 ? "keys" : "key"}
               </Button>
