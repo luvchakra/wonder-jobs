@@ -160,6 +160,19 @@ export function validateSource(source) {
       if (x.protocol !== "https:" || x.hostname !== url.hostname || x.username || x.password || x.port) throw new ApiError(400, "INVALID_REQUEST", "extraUrls must be HTTPS on the source's own host");
     }
   }
+  // Per-module filter (owner, 2026-11-05: Buddy4Study's internships belong in Internships, its scholarships in
+  // Scholarships): each listed module keeps only the items whose field matches (or, negated, doesn't match).
+  if (source.moduleFilter !== undefined) {
+    const mf = source.moduleFilter;
+    if (!mf || typeof mf !== "object" || Array.isArray(mf)) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter must be an object keyed by module");
+    for (const [m, f] of Object.entries(mf)) {
+      if (!(source.modules ?? []).includes(m)) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter names a module the source isn't in");
+      if (!f || typeof f.field !== "string" || !/^(title|organization|attr\.\w{1,40})$/.test(f.field) || (f.field.startsWith("attr.") && !source.mapping?.[f.field])) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.field must be title, organization or a mapped attr.<field>");
+      if (typeof f.match !== "string" || !f.match || f.match.length > 200) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.match must be a pattern of 1-200 characters");
+      try { new RegExp(f.match, "i"); } catch { throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.match isn't a valid pattern"); }
+      if (f.negate !== undefined && typeof f.negate !== "boolean") throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.negate must be true or false");
+    }
+  }
   if (source.dropPastAfter !== undefined && (typeof source.dropPastAfter !== "string" || !/^\w{1,40}$/.test(source.dropPastAfter) || !(source.mapping?.["attr." + source.dropPastAfter] || ((source.kind === "crawl" || source.kind === "structured") && ["startDate", "endDate"].includes(source.dropPastAfter))))) throw new ApiError(400, "INVALID_REQUEST", "dropPastAfter must name a mapped attr.<field>");
   if (source.mapping && Object.values(source.mapping).some((v) => !(typeof v === "string" && v.length <= 100) && !(Array.isArray(v) && v.length >= 1 && v.length <= 5 && v.every((x) => typeof x === "string" && x.length <= 100)))) throw new ApiError(400, "INVALID_REQUEST", "Mapping paths must be short strings, or a list of up to 5");
   if (source.requestDelayMs !== undefined && (!Number.isInteger(source.requestDelayMs) || source.requestDelayMs < 250 || source.requestDelayMs > 5000)) throw new ApiError(400, "INVALID_REQUEST", "requestDelayMs must be 250-5000");
@@ -169,7 +182,7 @@ export function validateSource(source) {
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.timezone ? { timezone: source.timezone } : {}), ...(source.geography?.length ? { geography: [...new Set(source.geography)] } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), ...(source.sitemapOrder ? { sitemapOrder: source.sitemapOrder } : {}), ...(source.newestPages ? { newestPages: source.newestPages } : {}), ...(source.nextDataPath ? { nextDataPath: source.nextDataPath } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.moduleFilter ? { moduleFilter: Object.fromEntries(Object.entries(source.moduleFilter).map(([m, f]) => [m, { field: f.field, match: f.match, ...(f.negate ? { negate: true } : {}) }])) } : {}), ...(source.timezone ? { timezone: source.timezone } : {}), ...(source.geography?.length ? { geography: [...new Set(source.geography)] } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), ...(source.sitemapOrder ? { sitemapOrder: source.sitemapOrder } : {}), ...(source.newestPages ? { newestPages: source.newestPages } : {}), ...(source.nextDataPath ? { nextDataPath: source.nextDataPath } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
@@ -413,10 +426,11 @@ export function logRun(state, run) {
  */
 export function normalizeAll(source, items, observedAt, now = Date.now()) {
   const out = [], seen = new Set();
-  let repeats = 0, past = 0;
+  let repeats = 0, past = 0, filtered = 0;
   const today = new Date(now); today.setUTCHours(0, 0, 0, 0);
   for (const module of source.modules) for (const item of items) {
     const n = normalize(source, item, module, observedAt);
+    if (n && !keepForModule(source, module, n)) { filtered++; continue; }
     if (n && source.dropPastAfter) {
       const when = Date.parse(String(n.attributes?.[source.dropPastAfter] ?? ""));
       if (Number.isFinite(when) && when < today.getTime()) { past++; continue; }
@@ -424,7 +438,16 @@ export function normalizeAll(source, items, observedAt, now = Date.now()) {
     if (n && seen.has(n.id)) repeats++;
     else if (n) { seen.add(n.id); out.push(n); }
   }
-  return { results: out, valid: out.length, repeats, past, discovered: items.length * source.modules.length - repeats - past };
+  return { results: out, valid: out.length, repeats, past, filtered, discovered: items.length * source.modules.length - repeats - past - filtered };
+}
+
+/** A source's per-module filter (validateSource): whether this listing belongs in this module. No filter keeps it. */
+export function keepForModule(source, module, n) {
+  const f = source.moduleFilter?.[module];
+  if (!f) return true;
+  const value = f.field === "title" ? n.title : f.field === "organization" ? n.organization : n.attributes?.[f.field.slice(5)];
+  const hit = new RegExp(f.match, "i").test(String(value ?? ""));
+  return f.negate ? !hit : hit;
 }
 
 /** Keeps the audit trail to its newest entries, so the state document stays small. */
