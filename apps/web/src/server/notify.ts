@@ -51,7 +51,7 @@ export interface SmtpConfig {
 
 /**
  * SMTP settings, or null when any required one is missing. By default the deployment's variables, else the ones set on
- * Admin → Keys → Email (owner, 2026-11-06); async callers read the store first (`platformEnv`).
+ * Admin → Settings → Platform keys (owner, 2026-11-06); async callers read the store first (`platformEnv`).
  */
 export function smtpConfig(env: Env = withPlatformKeys()): SmtpConfig | null {
   const host = env.SMTP_HOST?.trim();

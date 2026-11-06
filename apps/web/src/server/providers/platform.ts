@@ -1,7 +1,7 @@
 import type { AIProviderId } from "@/domain/ai/types";
 import { loadPlatformKeys, withPlatformKeys } from "@/server/jobslake/platformKeys";
 
-/** Read the admin's settings (Admin → Keys → AI) before `platformAI()`; at most once a minute. */
+/** Read the admin's settings (Admin → Settings → Platform keys) before `platformAI()`; at most once a minute. */
 export const loadPlatformAI = () => loadPlatformKeys();
 
 /** The vendors "WonderJobs AI" (the platform-billed default) can run on. */

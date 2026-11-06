@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     await loadPlatformKeys(Date.now(), true);
     if (!smtpConfig(withPlatformKeys())) return jlError("INVALID_REQUEST", "Set the mail server, mailbox and password first.", 400);
     if (!a.actor.includes("@")) return jlError("INVALID_REQUEST", "Your admin account has no email address to send to.", 400);
-    const mail = renderEmailLayout({ origin: siteUrl().origin, preheader: "WonderWorks email works", bodyHtml: "<p>This is a test from Admin → Keys → Email. If you're reading it, WonderWorks can send email.</p>", bodyText: "This is a test from Admin → Keys → Email. If you're reading it, WonderWorks can send email.", reason: "You're getting this because you pressed Send a test email.", settingsLink: false });
+    const mail = renderEmailLayout({ origin: siteUrl().origin, preheader: "WonderWorks email works", bodyHtml: "<p>This is a test from Admin → Settings → Platform keys. If you're reading it, WonderWorks can send email.</p>", bodyText: "This is a test from Admin → Keys → Email. If you're reading it, WonderWorks can send email.", reason: "You're getting this because you pressed Send a test email.", settingsLink: false });
     const r = await sendMail({ to: a.actor, subject: "WonderWorks: test email", ...mail });
     await audit(a.actor, "platform_email.tested", undefined, { ok: r.sent });
     return r.sent ? json({ ok: true, message: `Sent to ${a.actor}. Check the inbox (and spam).` }) : jlError("INVALID_REQUEST", "The mail server refused it. Check the host, port, mailbox and password.", 502);
