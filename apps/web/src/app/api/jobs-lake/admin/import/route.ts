@@ -3,6 +3,7 @@ import { after, NextResponse } from "next/server";
 import { siteUrl } from "@/lib/siteUrl";
 import { startImport, startModuleImport } from "@/server/gateway/collectJob";
 import { dispatchCollection, runnerDispatchConfigured } from "@/server/gateway/dispatch";
+import { loadPlatformKeys } from "@/server/jobslake/platformKeys";
 import { collectGatewaySource, registerFromCatalogue, registerPartner, setGatewaySource, testGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
 import { updateSource } from "@/server/jobslake/admin";
 import { MODULE_IDS } from "@/wonderworks/manifest";
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
 
   // Import now and Import this module run on the GitHub collection runner when it's set up (dispatch.ts), so the heavy
   // work (tests, collection, every module's Find refresh) never runs on the site; here otherwise.
+  if (action === "import" || action === "module_import") await loadPlatformKeys();
   if ((action === "import" || action === "module_import") && runnerDispatchConfigured()) {
     const m = typeof body?.module === "string" && (MODULE_IDS as readonly string[]).includes(body.module) ? body.module : null;
     if (action === "module_import" && !m) return jlError("INVALID_REQUEST", "Name the module.", 400);

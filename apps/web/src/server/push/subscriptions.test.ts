@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const getSupabaseAdmin = vi.fn();
+// Hoisted: the mock is evaluated while ./subscriptions loads (its key store pulls in the Supabase module), before a plain const exists.
+const { getSupabaseAdmin } = vi.hoisted(() => ({ getSupabaseAdmin: vi.fn() }));
 vi.mock("@/server/supabase", () => ({ getSupabaseAdmin: () => getSupabaseAdmin(), touchTenant: async () => {} }));
 
 import { notifyTenant, pushPublicKey, vapidConfig } from "./subscriptions";

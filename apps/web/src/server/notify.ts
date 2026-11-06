@@ -8,6 +8,7 @@
 import nodemailer from "nodemailer";
 import { siteUrl } from "@/lib/siteUrl";
 import { EMAIL_COLORS, escapeHtml, renderEmailLayout } from "@/server/email/layout";
+import { platformEnv, withPlatformKeys } from "@/server/jobslake/platformKeys";
 
 /** The environment variables read here (process.env in the app; a plain object in tests). */
 type Env = Record<string, string | undefined>;
@@ -48,8 +49,11 @@ export interface SmtpConfig {
   from: string;
 }
 
-/** SMTP settings from the environment, or null when any required one is missing. */
-export function smtpConfig(env: Env = process.env): SmtpConfig | null {
+/**
+ * SMTP settings, or null when any required one is missing. By default the deployment's variables, else the ones set on
+ * Admin → Keys → Email (owner, 2026-11-06); async callers read the store first (`platformEnv`).
+ */
+export function smtpConfig(env: Env = withPlatformKeys()): SmtpConfig | null {
   const host = env.SMTP_HOST?.trim();
   const user = env.SMTP_USER?.trim();
   const pass = env.SMTP_PASS;
@@ -88,7 +92,8 @@ export function renderContactEmail(payload: ContactNotifyPayload, origin: string
  * Best-effort notification. Never throws: a failure here must never fail the person's contact
  * submission, which is already safely stored (or logged).
  */
-export async function notifyContactRecipients(payload: ContactNotifyPayload, env: Env = process.env): Promise<NotifyResult> {
+export async function notifyContactRecipients(payload: ContactNotifyPayload, given?: Env): Promise<NotifyResult> {
+  const env = given ?? (await platformEnv());
   const recipients = parseEmailList(env.CONTACT_NOTIFY_EMAILS);
   if (recipients.length === 0) return { attempted: false, sent: false, recipients: [] };
 
@@ -144,8 +149,8 @@ export interface MailMessage {
  * Sends one email through the same mailbox as the contact notifications. Never throws; without SMTP
  * settings nothing is sent and the result says so.
  */
-export async function sendMail(msg: MailMessage, env: Env = process.env): Promise<{ sent: boolean; reason?: string }> {
-  const smtp = smtpConfig(env);
+export async function sendMail(msg: MailMessage, given?: Env): Promise<{ sent: boolean; reason?: string }> {
+  const smtp = smtpConfig(given ?? (await platformEnv()));
   if (!smtp) return { sent: false, reason: "no email provider configured" };
   const secure = smtp.port === 465;
   const transport = nodemailer.createTransport({

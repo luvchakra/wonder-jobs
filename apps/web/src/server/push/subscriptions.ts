@@ -6,6 +6,7 @@
  * uninstalled, permission revoked, the profile cleared — the row is deleted rather than retried: the
  * browser has already decided, and re-asking it forever is how a sender ends up rate-limited.
  */
+import { platformEnv, withPlatformKeys } from "@/server/jobslake/platformKeys";
 import { getSupabaseAdmin, touchTenant } from "@/server/supabase";
 import { generateVapidKeys, sendPush, type PushSubscription, type VapidKeys } from "./webPush";
 
@@ -29,12 +30,13 @@ export interface DeliveryReport {
 }
 
 /** Where the operator's keys come from. Generate a pair with `npm run push:keys`. */
-export function vapidConfig(): (VapidKeys & { subject: string }) | null {
-  const publicKey = process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
+export function vapidConfig(env: Record<string, string | undefined> = withPlatformKeys()): (VapidKeys & { subject: string }) | null {
+  // The deployment's variables, else the pair set on Admin → Keys → Push (owner, 2026-11-06); callers load the store first.
+  const publicKey = env.VAPID_PUBLIC_KEY?.trim();
+  const privateKey = env.VAPID_PRIVATE_KEY?.trim();
   if (!publicKey || !privateKey) return null;
   // RFC 8292 wants a contact the push service can reach if this sender misbehaves.
-  const subject = process.env.VAPID_SUBJECT || "mailto:support@wonderjobs.app";
+  const subject = env.VAPID_SUBJECT?.trim() || "mailto:support@wonderjobs.app";
   return { publicKey, privateKey, subject };
 }
 
@@ -90,7 +92,7 @@ export async function countSubscriptions(tenantId: string): Promise<number> {
  * the record.
  */
 export async function notifyTenant(tenantId: string, payload: PushPayload): Promise<DeliveryReport> {
-  const vapid = vapidConfig();
+  const vapid = vapidConfig(await platformEnv());
   if (!vapid || !getSupabaseAdmin()) return { sent: 0, removed: 0, failed: 0, configured: false };
   const report: DeliveryReport = { sent: 0, removed: 0, failed: 0, configured: true };
   let subscriptions: StoredSubscription[];

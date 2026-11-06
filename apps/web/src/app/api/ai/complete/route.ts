@@ -5,7 +5,7 @@ import { rateLimit } from "@/server/rateLimit";
 import { decrypt, secretStore } from "@/server/secrets";
 import { getServerProvider } from "@/server/providers";
 import { ServerProviderError } from "@/server/providers/types";
-import { platformAI } from "@/server/providers/platform";
+import { loadPlatformAI, platformAI } from "@/server/providers/platform";
 import { tenantPlan } from "@/server/billing/service";
 import { countDraft, draftUsage } from "@/server/billing/plansConfig";
 import { draftQuota } from "@/domain/billing/plans";
@@ -45,7 +45,8 @@ export async function POST(req: Request) {
   const { provider, model, promptId, prompt, maxTokens } = parsed.data;
   const system = systemPrompt(promptId);
   if (provider === "wonderjobs") {
-    const platform = platformAI();
+    await loadPlatformAI();
+  const platform = platformAI();
     if (!platform) return NextResponse.json({ error: "WonderWorks AI isn't connected to a model on this deployment yet.", kind: "not_configured" }, { status: 409 });
     // Drafts on the platform's key count against the plan; a connected own-AI key never comes through here.
     const { plan, limits, config } = await tenantPlan(tenantId);

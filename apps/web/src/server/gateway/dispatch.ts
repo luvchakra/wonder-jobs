@@ -7,9 +7,12 @@
 export const DEFAULT_DISPATCH_REPO = "luvchakra/wonder-jobs";
 const WORKFLOW_FILE = "gateway-collect.yml";
 
+import { withPlatformKeys } from "@/server/jobslake/platformKeys";
+
 type Env = Record<string, string | undefined>;
 
-export function runnerDispatchConfigured(env: Env = process.env): boolean {
+/** The token comes from the deployment or Admin → Keys → Runner (callers load the store first, `loadPlatformKeys`). */
+export function runnerDispatchConfigured(env: Env = withPlatformKeys()): boolean {
   return !!env.GITHUB_DISPATCH_TOKEN?.trim();
 }
 
@@ -20,7 +23,7 @@ export interface DispatchInputs {
   by: string;
 }
 
-export async function dispatchCollection(inputs: DispatchInputs, fetcher: typeof fetch = fetch, env: Env = process.env): Promise<{ ok: true } | { ok: false; message: string }> {
+export async function dispatchCollection(inputs: DispatchInputs, fetcher: typeof fetch = fetch, env: Env = withPlatformKeys()): Promise<{ ok: true } | { ok: false; message: string }> {
   const token = env.GITHUB_DISPATCH_TOKEN?.trim();
   if (!token) return { ok: false, message: "The collection runner isn't set up on this deployment (GITHUB_DISPATCH_TOKEN)." };
   const repo = env.GITHUB_DISPATCH_REPO?.trim() || DEFAULT_DISPATCH_REPO;

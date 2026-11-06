@@ -4,7 +4,7 @@ import { AI_PROVIDERS } from "@/domain/ai/types";
 import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { encrypt, maskKey, secretStore, toStatus } from "@/server/secrets";
-import { platformAI } from "@/server/providers/platform";
+import { loadPlatformAI, platformAI } from "@/server/providers/platform";
 
 export const runtime = "nodejs";
 
@@ -21,6 +21,7 @@ export async function GET() {
   if (session instanceof NextResponse) return session;
   const { tenantId } = session;
   const keys = (await secretStore.list(tenantId)).map(toStatus);
+  await loadPlatformAI();
   const platform = platformAI();
   return NextResponse.json({ keys, platform: platform ? { configured: true, model: platform.model, provider: platform.provider } : { configured: false } }, { headers: { "cache-control": "no-store" } });
 }

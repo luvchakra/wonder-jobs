@@ -15,6 +15,12 @@ import { jobsLakeStore } from "./store";
 export interface PlatformKeySpec {
   name: string;
   label: string;
+  /** Admin → Keys' section: a source's key, or one of the platform's own settings (owner, 2026-11-06: "decommission vercel environment variables as much as possible"). */
+  group?: "sources" | "email" | "ai" | "push" | "runner";
+  /** Not a secret (a host, a port, an address list, a model name): shown in full, never masked. */
+  plain?: boolean;
+  /** Shortest accepted value (default 4; a port is shorter). */
+  minLength?: number;
   /** What it unlocks, in words. */
   usedBy: string;
   signup: string;
@@ -46,6 +52,21 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "FLIPKART_AFFILIATE_TOKEN", label: "Flipkart affiliate API token", usedBy: "With the Flipkart tracking ID (generated on the affiliate dashboard)", signup: "https://affiliate.flipkart.com/", free: true },
   { name: "EBAY_CLIENT_ID", label: "eBay Client ID (App ID)", usedBy: "Buy, Sell & Rent: fixed-price eBay items in the US, UK, Australia, Canada and larger EU marketplaces (5,000 calls a day). Terms pending: the eBay API licence and EPN attribution", signup: "https://developer.ebay.com/my/keys", free: true },
   { name: "EBAY_CLIENT_SECRET", label: "eBay Client Secret (Cert ID)", usedBy: "With the eBay Client ID (the Production keyset's Cert ID)", signup: "https://developer.ebay.com/my/keys", free: true },
+  // The platform's own settings, moved here from the deployment (owner, 2026-11-06). A deployment variable of the same
+  // name still wins; the GitHub collection runner reads these from the same encrypted store.
+  { group: "email", name: "SMTP_HOST", plain: true, label: "Mail server (SMTP host)", usedBy: "Every email WonderWorks sends: import reports, notifications, Contact us copies, hiring emails. GoDaddy: smtpout.secureserver.net", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "SMTP_PORT", plain: true, minLength: 2, label: "Mail server port", usedBy: "465 (implicit TLS, the default) or 587 (STARTTLS)", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "SMTP_USER", plain: true, label: "Mailbox (SMTP user)", usedBy: "The full address WonderWorks sends from, e.g. connect@wonderapps.biz", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "SMTP_PASS", label: "Mailbox password", usedBy: "The mailbox's password (or an app password)", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "CONTACT_FROM_EMAIL", plain: true, label: "From (optional)", usedBy: "Defaults to \"WonderWorks <mailbox>\"; most providers only send as the signed-in mailbox", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "CONTACT_NOTIFY_EMAILS", plain: true, label: "Team addresses", usedBy: "Comma-separated: who gets Contact us copies, verification requests and admin reports", signup: "/platform/jobs-lake/import", free: true },
+  { group: "ai", name: "WONDERJOBS_AI_KEY", label: "WonderWorks AI key", usedBy: "The platform-billed model behind \"WonderWorks AI\" drafts and Ask Wonder. Without it, drafts use templates and the AI page says so", signup: "https://console.anthropic.com/settings/keys", free: false },
+  { group: "ai", name: "WONDERJOBS_AI_PROVIDER", plain: true, label: "WonderWorks AI provider (optional)", usedBy: "anthropic (default), openai or gemini: whose key the one above is", signup: "https://console.anthropic.com/settings/keys", free: true },
+  { group: "ai", name: "WONDERJOBS_AI_MODEL", plain: true, label: "WonderWorks AI model (optional)", usedBy: "Defaults per provider: claude-sonnet-5, gpt-5-mini, gemini-3.6-flash", signup: "https://docs.anthropic.com/en/docs/about-claude/models", free: true },
+  { group: "push", name: "VAPID_PUBLIC_KEY", plain: true, label: "Push public key", usedBy: "Browser push notifications. Generate a pair below; keep it, or every device must turn notifications on again", signup: "/platform/jobs-lake/keys", free: true },
+  { group: "push", name: "VAPID_PRIVATE_KEY", label: "Push private key", usedBy: "With the push public key", signup: "/platform/jobs-lake/keys", free: true },
+  { group: "push", name: "VAPID_SUBJECT", plain: true, label: "Push contact (optional)", usedBy: "mailto: address push services can reach; defaults to support@wonderjobs.app", signup: "https://datatracker.ietf.org/doc/html/rfc8292", free: true },
+  { group: "runner", name: "GITHUB_DISPATCH_TOKEN", label: "GitHub token for the collection runner", usedBy: "Lets Import now and Import this module start the collection on GitHub Actions. A fine-grained token with Actions: read and write on this repository, nothing else", signup: "https://github.com/settings/personal-access-tokens/new", free: true },
 ];
 
 const NAMES = new Set(PLATFORM_KEYS.map((k) => k.name));
@@ -86,6 +107,22 @@ async function readKeys(now: number): Promise<void> {
   }
 }
 
+/**
+ * The environment as the app should read it: the deployment's variables, with every key above that the deployment
+ * leaves unset (or empty) filled from the admin's store. Call `loadPlatformKeys()` first; tests pass their own env.
+ */
+export function withPlatformKeys(env: Record<string, string | undefined> = process.env): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = { ...env };
+  for (const k of PLATFORM_KEYS) if (!out[k.name]?.trim() && cache?.values[k.name]?.trim()) out[k.name] = cache.values[k.name].trim();
+  return out;
+}
+
+/** `withPlatformKeys()` once the admin's values are read (at most once a minute). */
+export async function platformEnv(): Promise<Record<string, string | undefined>> {
+  await loadPlatformKeys();
+  return withPlatformKeys();
+}
+
 /** A source's key: the deployment's environment variable if set, else the one the admin set on the platform. */
 export function platformKey(name: string): string | undefined {
   const env = process.env[name]?.trim();
@@ -113,7 +150,8 @@ export interface PlatformKeyStatus extends PlatformKeySpec {
 /** Every key, whether it's set and where from, masked — never a value. */
 export async function platformKeyStatus(): Promise<PlatformKeyStatus[]> {
   await loadPlatformKeys(Date.now(), true);
-  return PLATFORM_KEYS.map((k) => {
+  return PLATFORM_KEYS.map((raw) => {
+    const k = { ...raw, group: raw.group ?? ("sources" as const) };
     const env = process.env[k.name]?.trim();
     const mine = cache?.values[k.name];
     if (k.multi) {
@@ -123,7 +161,8 @@ export async function platformKeyStatus(): Promise<PlatformKeyStatus[]> {
       const masked = keys.length ? `${keys.length} key${keys.length === 1 ? "" : "s"}${envCount ? ` + ${envCount} in the deployment` : ""}` : envCount ? `${envCount} in the deployment` : "Not set";
       return { ...k, set: keys.length + envCount > 0, from: keys.length ? ("platform" as const) : envCount ? ("environment" as const) : null, masked, keys, envCount };
     }
-    return { ...k, set: !!(env || mine), from: env ? "environment" : mine ? "platform" : null, masked: env ? "Set in the deployment" : mine ? maskCredential(mine) : "Not set" };
+    const shown = (v: string) => (k.plain ? v : maskCredential(v));
+    return { ...k, set: !!(env || mine), from: env ? "environment" : mine ? "platform" : null, masked: env ? (k.plain ? `${env} (in the deployment)` : "Set in the deployment") : mine ? shown(mine) : "Not set" };
   });
 }
 
@@ -148,7 +187,8 @@ export async function setPlatformKey(name: string, value: string | null, now = n
     return { ok: true, message: `${n} key${n === 1 ? "" : "s"} added (${all.length} saved).` };
   } else {
     const v = value.trim();
-    if (v.length < 4 || v.length > 4096) return { ok: false, message: "That doesn't look like a key (4–4,096 characters)." };
+    const min = SPEC.get(name)?.minLength ?? 4;
+    if (v.length < min || v.length > 4096) return { ok: false, message: `That doesn't look right (${min}–4,096 characters).` };
     const existing = await store.getCredential(ref(name));
     await store.putCredential({ ref: ref(name), ciphertext: encrypt(v), masked: maskCredential(v), createdAt: existing?.createdAt ?? now, replacedAt: existing ? now : undefined });
   }
@@ -163,7 +203,15 @@ export async function setPlatformKey(name: string, value: string | null, now = n
  * go from the server's environment to the encrypted store and are never shown.
  */
 export async function importPlatformKeysFromEnv(name: string, now = new Date().toISOString()): Promise<{ ok: boolean; message: string }> {
-  if (!SPEC.get(name)?.multi) return { ok: false, message: "Unknown key." };
+  const spec = SPEC.get(name);
+  if (!spec) return { ok: false, message: "Unknown key." };
+  if (!spec.multi) {
+    // One value: copied as is, so the deployment's variable can be deleted (owner, 2026-11-06).
+    const v = process.env[name]?.trim();
+    if (!v) return { ok: false, message: "The deployment doesn't set this." };
+    const r = await setPlatformKey(name, v, now);
+    return r.ok ? { ok: true, message: `Copied from the deployment. You can now delete ${name} in Vercel.` } : r;
+  }
   const fromEnv = splitKeys(process.env[name]);
   if (!fromEnv.length) return { ok: false, message: "The deployment sets no keys for this." };
   const r = await setPlatformKey(name, fromEnv.join("\n"), now);
