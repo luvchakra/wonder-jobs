@@ -32,6 +32,7 @@ export interface SdbEvent {
   idEvent?: string;
   strEvent?: string;
   strLeague?: string;
+  strLeagueBadge?: string | null;
   strSport?: string;
   strSeason?: string;
   intRound?: string | null;
@@ -63,10 +64,16 @@ export function toRawEvent(e: SdbEvent, today = new Date().toISOString().slice(0
   const place = [clean(e.strVenue, 100), city, country].filter((x, i, all) => x && all.indexOf(x) === i).join(", ");
   const league = clean(e.strLeague, 80);
   const round = clean(e.intRound, 10);
+  // A league with its own badge (Indian Super League, IPL) is the organiser of its fixtures, and the badge is the
+  // organiser's logo, not the fixture's picture: sent as a hint for the shared company directory, only when TheSportsDB
+  // itself serves it over https. A series without a badge ("One Day International Series") names no organiser.
+  const badge = clean(e.strLeagueBadge, 300);
+  const badgeUrl = /^https:\/\/([a-z0-9-]+\.)*thesportsdb\.com\/[^\s]+$/i.test(badge) ? badge : "";
   return {
     externalId: id,
     title,
-    company: "",
+    company: badgeUrl ? league : "",
+    ...(badgeUrl ? { companyLogo: badgeUrl } : {}),
     location: place,
     remote: false,
     description: [league, round && round !== "0" ? `Round ${round}` : "", clean(e.strSeason, 20)].filter(Boolean).join(" · "),

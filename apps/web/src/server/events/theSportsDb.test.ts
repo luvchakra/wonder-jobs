@@ -5,7 +5,7 @@ import { requests, theSportsDbSearch, THESPORTSDB, toRawEvent, type SdbEvent } f
 
 // Real fixtures, as TheSportsDB answered on 2026-11-05 (free key 123).
 const cricket: SdbEvent = { idEvent: "2524709", strEvent: "New Zealand Cricket vs India Cricket", strLeague: "One Day International Series", strSport: "Cricket", dateEvent: "2026-11-07", dateEventLocal: null, strVenue: "Sky Stadium, Wellington", strCity: null, strCountry: null, strStatus: null, strPostponed: "no", strHomeTeam: "New Zealand Cricket", strAwayTeam: "India Cricket" };
-const isl: SdbEvent = { idEvent: "2611145", strEvent: "Inter Kashi vs SC Delhi", strLeague: "Indian Super League", strSport: "Soccer", strSeason: "2026-2027", intRound: "6", dateEvent: "2026-11-07", strVenue: "Arjuna Bhogeswar Baruah Sports Complex", strCountry: "India", strStatus: "NS", strPostponed: "no" };
+const isl: SdbEvent = { idEvent: "2611145", strEvent: "Inter Kashi vs SC Delhi", strLeague: "Indian Super League", strLeagueBadge: "https://r2.thesportsdb.com/images/media/league/badge/ekypmw1792338906.png", strSport: "Soccer", strSeason: "2026-2027", intRound: "6", dateEvent: "2026-11-07", strVenue: "Arjuna Bhogeswar Baruah Sports Complex", strCountry: "India", strStatus: "NS", strPostponed: "no" };
 const TODAY = "2026-11-05";
 const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -17,14 +17,25 @@ afterEach(() => {
 });
 
 describe("a TheSportsDB fixture, as it states itself", () => {
-  it("keeps the teams, day, league, venue and its own page; no organiser, price or time of day", () => {
+  it("keeps the teams, day, league, venue and its own page; no price or time of day", () => {
     const r = toRawEvent(cricket, TODAY)!;
     expect(r).toMatchObject({ externalId: "2524709", title: "New Zealand Cricket vs India Cricket", company: "", location: "Sky Stadium, Wellington", kind: "event", applyUrl: "https://www.thesportsdb.com/event/2524709", tags: ["Cricket", "One Day International Series"] });
     expect(r.attributes).toEqual({ startDate: "2026-11-07", online: false });
+    // A series with no badge names no organiser and sends no logo.
+    expect(r).not.toHaveProperty("companyLogo");
     const f = toRawEvent(isl, TODAY)!;
     expect(f.location).toBe("Arjuna Bhogeswar Baruah Sports Complex, India");
     expect(f.description).toBe("Indian Super League · Round 6 · 2026-2027");
     expect(f.attributes).toMatchObject({ country: "India" });
+  });
+
+  it("names a league with its own badge as the organiser and sends the badge as its logo, only from TheSportsDB over https", () => {
+    expect(toRawEvent(isl, TODAY)).toMatchObject({ company: "Indian Super League", companyLogo: "https://r2.thesportsdb.com/images/media/league/badge/ekypmw1792338906.png" });
+    for (const strLeagueBadge of ["http://r2.thesportsdb.com/b.png", "https://evil.example/b.png", "https://thesportsdb.com.evil.example/b.png", "data:image/png;base64,AAAA", "", null]) {
+      const r = toRawEvent({ ...isl, strLeagueBadge }, TODAY)!;
+      expect(r).not.toHaveProperty("companyLogo");
+      expect(r.company).toBe("");
+    }
   });
 
   it("leaves out what can't be shown honestly: finished, postponed, over, no day or id", () => {
@@ -60,6 +71,10 @@ describe("the TheSportsDB source", () => {
     // Seven days of the same two fixtures: each is one event.
     expect(jobs.map((j) => j.title).sort()).toEqual(["Inter Kashi vs SC Delhi", "New Zealand Cricket vs India Cricket"]);
     expect(fetchMock).toHaveBeenCalledTimes(15);
+    // The league's badge reaches the listing as the organiser's logo hint; the series without one has none.
+    const byTitle = Object.fromEntries(jobs.map((j) => [j.title, j]));
+    expect(byTitle["Inter Kashi vs SC Delhi"]).toMatchObject({ company: "Indian Super League", companyLogo: "https://r2.thesportsdb.com/images/media/league/badge/ekypmw1792338906.png" });
+    expect(byTitle["New Zealand Cricket vs India Cricket"]!.companyLogo).toBeUndefined();
     const init = (fetchMock.mock.calls[0] as unknown as [string, { headers: Record<string, string> }])[1];
     expect(init.headers["user-agent"]).toMatch(/WonderWorks\/1\.0/);
     // Asked again within six hours: nothing new is fetched.
