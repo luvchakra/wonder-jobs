@@ -114,12 +114,11 @@ function JobsHome() {
   return (
     <>
       {/* Full Time or Part Time is chosen from the menu in the top bar, beside the avatar. */}
-      {/* Full Time: what Wonder searches for, with one tap to change it. */}
-      {/* 8px under the top bar and 8px above the chips, as Part Time's search box: the board below is pulled up 12px
-          (JobsBoard's -mt-3), so the pill takes the same pull and leaves 20px for it. */}
-      {mode === "full_time" && <WantedRole className="-mt-3 mb-5 lg:max-w-[30rem] xl:max-w-[34rem]" />}
       <JobsBoard
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
+        // Full Time: what Wonder searches for, with one tap to change it, in the search box's place at the start of the
+        // filter bar, so from 1024px it shares the row with Refine, Location, Salary and Search (owner, 2026-11-06).
+        lead={mode === "full_time" ? <WantedRole className="mb-0" /> : undefined}
         // "Search as" is the first thing in Refine; Looking for is on the page, how many and from where above the jobs.
         refineTop={roles.length > 0 ? <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} allowNone={mode === "part_time"} /> : undefined}
         // A role picked under "Search as" counts as one Refine setting; Clear goes back to My profile (Part Time: none).
