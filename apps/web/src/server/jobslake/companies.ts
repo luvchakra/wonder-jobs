@@ -416,6 +416,43 @@ export async function wikidataLogo(qid: string, fetcher: typeof fetch): Promise<
   }
 }
 
+/**
+ * A company the directory doesn't know yet, found by its name alone (owner, 2026-11-06: "PayPal is a famous company but
+ * there is no logo"; Devpost names an organiser without its website). Wikidata's first match counts only when its label
+ * is exactly the name (normalized), it is not a person, and it states an official website (P856) that can be an
+ * organisation's own; that website's domain identifies the company from then on, so it is kept once. Asked only when
+ * a card asks for the logo, never during a search; a name that finds nothing isn't asked again for a day.
+ */
+const NAME_MISS = new Map<string, number>();
+const NAME_MISS_MS = 86_400_000;
+export async function resolveCompanyByName(nameKey: string, fetcher: typeof fetch, now = Date.now()): Promise<{ domain: string; name: string; wikidataId: string } | undefined> {
+  if (!nameKey || nameKey.length < 2 || nameKey.length > 80) return undefined;
+  const missed = NAME_MISS.get(nameKey);
+  if (missed && now - missed < NAME_MISS_MS) return undefined;
+  const miss = () => {
+    if (NAME_MISS.size > 5000) NAME_MISS.clear();
+    NAME_MISS.set(nameKey, now);
+    return undefined;
+  };
+  try {
+    const opts = { signal: AbortSignal.timeout(4000), headers: { "user-agent": UA, accept: "application/json" } };
+    const res = await fetcher(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(nameKey)}&language=en&type=item&limit=1&format=json`, opts);
+    if (!res.ok) return undefined;
+    const hit = ((await res.json()) as { search?: { id?: string; label?: string }[] }).search?.[0];
+    if (!hit?.id || !/^Q\d{1,12}$/.test(hit.id) || companyKey(hit.label ?? "") !== nameKey) return miss();
+    const ent = await fetcher(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${hit.id}&props=claims&format=json`, opts);
+    if (!ent.ok) return undefined;
+    type Claim = { mainsnak?: { datavalue?: { value?: unknown } } };
+    const claims = ((await ent.json()) as { entities?: Record<string, { claims?: Record<string, Claim[]> }> }).entities?.[hit.id]?.claims ?? {};
+    const isPerson = (claims.P31 ?? []).some((c) => (c.mainsnak?.datavalue?.value as { id?: string } | undefined)?.id === "Q5");
+    const site = (claims.P856 ?? []).map((c) => c.mainsnak?.datavalue?.value).find((v): v is string => typeof v === "string");
+    const domain = !isPerson && site ? companyDomain(site) : undefined;
+    return domain ? { domain, name: hit.label ?? nameKey, wikidataId: hit.id } : miss();
+  } catch {
+    return undefined;
+  }
+}
+
 /** The icon links a home page declares (apple-touch-icon and icon), on the company's own domain only, largest declared first. */
 export function iconLinks(html: string, pageUrl: string, domain: string): string[] {
   const out: { url: string; size: number; touch: boolean }[] = [];
@@ -523,11 +560,25 @@ export async function companyLogo(q: { domain?: string; name?: string }, now = D
     if (hit && now - hit.at < LOGO_CACHE_MS) return hit.logo;
   }
   const store = companyStore();
-  const company = (domain ? await store.logoFor({ domain }) : undefined) ?? (nameKey ? await store.logoFor({ nameKey }) : undefined);
+  let company = (domain ? await store.logoFor({ domain }) : undefined) ?? (nameKey ? await store.logoFor({ nameKey }) : undefined);
+  let wikidataId: string | undefined;
+  if (!company && !q.domain && nameKey) {
+    // Known only by name (an event's organiser, a seller): found once by name, then kept under its own domain.
+    const found = await resolveCompanyByName(nameKey, fetcher, now);
+    if (found) {
+      wikidataId = found.wikidataId;
+      company = await store.logoFor({ domain: found.domain });
+      if (!company) {
+        const at = new Date(now).toISOString();
+        await store.upsert([{ domain: found.domain, name: found.name, nameKey, sources: ["wikidata-name"], firstSeenAt: at, lastSeenAt: at }]);
+        company = { domain: found.domain, logo: undefined, logoCheckedAt: undefined };
+      }
+    }
+  }
   if (!company) return undefined;
   let logo = company.logo;
   if (!logo && (logo === undefined || !company.logoCheckedAt || now - Date.parse(company.logoCheckedAt) > LOGO_TTL_MS)) {
-    logo = await fetchLogo(company.domain, fetcher);
+    logo = await fetchLogo(company.domain, fetcher, wikidataId ? { wikidataId } : {});
     await store.setLogo(company.domain, logo, new Date(now).toISOString());
   }
   if (!logo) return null;
