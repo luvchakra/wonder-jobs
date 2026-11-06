@@ -8,6 +8,7 @@ import { TINTS } from "@/wonderworks/brand/tiles";
 import { isActivePath, type NavItem } from "./nav";
 import { useModuleNav } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { TopBar } from "./TopBar";
 
 /** A heading over a group of the sidebar's links (desktop only). */
 function GroupLabel({ children }: { children: React.ReactNode }) {
@@ -72,7 +73,7 @@ function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: strin
 /**
  * Sidebar from 768px. Tablets (768–1023px): icons only, the module's four places. Desktops (owner, 2026-11-06: "get
  * different kind of menus in the sidebar as it has enough space now"): the four places and the Modules list (in place
- * of the top bar's menu). Analytics and the settings (Notifications, Automation, AI provider, Help) left the sidebar
+ * of the top bar's menu), and at its foot the avatar, name and bell (the top bar is gone from 1024px). Analytics and the settings (Notifications, Automation, AI provider, Help) left the sidebar
  * (owner, 2026-11-06: "remove these from left sidebar"); they're in the avatar menu, and Notifications on the bell.
  * Below 768px the bottom bar (MobileNav) takes over, and none of this shows.
  */
@@ -91,6 +92,8 @@ export function Sidebar() {
         ))}
       </nav>
       {!collapsed && <ModuleList />}
+      {/* From 1024px the account controls (avatar, name, bell) sit at the sidebar's foot; there's no top bar. */}
+      <TopBar place="side" />
     </aside>
   );
 }

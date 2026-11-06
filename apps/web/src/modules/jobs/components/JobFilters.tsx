@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
-import { ChoiceChips, DictationNotes, FIND_AREA, FIND_BOX, FIND_FORM, FIND_PILL_WIDE, FIND_REFINE, FIND_ROW, FIND_SUBMIT, FIND_TOP_BOX, InTopBar, FilterBox, closeKeyboard, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
+import { ChoiceChips, DictationNotes, FIND_AREA, FIND_BOX, FIND_FORM, FIND_PILL_WIDE, FIND_REFINE, FIND_ROW, FIND_SUBMIT, FIND_TOP_BOX, FilterBox, closeKeyboard, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -203,52 +203,50 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   if (shortlist) return <ShortlistFilters text={shortlist.text} onText={shortlist.onText} filters={filters} onChange={onChange} className={className} />;
   return (
     <div className={cn(FIND_AREA, "flex flex-col gap-2", className)}>
-      <InTopBar>
-        <form
-          className={FIND_FORM}
-          onSubmit={(e) => {
-            e.preventDefault();
-            setBoxFocused(false);
-            closeKeyboard();
-            submit();
-          }}
-        >
-          {!partTime && lead && <div className={FIND_TOP_BOX}>{lead}</div>}
-          {partTime && (
-            <SearchBox
-              value={draft}
-              onValue={setDraft}
-              onClear={() => {
-                setDraft("");
-                if (filters.query) onChange({ query: "" });
-              }}
-              placeholder="Search jobs, skills or companies"
-              label="Search jobs"
-              dictation={dictation}
-              dictateLabel="what you're looking for"
-              focused={boxFocused}
-              onFocused={setBoxFocused}
-              history={history}
-              onPick={(t) => {
-                setDraft(t);
-                setBoxFocused(false);
-                closeKeyboard();
-                submit(t);
-              }}
-              onForget={(t) => forgetSearch(t)}
-              className={FIND_TOP_BOX}
-            />
-          )}
-          {/* Refine, location, pay and the search — one row, the same in both modes. */}
-          {/* From 1024px it sits in the top bar beside Part Time's box or Full Time's role line (InTopBar), Refine just before Search. */}
-          <div className={FIND_ROW}>
-            <RefineButton count={activeCount} className={FIND_REFINE} />
-            <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className={FIND_PILL_WIDE} />
-            <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
-            <SearchSubmit label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className={FIND_SUBMIT} />
-          </div>
-        </form>
-      </InTopBar>
+      <form
+        className={FIND_FORM}
+        onSubmit={(e) => {
+          e.preventDefault();
+          setBoxFocused(false);
+          closeKeyboard();
+          submit();
+        }}
+      >
+        {!partTime && lead && <div className={FIND_TOP_BOX}>{lead}</div>}
+        {partTime && (
+          <SearchBox
+            value={draft}
+            onValue={setDraft}
+            onClear={() => {
+              setDraft("");
+              if (filters.query) onChange({ query: "" });
+            }}
+            placeholder="Search jobs, skills or companies"
+            label="Search jobs"
+            dictation={dictation}
+            dictateLabel="what you're looking for"
+            focused={boxFocused}
+            onFocused={setBoxFocused}
+            history={history}
+            onPick={(t) => {
+              setDraft(t);
+              setBoxFocused(false);
+              closeKeyboard();
+              submit(t);
+            }}
+            onForget={(t) => forgetSearch(t)}
+            className={FIND_TOP_BOX}
+          />
+        )}
+        {/* Refine, location, pay and the search — one row, the same in both modes. */}
+        {/* From 1024px it sits beside Part Time's box or Full Time's role line on one row, Refine just before Search. */}
+        <div className={FIND_ROW}>
+          <RefineButton count={activeCount} className={FIND_REFINE} />
+          <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className={FIND_PILL_WIDE} />
+          <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
+          <SearchSubmit label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className={FIND_SUBMIT} />
+        </div>
+      </form>
       {partTime && needWordsFor !== null && needWordsFor === draft.trim() && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
       <DictationNotes dictation={dictation} hint="Listening — say the role and where, e.g. “IAM director roles in Mumbai”." />
       {more && (

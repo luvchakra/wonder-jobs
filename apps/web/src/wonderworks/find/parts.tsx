@@ -2,9 +2,7 @@
 export { shortSourceNames } from "./sourceName";
 import { shortSourceNames } from "./sourceName";
 import { ListingShare, type ListingShareProps } from "@/wonderworks/listing/ShareButton";
-import { Fragment, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { TOP_FIND_ID } from "@/wonderworks/chrome/topFind";
+import { Fragment, useState } from "react";
 import { ArrowLeft, ArrowRight, Bookmark, CheckCircle2, ChevronDown, History, Search, SlidersHorizontal, X } from "lucide-react";
 import { Chip, Input, Select } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
@@ -65,11 +63,11 @@ export function closeKeyboard() {
 /**
  * Find's search form, the same in every module (owner, 2026-11-06: "design the tablet and desktop ui … DO NOT CHANGE
  * MOBILE"). Phones and tablets: the box, then the row of Refine, the module's pills and Search under it. From 1024px:
- * one row in the top bar (InTopBar; owner, 2026-11-06: "move the attached to the top navbar"), the box taking what's
- * left up to a set width, and Refine just before Search ("move the refine option to right, just before the search").
+ * one row at the top of the page, the box taking what's left up to a set width, and Refine just before Search (owner,
+ * 2026-11-06: "move the refine option to right, just before the search").
  */
 export const FIND_FORM = "flex flex-col gap-2 lg:min-w-0 lg:flex-1 lg:flex-row lg:items-center";
-/** The search box (or Full Time's role line) in the top bar's row: what the row leaves, never wider than a set width. */
+/** The search box (or Full Time's role line) in the one-row form from 1024px: what the row leaves, never wider than a set width. */
 export const FIND_TOP_BOX = "lg:min-w-0 lg:max-w-[32rem] lg:flex-1";
 // A set width, not the whole row (owner, 2026-11-06: "don't have so long search boxes, shorten them to look elegant").
 export const FIND_BOX = "lg:w-[26rem] lg:flex-none xl:w-[30rem]";
@@ -81,22 +79,6 @@ export const FIND_REFINE = "lg:order-1";
 export const FIND_SUBMIT = "lg:order-2";
 /** What Refine opens over from 1024px (the search area holding the form and the panel). */
 export const FIND_AREA = "relative";
-
-/**
- * From 1024px, shows its children in the top bar (TopBar.tsx's TOP_FIND_ID place) instead of here; phones and tablets
- * keep them in the page. A portal, so the form keeps its state and handlers wherever it shows.
- */
-export function InTopBar({ children }: { children: React.ReactNode }) {
-  const [target, setTarget] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    const wide = window.matchMedia("(min-width: 1024px)");
-    const update = () => setTarget(wide.matches ? document.getElementById(TOP_FIND_ID) : null);
-    update();
-    wide.addEventListener("change", update);
-    return () => wide.removeEventListener("change", update);
-  }, []);
-  return target ? createPortal(children, target) : <>{children}</>;
-}
 
 /** The search box: the magnifier, the words, clear and the microphone, and the recent searches while it has focus. */
 export function SearchBox({ value, onValue, onClear, placeholder, label, dictation, dictateLabel, focused, onFocused, history, onPick, onForget, className }: { value: string; onValue: (text: string) => void; onClear: () => void; placeholder: string; label: string; dictation: Dictation; dictateLabel: string; focused: boolean; onFocused: (on: boolean) => void; history: string[]; onPick: (t: string) => void; onForget: (t: string) => void; className?: string }) {
