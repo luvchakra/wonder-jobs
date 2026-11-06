@@ -50,6 +50,16 @@ export function RecentSearches({ items, onPick, onForget }: { items: string[]; o
   );
 }
 
+/**
+ * Closes the phone's keyboard: the focused box lets go, so the results it's about to show aren't hidden behind the
+ * keyboard (owner, 2026-11-06: "bring down the keyboard automatically as soon as it starts searching").
+ */
+export function closeKeyboard() {
+  if (typeof document === "undefined") return;
+  const el = document.activeElement as HTMLElement | null;
+  if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) el.blur();
+}
+
 /** The search box: the magnifier, the words, clear and the microphone, and the recent searches while it has focus. */
 export function SearchBox({ value, onValue, onClear, placeholder, label, dictation, dictateLabel, focused, onFocused, history, onPick, onForget }: { value: string; onValue: (text: string) => void; onClear: () => void; placeholder: string; label: string; dictation: Dictation; dictateLabel: string; focused: boolean; onFocused: (on: boolean) => void; history: string[]; onPick: (t: string) => void; onForget: (t: string) => void }) {
   return (
@@ -93,7 +103,7 @@ export function FilterBox({ text, onText, label, dictation, dictateLabel, histor
   const enter = (t = text) => {
     onEnter(t);
     setFocused(false);
-    (document.activeElement as HTMLElement | null)?.blur();
+    closeKeyboard();
   };
   return (
     <form

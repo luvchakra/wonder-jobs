@@ -11,7 +11,7 @@ import { companyDomain, companyKey } from "@/domain/jobslake/companies";
  */
 
 /** Bumped when how logos are found or served changes, so a browser's cached "no logo" from before is not reused. */
-const LOGO_VERSION = 3;
+const LOGO_VERSION = 4;
 
 /**
  * The one URL a company's logo is served at: by its domain (a website or its address, cleaned) when it's known, else by

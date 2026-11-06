@@ -1,4 +1,5 @@
 import type { BillingProviderId } from "@/domain/billing/types";
+import { adminBillingKey } from "./credentials";
 
 /**
  * Billing configuration, read from the environment. Prices are never set here:
@@ -21,7 +22,8 @@ export interface RazorpayConfig {
   keyId: string;
   keySecret: string;
   webhookSecret: string;
-  planId: string;
+  /** Pro's Razorpay plan from RAZORPAY_PLAN_ID, when the deployment sets one; otherwise Admin → Billing → Prices creates it. */
+  planId?: string;
   /** The Max plan at Razorpay, when the operator created one (RAZORPAY_PLAN_ID_MAX). */
   planIdMax?: string;
   /** Razorpay requires a fixed number of billing cycles per subscription. */
@@ -30,12 +32,21 @@ export interface RazorpayConfig {
 
 const REQUIRED: Record<BillingProviderId, string[]> = {
   stripe: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_ID"],
-  razorpay: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", "RAZORPAY_PLAN_ID"],
+  // The plan ids are not credentials: the admin creates them from Admin → Billing → Prices once Razorpay is connected.
+  razorpay: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"],
 };
+
+/**
+ * A billing value: the deployment's variable, else (Razorpay keys only) what the admin entered on Admin → Billing →
+ * Payments. A test passing its own env never sees the admin's keys.
+ */
+function value(name: string, env: NodeJS.ProcessEnv): string | undefined {
+  return env[name]?.trim() || (env === process.env ? adminBillingKey(name) : undefined);
+}
 
 /** Names (never values) of the variables a provider still needs. */
 export function missingBillingEnv(provider: BillingProviderId, env: NodeJS.ProcessEnv = process.env): string[] {
-  return REQUIRED[provider].filter((k) => !env[k]?.trim());
+  return REQUIRED[provider].filter((k) => !value(k, env));
 }
 
 export function stripeConfig(env: NodeJS.ProcessEnv = process.env): StripeConfig | null {
@@ -47,10 +58,10 @@ export function razorpayConfig(env: NodeJS.ProcessEnv = process.env): RazorpayCo
   if (missingBillingEnv("razorpay", env).length) return null;
   const count = Number(env.RAZORPAY_TOTAL_COUNT);
   return {
-    keyId: env.RAZORPAY_KEY_ID!.trim(),
-    keySecret: env.RAZORPAY_KEY_SECRET!.trim(),
-    webhookSecret: env.RAZORPAY_WEBHOOK_SECRET!.trim(),
-    planId: env.RAZORPAY_PLAN_ID!.trim(),
+    keyId: value("RAZORPAY_KEY_ID", env)!,
+    keySecret: value("RAZORPAY_KEY_SECRET", env)!,
+    webhookSecret: value("RAZORPAY_WEBHOOK_SECRET", env)!,
+    planId: env.RAZORPAY_PLAN_ID?.trim() || undefined,
     planIdMax: env.RAZORPAY_PLAN_ID_MAX?.trim() || undefined,
     // 120 cycles = ten years of monthly billing; the candidate can cancel any time.
     totalCount: Number.isInteger(count) && count > 0 && count <= 1200 ? count : 120,
@@ -58,3 +69,8 @@ export function razorpayConfig(env: NodeJS.ProcessEnv = process.env): RazorpayCo
 }
 
 export const BILLING_PROVIDER_IDS: BillingProviderId[] = ["razorpay", "stripe"];
+
+/** "test" for a Razorpay test-mode key (rzp_test_…), "live" otherwise. */
+export function razorpayMode(keyId: string): "test" | "live" {
+  return keyId.startsWith("rzp_test_") ? "test" : "live";
+}

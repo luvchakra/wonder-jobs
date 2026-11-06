@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     // The directory couldn't be read: say so without caching it, so the next card asks again.
     return new NextResponse(null, { status: 503, headers: { "cache-control": "no-store" } });
   }
-  if (!logo) return new NextResponse(null, { status: 404, headers: { "cache-control": "public, max-age=3600, s-maxage=3600" } });
+  if (!logo) return new NextResponse(null, { status: 404, headers: { "cache-control": "public, max-age=600, s-maxage=600" } });
   return new NextResponse(new Uint8Array(logo.data), {
     headers: {
       "content-type": logo.type,

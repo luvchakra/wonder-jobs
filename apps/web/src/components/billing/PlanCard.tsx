@@ -12,6 +12,10 @@ import { formatMoney } from "@/domain/billing/format";
 import { discountTerm } from "@/domain/billing/discounts";
 import { formatDate } from "@/lib/format";
 import { useBillingStore } from "@/store/billing";
+import { openRazorpayCheckout } from "./razorpayCheckout";
+
+type CheckoutStart = { provider: "stripe"; url: string } | { provider: "razorpay"; url: string; subscriptionId: string; keyId: string; planLabel: string; email?: string | null };
+type Paid = { subscriptionId: string; paymentId: string; signature: string };
 
 async function post<T>(url: string, body: unknown = {}): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -30,6 +34,8 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [waiting, setWaiting] = useState(returnState === "success");
+  // Razorpay's window reported a payment: kept so the wait below can ask Razorpay again until the plan shows it.
+  const [paidRef, setPaidRef] = useState<Paid | null>(null);
 
   useEffect(() => {
     void load(returnState !== null);
@@ -41,6 +47,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
     let tries = 0;
     const id = window.setInterval(async () => {
       tries++;
+      if (paidRef) await post("/api/billing/confirm", paidRef).catch(() => undefined);
       const d = await load(true);
       // Any paid plan (Pro or Max) means the provider's webhook has landed.
       if ((d && d.plan !== "free") || tries >= 10) {
@@ -49,7 +56,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
       }
     }, 3000);
     return () => window.clearInterval(id);
-  }, [waiting, load]);
+  }, [waiting, load, paidRef]);
 
   if (status !== "ready" || !data) {
     return (
@@ -66,13 +73,34 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
   }
 
   const checkout = async (provider: BillingProviderId, plan: PaidPlanId = "pro") => {
-    setBusy(provider);
+    setBusy(`${provider}:${plan}`);
+    let started: CheckoutStart;
     try {
-      const { url } = await post<{ url: string }>("/api/billing/checkout", { provider, plan });
-      window.location.assign(url);
+      started = await post<CheckoutStart>("/api/billing/checkout", { provider, plan });
     } catch (e) {
       toast.error("Checkout couldn't start", e instanceof Error ? e.message : undefined);
       setBusy(null);
+      return;
+    }
+    if (started.provider !== "razorpay") return window.location.assign(started.url);
+    // Razorpay's own window, over this page: the candidate pays without leaving WonderWorks.
+    const outcome = await openRazorpayCheckout(started);
+    if (outcome.kind === "unavailable") return window.location.assign(started.url);
+    setBusy(null);
+    if (outcome.kind === "closed") return toast.info("Checkout closed", "Nothing was charged. You can upgrade any time.");
+    if (outcome.kind === "failed") return toast.error("The payment didn't go through", `${outcome.reason ?? "Razorpay declined it"}. Nothing was charged; try again or use another method.`);
+    const paidNow = { subscriptionId: outcome.subscriptionId, paymentId: outcome.paymentId, signature: outcome.signature };
+    setPaidRef(paidNow);
+    setWaiting(true);
+    try {
+      await post("/api/billing/confirm", paidNow);
+      const d = await load(true);
+      if (d && d.plan !== "free") {
+        setWaiting(false);
+        toast.success(`Welcome to ${d.plans?.[d.plan]?.label ?? started.planLabel}`, "Your payment is confirmed and every limit has moved up.");
+      }
+    } catch {
+      // Still confirming: the wait keeps asking Razorpay, and the webhook lands too.
     }
   };
   const portal = async () => {
@@ -89,7 +117,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
     setBusy("cancel");
     try {
       await post("/api/billing/cancel", { confirm: true });
-      toast.success("Cancellation requested", "Razorpay will confirm it shortly. You keep Pro until the end of the period you've paid for.");
+      toast.success("Cancellation requested", `Razorpay will confirm it shortly. You keep ${planLabel} until the end of the period you've paid for.`);
       setConfirmCancel(false);
       await load(true);
     } catch (e) {
@@ -104,6 +132,8 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
   const paid = data.plan !== "free";
   const planLabel = data.plans?.[data.plan]?.label ?? (paid ? "Pro" : "Free");
   const upgrades = (["pro", "max"] as const).filter((p) => PLAN_RANK[p] > PLAN_RANK[data.plan] && data.plans?.[p]);
+  const live = data.testing?.paymentsLive ?? ready.length > 0;
+  const payWith = ready.map((r) => BILLING_PROVIDERS[r.provider].name);
 
   return (
     <Card id="plan" className="mt-4 scroll-mt-20">
@@ -123,7 +153,9 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
         </div>
       </div>
 
-      {waiting && <p className="mt-3 rounded-[12px] bg-info-100 px-3 py-2 text-[13px] text-info-600" role="status">Waiting for the payment provider to confirm your payment. Your plan changes as soon as it does — usually within a few seconds.</p>}
+      {waiting && <p className="mt-3 rounded-[12px] bg-info-100 px-3 py-2 text-[13px] text-info-600" role="status">Payment received. Confirming it with {paidRef ? "Razorpay" : "the payment provider"}; your plan changes as soon as it does, usually within a few seconds.</p>}
+      {sub && (sub.status === "past_due" || sub.status === "unpaid") && <p className="mt-3 rounded-[12px] bg-warning-100 px-3 py-2 text-[13px] text-warning-600" role="status">Your last payment didn&apos;t go through. {BILLING_PROVIDERS[sub.provider].name} retries it automatically; check the mandate or card in your {sub.provider === "razorpay" ? "UPI or bank app" : "billing portal"}.</p>}
+      {sub && sub.cancelAtPeriodEnd && sub.currentPeriodEnd && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Cancelled. You keep {planLabel} until {formatDate(sub.currentPeriodEnd)} and won&apos;t be charged again.</p>}
       {!waiting && returnState === "success" && !paid && <p className="mt-3 rounded-[12px] bg-warning-100 px-3 py-2 text-[13px] text-warning-600" role="status">The payment provider hasn&apos;t confirmed your payment yet. If you completed it, your plan will update here once it does; you haven&apos;t been charged twice.</p>}
       {returnState === "cancelled" && !paid && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Checkout was closed before paying. Nothing was charged.</p>}
 
@@ -145,7 +177,7 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
       {data.testing?.allowed && !sub && (
         <div className="mt-4 rounded-[14px] border border-dashed border-brand-300 bg-brand-50/50 p-3">
           <p className="text-[13px] font-semibold text-ink">Try a plan — testing, no payment</p>
-          <p className="mt-0.5 text-[12px] text-ink-3">Switch to see exactly what each plan allows. Payments aren&apos;t connected yet, so nothing is charged.</p>
+          <p className="mt-0.5 text-[12px] text-ink-3">{live ? "Admin only: switch to see what each plan allows. Nothing is charged, and real subscriptions aren't touched." : "Switch to see exactly what each plan allows. Payments aren't connected yet, so nothing is charged."}</p>
           <div className="mt-2 grid grid-cols-3 gap-2" role="group" aria-label="Plan for testing">
             {(["free", "pro", "max"] as const).map((p) => (
               <Button
@@ -175,7 +207,11 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
         </div>
       )}
 
-      {ready.length > 0 && upgrades.length > 0 && (
+      {ready.length > 0 && upgrades.length > 0 && paid && sub && (
+        <p className="mt-3 text-[12.5px] text-ink-3">To move to {upgrades.map((p) => data.plans[p].label).join(" or ")}, cancel {planLabel}; once it ends, upgrade here.</p>
+      )}
+
+      {ready.length > 0 && upgrades.length > 0 && !(paid && sub) && (
         <ul className="mt-4 space-y-3">
           {upgrades.map((p) => {
             const l = data.plans[p];
@@ -203,12 +239,13 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
                   {l.applyWithWonder ? ", the WonderWorks helper" : ""}
                   {(l.highlights ?? []).map((h) => ` · ${h}`).join("")}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   {ready.map(({ provider }) => (
-                    <Button key={provider} size="sm" loading={busy === provider} disabled={!!busy} onClick={() => checkout(provider, p)} icon={<CreditCard className="size-4" aria-hidden />}>
-                      {l.label} · pay with {BILLING_PROVIDERS[provider].name}
+                    <Button key={provider} size="sm" loading={busy === `${provider}:${p}`} disabled={!!busy || waiting} onClick={() => checkout(provider, p)} icon={<CreditCard className="size-4" aria-hidden />}>
+                      {ready.length === 1 ? `Upgrade to ${l.label}` : `${l.label} · pay with ${BILLING_PROVIDERS[provider].name}`}
                     </Button>
                   ))}
+                  {ready.length === 1 && <span className="text-[12px] text-ink-3">{BILLING_PROVIDERS[ready[0].provider].methods} · cancel any time</span>}
                 </div>
               </li>
             );
@@ -216,16 +253,10 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
         </ul>
       )}
 
-      {!paid && (
-        <ul className="mt-3 space-y-1 text-[12.5px] text-ink-3">
-          {data.providers
-            .filter((p) => p.state !== "ready")
-            .map((p) => (
-              <li key={p.provider}>
-                {BILLING_PROVIDERS[p.provider].name}: {p.state === "needs_setup" ? "Needs setup — not connected on this deployment yet" : `Unavailable — ${p.reason}`}
-              </li>
-            ))}
-        </ul>
+      {!paid && ready.length === 0 && (
+        <p className="mt-3 text-[12.5px] text-ink-3">
+          {data.providers.some((p) => p.state === "unavailable") ? "Payments are unavailable just now. Try again in a little while." : "Paid plans open soon."}
+        </p>
       )}
 
       {data.payments.length > 0 && (
@@ -248,19 +279,19 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
 
       <p className="mt-4 flex items-start gap-1.5 text-[12px] text-ink-3">
         <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden />
-        You pay on Razorpay&apos;s or Stripe&apos;s own page. WonderWorks never sees your card, UPI or bank details.
+        You pay in {payWith.length ? payWith.join("'s or ") : "Razorpay"}&apos;s own secure window. WonderWorks never sees your card, UPI or bank details.
       </p>
 
       <Modal
         open={confirmCancel}
         onClose={() => setConfirmCancel(false)}
         title="Cancel your subscription?"
-        description="It stops at the end of the period you've already paid for — you keep Pro until then and won't be charged again. Razorpay confirms the change; until it does, this page shows your plan as it is."
+        description={`It stops at the end of the period you've already paid for: you keep ${planLabel} until then and won't be charged again. Razorpay confirms the change; until it does, this page shows your plan as it is.`}
         size="sm"
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirmCancel(false)}>
-              Keep Pro
+              Keep {planLabel}
             </Button>
             <Button variant="danger" loading={busy === "cancel"} onClick={cancel}>
               Cancel at period end
