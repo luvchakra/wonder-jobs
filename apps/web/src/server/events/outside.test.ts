@@ -72,6 +72,21 @@ describe("an outside event, as its source states it", () => {
     expect(outsidePlace(both)).toBe("Pune · also online");
   });
 
+  it("shows an online event once as Online when its source states the place as the word Online", () => {
+    // Devpost's hackathons: the place is "Online" and the event is online.
+    for (const place of ["Online", "online", "Virtual"]) {
+      const e = toOutsideEvent(conf({ locations: [place], attributes: { online: true } }), TODAY)!;
+      expect(e.location).toBe("");
+      expect(e.terms.online).toBe(true);
+      expect(e.workMode).toBe("remote");
+      expect(outsidePlace(e)).toBe("Online");
+    }
+    // The word alone is enough, even when the source didn't flag the event as online.
+    expect(outsidePlace(toOutsideEvent(conf({ locations: ["Online"], attributes: {} }), TODAY)!)).toBe("Online");
+    // A real place that merely contains the word is a place.
+    expect(outsidePlace(toOutsideEvent(conf({ locations: ["Online Park, Pune"], attributes: { online: true } }), TODAY)!)).toBe("Online Park, Pune · also online");
+  });
+
   it("leaves out what can't honestly be shown: no readable start date, no page, or already over", () => {
     expect(toOutsideEvent(conf({ attributes: { startDate: "soon" } }), TODAY)).toBeNull();
     expect(toOutsideEvent(conf({ canonicalApplyUrl: "javascript:alert(1)" }), TODAY)).toBeNull();
