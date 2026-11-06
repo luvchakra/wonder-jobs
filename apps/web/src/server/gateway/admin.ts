@@ -1,3 +1,4 @@
+import { gatewayAdminToken } from "./secrets";
 import { CATALOGUE, catalogueEntries, type CatalogueEntry } from "./catalogue";
 import { hostedGateway } from "./index";
 
@@ -106,7 +107,7 @@ export async function collectGatewaySource(sourceId: string, budgetMs?: number) 
 /** The gateway's own admin call, made in process with the deployment's admin token (never sent to a browser). */
 async function adminCall(path: string, body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
   const hosted = hostedGateway();
-  const token = process.env.GATEWAY_ADMIN_TOKEN;
+  const token = gatewayAdminToken();
   if (!hosted || !token) return { status: 503, body: { error: { code: "NOT_CONFIGURED", message: "The gateway is not configured on this deployment" } } };
   const r = await hosted.gateway.handle(new Request("https://gateway.internal" + path, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body ?? {}) }));
   return { status: r.status, body: (await r.json()) as Record<string, unknown> };

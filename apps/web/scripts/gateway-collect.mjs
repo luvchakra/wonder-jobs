@@ -14,7 +14,9 @@
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
 
-const REQUIRED = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SECRET_ENCRYPTION_KEY", "GATEWAY_ADMIN_TOKEN", "GATEWAY_CURSOR_SECRET", "WORKSLAKE_GATEWAY_URL", "WORKSLAKE_GATEWAY_API_KEY"];
+// The gateway's tokens and API key are derived from SECRET_ENCRYPTION_KEY (src/server/gateway/secrets.ts); email and
+// source keys come from Admin → Keys in the same database. So three secrets are all the runner needs.
+const REQUIRED = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SECRET_ENCRYPTION_KEY"];
 const check = process.env.WJ_RUNNER_CHECK === "1";
 const missing = REQUIRED.filter((k) => !process.env[k]?.trim());
 if (missing.length && !check) {

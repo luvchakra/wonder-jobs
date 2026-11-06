@@ -70,7 +70,7 @@ export default function ImportPage() {
       />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading rows={4} />}
-      {data && !data.gatewayConfigured && <Note tone="warning">The gateway isn&apos;t configured on this deployment (GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET), so only WorksLake&apos;s own sources bring listings in.</Note>}
+      {data && !data.gatewayConfigured && <Note tone="warning">The gateway isn&apos;t running on this deployment (it needs Supabase and SECRET_ENCRYPTION_KEY), so only WorksLake&apos;s own sources bring listings in.</Note>}
       {data && (
         <div className="flex flex-col gap-4">
           <ProgressBanner d={data} />

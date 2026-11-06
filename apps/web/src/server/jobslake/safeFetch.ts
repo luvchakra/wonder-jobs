@@ -49,7 +49,8 @@ type FetchResult = { status: number; contentType: string; text: string; finalUrl
  * for every search. Only a URL on the configured gateway's own origin under /v1/ is answered here; null otherwise.
  */
 async function inProcessGateway(url: URL, opts: SafeFetchOptions): Promise<FetchResult | null> {
-  const configured = process.env.WORKSLAKE_GATEWAY_URL;
+  const { gatewayUrl } = await import("@/server/gateway/secrets");
+  const configured = gatewayUrl();
   if (!configured || !url.pathname.startsWith("/v1/")) return null;
   let origin: string;
   try {
