@@ -158,6 +158,8 @@ export function rawFromJSearch(j: JSearchJob): RawPosting | null {
     title: j.job_title.trim(),
     company: (j.employer_name ?? "").trim(),
     ...(domain ? { companyDomain: domain } : {}),
+    // The employer's own logo (Google's copy of it), never the board's.
+    ...(j.employer_logo ? { companyLogo: j.employer_logo } : {}),
     location: j.job_is_remote && !place ? "Remote" : place,
     remote: !!j.job_is_remote,
     description: (j.job_description ?? "").trim(),

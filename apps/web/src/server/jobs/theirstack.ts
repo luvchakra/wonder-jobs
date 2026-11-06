@@ -81,7 +81,7 @@ export interface TheirStackJob {
   salary_currency?: string | null;
   company?: string | null;
   company_domain?: string | null;
-  company_object?: { name?: string; domain?: string; industry?: string | null; is_recruiting_agency?: boolean; employee_count?: number | null; employee_count_range?: string | null; country?: string | null; founded_year?: number | null; funding_stage?: string | null; publicly_traded_symbol?: string | null; has_blurred_data?: boolean } | null;
+  company_object?: { name?: string; domain?: string; logo?: string | null; industry?: string | null; is_recruiting_agency?: boolean; employee_count?: number | null; employee_count_range?: string | null; country?: string | null; founded_year?: number | null; funding_stage?: string | null; publicly_traded_symbol?: string | null; has_blurred_data?: boolean } | null;
   technology_slugs?: string[] | null;
   employment_statuses?: string[] | null;
 }
@@ -117,6 +117,7 @@ export function rawFromTheirStack(j: TheirStackJob): RawPosting | null {
     title: j.job_title,
     company: j.company_object?.name || j.company || "",
     companyDomain: j.company_domain || j.company_object?.domain || undefined,
+    companyLogo: j.company_object?.logo || undefined,
     location: j.location || j.locations?.[0]?.display_name || j.short_location || j.country || (j.remote ? "Remote" : ""),
     remote: j.remote ?? undefined,
     description: j.description ?? "",
