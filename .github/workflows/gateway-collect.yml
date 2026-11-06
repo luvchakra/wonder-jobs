@@ -4,11 +4,10 @@
 # every module's Find and emails the admins. The site is never called. "Run workflow" by hand starts an Import now
 # (mode=all) or Import this module (mode=module), as the admin's buttons do (they dispatch this workflow).
 #
-# Repository secrets (Settings → Secrets and variables → Actions): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
-# SECRET_ENCRYPTION_KEY (the exact value the site uses), GATEWAY_ADMIN_TOKEN, GATEWAY_CURSOR_SECRET,
-# WORKSLAKE_GATEWAY_API_KEY; variable SITE_URL. Email and every source's key come from Admin → Keys, which this runner
-# reads from the same encrypted store (so no mail secrets here).
-# Until SUPABASE_SERVICE_ROLE_KEY and GATEWAY_ADMIN_TOKEN exist, the last step calls the site instead (CRON_SECRET).
+# Repository secrets (Settings → Secrets and variables → Actions): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and
+# SECRET_ENCRYPTION_KEY (the exact value the site uses); variable SITE_URL. That's all: the gateway's tokens are derived
+# from the encryption key, and email and every source's key come from Admin → Keys in the same database.
+# Until those secrets exist, the last step calls the site instead (CRON_SECRET).
 name: Gateway collection
 
 on:
@@ -43,7 +42,7 @@ jobs:
     timeout-minutes: 45
     env:
       SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
-      RUNNER_READY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.GATEWAY_ADMIN_TOKEN != '' }}
+      RUNNER_READY: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.SECRET_ENCRYPTION_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
         if: env.RUNNER_READY == 'true'
@@ -62,11 +61,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SECRET_ENCRYPTION_KEY: ${{ secrets.SECRET_ENCRYPTION_KEY }}
-          GATEWAY_ADMIN_TOKEN: ${{ secrets.GATEWAY_ADMIN_TOKEN }}
-          GATEWAY_CURSOR_SECRET: ${{ secrets.GATEWAY_CURSOR_SECRET }}
-          WORKSLAKE_GATEWAY_ENABLED: "1"
-          WORKSLAKE_GATEWAY_URL: ${{ env.SITE }}
-          WORKSLAKE_GATEWAY_API_KEY: ${{ secrets.WORKSLAKE_GATEWAY_API_KEY }}
           NEXT_PUBLIC_SITE_URL: ${{ env.SITE }}
           WJ_COLLECT_MODE: ${{ inputs.mode || 'scheduled' }}
           WJ_COLLECT_MODULE: ${{ inputs.module }}
@@ -80,7 +74,7 @@ jobs:
         # The earlier way: each call collects what fits in the site's 60 s and answers with `next`; this loop calls each
         # `next`. It costs the site's CPU, which is what the runner is for: add the secrets listed at the top.
         run: |
-          echo "::warning::The collection runner's secrets aren't set (SUPABASE_SERVICE_ROLE_KEY, GATEWAY_ADMIN_TOKEN, …), so this run calls the site instead. Add them: see the comment at the top of this workflow."
+          echo "::warning::The collection runner's secrets aren't set (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SECRET_ENCRYPTION_KEY), so this run calls the site instead. Add them: see the comment at the top of this workflow."
           if [ -z "$CRON_SECRET" ]; then echo "::warning::CRON_SECRET isn't set either: nothing collected."; exit 0; fi
           url="$SITE/api/cron/gateway-collect"
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then url="$url?hop=1"; fi

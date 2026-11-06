@@ -11,6 +11,7 @@
  * Not here, on purpose: Urban Company, Justdial, Upwork and Fiverr publish no open search API, and WorksLake never
  * scrapes a site against its terms. Local, visit-based services therefore come only from pros who post on WonderWorks.
  */
+import { gatewayConfigured } from "@/server/gateway/secrets";
 import type { Job } from "@/domain/jobs/types";
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
 import { finish, getJson, type SearchCriteria } from "@/server/jobs/providers";
@@ -77,7 +78,7 @@ export const SERVICES_SOURCES: SourceRecord[] = [
 ];
 
 /** Whether this deployment can ask the source now. The first two need no credential; OpenStreetMap needs the data gateway. */
-export const servicesSourceAvailable = (s: SourceRecord) => fixtureJobsOn() || (s.id === OPENSTREETMAP || s.id === HOUZZ || s.id === WEDMEGOOD ? !!process.env.GATEWAY_ADMIN_TOKEN && !!process.env.GATEWAY_CURSOR_SECRET : SERVICES_SOURCES.some((x) => x.id === s.id));
+export const servicesSourceAvailable = (s: SourceRecord) => fixtureJobsOn() || (s.id === OPENSTREETMAP || s.id === HOUZZ || s.id === WEDMEGOOD ? gatewayConfigured() : SERVICES_SOURCES.some((x) => x.id === s.id));
 
 /** One user of Freelancer.com's directory, only the fields asked for. */
 export interface FreelancerUser {

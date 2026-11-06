@@ -1,8 +1,10 @@
 /**
  * Optional WorksLake gateway ingestion. No legacy source is changed or replaced.
- * Sources appear only when WORKSLAKE_GATEWAY_ENABLED=1 and a valid base URL is set.
+ * Sources appear when the gateway is on (WORKSLAKE_GATEWAY_ENABLED, by default whenever the hosted gateway runs) and its
+ * address (WORKSLAKE_GATEWAY_URL, by default this site) is a valid https origin.
  * They start in Draft and require the normal live source test + admin activation.
  */
+import { gatewayBridgeOn, gatewayUrl } from "@/server/gateway/secrets";
 import { MODULES, type ModuleId } from "@/modules/registry";
 import { MODULE_IDS } from "@/wonderworks/manifest";
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
@@ -17,12 +19,15 @@ import { DEFAULT_LIMITS, type SourceRecord } from "./types";
 const NO_ORG: Partial<Record<string, { defaultEmployer: string }>> = { scholarships: { defaultEmployer: "Provider not stated" } };
 
 const prefix = "works_gateway_";
-const base = process.env.WORKSLAKE_GATEWAY_URL?.replace(/\/$/, "") ?? "";
+// The gateway's address and whether WorksLake reads it: the deployment's settings, else this site and on whenever the
+// hosted gateway is (server/gateway/secrets.ts, owner 2026-11-06).
+const base = () => gatewayUrl();
 function enabled() {
-  if (process.env.WORKSLAKE_GATEWAY_ENABLED !== "1" || !base) return false;
+  const b = base();
+  if (!gatewayBridgeOn() || !b) return false;
   try {
-    const u = new URL(base);
-    return u.protocol === "https:" && !u.username && !u.password && !u.port && checkDestination(base).ok && !u.pathname.replaceAll("/", "");
+    const u = new URL(b);
+    return u.protocol === "https:" && !u.username && !u.password && !u.port && checkDestination(b).ok && !u.pathname.replaceAll("/", "");
   } catch { return false; }
 }
 
@@ -60,7 +65,7 @@ export const GATEWAY_SOURCES: SourceRecord[] = enabled() ? MODULE_IDS.map((modul
   // Active whenever the gateway is configured (owner, 2026-11-02: one import pipeline, no second approval here): every
   // gateway source was already tested and activated by an admin in the gateway itself.
   status: "active",
-  config: { kind: "json_api", api: { endpoint: base + "/v1/workslake/" + module + "/listings", queryParam: "q", locationParam: "location", credentialHeader: "Authorization", credentialPrefix: "Bearer ", mapping: { itemsPath: "items", fields: FIELDS, attributesPath: "attributes", kindPath: "kind", domainPath: "employerDomain", ...NO_ORG[module] }, pagination: { cursorParam: "cursor", nextCursorPath: "nextCursor", pageSize: 100 } } },
+  config: { kind: "json_api", api: { endpoint: base() + "/v1/workslake/" + module + "/listings", queryParam: "q", locationParam: "location", credentialHeader: "Authorization", credentialPrefix: "Bearer ", mapping: { itemsPath: "items", fields: FIELDS, attributesPath: "attributes", kindPath: "kind", domainPath: "employerDomain", ...NO_ORG[module] }, pagination: { cursorParam: "cursor", nextCursorPath: "nextCursor", pageSize: 100 } } },
   secretRef: "env:WORKSLAKE_GATEWAY_API_KEY",
   limits: { ...DEFAULT_LIMITS, timeoutMs: 12000, maxResults: 100 },
   roleFamilies: [],
