@@ -2,7 +2,9 @@
 export { shortSourceNames } from "./sourceName";
 import { shortSourceNames } from "./sourceName";
 import { ListingShare, type ListingShareProps } from "@/wonderworks/listing/ShareButton";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { TOP_FIND_ID } from "@/wonderworks/chrome/topFind";
 import { ArrowLeft, ArrowRight, Bookmark, CheckCircle2, ChevronDown, History, Search, SlidersHorizontal, X } from "lucide-react";
 import { Chip, Input, Select } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
@@ -63,16 +65,38 @@ export function closeKeyboard() {
 /**
  * Find's search form, the same in every module (owner, 2026-11-06: "design the tablet and desktop ui … DO NOT CHANGE
  * MOBILE"). Phones and tablets: the box, then the row of Refine, the module's pills and Search under it. From 1024px:
- * one row, the box and the pills each at a set width, so nothing stretches across a wide screen.
+ * one row in the top bar (InTopBar; owner, 2026-11-06: "move the attached to the top navbar"), the box taking what's
+ * left up to a set width, and Refine just before Search ("move the refine option to right, just before the search").
  */
-export const FIND_FORM = "flex flex-col gap-2 lg:flex-row lg:items-center";
+export const FIND_FORM = "flex flex-col gap-2 lg:min-w-0 lg:flex-1 lg:flex-row lg:items-center";
+/** The search box (or Full Time's role line) in the top bar's row: what the row leaves, never wider than a set width. */
+export const FIND_TOP_BOX = "lg:min-w-0 lg:max-w-[32rem] lg:flex-1";
 // A set width, not the whole row (owner, 2026-11-06: "don't have so long search boxes, shorten them to look elegant").
 export const FIND_BOX = "lg:w-[26rem] lg:flex-none xl:w-[30rem]";
 export const FIND_ROW = "flex items-center gap-2 lg:shrink-0";
 /** The row's first, wide pill (a place, a time): fills the row on phones and tablets, a set width beside the box from 1024px. */
-export const FIND_PILL_WIDE = "min-w-0 flex-auto lg:w-56 lg:flex-none";
+export const FIND_PILL_WIDE = "min-w-0 flex-auto lg:w-44 lg:flex-none xl:w-56";
+/** From 1024px Refine sits after the module's pills, just before Search (which comes last). Phones and tablets: first. */
+export const FIND_REFINE = "lg:order-1";
+export const FIND_SUBMIT = "lg:order-2";
 /** What Refine opens over from 1024px (the search area holding the form and the panel). */
 export const FIND_AREA = "relative";
+
+/**
+ * From 1024px, shows its children in the top bar (TopBar.tsx's TOP_FIND_ID place) instead of here; phones and tablets
+ * keep them in the page. A portal, so the form keeps its state and handlers wherever it shows.
+ */
+export function InTopBar({ children }: { children: React.ReactNode }) {
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const update = () => setTarget(wide.matches ? document.getElementById(TOP_FIND_ID) : null);
+    update();
+    wide.addEventListener("change", update);
+    return () => wide.removeEventListener("change", update);
+  }, []);
+  return target ? createPortal(children, target) : <>{children}</>;
+}
 
 /** The search box: the magnifier, the words, clear and the microphone, and the recent searches while it has focus. */
 export function SearchBox({ value, onValue, onClear, placeholder, label, dictation, dictateLabel, focused, onFocused, history, onPick, onForget, className }: { value: string; onValue: (text: string) => void; onClear: () => void; placeholder: string; label: string; dictation: Dictation; dictateLabel: string; focused: boolean; onFocused: (on: boolean) => void; history: string[]; onPick: (t: string) => void; onForget: (t: string) => void; className?: string }) {
@@ -216,9 +240,9 @@ export function PillButton({ label, shown, open, onClick, className }: { label: 
 }
 
 /** The round Search button that ends the row. */
-export function SearchSubmit({ label }: { label: string }) {
+export function SearchSubmit({ label, className }: { label: string; className?: string }) {
   return (
-    <button type="submit" aria-label={label} title={label} className="wj-gradient-bg grid size-10 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600">
+    <button type="submit" aria-label={label} title={label} className={cn("wj-gradient-bg grid size-10 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600", className)}>
       <ArrowRight className="size-5" aria-hidden />
     </button>
   );

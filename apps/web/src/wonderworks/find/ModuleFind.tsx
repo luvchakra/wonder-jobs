@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { moduleStore } from "@/wonderworks/store";
 import type { ModuleId } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
-import { ChoiceChips, DictationNotes, FIND_AREA, FIND_BOX, FIND_FORM, FIND_PILL_WIDE, FIND_ROW, PillButton, closeKeyboard, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
+import { ChoiceChips, DictationNotes, FIND_AREA, FIND_FORM, FIND_PILL_WIDE, FIND_REFINE, FIND_ROW, FIND_SUBMIT, FIND_TOP_BOX, InTopBar, PillButton, closeKeyboard, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
 
 /**
  * A WonderWorks module's Find (docs/WONDERWORKS_PLATFORM.md §4.1), with the jobs portal's structure and parts: the
@@ -236,41 +236,43 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
         </SearchingBanner>
       )}
       <div className={cn(FIND_AREA, "mb-3 flex flex-col gap-2")}>
-        <form
-          className={FIND_FORM}
-          onSubmit={(e) => {
-            e.preventDefault();
-            setBoxFocused(false);
-            void go();
-          }}
-        >
-          <SearchBox
-            value={draft}
-            onValue={setTyped}
-            onClear={() => setTyped("")}
-            placeholder={placeholder}
-            label={`Search ${noun.many}`}
-            dictation={dictation}
-            dictateLabel="what you're looking for"
-            focused={boxFocused}
-            onFocused={setBoxFocused}
-            history={historyFor(recent, draft)}
-            onPick={(t) => {
-              setTyped(t);
-              void go(t);
+        <InTopBar>
+          <form
+            className={FIND_FORM}
+            onSubmit={(e) => {
+              e.preventDefault();
+              setBoxFocused(false);
+              void go();
             }}
-            onForget={(t) => forget(t)}
-            className={FIND_BOX}
-          />
-          {/* Refine, the module's own two facets and the search — one row, as on Jobs' Find. */}
-          <div className={FIND_ROW}>
-            <RefineToggle open={more} count={count} onToggle={() => (more ? setMore(false) : openRefine())} />
-            {pills.map((p, i) => (
-              <PillButton key={p.key} label={p.label} shown={p.pill!(shownValues[p.key])} open={more} onClick={() => openRefine(p.key)} className={i === 0 ? FIND_PILL_WIDE : "shrink-0"} />
-            ))}
-            <SearchSubmit label="Search" />
-          </div>
-        </form>
+          >
+            <SearchBox
+              value={draft}
+              onValue={setTyped}
+              onClear={() => setTyped("")}
+              placeholder={placeholder}
+              label={`Search ${noun.many}`}
+              dictation={dictation}
+              dictateLabel="what you're looking for"
+              focused={boxFocused}
+              onFocused={setBoxFocused}
+              history={historyFor(recent, draft)}
+              onPick={(t) => {
+                setTyped(t);
+                void go(t);
+              }}
+              onForget={(t) => forget(t)}
+              className={FIND_TOP_BOX}
+            />
+            {/* Refine, the module's own two facets and the search — one row, as on Jobs' Find; from 1024px Refine sits just before Search. */}
+            <div className={FIND_ROW}>
+              <RefineToggle open={more} count={count} onToggle={() => (more ? setMore(false) : openRefine())} className={FIND_REFINE} />
+              {pills.map((p, i) => (
+                <PillButton key={p.key} label={p.label} shown={p.pill!(shownValues[p.key])} open={more} onClick={() => openRefine(p.key)} className={i === 0 ? FIND_PILL_WIDE : "shrink-0"} />
+              ))}
+              <SearchSubmit label="Search" className={FIND_SUBMIT} />
+            </div>
+          </form>
+        </InTopBar>
         <DictationNotes dictation={dictation} hint={dictateHint} />
         {more && (
           <RefinePanel

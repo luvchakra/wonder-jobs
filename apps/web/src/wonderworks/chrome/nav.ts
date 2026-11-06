@@ -1,4 +1,4 @@
-import { Bookmark, CalendarCheck, CalendarClock, CalendarHeart, ChartNoAxesColumn, Handshake, LayoutList, LifeBuoy, Search, UserRound, type LucideIcon } from "lucide-react";
+import { Bookmark, CalendarCheck, CalendarClock, CalendarHeart, Handshake, LayoutList, LifeBuoy, Search, UserRound, type LucideIcon } from "lucide-react";
 import type { ModuleManifest } from "@/wonderworks/manifest";
 
 export interface NavItem {
@@ -11,9 +11,6 @@ export interface NavItem {
 
 /** A match for a page and everything under it. */
 export const under = (...paths: string[]) => (p: string) => paths.some((x) => p === x || p.startsWith(`${x}/`));
-
-/** Below the four places in the desktop sidebar (and in the account menu on phones): the candidate's own numbers. */
-export const REPORT_NAV: NavItem[] = [{ href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn }];
 
 export const RESOURCES_NAV: NavItem[] = [
   // Signed-in accounts only (WJ-309). Signed-out visitors get sign-in, password reset and Contact us instead.

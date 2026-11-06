@@ -4,19 +4,10 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/motion";
 import { WonderLogo } from "@/components/brand/WonderLogo";
-import { Bell, Bot, LifeBuoy, Sparkles } from "lucide-react";
 import { TINTS } from "@/wonderworks/brand/tiles";
-import { REPORT_NAV, isActivePath, type NavItem } from "./nav";
+import { isActivePath, type NavItem } from "./nav";
 import { useModuleNav } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
-
-/** The desktop sidebar's settings, at its foot (from 1024px; on phones and tablets they're in the avatar menu). */
-const SETTINGS_NAV: NavItem[] = [
-  { href: "/app/notifications", label: "Notifications", icon: Bell, match: (p) => p === "/app/notifications" || p.startsWith("/app/settings/notifications") },
-  { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation") },
-  { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
-  { href: "/help", label: "Help & Guide", icon: LifeBuoy },
-];
 
 /** A heading over a group of the sidebar's links (desktop only). */
 function GroupLabel({ children }: { children: React.ReactNode }) {
@@ -56,7 +47,7 @@ function ModuleList() {
   );
 }
 
-function NavLink({ item, pathname, collapsed, compact }: { item: NavItem; pathname: string; collapsed: boolean; /** The desktop sidebar's smaller settings links. */ compact?: boolean }) {
+function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: string; collapsed: boolean }) {
   const active = isActivePath(pathname, item);
   const Icon = item.icon;
   return (
@@ -67,7 +58,7 @@ function NavLink({ item, pathname, collapsed, compact }: { item: NavItem; pathna
       title={collapsed ? item.label : undefined}
       className={cn(
         "group flex items-center gap-3 rounded-[12px] px-3 font-medium transition-colors",
-        compact ? "h-9 text-[13.5px]" : "h-11 text-[14px]",
+        "h-11 text-[14px]",
         active ? "bg-brand-50 text-brand-700" : "text-ink-2 hover:bg-bg-soft hover:text-ink",
         collapsed && "justify-center px-0",
       )}
@@ -79,10 +70,11 @@ function NavLink({ item, pathname, collapsed, compact }: { item: NavItem; pathna
 }
 
 /**
- * Sidebar from 768px. Tablets (768–1023px): icons only, the module's four places and Analytics. Desktops (owner,
- * 2026-11-06: "get different kind of menus in the sidebar as it has enough space now"): the four places, the Modules
- * list (in place of the top bar's menu), Analytics, and the settings at the foot. Below 768px the bottom bar (MobileNav)
- * takes over, and none of this shows.
+ * Sidebar from 768px. Tablets (768–1023px): icons only, the module's four places. Desktops (owner, 2026-11-06: "get
+ * different kind of menus in the sidebar as it has enough space now"): the four places and the Modules list (in place
+ * of the top bar's menu). Analytics and the settings (Notifications, Automation, AI provider, Help) left the sidebar
+ * (owner, 2026-11-06: "remove these from left sidebar"); they're in the avatar menu, and Notifications on the bell.
+ * Below 768px the bottom bar (MobileNav) takes over, and none of this shows.
  */
 export function Sidebar() {
   const pathname = usePathname();
@@ -99,19 +91,6 @@ export function Sidebar() {
         ))}
       </nav>
       {!collapsed && <ModuleList />}
-      <nav aria-label="Reports" className="mt-3 flex shrink-0 flex-col gap-0.5 border-t border-line pt-3">
-        {REPORT_NAV.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
-        ))}
-      </nav>
-      {!collapsed && (
-        <nav aria-label="Settings" className="mb-4 mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line pt-3">
-          <GroupLabel>Settings</GroupLabel>
-          {SETTINGS_NAV.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} collapsed={false} compact />
-          ))}
-        </nav>
-      )}
     </aside>
   );
 }
