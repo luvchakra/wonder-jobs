@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 3
     env:
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
-      SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
+      SITE: ${{ vars.SITE_URL || 'https://works.wonderapps.biz' }}
     steps:
       - name: Raise due reminders
         run: |

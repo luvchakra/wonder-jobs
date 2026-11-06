@@ -31,7 +31,7 @@ export default function CareersAdminPage() {
   const k = data?.key;
   return (
     <>
-      <PageTitle title="Our careers page" subtitle="WonderWorks' own careers page (jobs.wonderapps.biz/careers) and the key it reads its openings with. Encrypted on the server and shown only masked." />
+      <PageTitle title="Our careers page" subtitle="WonderWorks' own careers page (works.wonderapps.biz/careers) and the key it reads its openings with. Encrypted on the server and shown only masked." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {k && (
@@ -77,7 +77,7 @@ export default function CareersAdminPage() {
               )}
             </form>
           </Panel>
-          <Note>Register https://jobs.wonderapps.biz/careers as the site&apos;s Careers page address. Every save and clear is in the audit log with who, when and the last four characters.</Note>
+          <Note>Register https://works.wonderapps.biz/careers as the site&apos;s Careers page address. Every save and clear is in the audit log with who, when and the last four characters.</Note>
         </div>
       )}
     </>

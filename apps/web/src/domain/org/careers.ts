@@ -44,7 +44,7 @@ export interface CareerSite {
   notifyEmails: string[];
   /** Months its applications are kept after their last update, then deleted. Missing on older sites. */
   retentionMonths?: number;
-  /** Set when WonderJobs hosts the page: https://jobs.wonderapps.biz/careers/<slug>. */
+  /** Set when WonderJobs hosts the page: https://works.wonderapps.biz/careers/<slug>. */
   slug?: string;
   /** The key's last four characters, so people can tell keys apart. The key itself is shown once. */
   keyHint: string;

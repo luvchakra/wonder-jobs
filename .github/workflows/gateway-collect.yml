@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
+      SITE: ${{ vars.SITE_URL || 'https://works.wonderapps.biz' }}
       RUNNER_READY: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.SECRET_ENCRYPTION_KEY != '' }}
     steps:
       - uses: actions/checkout@v4

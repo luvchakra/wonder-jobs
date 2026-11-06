@@ -42,7 +42,7 @@ env:
   # The production Supabase project. Refused unless E2E_ALLOW_PRODUCTION is "true" (pre-launch only).
   E2E_FORBIDDEN_SUPABASE_REFS: tybkklggpifpsmsidhok
   E2E_ALLOW_PRODUCTION: "true"
-  PRODUCTION_URL: https://jobs.wonderapps.biz
+  PRODUCTION_URL: https://works.wonderapps.biz
 
 jobs:
   e2e:

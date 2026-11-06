@@ -5,7 +5,7 @@
  * asks the public Overpass servers, one query at a time with a pause between them and a polite User-Agent, then
  * delivers the businesses to the app, which maps and checks them like the source's own fetch (/api/cron/gateway-ingest).
  *
- * Env: SITE (e.g. https://jobs.wonderapps.biz), CRON_SECRET. Optional: ONLY (a catalogue file name to run alone).
+ * Env: SITE (e.g. https://works.wonderapps.biz), CRON_SECRET. Optional: ONLY (a catalogue file name to run alone).
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const SOURCES = join(dirname(fileURLToPath(import.meta.url)), "..", "sources");
 const HOSTS = ["overpass-api.de", "overpass.private.coffee", "overpass.kumi.systems"];
-const UA = "WorksLakeGateway/1.0 (WonderWorks weekly OpenStreetMap collection; +https://jobs.wonderapps.biz)";
+const UA = "WorksLakeGateway/1.0 (WonderWorks weekly OpenStreetMap collection; +https://works.wonderapps.biz)";
 const PAUSE_MS = 10_000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
