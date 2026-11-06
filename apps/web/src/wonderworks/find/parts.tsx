@@ -77,8 +77,11 @@ export const FIND_PILL_WIDE = "min-w-0 flex-auto lg:w-44 lg:flex-none xl:w-56";
 /** From 1024px Refine sits after the module's pills, just before Search (which comes last). Phones and tablets: first. */
 export const FIND_REFINE = "lg:order-1";
 export const FIND_SUBMIT = "lg:order-2";
-/** What Refine opens over from 1024px (the search area holding the form and the panel). */
-export const FIND_AREA = "relative";
+/**
+ * What Refine opens over from 1024px (the search area holding the form and the panel). From 1024px it stays at the top
+ * of the window while the results scroll under it (owner, 2026-11-06: "while scrolling the page, dont scroll up this").
+ */
+export const FIND_AREA = "relative lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:-mt-5 lg:bg-bg/95 lg:px-8 lg:pb-3 lg:pt-5 lg:backdrop-blur";
 
 /** The search box: the magnifier, the words, clear and the microphone, and the recent searches while it has focus. */
 export function SearchBox({ value, onValue, onClear, placeholder, label, dictation, dictateLabel, focused, onFocused, history, onPick, onForget, className }: { value: string; onValue: (text: string) => void; onClear: () => void; placeholder: string; label: string; dictation: Dictation; dictateLabel: string; focused: boolean; onFocused: (on: boolean) => void; history: string[]; onPick: (t: string) => void; onForget: (t: string) => void; className?: string }) {

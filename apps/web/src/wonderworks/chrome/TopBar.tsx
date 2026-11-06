@@ -16,9 +16,9 @@ import { toast } from "@/components/feedback/Toast";
 import dynamic from "next/dynamic";
 // Ask Wonder's palette (and the intent parser behind it) loads the first time it's opened, not with every page.
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
-import { notificationsFor, visibleNotifications } from "@/domain/career/notifications";
 import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { NotificationBell } from "./NotificationBell";
 import { useMediaQuery } from "@/lib/motion";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
@@ -36,10 +36,10 @@ function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void)
 }
 
 /**
- * The account controls: the bell (Notifications) and the avatar (the account menu), plus ⌘K. Phones and tablets: a
+ * The account controls: the avatar (the account menu) and, on phones and tablets, the bell (NotificationBell), plus ⌘K. Phones and tablets: a
  * bar across the top, with the module menu. From 1024px there is no top bar (owner, 2026-11-06: "remove the concept of
  * top navbar completely, bring the avatar and notifications in sidebar bottom left"): the sidebar lists the modules,
- * and its foot holds the avatar, the name and the bell (`place="side"`). Only one of the two renders at a time.
+ * its foot holds the avatar and the name (`place="side"`), and the bell sits beside the logo at its top. Only one of the two renders at a time.
  */
 export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   const wide = useMediaQuery("(min-width: 1024px)");
@@ -56,13 +56,9 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   const userId = useAuthStore((s) => s.userId);
   const email = useAuthStore((s) => s.email);
   const displayName = dna.name || email?.split("@")[0] || "You";
-  const notifications = useCareerStore((s) => s.notifications);
-  // The bell follows the module selected: its own notifications (and the account's), and its own Needs attention.
   const selected = useSelectedModule();
-  const shown = hydrated ? visibleNotifications(notificationsFor(notifications, selected)) : [];
-  const unread = shown.filter((n) => !n.read).length;
   // The bell's Needs attention count and the career status come from the modules (WonderJobs: its applications), through the chrome's slots.
-  const { tasks, careerStatus } = slots.useStatus(hydrated, selected);
+  const { careerStatus } = slots.useStatus(hydrated, selected);
   const { available: canInstall, promptInstall } = useInstallPrompt();
   const profileRef = useRef<HTMLDivElement>(null);
   useOutside(profileRef, () => setProfileOpen(false));
@@ -168,23 +164,12 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
     </div>
   );
 
-  const bell = (
-  <Link href="/app/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}${tasks ? `, ${tasks} need attention` : ""}`} title="Notifications" className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
-    <Bell className="size-5" aria-hidden />
-    {tasks > 0 ? (
-      <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white" aria-hidden>
-        {tasks > 9 ? "9+" : tasks}
-      </span>
-    ) : (
-      unread > 0 && <span className="absolute right-2 top-2 size-2 rounded-full bg-danger-600 ring-2 ring-surface" aria-hidden />
-    )}
-  </Link>
-  );
-
+  // Pinned to the sidebar's bottom left (owner, 2026-11-06: "fix the avatar to bottom left, so rest of menus can go
+  // behind it and scroll"): the sidebar's lists scroll under it.
   if (place === "side") {
     if (!wide) return null;
     return (
-      <div className="relative mb-3 mt-auto flex shrink-0 items-center gap-1 border-t border-line pt-3" ref={profileRef}>
+      <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex shrink-0 items-center gap-1 border-t border-line bg-surface px-4 py-2" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] p-1.5 text-left hover:bg-bg-soft">
           <FlipAvatar name={displayName} />
           <span className="min-w-0">
@@ -192,7 +177,6 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
             <span className="block truncate text-[11.5px] leading-tight text-ink-3">{careerStatus}</span>
           </span>
         </button>
-        {bell}
         {/* Over the page, not inside the sidebar (whose scroll would clip it); data-menu-trigger keeps clicks in it from closing it first. */}
         {profileOpen && createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body)}
         {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
@@ -212,7 +196,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
           on the badge). Ask Wonder is under You, and ⌘K on a computer. */}
-      {bell}
+      <NotificationBell />
 
       <div className="relative order-[-3] md:order-none" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">
