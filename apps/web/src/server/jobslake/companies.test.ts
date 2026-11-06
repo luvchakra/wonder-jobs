@@ -177,3 +177,34 @@ describe("schools listed on a government job board", () => {
     expect(companiesFrom([opp("Outwood Academy Ormesby", "gov.uk", "https://teaching-vacancies.service.gov.uk/jobs/1")])).toEqual([]);
   });
 });
+
+describe("a company known only by name gets its logo (2026-11-06: Devpost's “PayPal”)", () => {
+  const wikidata = (label: string, claims: Record<string, unknown[]>) =>
+    vi.fn(async (url: string) => {
+      if (url.includes("wbsearchentities")) return Response.json({ search: [{ id: "Q483959", label }] });
+      if (url.includes("wbgetentities")) return Response.json({ entities: { Q483959: { claims } } });
+      if (url.includes("paypal.com")) return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(400).fill(1)]), { status: 200, headers: { "content-type": "image/png" } });
+      return new Response(null, { status: 404 });
+    });
+  const site = (v: string) => ({ mainsnak: { datavalue: { value: v } } });
+
+  it("finds it once by its exact name, keeps it under its own domain, and serves its logo", async () => {
+    const fetcher = wikidata("PayPal", { P856: [site("https://www.paypal.com/")], P31: [{ mainsnak: { datavalue: { value: { id: "Q4830453" } } } }] });
+    const logo = await companyLogo({ name: "paypal" }, Date.now(), fetcher as unknown as typeof fetch);
+    expect(logo?.type).toBe("image/png");
+    expect(fetcher.mock.calls.some(([u]) => String(u).includes("paypal.com"))).toBe(true);
+    // Kept under paypal.com: the next ask by name or by domain needs no search.
+    fetcher.mockClear();
+    expect((await companyLogo({ domain: "paypal.com" }, Date.now() + 20 * 60_000, fetcher as unknown as typeof fetch))?.type).toBe("image/png");
+    expect(fetcher.mock.calls.some(([u]) => String(u).includes("wikidata"))).toBe(false);
+  });
+
+  it("never guesses: a different label, a person or no official website finds nothing", async () => {
+    const cases: [string, ReturnType<typeof wikidata>][] = [
+      ["paypal holdings", wikidata("PayPal Mafia", { P856: [site("https://paypal.com")] })],
+      ["pay pal", wikidata("Pay Pal", { P31: [{ mainsnak: { datavalue: { value: { id: "Q5" } } } }], P856: [site("https://x.org")] })],
+      ["payco", wikidata("Payco", {})],
+    ];
+    for (const [name, f] of cases) expect(await companyLogo({ name }, Date.now(), f as unknown as typeof fetch)).toBeUndefined();
+  });
+});
