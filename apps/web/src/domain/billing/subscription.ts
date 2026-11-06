@@ -1,5 +1,6 @@
 import type { PaidPlanId } from "./plans";
 import type { BillingEvent, Entitlement, Subscription } from "./types";
+import { isPrepaid } from "./prepaid";
 
 /**
  * Applying a verified billing event to the stored subscription. Deterministic
@@ -74,11 +75,16 @@ const fmt = (isoDate: string) => new Date(isoDate).toLocaleDateString("en-GB", {
  * What the candidate is entitled to, and why, from the stored subscription. Fails closed to Free.
  * `paidPlan` says which paid plan the subscription's price buys (Pro when not given).
  */
-export function entitlementFor(sub: Subscription | undefined, paidPlan?: (planRef: string | undefined) => PaidPlanId): Entitlement {
+export function entitlementFor(sub: Subscription | undefined, paidPlan?: (planRef: string | undefined) => PaidPlanId, now = new Date()): Entitlement {
   if (!sub) return { plan: "free", reason: "No subscription" };
   const until = sub.currentPeriodEnd;
   const paid = paidPlan?.(sub.planRef) ?? "pro";
   const label = paid === "max" ? "Max" : "Pro";
+  // A paid month ends on its date: nothing renews it, so the date itself is the end (no provider notice comes).
+  if (isPrepaid(sub) && sub.status === "active") {
+    if (!until || until <= now.toISOString()) return { plan: "free", reason: until ? `Your paid month of ${label} ended on ${fmt(until)}` : "Subscription ended", subscription: sub };
+    return { plan: paid, reason: `${label} paid until ${fmt(until)}`, until, subscription: sub };
+  }
   switch (sub.status) {
     case "active":
       if (sub.cancelAtPeriodEnd) return { plan: paid, reason: until ? `Cancelled — ${label} until ${fmt(until)}` : `Cancelled — ${label} until the end of this period`, until, subscription: sub };

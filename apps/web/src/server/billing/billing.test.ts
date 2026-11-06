@@ -173,8 +173,8 @@ describe("checkout, availability and cancellation (provider APIs mocked)", () =>
   it("creates a Stripe checkout bound to the tenant, with an idempotency key", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "cs_1", url: "https://checkout.stripe.com/c/pay/cs_1" })));
     vi.stubGlobal("fetch", fetchMock);
-    const { url } = await startCheckout({ tenantId: "tenant-a", email: "a@example.com", provider: "stripe", origin: "https://jobs.example" });
-    expect(url).toBe("https://checkout.stripe.com/c/pay/cs_1");
+    const started = await startCheckout({ tenantId: "tenant-a", email: "a@example.com", provider: "stripe", origin: "https://jobs.example" });
+    expect("url" in started && started.url).toBe("https://checkout.stripe.com/c/pay/cs_1");
     const [calledUrl, init] = fetchMock.mock.calls.find((c) => String((c as unknown[])[0]).includes("/checkout/sessions")) as unknown as [string, RequestInit];
     expect(calledUrl).toBe("https://api.stripe.com/v1/checkout/sessions");
     const body = decodeURIComponent(String(init.body));
@@ -196,8 +196,8 @@ describe("checkout, availability and cancellation (provider APIs mocked)", () =>
       return new Response(JSON.stringify({ id: "sub_R1", status: "active", init }));
     });
     vi.stubGlobal("fetch", fetchMock);
-    const { url } = await startCheckout({ tenantId: "tenant-r", provider: "razorpay", origin: "https://x" });
-    expect(url).toBe("https://rzp.io/i/abc");
+    const started = await startCheckout({ tenantId: "tenant-r", provider: "razorpay", origin: "https://x" });
+    expect("url" in started && started.url).toBe("https://rzp.io/i/abc");
     const created = JSON.parse(String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body));
     expect(created).toMatchObject({ plan_id: "plan_pro", notes: { tenant_id: "tenant-r" }, total_count: 120 });
     expect(await store.subscription("razorpay", "sub_R1")).toMatchObject({ tenantId: "tenant-r", status: "incomplete" });

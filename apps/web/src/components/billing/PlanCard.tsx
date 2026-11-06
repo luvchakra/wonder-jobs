@@ -12,10 +12,12 @@ import { formatMoney } from "@/domain/billing/format";
 import { discountTerm } from "@/domain/billing/discounts";
 import { formatDate } from "@/lib/format";
 import { useBillingStore } from "@/store/billing";
-import { openRazorpayCheckout } from "./razorpayCheckout";
+import { openRazorpayCheckout, type Paid } from "./razorpayCheckout";
 
-type CheckoutStart = { provider: "stripe"; url: string } | { provider: "razorpay"; url: string; subscriptionId: string; keyId: string; planLabel: string; email?: string | null };
-type Paid = { subscriptionId: string; paymentId: string; signature: string };
+type CheckoutStart =
+  | { provider: "stripe"; url: string }
+  | { provider: "razorpay"; mode: "subscription"; url: string; subscriptionId: string; keyId: string; planLabel: string; email?: string | null }
+  | { provider: "razorpay"; mode: "order"; orderId: string; amount: number; currency: string; keyId: string; planLabel: string; email?: string | null };
 
 async function post<T>(url: string, body: unknown = {}): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -85,11 +87,15 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
     if (started.provider !== "razorpay") return window.location.assign(started.url);
     // Razorpay's own window, over this page: the candidate pays without leaving WonderWorks.
     const outcome = await openRazorpayCheckout(started);
-    if (outcome.kind === "unavailable") return window.location.assign(started.url);
+    if (outcome.kind === "unavailable") {
+      if (started.mode === "subscription") return window.location.assign(started.url);
+      setBusy(null);
+      return toast.error("Razorpay's checkout couldn't open", "Check your connection and try again. Nothing was charged.");
+    }
     setBusy(null);
     if (outcome.kind === "closed") return toast.info("Checkout closed", "Nothing was charged. You can upgrade any time.");
     if (outcome.kind === "failed") return toast.error("The payment didn't go through", `${outcome.reason ?? "Razorpay declined it"}. Nothing was charged; try again or use another method.`);
-    const paidNow = { subscriptionId: outcome.subscriptionId, paymentId: outcome.paymentId, signature: outcome.signature };
+    const paidNow = outcome.paid;
     setPaidRef(paidNow);
     setWaiting(true);
     try {
@@ -131,7 +137,11 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
   const ready = data.providers.filter((p): p is Extract<ProviderAvailability, { state: "ready" }> => p.state === "ready");
   const paid = data.plan !== "free";
   const planLabel = data.plans?.[data.plan]?.label ?? (paid ? "Pro" : "Free");
-  const upgrades = (["pro", "max"] as const).filter((p) => PLAN_RANK[p] > PLAN_RANK[data.plan] && data.plans?.[p]);
+  // A paid month (no renewal): another month of the same plan, or a bigger one, can be bought straight away.
+  const prepaidSub = paid && !!sub?.prepaid;
+  const upgrades = (["pro", "max"] as const).filter((p) => (prepaidSub ? PLAN_RANK[p] >= PLAN_RANK[data.plan] : PLAN_RANK[p] > PLAN_RANK[data.plan]) && data.plans?.[p]);
+  // Razorpay without Subscriptions sells one month at a time (Standard Checkout with an order).
+  const monthByMonth = ready.some((r) => r.provider === "razorpay" && r.price.ref.startsWith("order:"));
   const live = data.testing?.paymentsLive ?? ready.length > 0;
   const payWith = ready.map((r) => BILLING_PROVIDERS[r.provider].name);
 
@@ -155,7 +165,8 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
 
       {waiting && <p className="mt-3 rounded-[12px] bg-info-100 px-3 py-2 text-[13px] text-info-600" role="status">Payment received. Confirming it with {paidRef ? "Razorpay" : "the payment provider"}; your plan changes as soon as it does, usually within a few seconds.</p>}
       {sub && (sub.status === "past_due" || sub.status === "unpaid") && <p className="mt-3 rounded-[12px] bg-warning-100 px-3 py-2 text-[13px] text-warning-600" role="status">Your last payment didn&apos;t go through. {BILLING_PROVIDERS[sub.provider].name} retries it automatically; check the mandate or card in your {sub.provider === "razorpay" ? "UPI or bank app" : "billing portal"}.</p>}
-      {sub && sub.cancelAtPeriodEnd && sub.currentPeriodEnd && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Cancelled. You keep {planLabel} until {formatDate(sub.currentPeriodEnd)} and won&apos;t be charged again.</p>}
+      {prepaidSub && sub?.currentPeriodEnd && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Paid until {formatDate(sub.currentPeriodEnd)}. Nothing renews by itself: pay for another month below whenever you like, and it starts when this one ends.</p>}
+      {sub && !sub.prepaid && sub.cancelAtPeriodEnd && sub.currentPeriodEnd && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Cancelled. You keep {planLabel} until {formatDate(sub.currentPeriodEnd)} and won&apos;t be charged again.</p>}
       {!waiting && returnState === "success" && !paid && <p className="mt-3 rounded-[12px] bg-warning-100 px-3 py-2 text-[13px] text-warning-600" role="status">The payment provider hasn&apos;t confirmed your payment yet. If you completed it, your plan will update here once it does; you haven&apos;t been charged twice.</p>}
       {returnState === "cancelled" && !paid && <p className="mt-3 rounded-[12px] bg-bg-soft px-3 py-2 text-[13px] text-ink-2" role="status">Checkout was closed before paying. Nothing was charged.</p>}
 
@@ -207,11 +218,11 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
         </div>
       )}
 
-      {ready.length > 0 && upgrades.length > 0 && paid && sub && (
+      {ready.length > 0 && upgrades.length > 0 && paid && sub && !prepaidSub && (
         <p className="mt-3 text-[12.5px] text-ink-3">To move to {upgrades.map((p) => data.plans[p].label).join(" or ")}, cancel {planLabel}; once it ends, upgrade here.</p>
       )}
 
-      {ready.length > 0 && upgrades.length > 0 && !(paid && sub) && (
+      {ready.length > 0 && upgrades.length > 0 && !(paid && sub && !prepaidSub) && (
         <ul className="mt-4 space-y-3">
           {upgrades.map((p) => {
             const l = data.plans[p];
@@ -242,10 +253,10 @@ export function PlanCard({ returnState }: { returnState: string | null }) {
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   {ready.map(({ provider }) => (
                     <Button key={provider} size="sm" loading={busy === `${provider}:${p}`} disabled={!!busy || waiting} onClick={() => checkout(provider, p)} icon={<CreditCard className="size-4" aria-hidden />}>
-                      {ready.length === 1 ? `Upgrade to ${l.label}` : `${l.label} · pay with ${BILLING_PROVIDERS[provider].name}`}
+                      {p === data.plan && prepaidSub ? `Pay for another month of ${l.label}` : ready.length === 1 ? `Upgrade to ${l.label}` : `${l.label} · pay with ${BILLING_PROVIDERS[provider].name}`}
                     </Button>
                   ))}
-                  {ready.length === 1 && <span className="text-[12px] text-ink-3">{BILLING_PROVIDERS[ready[0].provider].methods} · cancel any time</span>}
+                  {ready.length === 1 && <span className="text-[12px] text-ink-3">{BILLING_PROVIDERS[ready[0].provider].methods} · {monthByMonth ? "one month, no auto-renewal" : "cancel any time"}</span>}
                 </div>
               </li>
             );

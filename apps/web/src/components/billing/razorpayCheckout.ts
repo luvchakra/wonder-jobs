@@ -9,7 +9,8 @@ const SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
 interface RazorpayResponse {
   razorpay_payment_id: string;
-  razorpay_subscription_id: string;
+  razorpay_subscription_id?: string;
+  razorpay_order_id?: string;
   razorpay_signature: string;
 }
 interface RazorpayInstance {
@@ -39,10 +40,15 @@ function loadScript(): Promise<RazorpayCtor | null> {
   return loading;
 }
 
-export type CheckoutOutcome = { kind: "paid"; paymentId: string; subscriptionId: string; signature: string } | { kind: "closed" } | { kind: "failed"; reason?: string } | { kind: "unavailable" };
+/** What the server checks: the signature over the order (`orderId`) or the subscription (`subscriptionId`). */
+export type Paid = { paymentId: string; signature: string } & ({ subscriptionId: string } | { orderId: string });
+export type CheckoutOutcome = { kind: "paid"; paid: Paid } | { kind: "closed" } | { kind: "failed"; reason?: string } | { kind: "unavailable" };
 
-/** Opens Razorpay's window; resolves when the candidate pays, closes it, or it can't open. */
-export async function openRazorpayCheckout(input: { keyId: string; subscriptionId: string; planLabel: string; email?: string | null }): Promise<CheckoutOutcome> {
+/**
+ * Opens Razorpay's window for a subscription or (Standard Checkout) an order the server created; resolves when the
+ * candidate pays, closes it, or it can't open. The amount comes from the server's order, never from this page.
+ */
+export async function openRazorpayCheckout(input: { keyId: string; planLabel: string; email?: string | null } & ({ subscriptionId: string } | { orderId: string; amount: number; currency: string })): Promise<CheckoutOutcome> {
   const Razorpay = await loadScript();
   if (!Razorpay) return { kind: "unavailable" };
   return new Promise((resolve) => {
@@ -57,12 +63,16 @@ export async function openRazorpayCheckout(input: { keyId: string; subscriptionI
       let lastFailure: string | undefined;
       const rzp = new Razorpay({
         key: input.keyId,
-        subscription_id: input.subscriptionId,
+        ...("orderId" in input ? { order_id: input.orderId, amount: input.amount, currency: input.currency } : { subscription_id: input.subscriptionId }),
         name: "WonderWorks",
-        description: `${input.planLabel} · monthly`,
+        description: "orderId" in input ? `${input.planLabel} · one month` : `${input.planLabel} · monthly`,
         prefill: input.email ? { email: input.email } : undefined,
         theme: { color: "#6D3FE0" },
-        handler: (r: RazorpayResponse) => finish({ kind: "paid", paymentId: r.razorpay_payment_id, subscriptionId: r.razorpay_subscription_id, signature: r.razorpay_signature }),
+        handler: (r: RazorpayResponse) =>
+          finish({
+            kind: "paid",
+            paid: "orderId" in input ? { orderId: r.razorpay_order_id ?? input.orderId, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature } : { subscriptionId: r.razorpay_subscription_id ?? input.subscriptionId, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature },
+          }),
         modal: { ondismiss: () => finish(lastFailure ? { kind: "failed", reason: lastFailure } : { kind: "closed" }), confirm_close: true },
       });
       rzp.on("payment.failed", (r) => {

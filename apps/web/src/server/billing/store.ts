@@ -1,4 +1,5 @@
 import type { BillingProviderId, Subscription } from "@/domain/billing/types";
+import { isPrepaid } from "@/domain/billing/prepaid";
 import { getSupabaseAdmin, touchTenant } from "../supabase";
 import { GENESIS_HASH, ledgerHash, type LedgerEntry, type LedgerRow } from "./ledger";
 
@@ -22,7 +23,10 @@ export interface BillingStore {
 
 /** Prefer the subscription that grants access, then the most recently changed one. */
 export function currentSubscription(subs: Subscription[]): Subscription | undefined {
-  const rank = (s: Subscription) => (s.status === "active" || s.status === "past_due" ? 2 : s.status === "incomplete" ? 1 : 0);
+  const now = new Date().toISOString();
+  // A paid month whose date has passed grants nothing (domain/billing/prepaid.ts), so it never hides a live one.
+  const ended = (s: Subscription) => isPrepaid(s) && (!s.currentPeriodEnd || s.currentPeriodEnd <= now);
+  const rank = (s: Subscription) => ((s.status === "active" || s.status === "past_due") && !ended(s) ? 2 : s.status === "incomplete" ? 1 : 0);
   return [...subs].sort((a, b) => rank(b) - rank(a) || (b.updatedAt > a.updatedAt ? 1 : b.updatedAt < a.updatedAt ? -1 : 0))[0];
 }
 
