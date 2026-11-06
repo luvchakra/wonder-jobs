@@ -130,7 +130,14 @@ export function dateRangeLabel(startDate: string, endDate?: string): string {
 /** When an event is: the time (India time) for one organised here, the dates for an outside one. */
 export const whenOf = (l: Pick<EventListing, "terms" | "outside">) => (l.outside ? dateRangeLabel(l.outside.startDate, l.outside.endDate) : whenLabel(l.terms.startsAt));
 /** Where an outside event is, as its source states it: a city, "Online", or both. */
-export const outsidePlace = (l: Pick<EventListing, "location" | "outside">) => (l.outside?.online ? (l.location ? `${l.location} · also online` : "Online") : l.location || "Place not stated");
+const ONLINE_WORD = /^(online|virtual|remote|online event|virtual event)$/i;
+export const outsidePlace = (l: Pick<EventListing, "location" | "outside">) => {
+  // A place that is only the word "Online" (a listing saved before the source's wording was read as no place) is no place.
+  const place = ONLINE_WORD.test(l.location.trim()) ? "" : l.location;
+  return l.outside?.online ? (place ? `${place} · also online` : "Online") : place || (l.location ? "Online" : "Place not stated");
+};
+/** The place of an outside event for sharing: its city or venue, or "Online" when it is online and names no other place. */
+export const sharePlace = (l: Pick<EventListing, "location" | "outside">) => (l.outside?.online ? outsidePlace(l) : l.location);
 
 export const seatsLabel = (l: Pick<EventListing, "seatsLeft" | "terms">) => (l.terms.capacity === undefined ? "No limit" : l.seatsLeft ? `${l.seatsLeft} of ${l.terms.capacity} seats left` : "Full · join the waitlist");
 export const ageLabel = (t: Pick<EventTerms, "ageMin">) => (t.ageMin ? `${t.ageMin}+` : null);
