@@ -97,11 +97,16 @@ function Setup({ data, onChanged }: { data: PaymentsSetup; onChanged: () => void
         </a>
       </Step>
 
-      <Step n={3} done={!!pro?.set} title="Prices">
-        <ul className="space-y-1 text-[13px] text-ink-2">
+      <Step n={3} done={!!pro?.set || (keysDone && data.subscriptions === false)} title="Prices">
+        {keysDone && data.subscriptions === false && (
+          <Note tone="neutral">
+            Razorpay&apos;s Subscriptions isn&apos;t on for this account, so candidates pay one month at a time (Razorpay Standard Checkout) at each plan&apos;s price on Prices, and pay again to renew. To renew automatically by UPI AutoPay or card, ask Razorpay to turn on Subscriptions (Dashboard → Subscriptions); plans then renew by themselves.
+          </Note>
+        )}
+        <ul className="mt-2 space-y-1 text-[13px] text-ink-2">
           {data.prices.map((p) => (
             <li key={p.plan}>
-              <span className="font-medium text-ink">{p.label}</span> {p.set ? "has a Razorpay price" : p.plan === "pro" ? "needs a Razorpay price before anyone can pay" : "has no Razorpay price yet (optional)"}
+              <span className="font-medium text-ink">{p.label}</span> {p.set ? "has a Razorpay plan (renews by itself)" : data.subscriptions === false ? "is paid month by month at its price" : p.plan === "pro" ? "has no Razorpay plan yet: sold month by month until it has one" : "has no Razorpay plan yet (sold month by month)"}
             </li>
           ))}
         </ul>

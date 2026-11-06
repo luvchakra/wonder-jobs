@@ -7,6 +7,7 @@ import { getPlansConfig } from "@/server/billing/plansConfig";
 import { limitsFor } from "@/domain/billing/plans";
 import { billingStore } from "@/server/billing/store";
 import { planDiscounts } from "@/server/billing/live";
+import { isPrepaid } from "@/domain/billing/prepaid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +40,7 @@ export async function GET() {
       discounts,
       reason: ent.reason,
       until: ent.until ?? null,
-      subscription: sub ? { provider: sub.provider, status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null, canManage: sub.provider === "stripe" ? !!sub.customerId : sub.status !== "canceled" } : null,
+      subscription: sub ? { provider: sub.provider, status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null, canManage: sub.provider === "stripe" ? !!sub.customerId : sub.status !== "canceled", prepaid: isPrepaid(sub) } : null,
       payments,
       // Pre-launch: switch plans without paying, to try each plan's limits.
       testing: { allowed: isAdminSession(session) || !live, active: ent.reason.startsWith("Testing "), paymentsLive: live },

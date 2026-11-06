@@ -81,9 +81,69 @@ export async function razorpaySubscriptionStatus(cfg: RazorpayConfig, subscripti
  * Checks a key pair by listing one plan (a read that changes nothing). Throws a ProviderError with Razorpay's status:
  * 401 means the Key ID and secret don't match.
  */
-export async function razorpayCheckKeys(cfg: Pick<RazorpayConfig, "keyId" | "keySecret">): Promise<{ plans: number }> {
-  const r = await razorpayCall<{ count?: number }>(cfg, "GET", "/plans?count=1");
-  return { plans: r.count ?? 0 };
+export async function razorpayCheckKeys(cfg: Pick<RazorpayConfig, "keyId" | "keySecret">): Promise<void> {
+  // Payments is open to every account; Plans is not (it needs Razorpay's Subscriptions product, else 401), so it can't
+  // tell good keys from bad (owner's test keys, 2026-11-06: /payments 200, /plans 401).
+  await razorpayCall(cfg, "GET", "/payments?count=1");
+}
+
+const SUBS_TTL_MS = 10 * 60_000;
+const subsCache = new Map<string, { at: number; enabled: boolean }>();
+
+/**
+ * Whether the account has Razorpay's Subscriptions product (UPI AutoPay and card mandates that renew by themselves).
+ * Without it, its Plans API answers 401 even with good keys, and plans are paid a month at a time through orders.
+ * Undefined when Razorpay couldn't be asked; cached for ten minutes per key.
+ */
+export async function razorpaySubscriptionsEnabled(cfg: Pick<RazorpayConfig, "keyId" | "keySecret">, now = Date.now()): Promise<boolean | undefined> {
+  const hit = subsCache.get(cfg.keyId);
+  if (hit && now - hit.at < SUBS_TTL_MS) return hit.enabled;
+  try {
+    await razorpayCall(cfg, "GET", "/plans?count=1");
+    subsCache.set(cfg.keyId, { at: now, enabled: true });
+    return true;
+  } catch (e) {
+    if (e instanceof ProviderError && (e.status === 401 || e.status === 403 || e.status === 400 || e.status === 404)) {
+      subsCache.set(cfg.keyId, { at: now, enabled: false });
+      return false;
+    }
+    return undefined;
+  }
+}
+
+/** Tests and key changes: forget what was learnt about each key's Subscriptions product. */
+export function clearRazorpaySubscriptionsCache() {
+  subsCache.clear();
+}
+
+/** A Razorpay order for one payment (Standard Checkout). `amount` is in the currency's smallest unit (paise); at least 100. */
+export async function razorpayCreateOrder(cfg: Pick<RazorpayConfig, "keyId" | "keySecret">, input: { amount: number; currency: string; receipt: string; notes: Record<string, string> }): Promise<{ id: string; amount: number; currency: string }> {
+  if (!Number.isInteger(input.amount) || input.amount < 100) throw new ProviderError("An order is at least 100 paise", 400);
+  const o = await razorpayCall<{ id?: string; amount?: number; currency?: string }>(cfg, "POST", "/orders", { amount: input.amount, currency: input.currency, receipt: input.receipt.slice(0, 40), notes: input.notes });
+  if (!o.id) throw new ProviderError("Razorpay returned no order id", 502);
+  return { id: o.id, amount: o.amount ?? input.amount, currency: (o.currency ?? input.currency).toUpperCase() };
+}
+
+export interface RazorpayOrder {
+  id: string;
+  status: string;
+  amount: number;
+  amountPaid: number;
+  currency: string;
+  notes: Record<string, string>;
+  /** Unix seconds. */
+  createdAt?: number;
+}
+
+export async function razorpayOrder(cfg: Pick<RazorpayConfig, "keyId" | "keySecret">, orderId: string): Promise<RazorpayOrder> {
+  const o = await razorpayCall<{ id: string; status: string; amount: number; amount_paid?: number; currency: string; notes?: Record<string, string> | unknown[]; created_at?: number }>(cfg, "GET", `/orders/${encodeURIComponent(orderId)}`);
+  return { id: o.id, status: o.status, amount: o.amount, amountPaid: o.amount_paid ?? 0, currency: (o.currency ?? "").toUpperCase(), notes: o.notes && !Array.isArray(o.notes) ? (o.notes as Record<string, string>) : {}, createdAt: o.created_at };
+}
+
+/** Standard Checkout's signature for an order: hex HMAC-SHA256 of `<order id>|<payment id>` with the Key secret. */
+export function verifyRazorpayOrder(input: { orderId: string; paymentId: string; signature: string }, keySecret: string): boolean {
+  if (!input.orderId || !input.paymentId || !input.signature || !keySecret) return false;
+  return safeEqual(input.signature.trim(), hmacSha256Hex(keySecret, `${input.orderId}|${input.paymentId}`));
 }
 
 /**

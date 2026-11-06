@@ -11,7 +11,8 @@ import { BILLING_PROVIDER_IDS, missingBillingEnv, razorpayConfig, stripeConfig }
 import { loadBillingKeys } from "./credentials";
 import { entryFor } from "./ledger";
 import { automaticDiscount, hasActivePromotionCode } from "./live";
-import { razorpayCancelAtCycleEnd, razorpayCancelNow, razorpayPlan, razorpaySubscribe, razorpaySubscriptionStatus, verifyRazorpayCheckout, verifyRazorpaySignature } from "./razorpay";
+import { razorpayCancelAtCycleEnd, razorpayCancelNow, razorpayCreateOrder, razorpayOrder, razorpayPlan, razorpaySubscribe, razorpaySubscriptionStatus, verifyRazorpayCheckout, verifyRazorpayOrder, verifyRazorpaySignature } from "./razorpay";
+import { addMonth, isPrepaid, prepaidRef, prepaidStart } from "@/domain/billing/prepaid";
 import { billingStore, currentSubscription } from "./store";
 import { ProviderError, describeProviderError, stripeCheckout, stripePortal, stripePrice, stripeSubscriptionStatus, verifyStripeSignature } from "./stripe";
 
@@ -65,7 +66,12 @@ export async function providerAvailability(): Promise<ProviderAvailability[]> {
       if (missing.length) return { provider, state: "needs_setup", missing };
       // Connected, but nothing to sell yet: Pro needs a price at this provider (Admin → Billing → Prices creates one).
       const ref = config.priceRefs.pro[provider];
-      if (!ref) return { provider, state: "needs_setup", missing: ["PRO_PRICE"] };
+      if (!ref) {
+        // Razorpay without a Razorpay plan: Pro is paid a month at a time through an order, at its own price.
+        const pro = config.plans.pro;
+        if (provider === "razorpay" && pro.priceMinor >= 100) return { provider, state: "ready", price: { provider, ref: prepaidRef("pro"), name: pro.label, amount: pro.priceMinor, currency: pro.currency, interval: "month", intervalCount: 1 } };
+        return { provider, state: "needs_setup", missing: ["PRO_PRICE"] };
+      }
       try {
         return { provider, state: "ready", price: await priceFor(provider, ref) };
       } catch (e) {
@@ -83,8 +89,9 @@ export async function providerAvailability(): Promise<ProviderAvailability[]> {
  */
 export async function paymentsLive(config?: PlansConfig): Promise<boolean> {
   await loadBillingKeys();
-  const refs = (config ?? (await getPlansConfig())).priceRefs.pro;
-  return !!((stripeConfig() && refs.stripe) || (razorpayConfig() && refs.razorpay));
+  const cfg = config ?? (await getPlansConfig());
+  // Razorpay needs no plan of its own: without one, Pro is paid a month at a time (domain/billing/prepaid.ts).
+  return !!((stripeConfig() && cfg.priceRefs.pro.stripe) || (razorpayConfig() && (cfg.priceRefs.pro.razorpay || cfg.plans.pro.priceMinor >= 100)));
 }
 
 export async function entitlement(tenantId: string): Promise<Entitlement> {
@@ -118,7 +125,11 @@ export async function tenantPlan(tenantId: string): Promise<{ plan: PlanId; limi
  * What the browser needs to pay. Stripe: its hosted page. Razorpay: the subscription for Razorpay's own checkout
  * window, opened over the page (`keyId` is Razorpay's public key id), with its hosted page as the fallback.
  */
-export type CheckoutStart = { provider: "stripe"; url: string } | { provider: "razorpay"; url: string; subscriptionId: string; keyId: string; planLabel: string };
+export type CheckoutStart =
+  | { provider: "stripe"; url: string }
+  | { provider: "razorpay"; mode: "subscription"; url: string; subscriptionId: string; keyId: string; planLabel: string }
+  /** Standard Checkout: one order for one paid month; the amount is the plan's own price, set on the server. */
+  | { provider: "razorpay"; mode: "order"; orderId: string; amount: number; currency: string; keyId: string; planLabel: string };
 
 export async function startCheckout(input: { tenantId: string; email?: string; provider: BillingProviderId; origin: string; plan?: PaidPlanId }): Promise<CheckoutStart> {
   const { tenantId, provider, origin } = input;
@@ -128,11 +139,20 @@ export async function startCheckout(input: { tenantId: string; email?: string; p
   if (missing.length) throw new BillingError("This payment provider isn't set up on this deployment yet", 503);
   const config = await getPlansConfig();
   const ref = config.priceRefs[plan][provider];
-  if (!ref) throw new BillingError(`${config.plans[plan].label} isn't set up with this payment provider yet`, 503);
+  const prepaid = provider === "razorpay" && !ref;
+  if (!ref && !prepaid) throw new BillingError(`${config.plans[plan].label} isn't set up with this payment provider yet`, 503);
   const subs = await billingStore().subscriptionsForTenant(tenantId);
-  const current = entitlementFor(currentSubscription(subs), (r) => planForRef(r, config)).plan;
-  if (PLAN_RANK[current] >= PLAN_RANK[plan]) throw new BillingError(`You already have ${config.plans[current].label}`, 409);
-  if (current !== "free") throw new BillingError(`Cancel ${config.plans[current].label} first, then choose ${config.plans[plan].label} — changing plans mid-subscription isn't automated yet`, 409);
+  const cur = currentSubscription(subs);
+  const ent = entitlementFor(cur, (r) => planForRef(r, config));
+  const current = ent.plan;
+  if (isPrepaid(cur) && current !== "free") {
+    // On a paid month: another month of the same plan (it starts when this one ends), or a month of a bigger plan now.
+    if (!prepaid) throw new BillingError(`You've paid for ${config.plans[current].label} until ${ent.until?.slice(0, 10) ?? "the end of this month"}; set up a subscription after that`, 409);
+    if (PLAN_RANK[current] > PLAN_RANK[plan]) throw new BillingError(`You have ${config.plans[current].label} until ${ent.until?.slice(0, 10) ?? "the end of this month"}`, 409);
+  } else {
+    if (PLAN_RANK[current] >= PLAN_RANK[plan]) throw new BillingError(`You already have ${config.plans[current].label}`, 409);
+    if (current !== "free") throw new BillingError(`Cancel ${config.plans[current].label} first, then choose ${config.plans[plan].label} — changing plans mid-subscription isn't automated yet`, 409);
+  }
   const back = (state: string) => `${origin}/app/profile?billing=${state}&provider=${provider}#plan`;
   try {
     if (provider === "stripe") {
@@ -143,15 +163,26 @@ export async function startCheckout(input: { tenantId: string; email?: string; p
       const allowPromotionCodes = auto ? false : await hasActivePromotionCode();
       // The key names the discount choice too: the same parameters within a minute reuse one session.
       const idempotencyKey = `checkout:${tenantId}:${plan}:${auto ? auto.couponId : allowPromotionCodes ? "codes" : "none"}:${Math.floor(Date.now() / 60_000)}`;
-      const s = await stripeCheckout({ ...stripeConfig()!, priceId: ref }, { tenantId, email: input.email, successUrl: back("success"), cancelUrl: back("cancelled"), idempotencyKey, couponId: auto?.couponId, allowPromotionCodes });
+      const s = await stripeCheckout({ ...stripeConfig()!, priceId: ref! }, { tenantId, email: input.email, successUrl: back("success"), cancelUrl: back("cancelled"), idempotencyKey, couponId: auto?.couponId, allowPromotionCodes });
       return { provider: "stripe", url: s.url };
     }
-    const cfg = { ...razorpayConfig()!, planId: ref };
+    if (prepaid) {
+      const rcfg = razorpayConfig()!;
+      const p = config.plans[plan];
+      if (p.priceMinor < 100) throw new BillingError(`${p.label} has no price yet`, 503);
+      const start = prepaidStart(plan, subs);
+      const o = await razorpayCreateOrder(rcfg, { amount: p.priceMinor, currency: p.currency, receipt: `wj_${plan}_${Date.now().toString(36)}`, notes: { tenant_id: tenantId, plan, period_start: start } });
+      // Remembered now, unpaid, so the confirmation, the webhook and the daily check can all find it (provider time at the
+      // epoch, so every real event is newer).
+      await billingStore().saveSubscription({ tenantId, provider: "razorpay", subscriptionId: o.id, planRef: prepaidRef(plan), status: "incomplete", cancelAtPeriodEnd: true, updatedAt: new Date(0).toISOString() });
+      return { provider: "razorpay", mode: "order", orderId: o.id, amount: o.amount, currency: o.currency, keyId: rcfg.keyId, planLabel: p.label };
+    }
+    const cfg = { ...razorpayConfig()!, planId: ref! };
     const s = await razorpaySubscribe(cfg, { tenantId });
     // Remember the mapping now so an abandoned subscription can be cancelled on erasure. Its provider time
     // starts at the epoch so every real event from Razorpay is newer than this placeholder.
     await billingStore().saveSubscription({ tenantId, provider: "razorpay", subscriptionId: s.id, planRef: cfg.planId, status: "incomplete", cancelAtPeriodEnd: false, updatedAt: new Date(0).toISOString() });
-    return { provider: "razorpay", url: s.url, subscriptionId: s.id, keyId: cfg.keyId, planLabel: config.plans[plan].label };
+    return { provider: "razorpay", mode: "subscription", url: s.url, subscriptionId: s.id, keyId: cfg.keyId, planLabel: config.plans[plan].label };
   } catch (e) {
     if (e instanceof ProviderError) throw new BillingError(`Checkout couldn't start: ${describeProviderError(e, provider === "stripe" ? "Stripe" : "Razorpay")}`, 502);
     throw e;
@@ -176,6 +207,7 @@ export async function cancelSubscription(tenantId: string): Promise<{ requested:
   await loadBillingKeys();
   const sub = currentSubscription(await billingStore().subscriptionsForTenant(tenantId));
   if (!sub || sub.status === "canceled") throw new BillingError("There's no active subscription to cancel", 404);
+  if (isPrepaid(sub)) throw new BillingError("A paid month doesn't renew, so there's nothing to cancel", 400);
   if (sub.provider === "stripe") throw new BillingError("Stripe subscriptions are managed in Stripe's billing portal", 400);
   if (sub.cancelAtPeriodEnd) return { requested: true };
   const cfg = razorpayConfig();
@@ -277,6 +309,11 @@ export async function reconcileSubscriptions(limit = 2000, now = new Date(), bud
     if (Date.now() - started > budgetMs) break;
     report.checked++;
     try {
+      // A paid month has nothing to renew: only an unpaid order is asked about (paid, or abandoned after a week).
+      if (isPrepaid(sub)) {
+        if (sub.status === "incomplete" && (await settleRazorpayOrder(sub, now)).changed) report.corrected++;
+        continue;
+      }
       const live = await liveStatus(sub);
       if (!live) continue;
       if (live.status === sub.status && live.cancelAtPeriodEnd === sub.cancelAtPeriodEnd) continue;
@@ -315,35 +352,75 @@ export async function cancelUnpaidSubscriptions(tenantId: string): Promise<void>
   await loadBillingKeys();
   const cfg = razorpayConfig();
   for (const s of await billingStore().subscriptionsForTenant(tenantId)) {
-    if (s.status !== "incomplete" || s.provider !== "razorpay" || !cfg) continue;
+    if (s.status !== "incomplete" || s.provider !== "razorpay" || !cfg || isPrepaid(s)) continue;
     await razorpayCancelNow(cfg, s.subscriptionId).catch(() => undefined);
   }
 }
 
 /**
- * Right after Razorpay's checkout window reports a payment: check the signature it handed back (HMAC with the Key
- * secret), check the subscription is this account's own, then ask Razorpay for the subscription's status and apply
- * that, ledgered like the daily reconciliation. The browser's word alone changes nothing: the status is Razorpay's,
- * read directly. The webhook still arrives and is recognised; a repeat call changes nothing.
+ * Settle a paid month's order from Razorpay's own record of it: paid in full → the month is active, from the start
+ * recorded on the order; still unpaid a week on → closed. Ledgered under one id per order (`order:<id>:paid`), the same
+ * one the `order.paid` webhook uses, so the payment is recorded once whichever arrives first.
  */
-export async function confirmRazorpayCheckout(tenantId: string, input: { subscriptionId: string; paymentId: string; signature: string }): Promise<{ status: Subscription["status"] }> {
+export async function settleRazorpayOrder(sub: Subscription, now = new Date()): Promise<{ status: Subscription["status"]; changed: boolean }> {
+  const cfg = razorpayConfig();
+  if (!cfg || !isPrepaid(sub)) return { status: sub.status, changed: false };
+  const o = await razorpayOrder(cfg, sub.subscriptionId);
+  if (o.notes.tenant_id && o.notes.tenant_id !== sub.tenantId) throw new BillingError("That order isn't yours", 404);
+  const at = now.toISOString();
+  if (o.status === "paid" && o.amountPaid >= o.amount) {
+    if (sub.status === "active") return { status: "active", changed: false };
+    const start = /^\d{4}-\d{2}-\d{2}T/.test(o.notes.period_start ?? "") ? o.notes.period_start : at;
+    await ingest(
+      { provider: "razorpay", eventId: `order:${o.id}:paid`, providerType: "order.paid", kind: "payment_succeeded", tenantId: sub.tenantId, subscriptionId: o.id, planRef: sub.planRef, currentPeriodEnd: addMonth(start), cancelAtPeriodEnd: true, amount: o.amountPaid, currency: o.currency, occurredAt: at },
+      sha256Hex(`order:${o.id}:paid`),
+    );
+    return { status: "active", changed: true };
+  }
+  if (sub.status === "incomplete" && o.createdAt && now.getTime() - o.createdAt * 1000 > 7 * 86_400_000) {
+    await ingest({ provider: "razorpay", eventId: `order:${o.id}:abandoned`, providerType: "reconciliation.order_unpaid", kind: "reconciled", tenantId: sub.tenantId, subscriptionId: o.id, status: "canceled", occurredAt: at }, sha256Hex(`order:${o.id}:abandoned`));
+    return { status: "canceled", changed: true };
+  }
+  return { status: sub.status, changed: false };
+}
+
+export type CheckoutPaid = { subscriptionId: string; paymentId: string; signature: string } | { orderId: string; paymentId: string; signature: string };
+
+/**
+ * Right after Razorpay's checkout window reports a payment: check the signature it handed back (HMAC with the Key
+ * secret: `order_id|payment_id` for an order, `payment_id|subscription_id` for a subscription), check it's this
+ * account's own, then read the order or subscription from Razorpay and apply that. The browser's word alone changes
+ * nothing; the webhook still arrives and is recognised, and a repeat call changes nothing.
+ */
+export async function confirmRazorpayCheckout(tenantId: string, input: CheckoutPaid): Promise<{ status: Subscription["status"] }> {
   await loadBillingKeys();
   const cfg = razorpayConfig();
   if (!cfg) throw new BillingError("Razorpay isn't set up on this deployment", 503);
-  if (!verifyRazorpayCheckout(input, cfg.keySecret)) throw new BillingError("That payment couldn't be verified", 400);
-  const sub = await billingStore().subscription("razorpay", input.subscriptionId);
-  if (!sub || sub.tenantId !== tenantId) throw new BillingError("That subscription isn't yours", 404);
+  const order = "orderId" in input;
+  const id = order ? input.orderId : input.subscriptionId;
+  const valid = order ? verifyRazorpayOrder(input, cfg.keySecret) : verifyRazorpayCheckout(input, cfg.keySecret);
+  if (!valid) throw new BillingError("That payment couldn't be verified", 400);
+  const sub = await billingStore().subscription("razorpay", id);
+  if (!sub || sub.tenantId !== tenantId) throw new BillingError(order ? "That order isn't yours" : "That subscription isn't yours", 404);
+  if (order) {
+    try {
+      return { status: (await settleRazorpayOrder(sub)).status };
+    } catch (e) {
+      if (e instanceof BillingError) throw e;
+      throw new BillingError(`Razorpay couldn't be reached to confirm it: ${describeProviderError(e, "Razorpay")}`, 502);
+    }
+  }
   let live: Awaited<ReturnType<typeof razorpaySubscriptionStatus>>;
   try {
-    live = await razorpaySubscriptionStatus(cfg, input.subscriptionId);
+    live = await razorpaySubscriptionStatus(cfg, id);
   } catch (e) {
     throw new BillingError(`Razorpay couldn't be reached to confirm it: ${describeProviderError(e, "Razorpay")}`, 502);
   }
   if (live.status === sub.status && live.cancelAtPeriodEnd === sub.cancelAtPeriodEnd) return { status: sub.status };
   const at = new Date().toISOString();
   await ingest(
-    { provider: "razorpay", eventId: `checkout:${input.subscriptionId}:${input.paymentId}:${live.raw}`, providerType: `checkout.${live.raw}`, kind: "reconciled", tenantId, subscriptionId: input.subscriptionId, status: live.status, cancelAtPeriodEnd: live.cancelAtPeriodEnd, occurredAt: at },
-    sha256Hex(`${input.subscriptionId}:${input.paymentId}:${live.raw}`),
+    { provider: "razorpay", eventId: `checkout:${id}:${input.paymentId}:${live.raw}`, providerType: `checkout.${live.raw}`, kind: "reconciled", tenantId, subscriptionId: id, status: live.status, cancelAtPeriodEnd: live.cancelAtPeriodEnd, occurredAt: at },
+    sha256Hex(`${id}:${input.paymentId}:${live.raw}`),
   );
   return { status: live.status };
 }

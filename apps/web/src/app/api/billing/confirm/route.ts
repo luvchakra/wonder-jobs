@@ -8,10 +8,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const Id = z.string().trim().min(4).max(80).regex(/^[A-Za-z0-9_]+$/);
-const Body = z.object({ subscriptionId: Id, paymentId: Id, signature: z.string().trim().regex(/^[a-f0-9]{64}$/) }).strict();
+const Sig = z.string().trim().regex(/^[a-f0-9]{64}$/);
+// A subscription's first payment, or (Standard Checkout) an order's payment.
+const Body = z.union([z.object({ subscriptionId: Id, paymentId: Id, signature: Sig }).strict(), z.object({ orderId: Id, paymentId: Id, signature: Sig }).strict()]);
 
 /**
- * POST { subscriptionId, paymentId, signature } — sent by Razorpay's checkout window when the first payment goes
+ * POST { subscriptionId | orderId, paymentId, signature } — sent by Razorpay's checkout window when the first payment goes
  * through. The signature is checked and Razorpay is asked for the subscription's status, so the plan changes at once
  * instead of waiting for the webhook. Nothing the browser says is taken as the status.
  */

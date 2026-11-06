@@ -5,7 +5,7 @@ import { AdminBillingError, billingAudit } from "./admin";
 import { razorpayMode } from "./config";
 import { adminBillingKey as adminValue, billingKeyStatus, setBillingKeys, type BillingKeyName, type BillingKeyStatus } from "./credentials";
 import { getPlansConfig } from "./plansConfig";
-import { razorpayCheckKeys, razorpayKeyIdExists } from "./razorpay";
+import { clearRazorpaySubscriptionsCache, razorpayCheckKeys, razorpayKeyIdExists, razorpaySubscriptionsEnabled } from "./razorpay";
 import { ProviderError } from "./stripe";
 import { clearPriceCacheForTests as clearPriceCache } from "./service";
 import { clearLiveBillingCaches } from "./live";
@@ -29,6 +29,8 @@ export const RAZORPAY_WEBHOOK_EVENTS = [
   "subscription.updated",
   "subscription.cancelled",
   "subscription.completed",
+  // A paid month (Standard Checkout with an order), when Subscriptions isn't on.
+  "order.paid",
 ] as const;
 
 export interface PaymentsSetup {
@@ -37,6 +39,11 @@ export interface PaymentsSetup {
   connection: { state: "not_set" } | { state: "connected" } | { state: "refused"; reason: string } | { state: "unavailable"; reason: string };
   webhook: { url: string; events: readonly string[]; secretSet: boolean };
   prices: { plan: PaidPlanId; label: string; set: boolean }[];
+  /**
+   * Razorpay's Subscriptions product (renews by itself): on, off (plans are then paid a month at a time through
+   * orders, at each plan's price), or null when unknown.
+   */
+  subscriptions: boolean | null;
   /** Candidates can pay: connected, the webhook secret is set and Pro has a Razorpay price. */
   live: boolean;
 }
@@ -47,10 +54,12 @@ export async function paymentsSetup(origin: string): Promise<PaymentsSetup> {
   // The decrypted values stay server-side: they're read here only to ask Razorpay whether the pair works.
   const pair = keyPair();
   let connection: PaymentsSetup["connection"] = { state: "not_set" };
+  let subscriptions: boolean | null = null;
   if (pair) {
     try {
       await razorpayCheckKeys(pair);
       connection = { state: "connected" };
+      subscriptions = (await razorpaySubscriptionsEnabled(pair)) ?? null;
     } catch (e) {
       connection = e instanceof ProviderError && (e.status === 401 || e.status === 403) ? { state: "refused", reason: "Razorpay refused this Key ID and secret" } : { state: "unavailable", reason: "Razorpay couldn't be reached just now" };
     }
@@ -63,7 +72,9 @@ export async function paymentsSetup(origin: string): Promise<PaymentsSetup> {
     connection,
     webhook: { url: `${origin}/api/billing/webhooks/razorpay`, events: RAZORPAY_WEBHOOK_EVENTS, secretSet: webhookSecret.set },
     prices,
-    live: connection.state === "connected" && webhookSecret.set && !!prices.find((p) => p.plan === "pro")?.set,
+    subscriptions,
+    // Without a Razorpay plan, Pro is sold a month at a time at its own price, so a price there isn't required.
+    live: connection.state === "connected" && webhookSecret.set && (!!prices.find((p) => p.plan === "pro")?.set || plans.plans.pro.priceMinor >= 100),
   };
 }
 
@@ -130,6 +141,7 @@ export async function savePaymentKeys(raw: unknown, actor: string, origin: strin
   const modeBefore = idBefore ? razorpayMode(idBefore) : null;
   await setBillingKeys(given);
   clearPriceCache();
+  clearRazorpaySubscriptionsCache();
   clearLiveBillingCaches();
   const after = await paymentsSetup(origin);
   // Names and the public Key ID only; never a secret.

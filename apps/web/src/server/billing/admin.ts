@@ -27,7 +27,7 @@ import { apiBillingConfig, apiPrice, type ApiPrice } from "@/server/jobslake/api
 import { razorpayConfig, stripeConfig, type RazorpayConfig, type StripeConfig } from "./config";
 import { getPlansConfig, getStoredPlansConfig, savePlansConfig } from "./plansConfig";
 import { automaticDiscount, clearLiveBillingCaches, PAID_PLANS, PROMO_API_VERSION, readAdminState, readCoupon, readStripePrice, writeAdminState, type StripePriceView } from "./live";
-import { razorpayCall } from "./razorpay";
+import { razorpayCall, razorpaySubscriptionsEnabled } from "./razorpay";
 import { ProviderError, stripeCall } from "./stripe";
 import { sha256Hex } from "../crypto";
 
@@ -150,7 +150,8 @@ export async function adminPrices(): Promise<{ plans: PlanPrices[]; providers: {
     PAID_PLANS.map(async (plan): Promise<PlanPrices> => {
       const refs = cfg.priceRefs[plan];
       const stripe: ProviderPrice = !s ? { state: "needs_setup" } : !refs.stripe ? { state: "not_set" } : await readStripePrice(s, refs.stripe, true).then((p) => ({ state: "ready" as const, ...p }), (e) => ({ state: "unavailable" as const, ref: refs.stripe!, reason: unavailableReason(e, "Stripe") }));
-      const razorpay: ProviderPrice = !r ? { state: "needs_setup" } : !refs.razorpay ? { state: "not_set" } : await readRazorpayPlan(r, refs.razorpay).then((p) => ({ state: "ready" as const, ...p }), (e) => ({ state: "unavailable" as const, ref: refs.razorpay!, reason: unavailableReason(e, "Razorpay") }));
+      // Razorpay without its own plan sells a paid month at the plan's price (Standard Checkout, domain/billing/prepaid.ts).
+      const razorpay: ProviderPrice = !r ? { state: "needs_setup" } : !refs.razorpay ? (cfg.plans[plan].priceMinor >= 100 ? { state: "ready", ref: "Paid month by month (one-time payments)", amount: cfg.plans[plan].priceMinor, currency: cfg.plans[plan].currency, interval: "month", intervalCount: 1 } : { state: "not_set" }) : await readRazorpayPlan(r, refs.razorpay).then((p) => ({ state: "ready" as const, ...p }), (e) => ({ state: "unavailable" as const, ref: refs.razorpay!, reason: unavailableReason(e, "Razorpay") }));
       const display = { priceMinor: cfg.plans[plan].priceMinor, currency: cfg.plans[plan].currency };
       const charging = [stripe, razorpay].filter((p) => p.state !== "needs_setup" && p.state !== "not_set");
       const inSync = charging.length > 0 && charging.every((p) => p.state === "ready" && p.amount === display.priceMinor && p.currency === display.currency);
@@ -246,7 +247,8 @@ export async function changePrice(raw: unknown, actor: string): Promise<{ plan: 
   try {
     if (s) created.stripe = await once(`${key}:stripe`, () => createStripePrice(s, cfg, input.plan, input.amountMinor, input.currency, key));
     current = "Razorpay";
-    if (r) created.razorpay = await once(`${key}:razorpay`, () => createRazorpayPlan(r, cfg, input.plan, input.amountMinor, input.currency, key));
+    // Without Razorpay's Subscriptions product there's no plan to create: a paid month charges the plan's price itself.
+    if (r && (await razorpaySubscriptionsEnabled(r))) created.razorpay = await once(`${key}:razorpay`, () => createRazorpayPlan(r, cfg, input.plan, input.amountMinor, input.currency, key));
   } catch (e) {
     await auditAfter(actor, "billing.price.change_failed", { plan: input.plan, idempotencyKey: key, created, provider: current });
     throw providerFailure(e, current);
