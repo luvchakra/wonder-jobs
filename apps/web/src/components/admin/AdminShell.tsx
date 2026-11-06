@@ -307,11 +307,12 @@ export function AdminShell({
         <div className="px-2">
           <Brand />
         </div>
-        {/* Back to WonderWorks closes the menu list (owner, 2026-11-03). */}
         <div className="flex-1 overflow-y-auto">
           <Nav pathname={pathname} />
-          <div className="mt-4 px-2">{back("Back to WonderWorks", "py-2.5")}</div>
         </div>
+        {/* Back to WonderWorks at the sidebar's bottom, above who's signed in (owner, 2026-11-06: "move this button to
+            bottom of sidebar"; it closed the menu list from 2026-11-03). */}
+        <div className="mb-3 mt-3 px-2">{back("Back to WonderWorks", "py-2.5")}</div>
         {footer}
       </aside>
 

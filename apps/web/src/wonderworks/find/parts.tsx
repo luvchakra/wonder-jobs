@@ -82,6 +82,11 @@ export const FIND_SUBMIT = "lg:order-2";
  * of the window while the results scroll under it (owner, 2026-11-06: "while scrolling the page, dont scroll up this").
  */
 export const FIND_AREA = "relative lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:-mt-5 lg:bg-bg/95 lg:px-8 lg:pb-3 lg:pt-5 lg:backdrop-blur";
+/**
+ * The results line ("Showing 68 jobs from 12 sources", Sort) right under it from 1024px, pinned too (owner, 2026-11-06:
+ * "also fix this, do not scroll this"). Its top is the search area's height: 20px + the 40px row + 12px.
+ */
+export const FIND_RESULTS_PIN = "lg:sticky lg:top-[72px] lg:z-10 lg:-mx-8 lg:mb-1 lg:bg-bg/95 lg:px-8 lg:pb-2 lg:backdrop-blur";
 
 /** The search box: the magnifier, the words, clear and the microphone, and the recent searches while it has focus. */
 export function SearchBox({ value, onValue, onClear, placeholder, label, dictation, dictateLabel, focused, onFocused, history, onPick, onForget, className }: { value: string; onValue: (text: string) => void; onClear: () => void; placeholder: string; label: string; dictation: Dictation; dictateLabel: string; focused: boolean; onFocused: (on: boolean) => void; history: string[]; onPick: (t: string) => void; onForget: (t: string) => void; className?: string }) {
@@ -350,13 +355,14 @@ export function SortSelect<T extends string>({ value, labels, onChange, classNam
  * How many, from where — and the order they're in: the line above the results. One line always: smaller type on a
  * phone, and a summary too long even then ends in "…" with the whole of it on hover.
  */
-export function ResultsLine({ summary, sort }: { summary: React.ReactNode; sort?: React.ReactNode }) {
+export function ResultsLine({ summary, sort, pinned = true }: { summary: React.ReactNode; sort?: React.ReactNode; /** From 1024px, stays under Find's pinned search row while the results scroll (not on Saved, which has none). */ pinned?: boolean }) {
   return (
-    <div className="mb-3 flex items-center gap-2 whitespace-nowrap sm:gap-3 [&_label]:text-[11.5px] sm:[&_label]:text-[13px]">
+    <div className={cn("mb-3 flex items-center gap-2 whitespace-nowrap sm:gap-3 [&_label]:text-[11.5px] sm:[&_label]:text-[13px]", pinned && FIND_RESULTS_PIN)}>
       <p className="min-w-0 flex-1 truncate text-[11.5px] text-ink-3 sm:text-[13px]" title={typeof summary === "string" ? summary : undefined}>
         {summary}
       </p>
-      {sort}
+      {/* From 1024px Sort comes first, before the count (owner, 2026-11-06: "bring this before 'Showing 68..'"). */}
+      {sort && <div className="shrink-0 lg:order-first">{sort}</div>}
     </div>
   );
 }
