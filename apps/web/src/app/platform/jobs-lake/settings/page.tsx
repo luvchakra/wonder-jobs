@@ -1,6 +1,7 @@
 "use client";
 import type { JobsLakeFlags } from "@/server/jobslake/flags";
 import type { StoreStatus } from "@/server/jobslake/store";
+import Link from "next/link";
 import { StatusPill } from "@/components/common/Badge";
 import { LoadError, Loading, Note, PageTitle, Panel, useAdmin } from "@/components/jobslake/ui";
 
@@ -25,7 +26,15 @@ export default function SettingsPage() {
   const { data, error, reload } = useAdmin<Settings>("settings");
   return (
     <>
-      <PageTitle title="Feature switches" subtitle="Read-only: every switch is an environment variable, so each change is a deploy-time decision and is reversible without code." />
+      <PageTitle
+        title="Feature switches"
+        subtitle="Read-only: every switch is an environment variable, so each change is a deploy-time decision and is reversible without code."
+        actions={
+          <Link href="/platform/jobs-lake/protocols" className="text-[13px] font-medium text-brand-600 hover:underline">
+            WorksLake protocol
+          </Link>
+        }
+      />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
       {data && (
