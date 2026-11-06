@@ -8,6 +8,7 @@
  * Two reads cross tenants by design and only these: open job listings (they're public postings), and talent
  * profiles, which exist only while a job seeker chose to be open to recruiters and hold only what they saw.
  */
+import { platformEnv } from "@/server/jobslake/platformKeys";
 import { cleanQuestions, type ScreeningQuestion } from "@/domain/org/screening";
 import { randomUUID } from "node:crypto";
 import { companyProblem, normalizeWebsite, websiteDomain, workEmailMatches } from "@/domain/org/company";
@@ -207,7 +208,7 @@ export async function requestVerificationReview(s: Session, orgId: string, note:
   if (!org) throw new HiringError("That workspace no longer exists.", 404);
   if (org.verified) throw new HiringError("This company is already verified.", 409);
   if (!websiteDomain(org.website)) throw new HiringError("Add your company's website first (Hiring → the pencil next to the company), so the team can check it.");
-  const team = parseEmailList(process.env.CONTACT_NOTIFY_EMAILS);
+  const team = parseEmailList((await platformEnv()).CONTACT_NOTIFY_EMAILS);
   if (!team.length) return { sent: false };
   const text = note.trim().slice(0, 2000);
   const mail = renderEmailLayout({

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 /* A platform model that obeys the question: asked for its instructions, it prints them. */
 const seen: { system: string; prompt: string }[] = [];
 vi.mock("@/server/auth", () => ({ requireSession: async () => ({ userId: "u1", tenantId: "u1" }) }));
-vi.mock("@/server/providers/platform", () => ({ platformAI: () => ({ provider: "anthropic", apiKey: "k", model: "m" }) }));
+vi.mock("@/server/providers/platform", () => ({ loadPlatformAI: async () => {}, platformAI: () => ({ provider: "anthropic", apiKey: "k", model: "m" }) }));
 vi.mock("@/server/providers", () => ({
   getServerProvider: () => ({
     complete: async (_key: string, req: { system: string; prompt: string }) => {

@@ -10,25 +10,68 @@ import { CredentialsPanel } from "@/components/jobslake/CredentialsPanel";
  * The API keys sources need, set here on the platform instead of in the hosting dashboard (owner, 2026-11-01).
  * Encrypted on the server and shown only masked; a deployment variable of the same name, if any, still wins.
  */
+/** Admin → Keys' sections, in order (owner, 2026-11-06: the platform's own settings moved here from Vercel). */
+const GROUPS: { id: NonNullable<PlatformKeyStatus["group"]>; title: string; hint: string }[] = [
+  { id: "email", title: "Email", hint: "The mailbox every WonderWorks email is sent from, and the team's addresses." },
+  { id: "ai", title: "WonderWorks AI", hint: "The platform-billed model behind WonderWorks AI drafts and Ask Wonder." },
+  { id: "push", title: "Push notifications", hint: "The key pair browsers use to receive WonderWorks notifications." },
+  { id: "runner", title: "Collection runner", hint: "Lets Import now start the collection on GitHub Actions instead of the site." },
+  { id: "sources", title: "Sources", hint: "The API keys the data sources need." },
+];
+
 export default function ApiKeysPage() {
   const { data, error, reload } = useAdmin<{ keys: PlatformKeyStatus[] }>("keys");
-  const missing = data?.keys.filter((k) => !k.set).length ?? 0;
   return (
     <>
-      <PageTitle title="Keys" subtitle="Every key and credential the sources need, in one place. Saved encrypted on the server and shown only masked; a source that needs one says Needs setup until it's set." />
+      <PageTitle title="Keys" subtitle="The platform's settings and every source's key, in one place. Secrets are saved encrypted and shown only masked; a value still set in the deployment wins, and Copy from the deployment moves it here so the deployment's variable can be deleted." />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
-      {data && (
-        <Panel title={missing ? `${missing} of ${data.keys.length} not set` : "All set"}>
-          <ul className="flex flex-col divide-y divide-line">
-            {data.keys.map((k) => (
-              <KeyRow key={k.name} k={k} onChanged={reload} />
-            ))}
-          </ul>
-        </Panel>
-      )}
+      {data &&
+        GROUPS.map((g) => {
+          const keys = data.keys.filter((k) => (k.group ?? "sources") === g.id);
+          if (!keys.length) return null;
+          const missing = keys.filter((k) => !k.set).length;
+          return (
+            <Panel key={g.id} title={`${g.title}${missing ? ` · ${missing} of ${keys.length} not set` : " · all set"}`} className="mb-4">
+              <p className="-mt-1 mb-1 text-[12.5px] text-ink-3">{g.hint}</p>
+              <ul className="flex flex-col divide-y divide-line">
+                {keys.map((k) => (
+                  <KeyRow key={k.name} k={k} onChanged={reload} />
+                ))}
+              </ul>
+              {g.id === "email" && <GroupAction action="test_email" label="Send a test email" busyLabel="Sending" />}
+              {g.id === "push" && !keys.some((k) => k.set && k.name !== "VAPID_SUBJECT") && <GroupAction action="generate_vapid" label="Generate a key pair" busyLabel="Generating" onDone={reload} />}
+            </Panel>
+          );
+        })}
       <CredentialsPanel />
     </>
+  );
+}
+
+/** One button under a section (Send a test email, Generate a key pair), with its answer beside it. */
+function GroupAction({ action, label, busyLabel, onDone }: { action: string; label: string; busyLabel: string; onDone?: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px]">
+      <Button
+        size="sm"
+        variant="outline"
+        loading={busy}
+        onClick={async () => {
+          setBusy(true);
+          setMsg(null);
+          const r = await adminFetch<{ message: string }>("keys", { method: "POST", body: JSON.stringify({ action }) });
+          setBusy(false);
+          setMsg(r.ok ? r.data.message : r.error.message);
+          if (r.ok) onDone?.();
+        }}
+      >
+        {busy ? busyLabel : label}
+      </Button>
+      {msg && <span className="text-ink-3">{msg}</span>}
+    </div>
   );
 }
 
@@ -113,6 +156,14 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
           </form>
         </div>
       )}
+      {!k.multi && k.from === "environment" && (
+        <span className="flex flex-wrap items-center gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void importEnv()}>
+            Copy from the deployment
+          </Button>
+          <span className="text-[12px] text-ink-3">Then delete {k.name} in Vercel; this value takes over.</span>
+        </span>
+      )}
       {!k.multi && k.from !== "environment" && (
         <form
           className="flex flex-wrap items-center gap-2"
@@ -121,8 +172,8 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
             void send(value);
           }}
         >
-          <Input type="password" autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)} placeholder={k.set ? "Paste a new value to replace it" : "Paste the key"} aria-label={k.label} className="h-9 min-w-0 flex-1" />
-          <Button type="submit" size="sm" loading={busy} disabled={value.trim().length < 4}>
+          <Input type={k.plain ? "text" : "password"} autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)} placeholder={k.set ? (k.plain ? "Type a new value to replace it" : "Paste a new value to replace it") : k.plain ? "Type the value" : "Paste the key"} aria-label={k.label} className="h-9 min-w-0 flex-1" />
+          <Button type="submit" size="sm" loading={busy} disabled={value.trim().length < (k.minLength ?? 4)}>
             {k.set ? "Replace" : "Save"}
           </Button>
           {k.set && (
@@ -133,10 +184,19 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
         </form>
       )}
       <span className="text-[12px] text-ink-3">
-        {k.free ? "Free · " : ""}
-        <a href={k.signup} target="_blank" rel="noreferrer" className="font-medium text-brand-600 hover:underline">
-          Get a key
-        </a>
+        {(k.group ?? "sources") === "sources" && (
+          <>
+            {k.free ? "Free · " : ""}
+            <a href={k.signup} target="_blank" rel="noreferrer" className="font-medium text-brand-600 hover:underline">
+              Get a key
+            </a>
+          </>
+        )}
+        {k.name === "GITHUB_DISPATCH_TOKEN" && (
+          <a href={k.signup} target="_blank" rel="noreferrer" className="font-medium text-brand-600 hover:underline">
+            Create a token
+          </a>
+        )}
         {k.set && k.testable && (
           <>
             {" · "}

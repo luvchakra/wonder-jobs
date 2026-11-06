@@ -5,6 +5,7 @@
  * Each module lists its sources as rows with one state and at most one action, so an admin sees in one place why a
  * module's listings are where they are. Never a secret.
  */
+import { platformEnv } from "./platformKeys";
 import { explainFailure } from "@/domain/gateway/failure";
 import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { dataTypeOf } from "@/domain/jobslake/moduleData";
@@ -317,7 +318,7 @@ export async function importView(): Promise<ImportView> {
       find: { listings: counted.length ? counted.reduce((n, m) => n + (m.inFind ?? 0), 0) : null, refreshedAt: refresh?.at ?? null, stored: refresh?.stored ?? {} },
     },
     schedule: { activateWaiting: settings.gateway.activateWaiting, cronSet: !!process.env.CRON_SECRET, pausedModules: settings.gateway.pausedModules },
-    emails: { ...settings.importEmail, admins: parseEmailList(process.env.JOBSLAKE_ADMIN_EMAILS).length, mailbox: !!smtpConfig() },
+    emails: { ...settings.importEmail, admins: parseEmailList(process.env.JOBSLAKE_ADMIN_EMAILS).length, mailbox: !!smtpConfig(await platformEnv()) },
     job: jobSummary(job),
     runs,
     lastRun: cronRuns.find((r) => r.job === "gateway-collect") ?? null,

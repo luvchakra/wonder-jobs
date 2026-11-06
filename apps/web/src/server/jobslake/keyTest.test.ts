@@ -16,10 +16,11 @@ describe("Test on Admin → Keys", () => {
     __resetPlatformKeys();
   });
 
-  it("every key has a test", () => {
-    // Every key on the Keys page has a Test, however many there are, except those named here (other sessions' keys, whose
-    // Tests they add and then take their name out); a new key without a Test fails this, a new key with one needs no edit.
-    const untested = PLATFORM_KEYS.map((k) => k.name).filter((n) => !TESTABLE.has(n));
+  it("every source key has a test", () => {
+    // Every source key on the Keys page has a Test, however many there are, except those named here (other sessions' keys,
+    // whose Tests they add and then take their name out); a new source key without a Test fails this, one with a Test needs
+    // no edit. The platform's own settings (Email, AI, Push, Runner, 2026-11-06) are tested as a group: Send a test email.
+    const untested = PLATFORM_KEYS.filter((k) => (k.group ?? "sources") === "sources").map((k) => k.name).filter((n) => !TESTABLE.has(n));
     expect(untested.sort()).toEqual(["NAV_PAM_STILLING_FEED_TOKEN"]);
   });
 

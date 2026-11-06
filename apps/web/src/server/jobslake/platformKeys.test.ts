@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { __MemoryStore, __setJobsLakeStore } from "./store";
-import { __resetPlatformKeys, kaggleAuthorization, loadPlatformKeys, PLATFORM_KEYS, platformKey, platformKeyStatus, importPlatformKeysFromEnv, removePlatformKeyAt, setPlatformKey } from "./platformKeys";
+import { __resetPlatformKeys, kaggleAuthorization, loadPlatformKeys, PLATFORM_KEYS, platformKey, platformKeyStatus, importPlatformKeysFromEnv, platformEnv, removePlatformKeyAt, setPlatformKey } from "./platformKeys";
 
 describe("platform API keys — set on the platform, not the hosting dashboard", () => {
   beforeEach(() => {
@@ -111,5 +111,49 @@ describe("copying the deployment's TheirStack keys to Admin (2026-11-05)", () =>
     expect((await importPlatformKeysFromEnv("ADZUNA_APP_KEY")).ok).toBe(false);
     vi.stubEnv("THEIRSTACK_API_KEYS", "");
     expect((await importPlatformKeysFromEnv("THEIRSTACK_API_KEYS")).ok).toBe(false);
+  });
+});
+
+describe("the platform's own settings on Admin → Keys (owner, 2026-11-06: off the deployment)", () => {
+  beforeEach(() => {
+    __setJobsLakeStore(new __MemoryStore());
+    __resetPlatformKeys();
+    vi.stubEnv("SECRET_ENCRYPTION_KEY", "k".repeat(40));
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    __resetPlatformKeys();
+  });
+
+  it("fills what the deployment leaves unset (or empty) from the admin's store; the deployment's value still wins", async () => {
+    await setPlatformKey("SMTP_HOST", "smtp.admin.example");
+    await setPlatformKey("SMTP_PORT", "587");
+    vi.stubEnv("SMTP_USER", "");
+    await setPlatformKey("SMTP_USER", "me@admin.example");
+    vi.stubEnv("CONTACT_NOTIFY_EMAILS", "deploy@example.com");
+    await setPlatformKey("CONTACT_NOTIFY_EMAILS", "admin@example.com");
+    const env = await platformEnv();
+    expect(env.SMTP_HOST).toBe("smtp.admin.example");
+    expect(env.SMTP_PORT).toBe("587");
+    expect(env.SMTP_USER).toBe("me@admin.example");
+    expect(env.CONTACT_NOTIFY_EMAILS).toBe("deploy@example.com");
+  });
+
+  it("shows a plain setting in full and a secret masked; a short port is accepted", async () => {
+    expect((await setPlatformKey("SMTP_PORT", "465")).ok).toBe(true);
+    await setPlatformKey("SMTP_PASS", "a-long-mailbox-password");
+    const status = await platformKeyStatus();
+    expect(status.find((k) => k.name === "SMTP_PORT")).toMatchObject({ group: "email", masked: "465", from: "platform" });
+    const pass = status.find((k) => k.name === "SMTP_PASS")!;
+    expect(pass.masked).not.toContain("mailbox");
+    expect(status.find((k) => k.name === "ADZUNA_APP_ID")?.group).toBe("sources");
+  });
+
+  it("copies a single value from the deployment so its variable can be deleted", async () => {
+    vi.stubEnv("WONDERJOBS_AI_KEY", "sk-deploy-value-1234");
+    const r = await importPlatformKeysFromEnv("WONDERJOBS_AI_KEY");
+    expect(r.ok).toBe(true);
+    vi.stubEnv("WONDERJOBS_AI_KEY", "");
+    expect((await platformEnv()).WONDERJOBS_AI_KEY).toBe("sk-deploy-value-1234");
   });
 });

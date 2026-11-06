@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { z } from "zod";
 import { getServerProvider } from "@/server/providers";
-import { platformAI } from "@/server/providers/platform";
+import { loadPlatformAI, platformAI } from "@/server/providers/platform";
 
 /**
  * Internal AI assists — the model proposes, application code decides (CLAUDE.md, AI governance).
@@ -47,6 +47,7 @@ export function assistAvailable(): boolean {
 
 async function callModel(system: string, prompt: string, maxTokens: number): Promise<string> {
   if (completeImpl) return completeImpl(system, prompt, maxTokens);
+  await loadPlatformAI();
   const platform = platformAI();
   const adapter = platform && getServerProvider(platform.provider);
   if (!platform || !adapter) throw new Error("no platform model");
@@ -67,6 +68,7 @@ export function firstJsonObject(text: string): unknown {
 
 /** The model's answer as the caller's schema, or null — and the caller falls back to its rules. */
 export async function assist<T>(req: AssistRequest<T>): Promise<T | null> {
+  if (!completeImpl) await loadPlatformAI();
   if (!assistAvailable()) return null;
   const system = `${SYSTEM_GUARD}\n\n${req.instructions}`;
   const prompt = `<data>\n${req.data.replace(/<\/?data>/gi, "")}\n</data>`;

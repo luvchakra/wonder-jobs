@@ -6,7 +6,8 @@
 #
 # Repository secrets (Settings → Secrets and variables → Actions): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 # SECRET_ENCRYPTION_KEY (the exact value the site uses), GATEWAY_ADMIN_TOKEN, GATEWAY_CURSOR_SECRET,
-# WORKSLAKE_GATEWAY_API_KEY, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, CONTACT_NOTIFY_EMAILS; variable SITE_URL.
+# WORKSLAKE_GATEWAY_API_KEY; variable SITE_URL. Email and every source's key come from Admin → Keys, which this runner
+# reads from the same encrypted store (so no mail secrets here).
 # Until SUPABASE_SERVICE_ROLE_KEY and GATEWAY_ADMIN_TOKEN exist, the last step calls the site instead (CRON_SECRET).
 name: Gateway collection
 
@@ -67,11 +68,6 @@ jobs:
           WORKSLAKE_GATEWAY_URL: ${{ env.SITE }}
           WORKSLAKE_GATEWAY_API_KEY: ${{ secrets.WORKSLAKE_GATEWAY_API_KEY }}
           NEXT_PUBLIC_SITE_URL: ${{ env.SITE }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          CONTACT_NOTIFY_EMAILS: ${{ secrets.CONTACT_NOTIFY_EMAILS }}
           WJ_COLLECT_MODE: ${{ inputs.mode || 'scheduled' }}
           WJ_COLLECT_MODULE: ${{ inputs.module }}
           WJ_COLLECT_BY: ${{ inputs.by }}
