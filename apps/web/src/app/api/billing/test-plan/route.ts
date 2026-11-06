@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const rl = rateLimit(`billing-test:${session.tenantId}`, { capacity: 10, refillPerSec: 0.2 });
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const admin = isAdminSession(session);
-  if (!admin && paymentsLive()) return NextResponse.json({ error: "Testing plans are off now that payments are live." }, { status: 403 });
+  if (!admin && (await paymentsLive())) return NextResponse.json({ error: "Testing plans are off now that payments are live." }, { status: 403 });
   const body = (await req.json().catch(() => null)) as { plan?: unknown } | null;
   const plan = body?.plan === null ? null : (PLAN_IDS as readonly string[]).includes(String(body?.plan)) ? (body!.plan as PlanId) : undefined;
   if (plan === undefined) return NextResponse.json({ error: "Choose Free, Pro or Max." }, { status: 400 });

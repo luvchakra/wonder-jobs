@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { moduleStore } from "@/wonderworks/store";
 import type { ModuleId } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
-import { ChoiceChips, DictationNotes, PillButton, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
+import { ChoiceChips, DictationNotes, PillButton, closeKeyboard, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
 
 /**
  * A WonderWorks module's Find (docs/WONDERWORKS_PLATFORM.md §4.1), with the jobs portal's structure and parts: the
@@ -138,6 +138,9 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
     setBusy(null);
   };
   const go = async (text = draft) => {
+    // Every way a search starts (Enter, the arrow, a recent search, Search again) brings the keyboard down first.
+    closeKeyboard();
+    setBoxFocused(false);
     // No words: the module's latest listings (owner, 2026-11-01), not an error.
     const q = text.trim();
     inFlight.current?.abort();
@@ -254,8 +257,6 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
             history={historyFor(recent, draft)}
             onPick={(t) => {
               setTyped(t);
-              setBoxFocused(false);
-              (document.activeElement as HTMLElement | null)?.blur();
               void go(t);
             }}
             onForget={(t) => forget(t)}

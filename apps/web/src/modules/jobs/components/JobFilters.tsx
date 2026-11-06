@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
-import { ChoiceChips, DictationNotes, FilterBox, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
+import { ChoiceChips, DictationNotes, FilterBox, closeKeyboard, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -208,6 +208,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
         onSubmit={(e) => {
           e.preventDefault();
           setBoxFocused(false);
+          closeKeyboard();
           submit();
         }}
       >
@@ -229,7 +230,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             onPick={(t) => {
               setDraft(t);
               setBoxFocused(false);
-              (document.activeElement as HTMLElement | null)?.blur();
+              closeKeyboard();
               submit(t);
             }}
             onForget={(t) => forgetSearch(t)}

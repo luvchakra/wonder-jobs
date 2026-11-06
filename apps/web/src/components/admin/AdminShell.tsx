@@ -102,9 +102,9 @@ export const ADMIN_MENUS: AdminMenu[] = [
     label: "Billing",
     icon: CreditCard,
     links: [
+      { href: "/platform/billing/payments", label: "Payments" },
       { href: "/platform/billing/plans", label: "Plans & features" },
       { href: "/platform/billing/prices", label: "Prices" },
-      { href: "/platform/billing/discounts", label: "Discounts" },
       { href: "/platform/billing/api", label: "WorksLake API" },
       { href: "/platform/billing/history", label: "History" },
     ],
@@ -127,6 +127,8 @@ export const ADMIN_MENUS: AdminMenu[] = [
 export const SUB_PAGES: Record<string, string> = {
   [`${LAKE}/add`]: `${LAKE}/sources`,
   [`${LAKE}/storage`]: `${LAKE}/databases`,
+  // Discounts change what a price charges, so they're reached from Prices (the Billing menu keeps 5 links with Payments).
+  "/platform/billing/discounts": "/platform/billing/prices",
 };
 
 /** The page a path belongs to: the longest link that it is, or sits under. The Overview matches only itself. */

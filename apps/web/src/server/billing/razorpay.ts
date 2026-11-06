@@ -32,7 +32,7 @@ export async function razorpayCall<T>(cfg: Pick<RazorpayConfig, "keyId" | "keySe
 
 const PERIOD: Record<string, PlanPrice["interval"]> = { daily: "day", weekly: "week", monthly: "month", yearly: "year" };
 
-export async function razorpayPlan(cfg: RazorpayConfig): Promise<PlanPrice> {
+export async function razorpayPlan(cfg: RazorpayConfig & { planId: string }): Promise<PlanPrice> {
   const p = await razorpayCall<{ id: string; period: string; interval: number; item: { name: string; description?: string | null; amount: number; currency: string; active?: boolean } }>(cfg, "GET", `/plans/${encodeURIComponent(cfg.planId)}`);
   const interval = PERIOD[p.period];
   if (!interval) throw new ProviderError(`Unsupported Razorpay plan period "${p.period}"`, 400);
@@ -48,7 +48,7 @@ export async function razorpayPlan(cfg: RazorpayConfig): Promise<PlanPrice> {
   };
 }
 
-export async function razorpaySubscribe(cfg: RazorpayConfig, input: { tenantId: string }): Promise<{ id: string; url: string }> {
+export async function razorpaySubscribe(cfg: RazorpayConfig & { planId: string }, input: { tenantId: string }): Promise<{ id: string; url: string }> {
   const s = await razorpayCall<{ id: string; short_url?: string }>(cfg, "POST", "/subscriptions", {
     plan_id: cfg.planId,
     total_count: cfg.totalCount,
@@ -75,6 +75,25 @@ export async function razorpayCancelNow(cfg: RazorpayConfig, subscriptionId: str
 export async function razorpaySubscriptionStatus(cfg: RazorpayConfig, subscriptionId: string): Promise<{ status: SubscriptionStatus; cancelAtPeriodEnd: boolean; raw: string }> {
   const s = await razorpayCall<{ status: string; has_scheduled_changes?: boolean }>(cfg, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
   return { status: normalizeRazorpayStatus(s.status), cancelAtPeriodEnd: !!s.has_scheduled_changes, raw: s.status };
+}
+
+/**
+ * Checks a key pair by listing one plan (a read that changes nothing). Throws a ProviderError with Razorpay's status:
+ * 401 means the Key ID and secret don't match.
+ */
+export async function razorpayCheckKeys(cfg: Pick<RazorpayConfig, "keyId" | "keySecret">): Promise<{ plans: number }> {
+  const r = await razorpayCall<{ count?: number }>(cfg, "GET", "/plans?count=1");
+  return { plans: r.count ?? 0 };
+}
+
+/**
+ * The signature Razorpay's checkout hands back after a subscription's first payment: the hex HMAC-SHA256 of
+ * `<payment id>|<subscription id>` with the Key secret. Proves the payment came from Razorpay for this subscription;
+ * the plan still changes only from what Razorpay then reports for the subscription itself.
+ */
+export function verifyRazorpayCheckout(input: { paymentId: string; subscriptionId: string; signature: string }, keySecret: string): boolean {
+  if (!input.paymentId || !input.subscriptionId || !input.signature || !keySecret) return false;
+  return safeEqual(input.signature.trim(), hmacSha256Hex(keySecret, `${input.paymentId}|${input.subscriptionId}`));
 }
 
 /** `X-Razorpay-Signature` is the hex HMAC-SHA256 of the raw body with the webhook secret. */
