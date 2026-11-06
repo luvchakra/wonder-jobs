@@ -249,7 +249,7 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
         <>
           <h2 className="wj-sr-only">Job results</h2>
           {/* How many, from where — and the order they're in. */}
-          {(summary || !savedOnly) && <ResultsLine summary={summary} sort={!savedOnly && <SortMenu />} />}
+          {(summary || !savedOnly) && <ResultsLine summary={summary} sort={!savedOnly && <SortMenu />} pinned={!savedOnly} />}
           <ResultsGrid label="Job results">
             {visible.map((id) => (
               <li key={id}>
