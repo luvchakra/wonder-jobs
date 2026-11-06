@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
-import { ChoiceChips, DictationNotes, FilterBox, closeKeyboard, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
+import { ChoiceChips, DictationNotes, FIND_AREA, FIND_BOX, FIND_FORM, FIND_PILL_WIDE, FIND_ROW, FilterBox, closeKeyboard, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -202,9 +202,9 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   };
   if (shortlist) return <ShortlistFilters text={shortlist.text} onText={shortlist.onText} filters={filters} onChange={onChange} className={className} />;
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div className={cn(FIND_AREA, "flex flex-col gap-2", className)}>
       <form
-        className="flex flex-col gap-2"
+        className={FIND_FORM}
         onSubmit={(e) => {
           e.preventDefault();
           setBoxFocused(false);
@@ -234,12 +234,14 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
               submit(t);
             }}
             onForget={(t) => forgetSearch(t)}
+            className={FIND_BOX}
           />
         )}
         {/* Refine, location, pay and the search — one row, the same in both modes. */}
-        <div className="flex items-center gap-2">
+        {/* From 1024px it sits beside Part Time's box (FIND_FORM); Full Time has no box, so its row keeps the width. */}
+        <div className={cn(FIND_ROW, !partTime && "lg:flex-1")}>
           <RefineButton count={activeCount} />
-          <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className="min-w-0 flex-auto" />
+          <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className={partTime ? FIND_PILL_WIDE : "min-w-0 flex-auto"} />
           <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
           <SearchSubmit label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} />
         </div>
