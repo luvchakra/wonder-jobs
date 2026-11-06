@@ -166,7 +166,9 @@ export function TopBar() {
           separate logo), the kind menu in the centre, the bell on the right. Tablet and desktop (owner, 2026-11-06: "design
           the tablet and desktop ui"): the sidebar already carries the logo, so the kind menu starts at the content's left
           edge and the bell and avatar sit together on the right, as desktop apps do. */}
-      <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
+      {/* From 1024px the sidebar lists the modules, so the menu leaves the top bar (its space stays, keeping the bell and
+          avatar on the right). */}
+      <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start lg:invisible">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
           on the badge). Ask Wonder is under You, and ⌘K on a computer. */}

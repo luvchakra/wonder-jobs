@@ -238,10 +238,10 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           />
         )}
         {/* Refine, location, pay and the search — one row, the same in both modes. */}
-        {/* From 1024px it sits beside Part Time's box (FIND_FORM); Full Time has no box, so its row keeps the width. */}
-        <div className={cn(FIND_ROW, !partTime && "lg:flex-1")}>
+        {/* From 1024px it sits beside Part Time's box (FIND_FORM); Full Time's row, under the role, takes the same set widths. */}
+        <div className={FIND_ROW}>
           <RefineButton count={activeCount} />
-          <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className={partTime ? FIND_PILL_WIDE : "min-w-0 flex-auto"} />
+          <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className={FIND_PILL_WIDE} />
           <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
           <SearchSubmit label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} />
         </div>
