@@ -343,8 +343,9 @@ function ShortlistFilters({ text, onText, filters, onChange, className }: { text
   const dictation = useDictation({ textAtStart: () => text, onText });
   const recent = useJobsStore((s) => s.recentSavedSearches);
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      <FilterBox text={text} onText={onText} label="Filter saved jobs" dictation={dictation} dictateLabel="what to look for in your saved jobs" history={recent} onEnter={(t) => useJobsStore.getState().rememberSearch(t, "saved")} onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")} />
+    // From 1024px the box, type chips and toggles share one row (the box at Find's width); phones keep the column.
+    <div className={cn("flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center", className)}>
+      <FilterBox className={FIND_BOX} text={text} onText={onText} label="Filter saved jobs" dictation={dictation} dictateLabel="what to look for in your saved jobs" history={recent} onEnter={(t) => useJobsStore.getState().rememberSearch(t, "saved")} onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")} />
       <JobTypeChips filters={filters} onChange={onChange} />
       <div className="flex flex-wrap gap-2">
         <TogglePill label="Hide Pipeline" checked={!!filters.hideInPipeline} onChange={(on) => onChange({ hideInPipeline: on })} />
