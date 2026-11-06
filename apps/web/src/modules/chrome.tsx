@@ -24,7 +24,7 @@ const LIVE = Object.fromEntries(MODULES.flatMap((m) => (m.menuId && m.status ===
  * order a platform admin set (Admin → Settings → App menus → Modules). Its value is the module whose pages are open, else
  * Jobs' current kind. A kind of jobs switches Find — in place on Find, or opening Find from anywhere else.
  */
-function FindMenu() {
+function useFindMenu() {
   const current = useJobsFindMode();
   const router = useRouter();
   const pathname = usePathname();
@@ -37,31 +37,42 @@ function FindMenu() {
   const kinds = arrangeMenu([...UPCOMING_KINDS], useMenu("find_kinds"));
   const liveKinds = kinds.filter((k) => LIVE[k.id]);
   const liveNow = onModule && onModule !== "jobs" ? liveKinds.find((k) => LIVE[k.id]!.id === onModule) : undefined;
-  return (
-    <ModuleMenu
-      label="Module"
-      now={liveNow ? { label: liveNow.label, ...LOOK[liveNow.id] } : JOBS_MENU_CHOICES.find((c) => c.id === current)!}
-      choices={JOBS_MENU_CHOICES.map((c) => ({ ...c, on: !liveNow && c.id === current }))}
-      live={liveKinds.map((k) => ({ ...k, ...LOOK[k.id], on: liveNow?.id === k.id }))}
-      upcoming={kinds.filter((k) => !LIVE[k.id]).map((k) => ({ ...k, ...LOOK[k.id] }))}
-      onChoice={(id, on) => {
-        if (liveNow) {
-          // Back to Jobs, in the kind picked.
-          setActiveModule("jobs");
-          if (id !== current) pickJobsFindMode(id);
-          router.push("/app/jobs");
-        } else {
-          if (!on) pickJobsFindMode(id);
-          if (pathname !== "/app/jobs") router.push("/app/jobs");
-        }
-      }}
-      onModule={(id, on) => {
-        const target = LIVE[id as UpcomingKindId]!;
-        setActiveModule(target.id);
-        if (!on) router.push(target.href);
-      }}
-    />
-  );
+  return {
+    now: liveNow ? { label: liveNow.label, ...LOOK[liveNow.id] } : JOBS_MENU_CHOICES.find((c) => c.id === current)!,
+    choices: JOBS_MENU_CHOICES.map((c) => ({ ...c, on: !liveNow && c.id === current })),
+    live: liveKinds.map((k) => ({ ...k, ...LOOK[k.id], on: liveNow?.id === k.id })),
+    upcoming: kinds.filter((k) => !LIVE[k.id]).map((k) => ({ ...k, ...LOOK[k.id] })),
+    onChoice: (id: string, on: boolean) => {
+      if (liveNow) {
+        // Back to Jobs, in the kind picked.
+        setActiveModule("jobs");
+        if (id !== current) pickJobsFindMode(id);
+        router.push("/app/jobs");
+      } else {
+        if (!on) pickJobsFindMode(id);
+        if (pathname !== "/app/jobs") router.push("/app/jobs");
+      }
+    },
+    onModule: (id: string, on: boolean) => {
+      const target = LIVE[id as UpcomingKindId]!;
+      setActiveModule(target.id);
+      if (!on) router.push(target.href);
+    },
+  };
+}
+
+function FindMenu() {
+  const m = useFindMenu();
+  return <ModuleMenu label="Module" now={m.now} choices={m.choices} live={m.live} upcoming={m.upcoming} onChoice={m.onChoice} onModule={m.onModule} />;
+}
+
+/** The desktop sidebar's Modules list: the same choices as the top bar's menu (which the sidebar replaces from 1024px). */
+function useSidebarModules() {
+  const m = useFindMenu();
+  return {
+    items: [...m.choices.map((c) => ({ id: c.id, label: c.label, icon: c.icon, tint: c.tint, on: c.on, select: () => m.onChoice(c.id, c.on) })), ...m.live.map((k) => ({ id: k.id, label: k.label, icon: k.icon, tint: k.tint, on: k.on, select: () => m.onModule(k.id, k.on) }))],
+    soon: m.upcoming.length,
+  };
 }
 
 /** Jobs' Needs attention (its applications) counts only while Jobs is the module selected; the status line is the account's. */
@@ -75,7 +86,7 @@ const postFor = (m: string) => {
   const p = MODULES.find((x) => x.id === m)?.post;
   return p ? { ...p, href: withNew(p.href) } : null;
 };
-const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useStatus, postFor };
+const SLOTS: ChromeSlots = { tabsFor: (m) => moduleNav(m as ModuleId), moduleFromPath, sections: SECTION_TABS, FindMenu, useSidebarModules, useStatus, postFor };
 
 /** The composition root for the app chrome: WonderWorks' top bar, tabs and section tabs, filled from the modules. */
 export function AppChrome({ children }: { children: ReactNode }) {

@@ -63,10 +63,11 @@ export function closeKeyboard() {
 /**
  * Find's search form, the same in every module (owner, 2026-11-06: "design the tablet and desktop ui … DO NOT CHANGE
  * MOBILE"). Phones and tablets: the box, then the row of Refine, the module's pills and Search under it. From 1024px:
- * one row, the box taking the room and the pills at a set width, so nothing stretches across a wide screen.
+ * one row, the box and the pills each at a set width, so nothing stretches across a wide screen.
  */
 export const FIND_FORM = "flex flex-col gap-2 lg:flex-row lg:items-center";
-export const FIND_BOX = "lg:flex-1";
+// A set width, not the whole row (owner, 2026-11-06: "don't have so long search boxes, shorten them to look elegant").
+export const FIND_BOX = "lg:w-[26rem] lg:flex-none xl:w-[30rem]";
 export const FIND_ROW = "flex items-center gap-2 lg:shrink-0";
 /** The row's first, wide pill (a place, a time): fills the row on phones and tablets, a set width beside the box from 1024px. */
 export const FIND_PILL_WIDE = "min-w-0 flex-auto lg:w-56 lg:flex-none";

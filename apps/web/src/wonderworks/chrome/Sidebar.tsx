@@ -4,10 +4,59 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useMediaQuery } from "@/lib/motion";
 import { WonderLogo } from "@/components/brand/WonderLogo";
+import { Bell, Bot, LifeBuoy, Sparkles } from "lucide-react";
+import { TINTS } from "@/wonderworks/brand/tiles";
 import { REPORT_NAV, isActivePath, type NavItem } from "./nav";
 import { useModuleNav } from "./useModuleNav";
+import { useChromeSlots } from "./slots";
 
-function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: string; collapsed: boolean }) {
+/** The desktop sidebar's settings, at its foot (from 1024px; on phones and tablets they're in the avatar menu). */
+const SETTINGS_NAV: NavItem[] = [
+  { href: "/app/notifications", label: "Notifications", icon: Bell, match: (p) => p === "/app/notifications" || p.startsWith("/app/settings/notifications") },
+  { href: "/app/automation/settings", label: "Automation", icon: Bot, match: (p) => p.startsWith("/app/automation") },
+  { href: "/app/settings/ai", label: "AI provider", icon: Sparkles },
+  { href: "/help", label: "Help & Guide", icon: LifeBuoy },
+];
+
+/** A heading over a group of the sidebar's links (desktop only). */
+function GroupLabel({ children }: { children: React.ReactNode }) {
+  return <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-ink-4">{children}</p>;
+}
+
+/**
+ * The modules, as in the top bar's menu (which the sidebar replaces from 1024px): Jobs' Full Time and Part Time, then
+ * every live module, each in its own tint; the one in use is marked. Modules still to come are counted, not listed.
+ */
+function ModuleList() {
+  const { useSidebarModules } = useChromeSlots();
+  const mods = useSidebarModules?.();
+  if (!mods?.items.length) return null;
+  return (
+    <nav aria-label="Modules" className="mt-3 flex shrink-0 flex-col border-t border-line pt-3">
+      <GroupLabel>Modules</GroupLabel>
+      <ul className="flex flex-col gap-0.5">
+        {mods.items.map((m) => (
+          <li key={m.id}>
+            <button
+              type="button"
+              onClick={m.select}
+              aria-current={m.on ? "true" : undefined}
+              className={cn("flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2 text-left text-[13.5px] transition-colors", m.on ? "bg-bg-soft font-semibold text-ink" : "text-ink-2 hover:bg-bg-soft hover:text-ink")}
+            >
+              <span className={cn("grid size-6 shrink-0 place-items-center rounded-[7px]", TINTS[m.tint].tile, TINTS[m.tint].icon)}>
+                <m.icon className="size-3.5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1 truncate">{m.label}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {mods.soon > 0 && <p className="mt-1 px-3 text-[12px] text-ink-4">{mods.soon} more coming soon</p>}
+    </nav>
+  );
+}
+
+function NavLink({ item, pathname, collapsed, compact }: { item: NavItem; pathname: string; collapsed: boolean; /** The desktop sidebar's smaller settings links. */ compact?: boolean }) {
   const active = isActivePath(pathname, item);
   const Icon = item.icon;
   return (
@@ -17,7 +66,8 @@ function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: strin
       aria-label={collapsed ? item.label : undefined}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "group flex h-11 items-center gap-3 rounded-[12px] px-3 text-[14px] font-medium transition-colors",
+        "group flex items-center gap-3 rounded-[12px] px-3 font-medium transition-colors",
+        compact ? "h-9 text-[13.5px]" : "h-11 text-[14px]",
         active ? "bg-brand-50 text-brand-700" : "text-ink-2 hover:bg-bg-soft hover:text-ink",
         collapsed && "justify-center px-0",
       )}
@@ -29,29 +79,39 @@ function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: strin
 }
 
 /**
- * Desktop sidebar: the logo, the four places, and Analytics below them. Icons only on tablet widths, icons
- * and labels from 1024px up. Help, account and sign-out are in the avatar menu; each place's own
- * pages are tabs at its top. Below 768px the bottom bar (MobileNav) takes over.
+ * Sidebar from 768px. Tablets (768–1023px): icons only, the module's four places and Analytics. Desktops (owner,
+ * 2026-11-06: "get different kind of menus in the sidebar as it has enough space now"): the four places, the Modules
+ * list (in place of the top bar's menu), Analytics, and the settings at the foot. Below 768px the bottom bar (MobileNav)
+ * takes over, and none of this shows.
  */
 export function Sidebar() {
   const pathname = usePathname();
   const collapsed = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
   const nav = useModuleNav();
   return (
-    <aside className={cn("hidden md:flex h-dvh sticky top-0 shrink-0 flex-col border-r border-line bg-surface", collapsed ? "w-[72px] px-3" : "w-[216px] px-4")} aria-label="Sidebar">
-      <div className={cn("flex h-16 items-center", collapsed ? "justify-center" : "px-1")}>
+    <aside className={cn("hidden md:flex h-dvh sticky top-0 shrink-0 flex-col border-r border-line bg-surface", collapsed ? "w-[72px] px-3" : "w-[232px] overflow-y-auto px-4 [scrollbar-width:thin]")} aria-label="Sidebar">
+      <div className={cn("flex h-16 shrink-0 items-center", collapsed ? "justify-center" : "px-1")}>
         <WonderLogo href="/app" size={24} compact={collapsed} />
       </div>
-      <nav aria-label="Primary" className="mt-4 flex flex-col gap-0.5">
+      <nav aria-label="Primary" className="mt-4 flex shrink-0 flex-col gap-0.5">
         {nav.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
         ))}
       </nav>
-      <nav aria-label="Reports" className="mt-3 flex flex-col gap-0.5 border-t border-line pt-3">
+      {!collapsed && <ModuleList />}
+      <nav aria-label="Reports" className="mt-3 flex shrink-0 flex-col gap-0.5 border-t border-line pt-3">
         {REPORT_NAV.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} collapsed={collapsed} />
         ))}
       </nav>
+      {!collapsed && (
+        <nav aria-label="Settings" className="mb-4 mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line pt-3">
+          <GroupLabel>Settings</GroupLabel>
+          {SETTINGS_NAV.map((item) => (
+            <NavLink key={item.href} item={item} pathname={pathname} collapsed={false} compact />
+          ))}
+        </nav>
+      )}
     </aside>
   );
 }
