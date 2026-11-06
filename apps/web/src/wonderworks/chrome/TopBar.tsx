@@ -169,7 +169,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   if (place === "side") {
     if (!wide) return null;
     return (
-      <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex shrink-0 items-center gap-1 border-t border-line bg-surface px-4 py-3" ref={profileRef}>
+      <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex shrink-0 items-center gap-1 border-t border-line bg-surface px-4 py-2" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] p-1.5 text-left hover:bg-bg-soft">
           <FlipAvatar name={displayName} />
           <span className="min-w-0">
