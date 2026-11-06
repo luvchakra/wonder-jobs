@@ -55,7 +55,7 @@ function Setup({ data, onChanged }: { data: PaymentsSetup; onChanged: () => void
     <div className="flex flex-col gap-4">
       {data.live ? (
         <Note tone="success">
-          Payments are live{data.mode === "test" ? " in Razorpay's test mode: use Razorpay's test cards or UPI, no real money moves" : ""}. Candidates see Upgrade on You → Plan &amp; billing, and testing plans are now for admins only.
+          Payments are live{data.mode === "test" ? " in Razorpay's test mode: use Razorpay's test cards or UPI, no real money moves" : ""}{data.webhook.secretSet ? "" : ". Adding the webhook (step 2) is still recommended"}. Candidates see Upgrade on You → Plan &amp; billing, and testing plans are now for admins only.
         </Note>
       ) : (
         <Note tone="warning">Payments aren&apos;t live yet: finish the steps below. Until then candidates can try plans without paying.</Note>
@@ -83,7 +83,10 @@ function Setup({ data, onChanged }: { data: PaymentsSetup; onChanged: () => void
         </p>
       </Step>
 
-      <Step n={2} done={data.webhook.secretSet} title="Webhook">
+      <Step n={2} done={data.webhook.secretSet} title="Webhook (recommended)">
+        <p className="mb-2 text-[12.5px] text-ink-3">
+          Optional: payments work without it, since each one is confirmed with Razorpay as it completes and a daily check catches anything missed. Razorpay&apos;s own setup steps don&apos;t ask for it; add it from Razorpay&apos;s Webhooks page.
+        </p>
         <p className="text-[13px] text-ink-2">So renewals, failed payments and cancellations reach WonderWorks. In Razorpay: Account &amp; Settings → Webhooks → Add new webhook, then:</p>
         <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-[13px] text-ink-2">
           <li>

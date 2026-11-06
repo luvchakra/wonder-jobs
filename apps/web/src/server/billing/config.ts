@@ -21,6 +21,7 @@ export interface StripeConfig {
 export interface RazorpayConfig {
   keyId: string;
   keySecret: string;
+  /** Empty when the admin hasn't set one: Razorpay's webhooks are then refused (see REQUIRED). */
   webhookSecret: string;
   /** Pro's Razorpay plan from RAZORPAY_PLAN_ID, when the deployment sets one; otherwise Admin → Billing → Prices creates it. */
   planId?: string;
@@ -33,7 +34,10 @@ export interface RazorpayConfig {
 const REQUIRED: Record<BillingProviderId, string[]> = {
   stripe: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_ID"],
   // The plan ids are not credentials: the admin creates them from Admin → Billing → Prices once Razorpay is connected.
-  razorpay: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"],
+  // The webhook secret is optional for Razorpay (owner, 2026-11-06: Razorpay's setup never asks for a webhook): every
+  // payment is confirmed from Razorpay itself when its checkout window reports it (`/api/billing/confirm`), and the daily
+  // reconciliation asks Razorpay about the rest. Without a secret, webhooks are refused, never trusted.
+  razorpay: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
 };
 
 /**
@@ -60,7 +64,7 @@ export function razorpayConfig(env: NodeJS.ProcessEnv = process.env): RazorpayCo
   return {
     keyId: value("RAZORPAY_KEY_ID", env)!,
     keySecret: value("RAZORPAY_KEY_SECRET", env)!,
-    webhookSecret: value("RAZORPAY_WEBHOOK_SECRET", env)!,
+    webhookSecret: value("RAZORPAY_WEBHOOK_SECRET", env) ?? "",
     planId: env.RAZORPAY_PLAN_ID?.trim() || undefined,
     planIdMax: env.RAZORPAY_PLAN_ID_MAX?.trim() || undefined,
     // 120 cycles = ten years of monthly billing; the candidate can cancel any time.

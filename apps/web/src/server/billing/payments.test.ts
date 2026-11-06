@@ -33,7 +33,8 @@ afterEach(async () => {
 
 describe("Razorpay keys entered in the admin", () => {
   it("connect Razorpay without any deployment variable, and never show a secret", async () => {
-    expect(missingBillingEnv("razorpay")).toEqual(["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"]);
+    // The webhook secret is optional (payments are confirmed from Razorpay itself).
+    expect(missingBillingEnv("razorpay")).toEqual(["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"]);
     await setBillingKeys(KEYS);
     expect(missingBillingEnv("razorpay")).toEqual([]);
     expect(razorpayConfig()).toMatchObject({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: KEYS.RAZORPAY_KEY_SECRET, planId: undefined });
@@ -63,7 +64,8 @@ describe("Razorpay keys entered in the admin", () => {
     fetchMock.mockClear();
     fetchMock.mockImplementation(async () => new Response(JSON.stringify({ count: 0, items: [] })));
     const setup = await savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: KEYS.RAZORPAY_KEY_SECRET }, "admin@x", "https://x");
-    expect(setup).toMatchObject({ mode: "test", connection: { state: "connected" }, live: false, webhook: { url: "https://x/api/billing/webhooks/razorpay", secretSet: false } });
+    // Live without a webhook: Pro sells a month at a time at its price; the webhook is recommended, not required.
+    expect(setup).toMatchObject({ mode: "test", connection: { state: "connected" }, live: true, webhook: { url: "https://x/api/billing/webhooks/razorpay", secretSet: false } });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.razorpay.com/v1/payments?count=1");
     expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from(`${KEYS.RAZORPAY_KEY_ID}:${KEYS.RAZORPAY_KEY_SECRET}`).toString("base64")}`);
