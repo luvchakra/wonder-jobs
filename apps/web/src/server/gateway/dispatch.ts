@@ -11,7 +11,7 @@ import { withPlatformKeys } from "@/server/jobslake/platformKeys";
 
 type Env = Record<string, string | undefined>;
 
-/** The token comes from the deployment or Admin → Keys → Runner (callers load the store first, `loadPlatformKeys`). */
+/** The token comes from the deployment or Admin → Settings → Platform keys (callers load the store first, `loadPlatformKeys`). */
 export function runnerDispatchConfigured(env: Env = withPlatformKeys()): boolean {
   return !!env.GITHUB_DISPATCH_TOKEN?.trim();
 }

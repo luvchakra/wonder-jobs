@@ -40,8 +40,8 @@ const LAKE = "/platform/jobs-lake";
  * Two sections. Data: where listings come from (Sources), what they are (Listings), and who offers them
  * (Organisations: companies, schools, practices, organisers, shops). Platform: keeping it running (Operations),
  * money (Billing) and settings. Pages that belong to another page are reached from it (SUB_PAGES), not the rail:
- * Add a source from Sources and Import, Storage limits from Databases; DDBs (each module's own data database) are under Sources. Alerts are on Health and
- * source credentials on Keys. Paths keep their old names (`/platform/jobs-lake/...`); only what people read changed.
+ * Add a source from Sources and Import, Storage limits from Databases; DDBs (each module's own data database) are under Sources. Alerts are on Health,
+ * source credentials on Source keys, and the WorksLake protocol under Feature switches. Paths keep their old names (`/platform/jobs-lake/...`); only what people read changed.
  */
 export const ADMIN_MENUS: AdminMenu[] = [
   {
@@ -58,7 +58,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
     links: [
       { href: `${LAKE}/import`, label: "Import" },
       { href: `${LAKE}/sources`, label: "All sources" },
-      { href: `${LAKE}/keys`, label: "Keys" },
+      { href: `${LAKE}/keys`, label: "Source keys" },
       { href: `${LAKE}/data-db`, label: "DDBs" },
     ],
   },
@@ -114,11 +114,11 @@ export const ADMIN_MENUS: AdminMenu[] = [
     label: "Settings",
     icon: Settings,
     links: [
+      { href: `${LAKE}/platform-keys`, label: "Platform keys" },
       { href: `${LAKE}/menus`, label: "App menus" },
       { href: `${LAKE}/notifications`, label: "Notifications" },
       { href: "/platform/careers", label: "Our careers page" },
       { href: `${LAKE}/settings`, label: "Feature switches" },
-      { href: `${LAKE}/protocols`, label: "WorksLake protocol" },
     ],
   },
 ];
@@ -129,6 +129,8 @@ export const SUB_PAGES: Record<string, string> = {
   [`${LAKE}/storage`]: `${LAKE}/databases`,
   // Discounts change what a price charges, so they're reached from Prices (the Billing menu keeps 5 links with Payments).
   "/platform/billing/discounts": "/platform/billing/prices",
+  // A reference page, reached from Feature switches, so Settings has room for Platform keys (owner, 2026-11-06).
+  [`${LAKE}/protocols`]: `${LAKE}/settings`,
 };
 
 /** The page a path belongs to: the longest link that it is, or sits under. The Overview matches only itself. */

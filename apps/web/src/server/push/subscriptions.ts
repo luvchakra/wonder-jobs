@@ -31,7 +31,7 @@ export interface DeliveryReport {
 
 /** Where the operator's keys come from. Generate a pair with `npm run push:keys`. */
 export function vapidConfig(env: Record<string, string | undefined> = withPlatformKeys()): (VapidKeys & { subject: string }) | null {
-  // The deployment's variables, else the pair set on Admin → Keys → Push (owner, 2026-11-06); callers load the store first.
+  // The deployment's variables, else the pair set on Admin → Settings → Platform keys (owner, 2026-11-06); callers load the store first.
   const publicKey = env.VAPID_PUBLIC_KEY?.trim();
   const privateKey = env.VAPID_PRIVATE_KEY?.trim();
   if (!publicKey || !privateKey) return null;
