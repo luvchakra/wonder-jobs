@@ -108,7 +108,7 @@ export const easyApplyOnly = (sourceIds: string[]) => sourceIds.length === 1 && 
  * types, level, work mode, freshness, compare — is in Refine; sort sits beside the job count (SortMenu).
  * The mode is the slider above the page (domain/jobs/findMode.ts).
  */
-export function JobFiltersBar({ filters, onChange, views = true, compare, onCompare, sourceSearch, refineTop, searchAs, shortlist, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sources?: JobSource[]; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** A "Search as" role other than My profile is picked: one more setting, and Clear puts My profile back. */ searchAs?: { set: boolean; clear: () => void }; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; className?: string }) {
+export function JobFiltersBar({ filters, onChange, views = true, compare, onCompare, sourceSearch, refineTop, searchAs, shortlist, lead, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sources?: JobSource[]; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** A "Search as" role other than My profile is picked: one more setting, and Clear puts My profile back. */ searchAs?: { set: boolean; clear: () => void }; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; /** Full Time: the role line, in the search box's place at the start of the row (FIND_BOX), so from 1024px everything sits on one line (owner, 2026-11-06). */ lead?: React.ReactNode; className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
   // Refine is Find's own panel: leaving Find closes it.
@@ -212,6 +212,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           submit();
         }}
       >
+        {!partTime && lead && <div className={FIND_BOX}>{lead}</div>}
         {partTime && (
           <SearchBox
             value={draft}
@@ -238,7 +239,7 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
           />
         )}
         {/* Refine, location, pay and the search — one row, the same in both modes. */}
-        {/* From 1024px it sits beside Part Time's box (FIND_FORM); Full Time's row, under the role, takes the same set widths. */}
+        {/* From 1024px it sits beside Part Time's box or Full Time's role line (FIND_FORM), at the same set widths. */}
         <div className={FIND_ROW}>
           <RefineButton count={activeCount} />
           <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className={FIND_PILL_WIDE} />
