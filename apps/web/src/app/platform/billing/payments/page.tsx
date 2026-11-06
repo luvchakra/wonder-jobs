@@ -68,7 +68,11 @@ function Setup({ data, onChanged }: { data: PaymentsSetup; onChanged: () => void
         action={data.mode && <StatusPill tone={data.mode === "live" ? "success" : "warning"} label={data.mode === "live" ? "Live mode" : "Test mode"} />}
       >
         <KeysForm data={data} onChanged={onChanged} />
-        {data.connection.state === "refused" && <p className="mt-2 text-[12.5px] text-danger-600">{data.connection.reason}. Enter both again.</p>}
+        {data.connection.state === "refused" && (
+          <p className="mt-2 text-[12.5px] text-danger-600">
+            The saved keys ({key("RAZORPAY_KEY_ID").shown}) don&apos;t work at Razorpay just now: it refused them when this page loaded. Enter a current Key ID and secret above.
+          </p>
+        )}
         {data.connection.state === "unavailable" && <p className="mt-2 text-[12.5px] text-warning-600">{data.connection.reason}; the keys are kept.</p>}
         <p className="mt-2 text-[12px] text-ink-3">
           In Razorpay: Account &amp; Settings → API keys → Generate key.{" "}

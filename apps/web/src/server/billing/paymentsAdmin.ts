@@ -152,9 +152,9 @@ export async function savePaymentKeys(raw: unknown, actor: string, origin: strin
 /** Why Razorpay refused a pair, in words: the Key ID itself, or a secret that isn't this key's. */
 async function refusedReason(keyId: string): Promise<string> {
   const known = await razorpayKeyIdExists(keyId);
-  if (known === false) return `Razorpay doesn't know the Key ID ${keyId}. Copy it again from Razorpay → Account & Settings → API keys (check l and I, 0 and O).`;
+  if (known === false) return `Razorpay doesn't recognise the Key ID ${keyId} (checked just now). It may have been regenerated or deleted: open Razorpay → Account & Settings → API keys, and paste the Key ID shown there with its secret.`;
   if (known === true)
-    return `The Key ID is right, but Razorpay refused the secret: it isn't this key's secret. Razorpay shows a secret only once, when the key is generated or regenerated; if you don't have it, regenerate the key in Razorpay and paste the new ID and secret.`;
+    return `Razorpay knows the Key ID ${keyId} but refused the secret with it ("Authentication failed"). Copy the secret shown with this Key ID; if Razorpay no longer shows it, regenerate the key and paste the new ID and secret together.`;
   return "Razorpay refused this Key ID and secret. Copy both again from Razorpay → Account & Settings → API keys.";
 }
 
