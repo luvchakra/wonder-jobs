@@ -56,7 +56,7 @@ describe("Razorpay keys entered in the admin", () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: {} }), { status: 401 }));
     vi.stubGlobal("fetch", fetchMock);
     // Razorpay doesn't know the Key ID either (its public preferences endpoint answers 401 too).
-    await expect(savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: "wrong_secret" }, "admin@x", "https://x")).rejects.toThrow(/doesn't know the Key ID/);
+    await expect(savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: "wrong_secret" }, "admin@x", "https://x")).rejects.toThrow(/doesn't recognise the Key ID/);
     expect(missingBillingEnv("razorpay")).toContain("RAZORPAY_KEY_ID");
     await expect(savePaymentKeys({ keyId: "not-a-key" }, "admin@x", "https://x")).rejects.toBeInstanceOf(AdminBillingError);
 
@@ -71,7 +71,7 @@ describe("Razorpay keys entered in the admin", () => {
 
   it("says the secret is the wrong half when Razorpay knows the Key ID", async () => {
     vi.stubGlobal("fetch", vi.fn(async (url: string) => (String(url).includes("/preferences?") ? new Response("{}") : new Response(JSON.stringify({ error: {} }), { status: 401 }))));
-    await expect(savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: "wrong_secret" }, "admin@x", "https://x")).rejects.toThrow(/Key ID is right, but Razorpay refused the secret/);
+    await expect(savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: "wrong_secret" }, "admin@x", "https://x")).rejects.toThrow(/knows the Key ID .* but refused the secret/);
   });
 
   it("saves test keys without checking only when asked, and never live ones", async () => {
