@@ -3,6 +3,7 @@
  * them, and its logo, fetched once and cached here. Platform-wide public data — no tenant, no user. A logo
  * is only ever fetched for a company recorded from a real posting, never for an arbitrary domain.
  */
+import { checkDestination } from "@/domain/jobslake/ssrf";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { CompanyRatings } from "@/domain/jobslake/ratings";
 import { cleanDomain, companyDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBan, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
@@ -453,6 +454,57 @@ export async function resolveCompanyByName(nameKey: string, fetcher: typeof fetc
   }
 }
 
+/** How many new organisations one search warms at most, after its answer is sent. */
+export const PREWARM_MAX = 8;
+
+/**
+ * Warms the logos of a search's organisations the directory doesn't have yet, after the answer is sent (owner,
+ * 2026-11-06: "get the logo on the fly without compromising on performance"), so their cards find them ready:
+ *  - known only by name: found by name (`resolveCompanyByName`) and kept under its domain;
+ *  - a logo the source sent (`employer.logoUrl`, https, a public host): stored once for that domain, the first time;
+ *  - otherwise the domain's own icon (`fetchLogo`).
+ * One directory read per organisation, at most PREWARM_MAX a search, and none for a company that already has its logo.
+ */
+export async function prewarmLogos(opps: CanonicalOpportunity[], now = Date.now(), fetcher: typeof fetch = fetch, store: CompanyStore = companyStore()): Promise<number> {
+  const seen = new Set<string>();
+  const asks: { domain?: string; nameKey: string; name: string; logoUrl?: string }[] = [];
+  for (const o of opps) {
+    const name = o.employer.name?.trim() ?? "";
+    const nameKey = companyKey(name);
+    const domain = companyDomain(o.employer.domain);
+    const k = domain ?? `n:${nameKey}`;
+    if (!nameKey || seen.has(k)) continue;
+    seen.add(k);
+    // Already served lately on this server: nothing to warm.
+    if (LOGO_CACHE.has(domain ? `d:${domain}` : `n:${nameKey}`)) continue;
+    asks.push({ ...(domain ? { domain } : {}), nameKey, name, ...(o.employer.logoUrl ? { logoUrl: o.employer.logoUrl } : {}) });
+    if (asks.length >= PREWARM_MAX) break;
+  }
+  let warmed = 0;
+  for (const a of asks) {
+    let row = a.domain ? await store.logoFor({ domain: a.domain }) : await store.logoFor({ nameKey: a.nameKey });
+    let wikidataId: string | undefined;
+    if (!row && !a.domain) {
+      const found = await resolveCompanyByName(a.nameKey, fetcher, now);
+      if (!found) continue;
+      wikidataId = found.wikidataId;
+      row = await store.logoFor({ domain: found.domain });
+      if (!row) {
+        const at = new Date(now).toISOString();
+        await store.upsert([{ domain: found.domain, name: found.name, nameKey: a.nameKey, sources: ["wikidata-name"], firstSeenAt: at, lastSeenAt: at }]);
+        row = { domain: found.domain, logo: undefined, logoCheckedAt: undefined };
+      }
+    }
+    // Recorded with no logo yet (or never checked): the source's own image first, else the site's icon.
+    if (!row || row.logo || (row.logo === null && row.logoCheckedAt && now - Date.parse(row.logoCheckedAt) < LOGO_TTL_MS)) continue;
+    const fromSource = a.logoUrl && checkDestination(a.logoUrl).ok ? await imageFrom(a.logoUrl, fetcher, undefined, false) : undefined;
+    const logo = fromSource ?? (await fetchLogo(row.domain, fetcher, wikidataId ? { wikidataId } : {}));
+    await store.setLogo(row.domain, logo, new Date(now).toISOString());
+    if (logo) warmed++;
+  }
+  return warmed;
+}
+
 /** The icon links a home page declares (apple-touch-icon and icon), on the company's own domain only, largest declared first. */
 export function iconLinks(html: string, pageUrl: string, domain: string): string[] {
   const out: { url: string; size: number; touch: boolean }[] = [];
@@ -473,11 +525,11 @@ export function iconLinks(html: string, pageUrl: string, domain: string): string
   return out.sort((a, b) => Number(b.touch) - Number(a.touch) || b.size - a.size).map((x) => x.url);
 }
 
-async function imageFrom(url: string, fetcher: typeof fetch, dead?: Set<string>): Promise<CompanyRecord["logo"] | undefined> {
+async function imageFrom(url: string, fetcher: typeof fetch, dead?: Set<string>, follow = true): Promise<CompanyRecord["logo"] | undefined> {
   const host = new URL(url).hostname;
   if (dead?.has(host)) return undefined;
   try {
-    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8", "user-agent": UA } });
+    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: follow ? "follow" : "error", headers: { accept: "image/png,image/*;q=0.8", "user-agent": UA } });
     if (!res.ok) return undefined;
     const bytes = new Uint8Array(await res.arrayBuffer());
     // Tiny files are placeholders; huge ones aren't icons.
