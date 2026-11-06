@@ -81,12 +81,14 @@ export const FIND_SUBMIT = "lg:order-2";
  * What Refine opens over from 1024px (the search area holding the form and the panel). From 1024px it stays at the top
  * of the window while the results scroll under it (owner, 2026-11-06: "while scrolling the page, dont scroll up this").
  */
-export const FIND_AREA = "relative lg:sticky lg:top-0 lg:z-20 lg:-mx-8 lg:-mt-5 lg:bg-bg/95 lg:px-8 lg:pb-3 lg:pt-5 lg:backdrop-blur";
+/** A page's filter row kept at the top of the window from 1024px, on the page's background (Find, and Saved's filters). */
+export const FIND_PIN = "lg:sticky lg:top-0 lg:z-30 lg:-mx-8 lg:-mt-5 lg:bg-bg/95 lg:px-8 lg:pb-3 lg:pt-5 lg:backdrop-blur";
+export const FIND_AREA = `relative ${FIND_PIN}`;
 /**
  * The results line ("Showing 68 jobs from 12 sources", Sort) right under it from 1024px, pinned too (owner, 2026-11-06:
  * "also fix this, do not scroll this"). Its top is the search area's height: 20px + the 40px row + 12px.
  */
-export const FIND_RESULTS_PIN = "lg:sticky lg:top-[72px] lg:z-10 lg:-mx-8 lg:mb-1 lg:bg-bg/95 lg:px-8 lg:pb-2 lg:backdrop-blur";
+export const FIND_RESULTS_PIN = "lg:sticky lg:top-[72px] lg:z-20 lg:-mx-8 lg:mb-1 lg:bg-bg/95 lg:px-8 lg:pb-2 lg:backdrop-blur";
 
 /** The search box: the magnifier, the words, clear and the microphone, and the recent searches while it has focus. */
 export function SearchBox({ value, onValue, onClear, placeholder, label, dictation, dictateLabel, focused, onFocused, history, onPick, onForget, className }: { value: string; onValue: (text: string) => void; onClear: () => void; placeholder: string; label: string; dictation: Dictation; dictateLabel: string; focused: boolean; onFocused: (on: boolean) => void; history: string[]; onPick: (t: string) => void; onForget: (t: string) => void; className?: string }) {
