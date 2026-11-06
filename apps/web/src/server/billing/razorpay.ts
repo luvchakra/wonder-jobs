@@ -87,6 +87,21 @@ export async function razorpayCheckKeys(cfg: Pick<RazorpayConfig, "keyId" | "key
 }
 
 /**
+ * Whether Razorpay knows this Key ID, asked without the secret: its checkout's public preferences endpoint answers 200
+ * for a real key and 401 for an unknown one. Tells "wrong Key ID" from "wrong secret" when a pair is refused.
+ * Undefined when Razorpay couldn't be asked.
+ */
+export async function razorpayKeyIdExists(keyId: string): Promise<boolean | undefined> {
+  try {
+    const res = await fetch(`${API}/preferences?key_id=${encodeURIComponent(keyId)}`, { signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+    if (res.ok) return true;
+    return res.status === 401 || res.status === 400 ? false : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The signature Razorpay's checkout hands back after a subscription's first payment: the hex HMAC-SHA256 of
  * `<payment id>|<subscription id>` with the Key secret. Proves the payment came from Razorpay for this subscription;
  * the plan still changes only from what Razorpay then reports for the subscription itself.

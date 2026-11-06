@@ -150,7 +150,7 @@ function CopyText({ text }: { text: string }) {
   );
 }
 
-async function save(body: Record<string, string>, onChanged: () => void, done: string): Promise<string | null> {
+async function save(body: Record<string, string | boolean>, onChanged: () => void, done: string): Promise<string | null> {
   const r = await adminFetch<PaymentsSetup>(API, { method: "PUT", body: JSON.stringify(body) });
   if (!r.ok) return r.error.message;
   toast.success(done);
@@ -163,9 +163,25 @@ function KeysForm({ data, onChanged }: { data: PaymentsSetup; onChanged: () => v
   const secret = data.keys.find((k) => k.name === "RAZORPAY_KEY_SECRET")!;
   const [keyId, setKeyId] = useState("");
   const [keySecret, setKeySecret] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"check" | "unchecked" | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [show, setShow] = useState(false);
   const connected = data.connection.state === "connected";
+  const typedId = keyId.trim() || (id.set ? id.shown : "");
+  const submit = async (unchecked: boolean) => {
+    setBusy(unchecked ? "unchecked" : "check");
+    setErr(null);
+    const body: Record<string, string | boolean> = {};
+    if (keyId.trim()) body.keyId = keyId.trim();
+    if (keySecret.trim()) body.keySecret = keySecret.trim();
+    if (unchecked) body.unchecked = true;
+    const m = await save(body, onChanged, unchecked ? "Test keys saved without checking" : "Razorpay connected: the keys work");
+    setBusy(null);
+    if (m) return setErr(m);
+    setKeyId("");
+    setKeySecret("");
+    setEditing(false);
+  };
   const [editing, setEditing] = useState(!connected);
   if (!editing)
     return (
@@ -181,29 +197,24 @@ function KeysForm({ data, onChanged }: { data: PaymentsSetup; onChanged: () => v
   return (
     <form
       className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-      onSubmit={async (e) => {
+      onSubmit={(e) => {
         e.preventDefault();
-        setBusy(true);
-        setErr(null);
-        const body: Record<string, string> = {};
-        if (keyId.trim()) body.keyId = keyId.trim();
-        if (keySecret.trim()) body.keySecret = keySecret.trim();
-        const m = await save(body, onChanged, "Razorpay connected — the keys work");
-        setBusy(false);
-        if (m) return setErr(m);
-        setKeyId("");
-        setKeySecret("");
-        setEditing(false);
+        void submit(false);
       }}
     >
       <Field label="Key ID" htmlFor="rzp-key-id">
         <Input id="rzp-key-id" autoComplete="off" spellCheck={false} placeholder={id.set ? id.shown : "rzp_live_…"} value={keyId} onChange={(e) => setKeyId(e.target.value)} />
       </Field>
       <Field label="Key secret" htmlFor="rzp-key-secret">
-        <Input id="rzp-key-secret" type="password" autoComplete="new-password" placeholder={secret.set ? secret.shown : "Shown once in Razorpay"} value={keySecret} onChange={(e) => setKeySecret(e.target.value)} />
+        <div className="flex gap-2">
+          <Input id="rzp-key-secret" type={show ? "text" : "password"} autoComplete="new-password" autoCapitalize="off" autoCorrect="off" spellCheck={false} placeholder={secret.set ? secret.shown : "Shown once in Razorpay"} value={keySecret} onChange={(e) => setKeySecret(e.target.value)} />
+          <Button type="button" variant="ghost" onClick={() => setShow((v) => !v)} aria-pressed={show}>
+            {show ? "Hide" : "Show"}
+          </Button>
+        </div>
       </Field>
       <div className="flex gap-2">
-        <Button type="submit" loading={busy} disabled={!keyId.trim() && !keySecret.trim()}>
+        <Button type="submit" loading={busy === "check"} disabled={!!busy || (!keyId.trim() && !keySecret.trim())}>
           Check &amp; save
         </Button>
         {connected && (
@@ -213,6 +224,14 @@ function KeysForm({ data, onChanged }: { data: PaymentsSetup; onChanged: () => v
         )}
       </div>
       {err && <p className="text-[12.5px] text-danger-600 sm:col-span-3">{err}</p>}
+      {err && typedId.startsWith("rzp_test_") && (
+        <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
+          <Button type="button" size="sm" variant="outline" loading={busy === "unchecked"} disabled={!!busy} onClick={() => void submit(true)}>
+            Save test keys without checking
+          </Button>
+          <span className="text-[12px] text-ink-3">For testing only. Payments stay off until Razorpay accepts the keys.</span>
+        </div>
+      )}
     </form>
   );
 }

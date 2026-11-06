@@ -51,7 +51,8 @@ describe("Razorpay keys entered in the admin", () => {
   it("checks a new key pair with Razorpay before saving it; a refused pair replaces nothing", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: {} }), { status: 401 }));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: "wrong_secret" }, "admin@x", "https://x")).rejects.toThrow(/refused/);
+    // Razorpay doesn't know the Key ID either (its public preferences endpoint answers 401 too).
+    await expect(savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: "wrong_secret" }, "admin@x", "https://x")).rejects.toThrow(/doesn't know the Key ID/);
     expect(missingBillingEnv("razorpay")).toContain("RAZORPAY_KEY_ID");
     await expect(savePaymentKeys({ keyId: "not-a-key" }, "admin@x", "https://x")).rejects.toBeInstanceOf(AdminBillingError);
 
@@ -62,6 +63,21 @@ describe("Razorpay keys entered in the admin", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.razorpay.com/v1/plans?count=1");
     expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from(`${KEYS.RAZORPAY_KEY_ID}:${KEYS.RAZORPAY_KEY_SECRET}`).toString("base64")}`);
+  });
+
+  it("says the secret is the wrong half when Razorpay knows the Key ID", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => (String(url).includes("/preferences?") ? new Response("{}") : new Response(JSON.stringify({ error: {} }), { status: 401 }))));
+    await expect(savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: "wrong_secret" }, "admin@x", "https://x")).rejects.toThrow(/Key ID is right, but Razorpay refused the secret/);
+  });
+
+  it("saves test keys without checking only when asked, and never live ones", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: {} }), { status: 401 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(savePaymentKeys({ keyId: "rzp_live_abcdef123", keySecret: "secret_abcdef", unchecked: true }, "admin@x", "https://x")).rejects.toThrow(/Only test keys/);
+    const setup = await savePaymentKeys({ keyId: KEYS.RAZORPAY_KEY_ID, keySecret: "secret_abcdef", unchecked: true }, "admin@x", "https://x");
+    expect(setup.keys.find((k) => k.name === "RAZORPAY_KEY_ID")).toMatchObject({ set: true, from: "admin" });
+    // Saved, but Razorpay still refuses them: shown as such, and payments stay off.
+    expect(setup).toMatchObject({ mode: "test", connection: { state: "refused" }, live: false });
   });
 
   it("refuses to save over a value the deployment sets", async () => {

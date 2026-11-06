@@ -5,7 +5,7 @@ import { AdminBillingError, billingAudit } from "./admin";
 import { razorpayMode } from "./config";
 import { adminBillingKey as adminValue, billingKeyStatus, setBillingKeys, type BillingKeyName, type BillingKeyStatus } from "./credentials";
 import { getPlansConfig } from "./plansConfig";
-import { razorpayCheckKeys } from "./razorpay";
+import { razorpayCheckKeys, razorpayKeyIdExists } from "./razorpay";
 import { ProviderError } from "./stripe";
 import { clearPriceCacheForTests as clearPriceCache } from "./service";
 import { clearLiveBillingCaches } from "./live";
@@ -80,6 +80,8 @@ const SaveInput = z
     keyId: z.string().trim().regex(KEY_ID, "The Key ID starts with rzp_test_ or rzp_live_").optional(),
     keySecret: z.string().trim().min(8, "That doesn't look like a Key secret").max(200).optional(),
     webhookSecret: z.string().trim().min(8, "Use at least 8 characters for the webhook secret").max(200).optional(),
+    /** Save test keys even though Razorpay refused them (owner, 2026-11-06: "allow to save test key as well for testing purpose"). */
+    unchecked: z.boolean().optional(),
   })
   .strict();
 
@@ -99,16 +101,21 @@ export async function savePaymentKeys(raw: unknown, actor: string, origin: strin
   if (!names.length) throw new AdminBillingError("Enter at least one value.", 400);
   const fromEnv = names.filter((n) => process.env[n]?.trim());
   if (fromEnv.length) throw new AdminBillingError(`${fromEnv.join(", ")} is set in the deployment, which wins over the admin. Remove it there first.`, 409);
+  let checked = true;
   if (given.RAZORPAY_KEY_ID || given.RAZORPAY_KEY_SECRET) {
     const keyId = given.RAZORPAY_KEY_ID ?? (process.env.RAZORPAY_KEY_ID?.trim() || adminValue("RAZORPAY_KEY_ID"));
     const keySecret = given.RAZORPAY_KEY_SECRET ?? (process.env.RAZORPAY_KEY_SECRET?.trim() || adminValue("RAZORPAY_KEY_SECRET"));
     if (!keyId || !keySecret) throw new AdminBillingError("Enter both the Key ID and the Key secret.", 400);
-    try {
-      await razorpayCheckKeys({ keyId, keySecret });
-    } catch (e) {
-      if (e instanceof ProviderError && (e.status === 401 || e.status === 403)) throw new AdminBillingError("Razorpay refused this Key ID and secret. Copy both again from Razorpay → Account & Settings → API keys.", 400);
-      throw new AdminBillingError("Razorpay couldn't be reached to check the keys, so nothing was saved. Try again shortly.", 502);
-    }
+    // Test keys may be saved unchecked, on the admin's explicit choice; live keys always have to work first.
+    if (input.unchecked && razorpayMode(keyId) !== "test") throw new AdminBillingError("Only test keys (rzp_test_…) can be saved without checking.", 400);
+    if (input.unchecked) checked = false;
+    else
+      try {
+        await razorpayCheckKeys({ keyId, keySecret });
+      } catch (e) {
+        if (e instanceof ProviderError && (e.status === 401 || e.status === 403)) throw new AdminBillingError(await refusedReason(keyId), 400);
+        throw new AdminBillingError("Razorpay couldn't be reached to check the keys, so nothing was saved. Try again shortly.", 502);
+      }
   }
   const idBefore = keyPair()?.keyId ?? adminValue("RAZORPAY_KEY_ID");
   const modeBefore = idBefore ? razorpayMode(idBefore) : null;
@@ -117,8 +124,17 @@ export async function savePaymentKeys(raw: unknown, actor: string, origin: strin
   clearLiveBillingCaches();
   const after = await paymentsSetup(origin);
   // Names and the public Key ID only; never a secret.
-  await billingAudit(actor, "billing.razorpay.keys_saved", { saved: names, keyId: given.RAZORPAY_KEY_ID ?? null, modeBefore, modeAfter: after.mode }).catch(() => undefined);
+  await billingAudit(actor, "billing.razorpay.keys_saved", { saved: names, keyId: given.RAZORPAY_KEY_ID ?? null, modeBefore, modeAfter: after.mode, checked }).catch(() => undefined);
   return after;
+}
+
+/** Why Razorpay refused a pair, in words: the Key ID itself, or a secret that isn't this key's. */
+async function refusedReason(keyId: string): Promise<string> {
+  const known = await razorpayKeyIdExists(keyId);
+  if (known === false) return `Razorpay doesn't know the Key ID ${keyId}. Copy it again from Razorpay → Account & Settings → API keys (check l and I, 0 and O).`;
+  if (known === true)
+    return `The Key ID is right, but Razorpay refused the secret: it isn't this key's secret. Razorpay shows a secret only once, when the key is generated or regenerated; if you don't have it, regenerate the key in Razorpay and paste the new ID and secret.`;
+  return "Razorpay refused this Key ID and secret. Copy both again from Razorpay → Account & Settings → API keys.";
 }
 
 /** Disconnect: remove the admin's Razorpay keys. Subscriptions already paid stay as they are. */
