@@ -433,9 +433,10 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   await bookkeeping("record runs", () => store.recordRuns(runs));
   if (cacheOn) await bookkeeping("write the search cache", () => saveAnswers(toCache, Date.now(), dataset));
 
-  // Company directory: each employer's reported domain, for logos and company details.
-  // Jobs' company directory is Jobs' data: another module's postings never enter it.
-  if (valid.length && dataset === "jobs") await bookkeeping("record companies", () => recordCompanies(valid));
+  // Company directory: each employer's or organiser's reported domain, for logos and company details. One directory for
+  // every module (wonderworks/brand/CompanyLogo), so an event's organiser or a seller gets its logo too (owner,
+  // 2026-11-06); listings themselves stay in each module's own dataset.
+  if (valid.length) await bookkeeping("record companies", () => recordCompanies(valid));
 
   let results = answering;
   let warmCount = 0;
