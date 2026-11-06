@@ -37,7 +37,7 @@ export default function OpengraphImage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 26, color: "rgba(255,255,255,0.55)" }}>
           <span style={{ display: "flex", width: 12, height: 12, borderRadius: 6, background: "#7C3AED" }} />
-          jobs.wonderapps.biz
+          works.wonderapps.biz
         </div>
       </div>
     ),

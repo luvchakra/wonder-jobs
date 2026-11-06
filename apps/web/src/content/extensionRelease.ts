@@ -4,10 +4,11 @@
  * to `changes` when the helper changes.
  */
 export const EXTENSION_RELEASE = {
-  version: "0.3.8",
-  date: "2026-10-29",
+  version: "0.3.9",
+  date: "2026-11-06",
   /** What changed in recent versions, newest first — the page shows these. */
   changes: [
+    { version: "0.3.9", note: "Works with WonderWorks' new address, works.wonderapps.biz (and the old one). Nothing it fills or presses changed." },
     { version: "0.3.8", note: "Now called WonderWorks helper; its button reads Fill with WonderWorks. Nothing it fills or presses changed." },
     { version: "0.3.7", note: "Now called WonderWorks helper, with the WonderWorks icon; its button reads Fill with WonderWorks. Nothing it fills or presses changed." },
     { version: "0.3.6", note: "The side panel shows the company's logo from WorksLake, and its wording matches the app (Career Profile, Automation, Guide me)." },

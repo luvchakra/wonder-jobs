@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 150
     env:
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
-      SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
+      SITE: ${{ vars.SITE_URL || 'https://works.wonderapps.biz' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

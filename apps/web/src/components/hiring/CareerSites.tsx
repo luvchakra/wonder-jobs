@@ -115,7 +115,7 @@ export function CareerSites({ orgId, sites, canManage, onChange }: { orgId: stri
 function SiteForm({ orgId, site, onClose, onSaved }: { orgId: string; site?: CareerSite; onClose: () => void; onSaved: (created?: { site: string; key: string; hosted: boolean }) => void }) {
   const [mode, setMode] = useState<"hosted" | "own">(site && !site.slug ? "own" : "hosted");
   const [v, setV] = useState<SiteSettings>({ name: site?.name ?? "", slug: site?.slug ?? "", publicUrl: site && !site.slug ? site.publicUrl : "", notifyEmails: site?.notifyEmails.join(", ") ?? "", retentionMonths: site?.retentionMonths ?? 12 });
-  const hostedBase = `${typeof window === "undefined" ? "https://jobs.wonderapps.biz" : window.location.origin}/careers/`;
+  const hostedBase = `${typeof window === "undefined" ? "https://works.wonderapps.biz" : window.location.origin}/careers/`;
   const [busy, setBusy] = useState(false);
   // Shown in the dialog: a toast would sit behind it.
   const [error, setError] = useState<string | null>(null);

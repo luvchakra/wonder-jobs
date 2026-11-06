@@ -7,7 +7,7 @@
 const kept = new Map<string, { at: number; value: unknown }>();
 const inflight = new Map<string, Promise<unknown>>();
 
-export const FEED_USER_AGENT = "WonderWorks/1.0 (+https://jobs.wonderapps.biz; events directory; reads each public feed at most every few hours)";
+export const FEED_USER_AGENT = "WonderWorks/1.0 (+https://works.wonderapps.biz; events directory; reads each public feed at most every few hours)";
 
 /**
  * `headers` are extra request headers (a source's key goes here, never in the URL); they are not part of what a read is kept

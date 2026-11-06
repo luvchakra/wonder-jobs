@@ -398,7 +398,7 @@ export const logoUrls = (domain: string) => [
 /** The site's own icon files, on the bare host and on www (many sites answer only on one of them). */
 export const siteIconUrls = (domain: string) => [`https://${domain}`, `https://www.${domain}`].flatMap((h) => [`${h}/apple-touch-icon.png`, `${h}/favicon.ico`]);
 
-const UA = "WorksLake/1.0 (+https://jobs.wonderapps.biz)";
+const UA = "WorksLake/1.0 (+https://works.wonderapps.biz)";
 
 /**
  * The company's logo on Wikimedia Commons, from its Wikidata item's logo (P154), as a 128-px-wide PNG Commons renders
