@@ -43,7 +43,7 @@ describe("Razorpay keys entered in the admin", () => {
     await setBillingKeys(KEYS);
     vi.stubEnv("RAZORPAY_KEY_ID", "rzp_live_fromenv1");
     expect(razorpayConfig()?.keyId).toBe("rzp_live_fromenv1");
-    expect(razorpayConfig({})).toBeNull();
+    expect(razorpayConfig({} as NodeJS.ProcessEnv)).toBeNull();
     expect(razorpayMode("rzp_live_x")).toBe("live");
     expect(razorpayMode("rzp_test_x")).toBe("test");
   });
