@@ -226,7 +226,7 @@ describe("logos warmed after a search's answer (2026-11-06)", () => {
 
   it("never fetches a source logo on a private address", async () => {
     await recordCompanies([opp("Acme", "acme.com", "https://x", false)]);
-    const fetcher = vi.fn(async () => new Response(null, { status: 404 }));
+    const fetcher = vi.fn(async (_url: string) => new Response(null, { status: 404 }));
     await prewarmLogos([withLogo("Acme", "acme.com", "https://127.0.0.1/logo.png")], Date.now(), fetcher as unknown as typeof fetch);
     expect(fetcher.mock.calls.some(([u]) => String(u).includes("127.0.0.1"))).toBe(false);
   });
