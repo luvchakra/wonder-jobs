@@ -19,6 +19,7 @@ const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.Co
 import { notificationsFor, visibleNotifications } from "@/domain/career/notifications";
 import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { TOP_FIND_ID } from "./topFind";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 
@@ -168,7 +169,10 @@ export function TopBar() {
           edge and the bell and avatar sit together on the right, as desktop apps do. */}
       {/* From 1024px the sidebar lists the modules, so the menu leaves the top bar (its space stays, keeping the bell and
           avatar on the right). */}
-      <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start lg:invisible">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
+      <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start lg:hidden">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
+      {/* From 1024px a module's Find puts its search row here, in the menu's place (owner, 2026-11-06: "move the attached
+          to the top navbar"; wonderworks/find/parts.tsx::InTopBar). Empty elsewhere, keeping the bell and avatar right. */}
+      <div id={TOP_FIND_ID} className="order-[-1] hidden min-w-0 flex-1 items-center lg:flex" />
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
           on the badge). Ask Wonder is under You, and ⌘K on a computer. */}
