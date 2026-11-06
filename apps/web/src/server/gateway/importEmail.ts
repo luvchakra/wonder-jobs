@@ -39,7 +39,7 @@ export function renderImportEmail(run: ImportRun, counts: ModuleCount[], origin:
   const C = EMAIL_COLORS;
   const link = `${origin}/platform/jobs-lake/import`;
   const added = counts.reduce((n, c) => n + Math.max(0, c.added ?? 0), 0);
-  const what = run.kind === "hourly" ? (run.trigger === "cron" ? "The hourly collection" : "The collection (Run now)") : run.kind === "module" ? `Import of ${MODULE_LABELS[run.module ?? ""] ?? run.module ?? "a module"}` : run.trigger === "scheduler" ? "The scheduled import" : "Import now";
+  const what = run.kind === "hourly" ? (run.trigger === "cron" ? "The scheduled collection" : "The collection (Run now)") : run.kind === "module" ? `Import of ${MODULE_LABELS[run.module ?? ""] ?? run.module ?? "a module"}` : run.trigger === "scheduler" ? "The scheduled import" : "Import now";
   const head = counts.length ? `${added.toLocaleString("en")} new ${added === 1 ? "entry" : "entries"} in Find` : "Find wasn't refreshed";
   const rows = counts
     .map((c) => `<tr><td style="padding:4px 12px 4px 0">${escapeHtml(c.label)}</td><td style="padding:4px 12px 4px 0;text-align:right;font-weight:600">${escapeHtml(signed(c.added))}</td><td style="padding:4px 0;text-align:right;color:${C.ink}">${c.inFind.toLocaleString("en")} in Find</td></tr>`)

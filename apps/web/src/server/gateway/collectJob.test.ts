@@ -9,7 +9,8 @@ let due: unknown[] = [];
 vi.mock("@/server/scheduler/store", () => ({ loadScheduler: async () => ({ gateway: { activateWaiting: false, pausedModules: [], dismissed: [] } }), recordCronRun: async () => {} }));
 vi.mock("@/server/jobslake/warm", () => ({ refreshGatewayListings: (...a: unknown[]) => refresh(...a) }));
 vi.mock("@/server/jobslake/setup", () => ({ setupTodo: async () => ({ items: [] }) }));
-vi.mock("./index", () => ({ hostedGateway: () => ({ gateway: { collectDue: async () => due }, store: { read: async () => new Map() } }) }));
+let collectArgs: unknown[] = [];
+vi.mock("./index", () => ({ hostedGateway: () => ({ gateway: { collectDue: async (...a: unknown[]) => { collectArgs = a; return due; } }, store: { read: async () => new Map() } }) }));
 vi.mock("./admin", () => ({ gatewaySourceModules: async () => [] }));
 vi.mock("./setupJob", () => ({ handOnSetupJob: async () => {}, jobRunning: () => setupRunning, readSetupJob: async () => null, startSetupJob: async () => ({ ok: false }) }));
 vi.mock("./importRuns", () => ({ lastScheduledRunWithin: async () => true, listImportRuns: async () => runs, recentFailures: async () => new Map(), recordImportRun: async (r: unknown) => { recorded.push(r); }, RETRY_AFTER_MS: 86_400_000 }));
@@ -70,6 +71,24 @@ describe("a collection chain (2026-11-05: each call collected 2-3 of ~15 due sou
     expect(handOn).not.toHaveBeenCalled();
     expect(notify).toHaveBeenCalled();
     expect(r.summary).toMatch(/left for the next run/);
+    expect(r.next).toBeUndefined();
+  });
+});
+
+describe("on the GitHub runner (2026-11-06: the collection moved off Vercel)", () => {
+  it("collects with the runner's budget, never hands the Setup job on, and a forced run ignores 'ran recently'", async () => {
+    due = [{ sourceId: "a", ok: true, valid: 2 }];
+    runs = [{ stored: { jobs: 4 }, finishedAt: new Date().toISOString() }];
+    setupRunning = true;
+    refresh.mockReset().mockResolvedValue({ stored: {} });
+    const handOnSetup = vi.fn(async () => false);
+    const never = vi.fn(async () => false);
+    // lastScheduledRunWithin is mocked true: without `force` this would be "Ran recently".
+    const r = await runGatewayCollection("cron", "https://x", async () => {}, 0, never, undefined, [], { limits: { collectMs: 1_200_000, deadlineMs: 1_500_000 }, handOnSetup, force: true });
+    expect(collectArgs[0]).toBe(1_200_000);
+    expect(handOnSetup).toHaveBeenCalledWith("https://x");
+    expect(never).not.toHaveBeenCalled();
+    expect(r.summary).toMatch(/1 due · 1 collected/);
     expect(r.next).toBeUndefined();
   });
 });

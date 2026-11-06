@@ -51,7 +51,8 @@ export default function ImportPage() {
     const r = await post({ action: "import" });
     setStarting(false);
     const skipped = r.ok && Number(r.data.skipped) ? ` ${num(Number(r.data.skipped))} that didn't go live in the last day are left out; each has Try again on its module's card.` : "";
-    if (r.ok) toast.success("Import started", (Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed.` : "Collecting, then refreshing every module's Find.") + skipped + " You can leave this page.");
+    if (r.ok && (r.data as { dispatched?: boolean }).dispatched) toast.success("Import started on the collection runner", "GitHub sets up the waiting sources, collects and refreshes every module's Find; progress shows here within a minute. You can leave this page.");
+    else if (r.ok) toast.success("Import started", (Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed.` : "Collecting, then refreshing every module's Find.") + skipped + " You can leave this page.");
     else toast.error("Didn't start", r.error.message);
     reload();
   };
@@ -409,7 +410,8 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
     setBusy("import");
     const r = await post({ action: "module_import", module: m.id });
     setBusy(null);
-    if (r.ok) toast.success(`${m.label}: import started`, `${num(Number(r.data.queued))} steps on the server; then Find is refreshed.`);
+    if (r.ok && (r.data as { dispatched?: boolean }).dispatched) toast.success(`${m.label}: import started on the collection runner`, "GitHub sets up its waiting sources and collects its live ones; progress shows here within a minute.");
+    else if (r.ok) toast.success(`${m.label}: import started`, `${num(Number(r.data.queued))} steps on the server; then Find is refreshed.`);
     else toast.error("Didn't start", r.error.message);
     reload();
   };

@@ -2,10 +2,11 @@ import { explainFailure } from "@/domain/gateway/failure";
 import { after, NextResponse } from "next/server";
 import { siteUrl } from "@/lib/siteUrl";
 import { startImport, startModuleImport } from "@/server/gateway/collectJob";
+import { dispatchCollection, runnerDispatchConfigured } from "@/server/gateway/dispatch";
 import { collectGatewaySource, registerFromCatalogue, registerPartner, setGatewaySource, testGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
 import { updateSource } from "@/server/jobslake/admin";
 import { MODULE_IDS } from "@/wonderworks/manifest";
-import { continueSetupJob, handOnSetupJob, runSetupItem } from "@/server/gateway/setupJob";
+import { continueSetupJob, handOnSetupJob, jobRunning, readSetupJob, runSetupItem } from "@/server/gateway/setupJob";
 import { recordTry } from "@/server/gateway/importRuns";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
@@ -44,6 +45,17 @@ export async function POST(req: Request) {
   const action = typeof body?.action === "string" ? body.action : "";
   const origin = siteUrl().origin;
 
+  // Import now and Import this module run on the GitHub collection runner when it's set up (dispatch.ts), so the heavy
+  // work (tests, collection, every module's Find refresh) never runs on the site; here otherwise.
+  if ((action === "import" || action === "module_import") && runnerDispatchConfigured()) {
+    const m = typeof body?.module === "string" && (MODULE_IDS as readonly string[]).includes(body.module) ? body.module : null;
+    if (action === "module_import" && !m) return jlError("INVALID_REQUEST", "Name the module.", 400);
+    if (jobRunning(await readSetupJob())) return jlError("INVALID_REQUEST", "An import is already running on the collection runner.", 409);
+    const d = await dispatchCollection(action === "import" ? { mode: "all", by: a.actor } : { mode: "module", module: m!, by: a.actor });
+    if (!d.ok) return jlError("INVALID_REQUEST", d.message, 502);
+    await audit(a.actor, action === "import" ? "import.dispatched" : "import.module_dispatched", undefined, { ...(m ? { module: m } : {}) });
+    return json({ ok: true, queued: 0, skipped: 0, dispatched: true });
+  }
   if (action === "import") {
     const r = await startImport(a.actor, origin);
     if (!r.ok) return jlError("INVALID_REQUEST", r.message, 409);

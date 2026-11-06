@@ -69,6 +69,8 @@ Vercel's daily cron at 23:00 UTC is the only other trigger. GitHub documents tha
 
 **Fix:** with #1, every trigger that does fire collects everything that is due, so 3–4 triggers a day cover each source's 6-hour floor most of the time.
 
+**Update 2026-11-06 (WJ-773):** the collection and the Find refresh now run on the GitHub Actions runner itself, in one process with minutes rather than Vercel's 60 s (Vercel had paused the site for CPU use). The runner's secrets must be added in GitHub (Admin → Sources → Import lists them); until then the workflow calls the site as before. The extra external scheduler is no longer suggested.
+
 **Optional, on you:** to make it reliable, add a free external scheduler that calls the collection every 3 hours:
 - **Address:** `https://jobs.wonderapps.biz/api/cron/gateway-collect`.
 - **Header:** `Authorization: Bearer <CRON_SECRET>`.
@@ -117,6 +119,8 @@ A source's Test now reads the keys set on Admin → Keys first.
 **Done (WJ-725):** the next 508 logs where the call went, and a missing gateway configuration is logged. Once it shows up in the logs, the cause can be fixed.
 
 **Impact:** that module's refresh misses the gateway's new listings until the next one.
+
+**Update 2026-11-06 (WJ-773):** the self-calls that caused the 508s are gone: the runner does the whole run in one process and never calls the site.
 
 ### 8. P2: Houzz and WedMeGood refuse our server (Blocked: can't fix)
 
