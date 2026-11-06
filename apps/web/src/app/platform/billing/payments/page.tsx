@@ -212,6 +212,7 @@ function KeysForm({ data, onChanged }: { data: PaymentsSetup; onChanged: () => v
             {show ? "Hide" : "Show"}
           </Button>
         </div>
+        {keySecret && <p className="mt-1 text-[11.5px] text-ink-3">{keySecret.replace(/[^A-Za-z0-9_]/g, "").length} characters (Razorpay&apos;s secrets have 24)</p>}
       </Field>
       <div className="flex gap-2">
         <Button type="submit" loading={busy === "check"} disabled={!!busy || (!keyId.trim() && !keySecret.trim())}>

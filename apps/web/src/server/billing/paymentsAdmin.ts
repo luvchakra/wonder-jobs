@@ -75,10 +75,19 @@ function keyPair(): { keyId: string; keySecret: string } | null {
 }
 
 const KEY_ID = /^rzp_(test|live)_[A-Za-z0-9]{6,40}$/;
+
+/**
+ * Razorpay's Key IDs and secrets are letters, digits and underscores only. A copy on a phone can carry characters
+ * nobody sees (a zero-width space, a non-breaking space, a line break), which `trim` leaves in place and which make
+ * Razorpay refuse the pair. They're dropped before anything is checked or saved.
+ */
+export function clean(v: string): string {
+  return v.replace(/[^A-Za-z0-9_]/g, "");
+}
 const SaveInput = z
   .object({
-    keyId: z.string().trim().regex(KEY_ID, "The Key ID starts with rzp_test_ or rzp_live_").optional(),
-    keySecret: z.string().trim().min(8, "That doesn't look like a Key secret").max(200).optional(),
+    keyId: z.string().transform(clean).pipe(z.string().regex(KEY_ID, "The Key ID starts with rzp_test_ or rzp_live_")).optional(),
+    keySecret: z.string().transform(clean).pipe(z.string().min(8, "That doesn't look like a Key secret").max(200)).optional(),
     webhookSecret: z.string().trim().min(8, "Use at least 8 characters for the webhook secret").max(200).optional(),
     /** Save test keys even though Razorpay refused them (owner, 2026-11-06: "allow to save test key as well for testing purpose"). */
     unchecked: z.boolean().optional(),

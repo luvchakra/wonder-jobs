@@ -5,7 +5,7 @@ import { missingBillingEnv, razorpayConfig, razorpayMode } from "./config";
 import { __resetBillingKeys, billingKeyStatus, setBillingKeys } from "./credentials";
 import { verifyRazorpayCheckout } from "./razorpay";
 import { BillingError, clearPriceCacheForTests, confirmRazorpayCheckout, entitlement, paymentsLive, providerAvailability, startCheckout } from "./service";
-import { paymentsSetup, savePaymentKeys } from "./paymentsAdmin";
+import { clean, paymentsSetup, savePaymentKeys } from "./paymentsAdmin";
 import { AdminBillingError } from "./admin";
 
 const SUPA = { NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co", NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
@@ -78,6 +78,15 @@ describe("Razorpay keys entered in the admin", () => {
     expect(setup.keys.find((k) => k.name === "RAZORPAY_KEY_ID")).toMatchObject({ set: true, from: "admin" });
     // Saved, but Razorpay still refuses them: shown as such, and payments stay off.
     expect(setup).toMatchObject({ mode: "test", connection: { state: "refused" }, live: false });
+  });
+
+  it("drops characters a phone's copy adds and nobody sees, before checking the pair", async () => {
+    expect(clean("\u200bsecret_abc\u00a0\n")).toBe("secret_abc");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ count: 0 })));
+    vi.stubGlobal("fetch", fetchMock);
+    await savePaymentKeys({ keyId: ` ${KEYS.RAZORPAY_KEY_ID}\u200b`, keySecret: `\ufeff${KEYS.RAZORPAY_KEY_SECRET}\u200b ` }, "admin@x", "https://x");
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>).authorization).toBe(`Basic ${Buffer.from(`${KEYS.RAZORPAY_KEY_ID}:${KEYS.RAZORPAY_KEY_SECRET}`).toString("base64")}`);
   });
 
   it("refuses to save over a value the deployment sets", async () => {
