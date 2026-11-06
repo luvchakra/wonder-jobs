@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { moduleStore } from "@/wonderworks/store";
 import type { ModuleId } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
-import { ChoiceChips, DictationNotes, PillButton, closeKeyboard, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
+import { ChoiceChips, DictationNotes, FIND_AREA, FIND_BOX, FIND_FORM, FIND_PILL_WIDE, FIND_ROW, PillButton, closeKeyboard, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
 
 /**
  * A WonderWorks module's Find (docs/WONDERWORKS_PLATFORM.md §4.1), with the jobs portal's structure and parts: the
@@ -235,9 +235,9 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
           </div>
         </SearchingBanner>
       )}
-      <div className="mb-3 flex flex-col gap-2">
+      <div className={cn(FIND_AREA, "mb-3 flex flex-col gap-2")}>
         <form
-          className="flex flex-col gap-2"
+          className={FIND_FORM}
           onSubmit={(e) => {
             e.preventDefault();
             setBoxFocused(false);
@@ -260,12 +260,13 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
               void go(t);
             }}
             onForget={(t) => forget(t)}
+            className={FIND_BOX}
           />
           {/* Refine, the module's own two facets and the search — one row, as on Jobs' Find. */}
-          <div className="flex items-center gap-2">
+          <div className={FIND_ROW}>
             <RefineToggle open={more} count={count} onToggle={() => (more ? setMore(false) : openRefine())} />
             {pills.map((p, i) => (
-              <PillButton key={p.key} label={p.label} shown={p.pill!(shownValues[p.key])} open={more} onClick={() => openRefine(p.key)} className={i === 0 ? "min-w-0 flex-auto" : "shrink-0"} />
+              <PillButton key={p.key} label={p.label} shown={p.pill!(shownValues[p.key])} open={more} onClick={() => openRefine(p.key)} className={i === 0 ? FIND_PILL_WIDE : "shrink-0"} />
             ))}
             <SearchSubmit label="Search" />
           </div>

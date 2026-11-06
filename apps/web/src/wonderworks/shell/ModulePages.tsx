@@ -67,9 +67,11 @@ export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /**
   return (
     <div>
       <h1 className="wj-sr-only">Saved</h1>
-      <div className="mb-3 flex flex-col gap-3">
-        <FilterBox text={text} onText={setText} label={`Filter saved ${m.label.toLowerCase()}`} dictation={dictation} dictateLabel="what to look for in your saves" history={history} onEnter={(t) => moduleStore(id).getState().rememberSearch(t, "saved")} onForget={(t) => moduleStore(id).getState().forgetSearch(t, "saved")} />
-        <div role="group" aria-label="Module" className="flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] max-[380px]:gap-0.5">
+      {/* Phones and tablets: the box, the module chips, then Hide Pipeline, stacked. From 1024px (owner, 2026-11-06): one
+          row, the box at a set width, the chips beside it and Hide Pipeline at the end. */}
+      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center">
+        <FilterBox className="lg:w-80 lg:shrink-0" text={text} onText={setText} label={`Filter saved ${m.label.toLowerCase()}`} dictation={dictation} dictateLabel="what to look for in your saves" history={history} onEnter={(t) => moduleStore(id).getState().rememberSearch(t, "saved")} onForget={(t) => moduleStore(id).getState().forgetSearch(t, "saved")} />
+        <div role="group" aria-label="Module" className="flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] max-[380px]:gap-0.5 lg:min-w-0 lg:flex-1 lg:flex-wrap lg:overflow-visible">
           {[{ id: "all" as const, label: "All" }, ...live.map((x) => ({ id: x.id, label: x.label }))].map((c) => (
             <Chip key={c.id} active={only === c.id} isDefault={c.id === "all"} onClick={() => setOnly(c.id)} className={cn(REFINE_CHIP, "shrink-0")}>
               {c.label}
@@ -79,7 +81,7 @@ export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /**
             Saved jobs
           </Link>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 lg:shrink-0">
           <TogglePill label="Hide Pipeline" checked={hidePipeline} onChange={setHidePipeline} />
         </div>
       </div>

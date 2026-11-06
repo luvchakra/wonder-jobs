@@ -60,10 +60,23 @@ export function closeKeyboard() {
   if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) el.blur();
 }
 
+/**
+ * Find's search form, the same in every module (owner, 2026-11-06: "design the tablet and desktop ui … DO NOT CHANGE
+ * MOBILE"). Phones and tablets: the box, then the row of Refine, the module's pills and Search under it. From 1024px:
+ * one row, the box taking the room and the pills at a set width, so nothing stretches across a wide screen.
+ */
+export const FIND_FORM = "flex flex-col gap-2 lg:flex-row lg:items-center";
+export const FIND_BOX = "lg:flex-1";
+export const FIND_ROW = "flex items-center gap-2 lg:shrink-0";
+/** The row's first, wide pill (a place, a time): fills the row on phones and tablets, a set width beside the box from 1024px. */
+export const FIND_PILL_WIDE = "min-w-0 flex-auto lg:w-56 lg:flex-none";
+/** What Refine opens over from 1024px (the search area holding the form and the panel). */
+export const FIND_AREA = "relative";
+
 /** The search box: the magnifier, the words, clear and the microphone, and the recent searches while it has focus. */
-export function SearchBox({ value, onValue, onClear, placeholder, label, dictation, dictateLabel, focused, onFocused, history, onPick, onForget }: { value: string; onValue: (text: string) => void; onClear: () => void; placeholder: string; label: string; dictation: Dictation; dictateLabel: string; focused: boolean; onFocused: (on: boolean) => void; history: string[]; onPick: (t: string) => void; onForget: (t: string) => void }) {
+export function SearchBox({ value, onValue, onClear, placeholder, label, dictation, dictateLabel, focused, onFocused, history, onPick, onForget, className }: { value: string; onValue: (text: string) => void; onClear: () => void; placeholder: string; label: string; dictation: Dictation; dictateLabel: string; focused: boolean; onFocused: (on: boolean) => void; history: string[]; onPick: (t: string) => void; onForget: (t: string) => void; className?: string }) {
   return (
-    <div className="relative min-w-0">
+    <div className={cn("relative min-w-0", className)}>
       <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
       <Input
         value={value}
@@ -98,7 +111,7 @@ export function SearchBox({ value, onValue, onClear, placeholder, label, dictati
  * Saved's box: the words narrow what's already saved as they're typed (no source search). Enter (or the arrow) keeps
  * them, goes into Saved's history and closes the keyboard.
  */
-export function FilterBox({ text, onText, label, dictation, dictateLabel, history, onEnter, onForget }: { text: string; onText: (t: string) => void; label: string; dictation: Dictation; dictateLabel: string; history: string[]; onEnter: (t: string) => void; onForget: (t: string) => void }) {
+export function FilterBox({ text, onText, label, dictation, dictateLabel, history, onEnter, onForget, className }: { text: string; onText: (t: string) => void; label: string; dictation: Dictation; dictateLabel: string; history: string[]; onEnter: (t: string) => void; onForget: (t: string) => void; className?: string }) {
   const [focused, setFocused] = useState(false);
   const enter = (t = text) => {
     onEnter(t);
@@ -107,7 +120,7 @@ export function FilterBox({ text, onText, label, dictation, dictateLabel, histor
   };
   return (
     <form
-      className="relative min-w-0"
+      className={cn("relative min-w-0", className)}
       onSubmit={(e) => {
         e.preventDefault();
         enter();
@@ -219,7 +232,12 @@ export const refineSectionClass = (lit: boolean) => cn("-m-1.5 flex flex-col gap
  */
 export function RefinePanel({ backLabel, onBack, corner, top, children, onSave, links }: { backLabel: string; onBack: () => void; corner?: React.ReactNode; top?: React.ReactNode; children: React.ReactNode; onSave: () => void; links?: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 rounded-[16px] border border-line bg-surface px-3 py-2.5 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 [&>*]:min-w-0">
+    <>
+      {/* From 1024px, a click outside the panel goes back, as Back does. Not on phones or tablets. */}
+      <button type="button" tabIndex={-1} aria-hidden onClick={onBack} className="fixed inset-0 z-10 hidden cursor-default lg:block" />
+      {/* From 1024px Refine opens over the results, under the search row (FIND_AREA), instead of pushing them down; the
+          page keeps its place. Phones and tablets: in the flow, as before. */}
+    <div className="grid grid-cols-1 gap-x-4 gap-y-2.5 rounded-[16px] border border-line bg-surface px-3 py-2.5 sm:grid-cols-2 sm:p-4 lg:absolute lg:inset-x-0 lg:top-full lg:z-20 lg:mt-2 lg:max-h-[min(72vh,680px)] lg:grid-cols-3 lg:overflow-y-auto lg:shadow-xl [&>*]:min-w-0">
       <div className="-mb-1 flex items-center justify-between gap-3 sm:col-span-2 lg:col-span-3">
         {/* Back to the list without changing anything typed here: the arrow alone (owner, 2026-11-01), its words kept as
             the button's name for screen readers and tests. */}
@@ -238,6 +256,7 @@ export function RefinePanel({ backLabel, onBack, corner, top, children, onSave, 
       </div>
       {links && <div className="flex flex-wrap items-center gap-x-4 text-[13px] sm:col-span-2 lg:col-span-3">{links}</div>}
     </div>
+    </>
   );
 }
 

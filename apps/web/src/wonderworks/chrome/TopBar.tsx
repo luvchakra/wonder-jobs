@@ -87,7 +87,7 @@ export function TopBar() {
 
   // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
   const accountMenu = (
-    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : "absolute left-0 top-12")}>
+    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
       {/* Who's signed in, and their career status (from their applications). */}
       <div className="px-3 pb-2 pt-1.5">
         <p className="truncate text-[13px] font-semibold leading-tight text-ink">{displayName}</p>
@@ -162,9 +162,11 @@ export function TopBar() {
 
   return (
     <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
-      {/* Every screen (owner, 2026-10-29): the avatar on the left (it turns over to the WonderWorks mark now and then;
-          there's no separate logo), the kind menu in the centre, the bell on the right. */}
-      <div className="order-[-1] flex min-w-0 flex-1 justify-center">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
+      {/* Phones (owner, 2026-10-29): the avatar on the left (it turns over to the WonderWorks mark now and then; there's no
+          separate logo), the kind menu in the centre, the bell on the right. Tablet and desktop (owner, 2026-11-06: "design
+          the tablet and desktop ui"): the sidebar already carries the logo, so the kind menu starts at the content's left
+          edge and the bell and avatar sit together on the right, as desktop apps do. */}
+      <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
           on the badge). Ask Wonder is under You, and ⌘K on a computer. */}
@@ -179,7 +181,7 @@ export function TopBar() {
         )}
       </Link>
 
-      <div className="relative order-[-3]" ref={profileRef}>
+      <div className="relative order-[-3] md:order-none" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">
           <FlipAvatar name={displayName} />
         </button>

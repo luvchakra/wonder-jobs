@@ -43,8 +43,10 @@ export function YouOverview({ rows = [], module }: { /** The module's rows, unde
   const wants = headline || goal;
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <Link href="/app/career-dna" className="mb-4 flex items-center gap-3 rounded-[16px] border border-line bg-surface p-4 hover:bg-surface-2">
+    // Phones and tablets: one column, as before. From 1024px (owner, 2026-11-06): the profile card on the left, kept in
+    // view, and the rows beside it, so a wide screen isn't one narrow column in the middle.
+    <div className="mx-auto max-w-2xl lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <Link href="/app/career-dna" className="mb-4 flex items-center gap-3 rounded-[16px] border border-line bg-surface p-4 hover:bg-surface-2 lg:sticky lg:top-20 lg:mb-0">
         <Avatar name={name} size={48} self />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[17px] font-semibold text-ink">{name}</span>
@@ -53,13 +55,15 @@ export function YouOverview({ rows = [], module }: { /** The module's rows, unde
         </span>
         <ChevronRight className="size-4 text-ink-4" aria-hidden />
       </Link>
-      {module && (
-        <section aria-label={module.label} className="mb-4">
-          <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-3">{module.label}</h2>
-          <YouRows rows={module.rows} />
-        </section>
-      )}
-      {rows.length > 0 && <YouRows rows={rows} />}
+      <div className="min-w-0">
+        {module && (
+          <section aria-label={module.label} className="mb-4">
+            <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-3">{module.label}</h2>
+            <YouRows rows={module.rows} />
+          </section>
+        )}
+        {rows.length > 0 && <YouRows rows={rows} />}
+      </div>
     </div>
   );
 }
