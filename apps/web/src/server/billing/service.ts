@@ -245,7 +245,7 @@ export async function handleWebhook(provider: BillingProviderId, rawBody: string
     event = fromStripeEvent(safeJson(rawBody));
   } else {
     const cfg = razorpayConfig();
-    if (!cfg) return { status: 503, body: { received: false, error: "Razorpay is not configured" } };
+    if (!cfg || !cfg.webhookSecret) return { status: 503, body: { received: false, error: cfg ? "Razorpay's webhook secret is not set" : "Razorpay is not configured" } };
     if (!verifyRazorpaySignature(rawBody, headers.get("x-razorpay-signature"), cfg.webhookSecret)) return { status: 401, body: { received: false, error: "Invalid signature" } };
     // Razorpay's `x-razorpay-event-id` header is NOT covered by its signature, so it can't be the
     // idempotency key: a captured body replayed under a fresh header id would count as new. The signed

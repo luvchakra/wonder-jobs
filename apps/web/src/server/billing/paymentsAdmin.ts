@@ -74,7 +74,8 @@ export async function paymentsSetup(origin: string): Promise<PaymentsSetup> {
     prices,
     subscriptions,
     // Without a Razorpay plan, Pro is sold a month at a time at its own price, so a price there isn't required.
-    live: connection.state === "connected" && webhookSecret.set && (!!prices.find((p) => p.plan === "pro")?.set || plans.plans.pro.priceMinor >= 100),
+    // The webhook is recommended, not required: payments are confirmed from Razorpay directly (see config.ts).
+    live: connection.state === "connected" && (!!prices.find((p) => p.plan === "pro")?.set || plans.plans.pro.priceMinor >= 100),
   };
 }
 

@@ -147,12 +147,22 @@ describe("webhook handling end to end (in-memory store)", () => {
 });
 
 describe("checkout, availability and cancellation (provider APIs mocked)", () => {
-  it("reports needs_setup with variable names only, and never opens checkout without a webhook secret", async () => {
-    vi.stubEnv("RAZORPAY_WEBHOOK_SECRET", "");
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "price_pro", unit_amount: 1200, currency: "usd", active: true, recurring: { interval: "month", interval_count: 1 }, product: { name: "Pro" } }))));
+  it("reports needs_setup with variable names only; Stripe never opens checkout without a webhook secret", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "");
+    vi.stubEnv("RAZORPAY_KEY_SECRET", "");
     const avail = await providerAvailability();
-    expect(avail.find((a) => a.provider === "razorpay")).toEqual({ provider: "razorpay", state: "needs_setup", missing: ["RAZORPAY_WEBHOOK_SECRET"] });
-    await expect(startCheckout({ tenantId: "t", provider: "razorpay", origin: "https://x" })).rejects.toBeInstanceOf(BillingError);
+    expect(avail.find((a) => a.provider === "stripe")).toEqual({ provider: "stripe", state: "needs_setup", missing: ["STRIPE_WEBHOOK_SECRET"] });
+    expect(avail.find((a) => a.provider === "razorpay")).toEqual({ provider: "razorpay", state: "needs_setup", missing: ["RAZORPAY_KEY_SECRET"] });
+    await expect(startCheckout({ tenantId: "t", provider: "stripe", origin: "https://x" })).rejects.toBeInstanceOf(BillingError);
+  });
+
+  it("Razorpay without a webhook secret: checkout works (payments are confirmed from Razorpay itself), webhooks are refused", async () => {
+    vi.stubEnv("RAZORPAY_WEBHOOK_SECRET", "");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "plan_pro", period: "monthly", interval: 1, item: { name: "Pro", amount: 49_900, currency: "INR" } }))));
+    expect((await providerAvailability()).find((a) => a.provider === "razorpay")).toMatchObject({ state: "ready" });
+    const body = '{"event":"subscription.charged"}';
+    const res = await handleWebhook("razorpay", body, new Headers({ "x-razorpay-signature": hmacSha256Hex("", body) }));
+    expect(res.status).toBe(503);
   });
 
   it("never passes the provider's own error text (which can quote the API key) to the candidate", async () => {
