@@ -1,13 +1,33 @@
-# WorksLake gateway collection every 3 hours, between Vercel's once-a-day cron runs (a pace that fits the free plans for a month: domain/gateway/budget.ts).
-# Calls /api/cron/gateway-collect with the same CRON_SECRET Vercel's crons use. The route collects only active sources
-# that are due (each source's own interval), honours robots and crawl delays, and is safe to call twice: a source that
-# is already being collected is skipped. Needs the repository secret CRON_SECRET (same value as on Vercel).
+# WorksLake gateway collection, every 3 hours, on this runner (owner, 2026-11-06: moved off Vercel, which had paused the
+# site for CPU use). The job runs the app's own collection code (apps/web/scripts/gateway-collect.mjs →
+# src/server/gateway/runner.ts) against Supabase: it finishes any Setup job, collects the sources that are due, refreshes
+# every module's Find and emails the admins. The site is never called. "Run workflow" by hand starts an Import now
+# (mode=all) or Import this module (mode=module), as the admin's buttons do (they dispatch this workflow).
+#
+# Repository secrets (Settings → Secrets and variables → Actions): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+# SECRET_ENCRYPTION_KEY (the exact value the site uses), GATEWAY_ADMIN_TOKEN, GATEWAY_CURSOR_SECRET,
+# WORKSLAKE_GATEWAY_API_KEY, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, CONTACT_NOTIFY_EMAILS; variable SITE_URL.
+# Until SUPABASE_SERVICE_ROLE_KEY and GATEWAY_ADMIN_TOKEN exist, the last step calls the site instead (CRON_SECRET).
 name: Gateway collection
 
 on:
   schedule:
-    - cron: "41 */3 * * *" # every 3 hours (domain/gateway/budget.ts: fits the free plans)
+    - cron: "41 */3 * * *" # every 3 hours
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "scheduled: what's due · all: Import now · module: Import this module"
+        type: choice
+        default: scheduled
+        options: [scheduled, all, module]
+      module:
+        description: "Module id, for mode=module (jobs, internships, teaching, events, …)"
+        type: string
+        default: ""
+      by:
+        description: "Who started it (shown on Sources → Import)"
+        type: string
+        default: "GitHub (Run workflow)"
 
 permissions:
   contents: read
@@ -19,23 +39,54 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
-      CRON_SECRET: ${{ secrets.CRON_SECRET }}
       SITE: ${{ vars.SITE_URL || 'https://jobs.wonderapps.biz' }}
+      RUNNER_READY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.GATEWAY_ADMIN_TOKEN != '' }}
     steps:
-      - name: Collect due gateway sources
-        # Each call collects what fits in its 60 s and answers with `next` when more is due (or Find still has modules to
-        # refresh). This job calls each `next` in turn: the app never calls itself, which Vercel refuses after about five
-        # in a row (508 Loop Detected, 2026-11-05). At most 30 calls; a failed call is tried once more.
+      - uses: actions/checkout@v4
+        if: env.RUNNER_READY == 'true'
+      - uses: actions/setup-node@v4
+        if: env.RUNNER_READY == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: env.RUNNER_READY == 'true'
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: Collect on this runner
+        if: env.RUNNER_READY == 'true'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SECRET_ENCRYPTION_KEY: ${{ secrets.SECRET_ENCRYPTION_KEY }}
+          GATEWAY_ADMIN_TOKEN: ${{ secrets.GATEWAY_ADMIN_TOKEN }}
+          GATEWAY_CURSOR_SECRET: ${{ secrets.GATEWAY_CURSOR_SECRET }}
+          WORKSLAKE_GATEWAY_ENABLED: "1"
+          WORKSLAKE_GATEWAY_URL: ${{ env.SITE }}
+          WORKSLAKE_GATEWAY_API_KEY: ${{ secrets.WORKSLAKE_GATEWAY_API_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.SITE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          CONTACT_NOTIFY_EMAILS: ${{ secrets.CONTACT_NOTIFY_EMAILS }}
+          WJ_COLLECT_MODE: ${{ inputs.mode || 'scheduled' }}
+          WJ_COLLECT_MODULE: ${{ inputs.module }}
+          WJ_COLLECT_BY: ${{ inputs.by }}
+          WJ_COLLECT_FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+        run: node apps/web/scripts/gateway-collect.mjs
+      - name: Collect through the site (until the runner's secrets are set)
+        if: env.RUNNER_READY != 'true'
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        # The earlier way: each call collects what fits in the site's 60 s and answers with `next`; this loop calls each
+        # `next`. It costs the site's CPU, which is what the runner is for: add the secrets listed at the top.
         run: |
-          if [ -z "$CRON_SECRET" ]; then
-            echo "::warning::CRON_SECRET isn't set as a repository secret, so the gateway collects only with Vercel's daily cron."
-            exit 0
-          fi
+          echo "::warning::The collection runner's secrets aren't set (SUPABASE_SERVICE_ROLE_KEY, GATEWAY_ADMIN_TOKEN, …), so this run calls the site instead. Add them: see the comment at the top of this workflow."
+          if [ -z "$CRON_SECRET" ]; then echo "::warning::CRON_SECRET isn't set either: nothing collected."; exit 0; fi
           url="$SITE/api/cron/gateway-collect"
-          # Started by hand (Run workflow): collect now, even right after a scheduled run (a chain's later call skips the
-          # "ran recently" check; each source's own 6-hour floor still holds).
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then url="$url?hop=1"; fi
           for i in $(seq 1 30); do
             r=$(curl -fsS --max-time 75 -H "Authorization: Bearer $CRON_SECRET" -H "x-wj-driver: external" "$url" || curl -fsS --max-time 75 -H "Authorization: Bearer $CRON_SECRET" -H "x-wj-driver: external" "$url" || echo '{"summary":"call failed twice"}')

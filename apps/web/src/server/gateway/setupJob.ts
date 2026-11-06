@@ -91,11 +91,11 @@ export async function startSetupJob(items: { id: string; name: string; run: Setu
  * One item, as the row's button does it: add (if new) → test → activate when the test found valid listings → collect.
  * A "collect" item only collects a live source now (Import this module).
  */
-export async function runSetupItem(run: SetupRun, onStep: (s: string) => void = () => undefined): Promise<{ ok: true; valid: number; sourceId: string } | { ok: false; step: string; message: string }> {
+export async function runSetupItem(run: SetupRun, onStep: (s: string) => void = () => undefined, stepBudgetMs = SETUP_STEP_BUDGET_MS): Promise<{ ok: true; valid: number; sourceId: string } | { ok: false; step: string; message: string }> {
   const msg = (b: Record<string, unknown>, fallback: string) => String((b.error as { message?: string } | undefined)?.message ?? fallback);
   if (run.kind === "collect") {
     onStep("Collect");
-    const c = await collectGatewaySource(run.sourceId, SETUP_STEP_BUDGET_MS);
+    const c = await collectGatewaySource(run.sourceId, stepBudgetMs);
     return c.ok ? { ok: true, valid: c.valid ?? 0, sourceId: run.sourceId } : { ok: false, step: "Collect", message: c.code };
   }
   let sourceId = run.kind === "activate" ? run.sourceId : "";
@@ -107,7 +107,7 @@ export async function runSetupItem(run: SetupRun, onStep: (s: string) => void = 
     if (!sourceId) return { ok: false, step: "Add", message: "The gateway didn't return the new source." };
   }
   onStep("Test");
-  const t = await testGatewaySource(sourceId, SETUP_STEP_BUDGET_MS);
+  const t = await testGatewaySource(sourceId, stepBudgetMs);
   if (t.status >= 300) return { ok: false, step: "Test", message: msg(t.body, `Test failed (${t.status})`) };
   const valid = Number(t.body.valid ?? 0);
   if (!valid) return { ok: false, step: "Test", message: "The test found no valid listings, so it stays paused." };
@@ -115,7 +115,7 @@ export async function runSetupItem(run: SetupRun, onStep: (s: string) => void = 
   const a = await setGatewaySource(sourceId, "activate");
   if (a.status >= 300) return { ok: false, step: "Activate", message: msg(a.body, `Activate failed (${a.status})`) };
   onStep("Collect");
-  const c = await collectGatewaySource(sourceId, SETUP_STEP_BUDGET_MS);
+  const c = await collectGatewaySource(sourceId, stepBudgetMs);
   // Live either way; a failed first collection is retried by the hourly run.
   return { ok: true, valid: c.ok ? (c.valid ?? valid) : valid, sourceId };
 }

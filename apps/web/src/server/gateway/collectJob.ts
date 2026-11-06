@@ -1,6 +1,7 @@
 /**
- * The gateway's one scheduled job (Scheduler → Gateway collection), run by the cron (hourly through GitHub Actions,
- * daily by Vercel) and by an admin's Run now: the same code either way, so there is one job, not two.
+ * The gateway's one scheduled job (Scheduler → Gateway collection), run on the GitHub Actions runner every 3 hours
+ * (runner.ts, owner 2026-11-06: the collection and Find refresh moved off Vercel) and by an admin's Import now (which
+ * starts that runner, or runs here when it isn't set up): the same code either way, so there is one job, not two.
  *  1. When the Scheduler says so, queues the gateway sources waiting on Sources → Import (added, not live; not ones that just
  *     failed) as a Setup job. Adding a new catalogue source stays an admin's press.
  *  2. Collects the live sources that are due.
@@ -95,11 +96,25 @@ export async function handOnCollection(origin: string, hop: number, chain: strin
   return true;
 }
 
-export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail, hop = 0, handOn: typeof handOnCollection = handOnCollection, chain?: string, pendingRefresh: string[] = []): Promise<GatewayRunResult> {
+export interface CollectionOptions {
+  /**
+   * Time budgets from the call's start: collection's share, and by when the Find refresh may still start a module.
+   * Default: a Vercel call's (COLLECT_BUDGET_MS, CALL_DEADLINE_MS). The GitHub runner passes minutes (runner.ts).
+   */
+  limits?: { collectMs: number; deadlineMs: number };
+  /** Carries a running Setup job on to its own call (handOnSetupJob). The runner drains the job itself instead. */
+  handOnSetup?: (origin: string) => Promise<boolean>;
+  /** Collect now even right after the last scheduled run (a run started by hand). Each source's own floor still holds. */
+  force?: boolean;
+}
+
+export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail, hop = 0, handOn: typeof handOnCollection = handOnCollection, chain?: string, pendingRefresh: string[] = [], opts: CollectionOptions = {}): Promise<GatewayRunResult> {
   const startedAt = new Date().toISOString();
-  // Everything this call does must end inside Vercel's 60 s: refreshing Find stops by here and leaves the rest to the
+  const handOnSetup = opts.handOnSetup ?? handOnSetupJob;
+  // Everything a Vercel call does must end inside its 60 s: refreshing Find stops by here and leaves the rest to the
   // next call (2026-11-05: refreshing every module in the same call ran past 60 s, a 504, and nothing was recorded).
-  const deadline = Date.parse(startedAt) + CALL_DEADLINE_MS;
+  // On the GitHub runner the limits are minutes, and one call does everything (runner.ts).
+  const deadline = Date.parse(startedAt) + (opts.limits?.deadlineMs ?? CALL_DEADLINE_MS);
   // Every call of a chain records into the first call's run.
   const runId = `hourly_${chain && /^[a-z0-9]{4,16}$/.test(chain) ? chain : Date.parse(startedAt).toString(36)}`;
   const hosted = hostedGateway();
@@ -120,9 +135,9 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // listings the gateway already re-read reach Find, even when the last scheduled run was a moment ago.
   const findStale = async () => trigger === "cron" && (await lastRefreshAt().catch(() => 0)) < Date.now() - REFRESH_STALE_MS;
   // A chain's follow-up call carries on its own run, so the "ran recently" check is only for a fresh trigger.
-  if (hop === 0 && trigger === "cron" && (await lastScheduledRunWithin(MIN_GAP_MINUTES))) {
+  if (hop === 0 && !opts.force && trigger === "cron" && (await lastScheduledRunWithin(MIN_GAP_MINUTES))) {
     const running = jobRunning(await readSetupJob());
-    if (running) await handOnSetupJob(origin);
+    if (running) await handOnSetup(origin);
     if (!running && (await findStale())) {
       const r = await refreshGatewayListings(undefined, new Date(), deadline).catch(() => null);
       const stored = r?.stored;
@@ -140,9 +155,9 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // Collection takes at most COLLECT_BUDGET_MS of the call (each source only the time left), so the Find refresh and the
   // run's record still fit in Vercel's 60 s: runs that ran out of time (504) never refreshed Find (owner, 2026-11-04:
   // descriptions stayed flattened after the fix).
-  const outcomes = (await hosted.gateway.collectDue(COLLECT_BUDGET_MS, settings.gateway.pausedModules, floor)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
+  const outcomes = (await hosted.gateway.collectDue(opts.limits?.collectMs ?? COLLECT_BUDGET_MS, settings.gateway.pausedModules, floor)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
   const setupRunning = jobRunning(await readSetupJob());
-  if (setupRunning) await handOnSetupJob(origin);
+  if (setupRunning) await handOnSetup(origin);
 
   // One refresh per run: a running Setup job refreshes every module itself when it finishes.
   let refreshed: Record<string, number> | undefined;
@@ -197,7 +212,14 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
  * module's Find when it finishes; with nothing waiting, the collection runs now and refreshes every module itself.
  * Either way the work runs on the server after the answer; the page shows how far it got.
  */
-export async function startImport(by: string, origin: string): Promise<{ ok: true; queued: number; skipped: number } | { ok: false; message: string }> {
+export interface ImportDeps {
+  /** Carries the queued Setup job on to its own server call (handOnSetupJob); the runner drains the job itself. */
+  handOn?: typeof handOnSetupJob;
+  /** The collection to run when nothing is waiting (runGatewayCollection on Vercel; with the runner's limits there). */
+  collect?: (trigger: "admin", origin: string) => Promise<GatewayRunResult>;
+}
+
+export async function startImport(by: string, origin: string, deps: ImportDeps = {}): Promise<{ ok: true; queued: number; skipped: number; summary?: string } | { ok: false; message: string }> {
   if (!hostedGateway()) return { ok: false, message: "The gateway isn't configured on this deployment." };
   if (jobRunning(await readSetupJob())) return { ok: false, message: "An import is already running on the server." };
   const [{ pausedModules, dismissed: dismissed0 }, failed, archived] = await Promise.all([loadScheduler().then((s) => s.gateway), failedLately(), archivedIds()]);
@@ -212,19 +234,19 @@ export async function startImport(by: string, origin: string): Promise<{ ok: tru
     const r = await startSetupJob(items, by);
     if (!r.ok) return { ok: false, message: r.message };
     // The job's own call does the work and hands the rest on, and refreshes every module's Find when it's done.
-    await handOnSetupJob(origin);
+    await (deps.handOn ?? handOnSetupJob)(origin);
     return { ok: true, queued: r.job.items.length, skipped };
   }
   // Nothing new to set up: collect what's due and refresh every module's Find now.
-  await runGatewayCollection("admin", origin);
-  return { ok: true, queued: 0, skipped };
+  const c = await (deps.collect ?? ((t, o) => runGatewayCollection(t, o)))("admin", origin);
+  return { ok: true, queued: 0, skipped, summary: c.summary };
 }
 
 /**
  * Import this module now (Sources → Import, on a module's card): its waiting sources are set up and its live gateway
  * sources collected, as one server job; every module's Find is refreshed when it finishes. A paused module is refused.
  */
-export async function startModuleImport(module: string, by: string, origin: string): Promise<{ ok: true; queued: number } | { ok: false; message: string }> {
+export async function startModuleImport(module: string, by: string, origin: string, deps: Pick<ImportDeps, "handOn"> = {}): Promise<{ ok: true; queued: number } | { ok: false; message: string }> {
   const hosted = hostedGateway();
   if (!hosted) return { ok: false, message: "The gateway isn't configured on this deployment." };
   const gw = (await loadScheduler()).gateway;
@@ -237,6 +259,6 @@ export async function startModuleImport(module: string, by: string, origin: stri
   if (!items.length) return { ok: false, message: "Nothing to import for this module: no waiting sources and no live gateway sources." };
   const r = await startSetupJob(items, by, new Date(), "admin", { kind: "module", module });
   if (!r.ok) return { ok: false, message: r.message };
-  await handOnSetupJob(origin);
+  await (deps.handOn ?? handOnSetupJob)(origin);
   return { ok: true, queued: r.job.items.length };
 }

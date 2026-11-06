@@ -14,9 +14,10 @@ describe("scheduler settings", () => {
   it("lists exactly the crons vercel.json declares", () => {
     const vercel = JSON.parse(readFileSync(join(__dirname, "../../../vercel.json"), "utf8")) as { crons: { path: string; schedule: string }[] };
     expect(CRON_JOBS.filter((j) => j.runner === "vercel").map((j) => ({ path: j.path, schedule: j.schedule }))).toEqual(vercel.crons);
-    // The one GitHub Actions calls runs on the schedule its workflow says.
-    const workflow = readFileSync(join(__dirname, "../../../../../.github/workflows/reminders.yml"), "utf8");
+    // Each one GitHub Actions runs has the schedule its own workflow says, and names the route (the fallback the gateway
+    // workflow calls; the one Reminders calls).
     for (const j of CRON_JOBS.filter((x) => x.runner === "github")) {
+      const workflow = readFileSync(join(__dirname, `../../../../../.github/workflows/${j.workflow}`), "utf8");
       expect(workflow).toContain(`cron: "${j.schedule}"`);
       expect(workflow).toContain(j.path);
     }
