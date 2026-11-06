@@ -9,6 +9,7 @@ import { isActivePath, type NavItem } from "./nav";
 import { useModuleNav } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
 import { TopBar } from "./TopBar";
+import { NotificationBell } from "./NotificationBell";
 
 /** A heading over a group of the sidebar's links (desktop only). */
 function GroupLabel({ children }: { children: React.ReactNode }) {
@@ -73,7 +74,7 @@ function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: strin
 /**
  * Sidebar from 768px. Tablets (768–1023px): icons only, the module's four places. Desktops (owner, 2026-11-06: "get
  * different kind of menus in the sidebar as it has enough space now"): the four places and the Modules list (in place
- * of the top bar's menu), and at its foot the avatar, name and bell (the top bar is gone from 1024px). Analytics and the settings (Notifications, Automation, AI provider, Help) left the sidebar
+ * of the top bar's menu), the bell beside the logo, and at its foot the avatar and name (the top bar is gone from 1024px). Analytics and the settings (Notifications, Automation, AI provider, Help) left the sidebar
  * (owner, 2026-11-06: "remove these from left sidebar"); they're in the avatar menu, and Notifications on the bell.
  * Below 768px the bottom bar (MobileNav) takes over, and none of this shows.
  */
@@ -83,8 +84,10 @@ export function Sidebar() {
   const nav = useModuleNav();
   return (
     <aside className={cn("hidden md:flex h-dvh sticky top-0 shrink-0 flex-col border-r border-line bg-surface", collapsed ? "w-[72px] px-3" : "w-[232px] overflow-y-auto px-4 [scrollbar-width:thin]")} aria-label="Sidebar">
-      <div className={cn("flex h-16 shrink-0 items-center", collapsed ? "justify-center" : "px-1")}>
-        <WonderLogo href="/app" size={24} compact={collapsed} />
+      <div className={cn("flex h-16 shrink-0 items-center", collapsed ? "justify-center" : "justify-between gap-2 pr-1")}>
+        <WonderLogo href="/app" size={collapsed ? 24 : 22} compact={collapsed} />
+        {/* From 1024px the bell sits beside the logo (owner, 2026-11-06); tablets keep it in the top bar. */}
+        {!collapsed && <NotificationBell compact />}
       </div>
       <nav aria-label="Primary" className="mt-4 flex shrink-0 flex-col gap-0.5">
         {nav.map((item) => (
@@ -92,7 +95,7 @@ export function Sidebar() {
         ))}
       </nav>
       {!collapsed && <ModuleList />}
-      {/* From 1024px the account controls (avatar, name, bell) sit at the sidebar's foot; there's no top bar. */}
+      {/* From 1024px the avatar and name sit at the sidebar's foot; there's no top bar. */}
       <TopBar place="side" />
     </aside>
   );
