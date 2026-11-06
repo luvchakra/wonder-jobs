@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
-import { ChoiceChips, DictationNotes, FIND_AREA, FIND_BOX, FIND_FORM, FIND_PILL_WIDE, FIND_REFINE, FIND_ROW, FIND_SUBMIT, FIND_TOP_BOX, FilterBox, closeKeyboard, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
+import { ChoiceChips, DictationNotes, FIND_AREA, FIND_FORM, FIND_PIN, FIND_PILL_WIDE, FIND_REFINE, FIND_ROW, FIND_SUBMIT, FIND_TOP_BOX, FilterBox, closeKeyboard, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -343,9 +343,10 @@ function ShortlistFilters({ text, onText, filters, onChange, className }: { text
   const dictation = useDictation({ textAtStart: () => text, onText });
   const recent = useJobsStore((s) => s.recentSavedSearches);
   return (
-    // From 1024px the box, type chips and toggles share one row (the box at Find's width); phones keep the column.
-    <div className={cn("flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center", className)}>
-      <FilterBox className={FIND_BOX} text={text} onText={onText} label="Filter saved jobs" dictation={dictation} dictateLabel="what to look for in your saved jobs" history={recent} onEnter={(t) => useJobsStore.getState().rememberSearch(t, "saved")} onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")} />
+    // From 1024px the box, type chips and toggles share one row (a narrower box so they fit), kept at the top of the
+    // window while the saved jobs scroll (FIND_PIN; owner, 2026-11-06: "improve the layout" of the other tabs). Phones keep the column.
+    <div className={cn("flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center", FIND_PIN, className)}>
+      <FilterBox className="lg:w-72 lg:flex-none xl:w-80" text={text} onText={onText} label="Filter saved jobs" dictation={dictation} dictateLabel="what to look for in your saved jobs" history={recent} onEnter={(t) => useJobsStore.getState().rememberSearch(t, "saved")} onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")} />
       <JobTypeChips filters={filters} onChange={onChange} />
       <div className="flex flex-wrap gap-2">
         <TogglePill label="Hide Pipeline" checked={!!filters.hideInPipeline} onChange={(on) => onChange({ hideInPipeline: on })} />

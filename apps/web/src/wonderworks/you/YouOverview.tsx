@@ -43,26 +43,38 @@ export function YouOverview({ rows = [], module }: { /** The module's rows, unde
   const wants = headline || goal;
 
   return (
-    // Phones and tablets: one column, as before. From 1024px (owner, 2026-11-06): the profile card on the left, kept in
-    // view, and the rows beside it, so a wide screen isn't one narrow column in the middle.
-    <div className="mx-auto max-w-2xl lg:grid lg:max-w-5xl lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-start lg:gap-6">
-      <Link href="/app/career-dna" className="mb-4 flex items-center gap-3 rounded-[16px] border border-line bg-surface p-4 hover:bg-surface-2 lg:sticky lg:top-20 lg:mb-0">
-        <Avatar name={name} size={48} self />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[17px] font-semibold text-ink">{name}</span>
-          <span className="block truncate text-[13px] text-ink-3">{headline || (wants ? `Looking for ${wants}` : "Add your headline")}</span>
-          <span className="mt-0.5 block text-[12px] font-medium text-brand-600">Career Profile</span>
-        </span>
-        <ChevronRight className="size-4 text-ink-4" aria-hidden />
-      </Link>
+    // Phones and tablets: one column, as before. From 1024px (owner, 2026-11-06: "improve layout for You tab"): two
+    // columns from the content's left edge, each opened by a heading at the same height. Left: the Career Profile as a
+    // card (photo, name, the full headline, then its link), kept in view. Right: the module's rows.
+    <div className="mx-auto max-w-2xl lg:mx-0 lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+      <section aria-label="Career Profile" className="lg:sticky lg:top-5">
+        <h2 className="mb-2 hidden px-1 text-[13px] font-semibold text-ink-3 lg:block">Who Wonder works for</h2>
+        <Link href="/app/career-dna" className="mb-4 flex items-center gap-3 rounded-[16px] border border-line bg-surface p-4 hover:bg-surface-2 lg:mb-0 lg:flex-col lg:items-start lg:gap-3 lg:p-5">
+          <Avatar name={name} size={48} self />
+          <span className="min-w-0 flex-1 lg:w-full">
+            <span className="block truncate text-[17px] font-semibold text-ink lg:text-[19px]">{name}</span>
+            <span className="block truncate text-[13px] text-ink-3 lg:mt-0.5 lg:line-clamp-3 lg:whitespace-normal lg:text-[13.5px]">{headline || (wants ? `Looking for ${wants}` : "Add your headline")}</span>
+            <span className="mt-0.5 block text-[12px] font-medium text-brand-600 lg:mt-3 lg:inline-flex lg:items-center lg:gap-1 lg:text-[13px]">
+              Career Profile<ChevronRight className="hidden size-3.5 lg:inline" aria-hidden />
+            </span>
+          </span>
+          <ChevronRight className="size-4 text-ink-4 lg:hidden" aria-hidden />
+        </Link>
+      </section>
       <div className="min-w-0">
         {module && (
-          <section aria-label={module.label} className="mb-4">
+          <section aria-label={module.label} className="mb-4 lg:mb-6">
             <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-3">{module.label}</h2>
             <YouRows rows={module.rows} />
           </section>
         )}
-        {rows.length > 0 && <YouRows rows={rows} />}
+        {rows.length > 0 && (
+          <section aria-label={module ? "More" : "Your tools"}>
+            {/* From 1024px every section has a heading, so both columns start level. */}
+            <h2 className="mb-2 hidden px-1 text-[13px] font-semibold text-ink-3 lg:block">{module ? "More" : "Your tools"}</h2>
+            <YouRows rows={rows} />
+          </section>
+        )}
       </div>
     </div>
   );
