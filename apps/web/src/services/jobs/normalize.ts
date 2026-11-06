@@ -15,6 +15,8 @@ export interface RawPosting {
   title: string;
   company: string;
   companyDomain?: string;
+  /** The organisation's logo image URL the source gave (JSearch's employer_logo, an event's organiser image): https only. */
+  companyLogo?: string;
   /** Free-text location as the source shows it (city, region, "Worldwide", ...). */
   location: string;
   remote?: boolean;
@@ -274,6 +276,7 @@ export function normalizePosting(sourceId: string, raw: RawPosting, now = Date.n
     // A domain the source reported, else the employer's own site the apply link is on — never guessed from the name.
     // A source's domain only when it's an organisation's own (never a job board's or a bare suffix such as gov.uk).
     companyDomain: organisationDomain(raw.companyDomain) ?? employerDomainOf(raw.applyUrl, raw.employerSite),
+    ...(raw.companyLogo && /^https:\/\/[^\s]{4,500}$/.test(raw.companyLogo) ? { companyLogo: raw.companyLogo } : {}),
     location,
     country,
     workMode,

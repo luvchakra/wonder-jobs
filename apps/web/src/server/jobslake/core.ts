@@ -24,7 +24,8 @@ import { MODULES, type ModuleId } from "@/modules/registry";
 import { gatewayModuleForSource } from "./gatewaySources";
 import { jobsLakeFlags } from "./flags";
 import type { SourceRecord, TestReport } from "./types";
-import { bannedCompanies, isBannedListing, recordCompanies } from "./companies";
+import { bannedCompanies, isBannedListing, prewarmLogos, recordCompanies } from "./companies";
+import { after } from "next/server";
 import { hiddenListingIds } from "@/server/moderation";
 import { boardRef, closedRefs } from "@/server/jobs/origin";
 import { postingTooOld } from "@/domain/jobs/age";
@@ -437,6 +438,8 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   // every module (wonderworks/brand/CompanyLogo), so an event's organiser or a seller gets its logo too (owner,
   // 2026-11-06); listings themselves stay in each module's own dataset.
   if (valid.length) await bookkeeping("record companies", () => recordCompanies(valid));
+  // Logos of organisations the directory hasn't got yet, warmed after the answer is sent: the search never waits on it.
+  if (valid.length) afterResponse(() => prewarmLogos(valid).then(() => undefined));
 
   let results = answering;
   let warmCount = 0;
@@ -528,6 +531,15 @@ export const TEST_QUERY: Record<ModuleId, string> = {
 export function testQuery(src: SourceRecord): string {
   if (gatewayFed(src) || gatewayModuleForSource(src.id)) return "";
   return TEST_QUERY[sourceModule(src) as ModuleId] ?? "";
+}
+
+/** Runs work after the response is sent (Next's `after`); outside a request (tests, scripts) it does nothing. */
+function afterResponse(work: () => Promise<void>) {
+  try {
+    after(() => work().catch((e: unknown) => console.warn(`[jobslake] background work failed: ${e instanceof Error ? e.message : "unknown"}`)));
+  } catch {
+    // Not inside a request: skip it; the logo is still found when a card asks for it.
+  }
 }
 
 export async function testSource(src: SourceRecord, actor: string): Promise<TestReport> {

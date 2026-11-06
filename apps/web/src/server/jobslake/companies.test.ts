@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanDomain, companyKey, employerDomainOf } from "@/domain/jobslake/companies";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { __MemoryCompanies, __setCompanyStore, adminLogo, companiesFrom, companyLogo, LOGO_TTL_MS, recordCompanies } from "./companies";
+import { __MemoryCompanies, __setCompanyStore, adminLogo, companiesFrom, companyLogo, LOGO_TTL_MS, prewarmLogos, PREWARM_MAX, recordCompanies } from "./companies";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, ...new Array(400).fill(1)]);
 const opp = (name: string, domain: string | undefined, applyUrl: string, employerSite = true, sourceId = "greenhouse") =>
@@ -206,5 +206,40 @@ describe("a company known only by name gets its logo (2026-11-06: Devpost's “P
       ["payco", wikidata("Payco", {})],
     ];
     for (const [name, f] of cases) expect(await companyLogo({ name }, Date.now(), f as unknown as typeof fetch)).toBeUndefined();
+  });
+});
+
+describe("logos warmed after a search's answer (2026-11-06)", () => {
+  const png = () => new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(400).fill(2)]), { status: 200, headers: { "content-type": "image/png" } });
+  const withLogo = (name: string, domain: string | undefined, logoUrl?: string) => ({ ...opp(name, domain, "https://x", false), employer: { name, domain, ...(logoUrl ? { logoUrl } : {}) } }) as unknown as CanonicalOpportunity;
+
+  it("stores the logo a source sent, once, for a company recorded with a domain", async () => {
+    await recordCompanies([opp("Acme", "acme.com", "https://x", false)]);
+    const fetcher = vi.fn(async (url: string) => (url === "https://cdn.example-images.net/acme.png" ? png() : new Response(null, { status: 404 })));
+    expect(await prewarmLogos([withLogo("Acme", "acme.com", "https://cdn.example-images.net/acme.png")], Date.now(), fetcher as unknown as typeof fetch)).toBe(1);
+    expect(fetcher.mock.calls.map(([u]) => String(u))).toEqual(["https://cdn.example-images.net/acme.png"]);
+    // Already has its logo: the next search warms nothing and fetches nothing.
+    fetcher.mockClear();
+    expect(await prewarmLogos([withLogo("Acme", "acme.com", "https://cdn.example-images.net/acme.png")], Date.now(), fetcher as unknown as typeof fetch)).toBe(0);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("never fetches a source logo on a private address", async () => {
+    await recordCompanies([opp("Acme", "acme.com", "https://x", false)]);
+    const fetcher = vi.fn(async () => new Response(null, { status: 404 }));
+    await prewarmLogos([withLogo("Acme", "acme.com", "https://127.0.0.1/logo.png")], Date.now(), fetcher as unknown as typeof fetch);
+    expect(fetcher.mock.calls.some(([u]) => String(u).includes("127.0.0.1"))).toBe(false);
+  });
+
+  it("finds a name-only organisation and keeps it under its domain, at most PREWARM_MAX a search", async () => {
+    const fetcher = vi.fn(async (url: string) => {
+      if (url.includes("wbsearchentities")) return Response.json({ search: [{ id: "Q1", label: decodeURIComponent(/search=([^&]+)/.exec(url)![1]) }] });
+      if (url.includes("wbgetentities")) return Response.json({ entities: { Q1: { claims: { P856: [{ mainsnak: { datavalue: { value: "https://org-site.org" } } }] } } } });
+      return url.includes("org-site.org") ? png() : new Response(null, { status: 404 });
+    });
+    const many = Array.from({ length: PREWARM_MAX + 4 }, (_, i) => withLogo(`Organiser ${String.fromCharCode(97 + i)}`, undefined));
+    await prewarmLogos(many, Date.now(), fetcher as unknown as typeof fetch);
+    expect(fetcher.mock.calls.filter(([u]) => String(u).includes("wbsearchentities")).length).toBe(PREWARM_MAX);
+    expect((await companyLogo({ domain: "org-site.org" }, Date.now(), fetcher as unknown as typeof fetch))?.type).toBe("image/png");
   });
 });
