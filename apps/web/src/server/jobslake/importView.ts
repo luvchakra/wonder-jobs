@@ -189,6 +189,40 @@ export function collectStreaks(runs: GatewayRunRow[]): Map<string, number> {
 }
 
 /** Pure: a module's rows from its WorksLake sources, its gateway sources and its Setup items (exported for tests). */
+const human = (seg: string) => {
+  const t = decodeURIComponent(seg).replace(/\.(json|xml|html?)$/i, "").replace(/[-_]+/g, " ").trim();
+  return t ? t[0].toUpperCase() + t.slice(1) : "";
+};
+
+/**
+ * Pure: rows of one module that share a name (one site, several sources: Houzz's one per trade, owner 2026-11-07:
+ * "why so many duplicate entries") get what sets each apart after the name: the first part of its URL path, or of its
+ * catalogue file, that differs from the others ("Houzz (houzz.in) · Architects").
+ */
+export function distinctNames(rows: ImportRow[], pathOf: (id: string) => string | undefined): ImportRow[] {
+  const groups = new Map<string, ImportRow[]>();
+  for (const r of rows) groups.set(r.name, [...(groups.get(r.name) ?? []), r]);
+  const label = new Map<ImportRow, string>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const parts = group.map((r) => {
+      const p = pathOf(r.id) ?? (r.id.startsWith("catalogue:") ? r.id.slice("catalogue:".length) : "");
+      return p.split(/[/~]/).filter(Boolean);
+    });
+    // The first segment where they differ, per row; the catalogue file's own words when the path says nothing.
+    const at = Math.max(0, Array.from({ length: Math.max(...parts.map((x) => x.length)) }, (_, i) => i).find((i) => new Set(parts.map((x) => x[i] ?? "")).size > 1) ?? 0);
+    // Words every one of them starts with ("houzz" in houzz-architects.json, houzz-construction.json) say nothing.
+    const words = parts.map((x) => (x[at] ? human(x[at]).toLowerCase().split(" ") : []));
+    let common = 0;
+    while (words.every((w) => w.length > common + 1 && w[common] === words[0][common])) common++;
+    group.forEach((r, n) => {
+      const rest = words[n].slice(common).join(" ");
+      if (rest) label.set(r, rest[0].toUpperCase() + rest.slice(1));
+    });
+  }
+  return rows.map((r) => (label.has(r) ? { ...r, name: `${r.name} · ${label.get(r)}` } : r));
+}
+
 export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewaySourceRow[], items: SetupItem[], failed: Map<string, { at: string; step?: string; message?: string }> = new Map(), dismissed: Set<string> = new Set()): ImportRow[] {
   const rows: ImportRow[] = [];
   const byItem = new Map(items.map((i) => [i.id, i]));
@@ -334,7 +368,8 @@ export async function importView(): Promise<ImportView> {
   const found = new Map(inFind);
   const paused = new Set(settings.gateway.pausedModules);
   const modules: ImportModule[] = MODULES.map((m) => {
-    const { rows, archived } = splitArchived(moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed)), streaks);
+    const paths = new Map((gw?.sources ?? []).map((g) => [`gateway:${g.id}`, g.path ?? ""]));
+    const { rows, archived } = splitArchived(distinctNames(moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed)), (id) => paths.get(id)), streaks);
     return {
       id: m.id,
       label: m.label,

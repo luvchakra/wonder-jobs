@@ -9,6 +9,8 @@ export interface GatewaySourceRow {
   kind: string;
   modules: string[];
   host: string;
+  /** The URL's path, to tell apart sources of one site that share a name (Houzz's one per trade). */
+  path?: string;
   enabled: boolean;
   /** Its permission evidence says its terms are still to be confirmed by the owner. */
   termsPending: boolean;
@@ -58,6 +60,7 @@ export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview
         kind: String(x.kind),
         modules: (x.modules as string[]) ?? [],
         host: (() => { try { return new URL(String(x.url)).hostname; } catch { return ""; } })(),
+        path: (() => { try { return new URL(String(x.url)).pathname; } catch { return ""; } })(),
         enabled: x.enabled === true,
         termsPending: /terms pending/i.test(String(x.permissionEvidence ?? "")),
         geography: Array.isArray(x.geography) ? (x.geography as string[]) : [],
