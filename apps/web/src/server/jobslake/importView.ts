@@ -13,6 +13,7 @@ import type { CronRun } from "@/domain/scheduler/settings";
 import { MODULES, type ModuleId } from "@/modules/registry";
 import { gatewayOverview, type GatewayRunRow, type GatewaySourceRow } from "@/server/gateway/admin";
 import { readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
+import { liveActive, readLiveRun, REQUEST_STALE_MS, RUN_SILENT_MS, type LiveDoc, type LiveRequest, type LiveRun } from "@/server/gateway/liveRun";
 import { listImportRuns, type ImportRun } from "@/server/gateway/importRuns";
 import { failedLately } from "@/server/gateway/collectJob";
 import { ARCHIVE_AFTER, failStreaks } from "@/server/gateway/importRuns";
@@ -111,6 +112,8 @@ export interface ImportView {
   emails: { imports: boolean; hourly: boolean; to: string[]; admins: number; mailbox: boolean };
   /** The server job started by Import now, a module's import or the hourly run: while it runs, or for a day after. */
   job: ImportJobView | null;
+  /** The collection runner's own progress (liveRun.ts): an Import now sent to GitHub, and the latest run's steps. */
+  live: LiveView | null;
   /** Every run, newest first (importRuns.ts). */
   runs: ImportRun[];
   lastRun: CronRun | null;
@@ -268,10 +271,29 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
   };
 }
 
+export interface LiveView {
+  /** A press sent to GitHub that no run has picked up; `stale` once it waited past REQUEST_STALE_MS. */
+  request?: LiveRequest & { stale: boolean };
+  /** The latest run, while it runs or for a day after; `silent` when a running one went quiet past RUN_SILENT_MS. */
+  run?: LiveRun & { silent: boolean };
+  /** A press waiting or a run under way: Import now stays off. */
+  active: boolean;
+}
+
+/** Pure: what the page shows of the runner's progress, at `now`. */
+export function liveSummary(doc: LiveDoc | null, now = Date.now()): LiveView | null {
+  if (!doc) return null;
+  const request = doc.request && now - Date.parse(doc.request.at) < DAY ? { ...doc.request, stale: now - Date.parse(doc.request.at) >= REQUEST_STALE_MS } : undefined;
+  const r = doc.run;
+  const run = r && now - Date.parse(r.finishedAt ?? r.updatedAt) < DAY ? { ...r, silent: r.state === "running" && now - Date.parse(r.updatedAt) >= RUN_SILENT_MS } : undefined;
+  if (!request && !run) return null;
+  return { ...(request ? { request } : {}), ...(run ? { run } : {}), active: liveActive(doc, now) };
+}
+
 export async function importView(): Promise<ImportView> {
   const store = jobsLakeStore();
   const fortnight = new Date(Date.now() - MAX_POSTING_AGE_DAYS * DAY).toISOString();
-  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed, tried] = await Promise.all([
+  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed, tried, live] = await Promise.all([
     listAllSourceViews(),
     gatewayOverview().catch(() => null),
     setupTodo(),
@@ -283,6 +305,7 @@ export async function importView(): Promise<ImportView> {
     listImportRuns().catch(() => [] as ImportRun[]),
     failedLately().catch(() => new Map<string, { at: string; step?: string; message?: string }>()),
     failStreaks().catch(() => new Map<string, number>()),
+    readLiveRun().catch(() => null),
   ]);
   const streaks = new Map([...tried, ...collectStreaks(gw?.runs ?? [])]);
   const held = new Map((gw?.byModule ?? []).map((b) => [b.module, b.listings]));
@@ -320,6 +343,7 @@ export async function importView(): Promise<ImportView> {
     schedule: { activateWaiting: settings.gateway.activateWaiting, cronSet: !!process.env.CRON_SECRET, pausedModules: settings.gateway.pausedModules },
     emails: { ...settings.importEmail, admins: parseEmailList(process.env.JOBSLAKE_ADMIN_EMAILS).length, mailbox: !!smtpConfig(await platformEnv()) },
     job: jobSummary(job),
+    live: liveSummary(live),
     runs,
     lastRun: cronRuns.find((r) => r.job === "gateway-collect") ?? null,
     modules,

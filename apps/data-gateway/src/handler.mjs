@@ -129,7 +129,9 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   const PARALLEL = 4;
 
   /** Collects every active source that is due. Returns what happened to each, never a secret or a payload. */
-  async function collectDue(budgetMs = 35000, skipModules = [], floorMinutes = 0) {
+  /** `onProgress` (optional, never awaited by the crawl's own pace): `{ type: "due", ids }` once, then `start` and `done` per source. */
+  async function collectDue(budgetMs = 35000, skipModules = [], floorMinutes = 0, onProgress = null) {
+    const tell = (e) => { try { onProgress?.(e); } catch { /* progress never fails a collection */ } };
     // A source feeding only paused modules (Data → Import) waits; one that also feeds a live module runs.
     const paused = new Set(skipModules);
     // `floorMinutes`: the scheduled run collects no source more often than this, whatever its own interval (a plan's budget).
@@ -137,13 +139,16 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && !x.externalCollection && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now()) && rested(x) && !(paused.size && x.modules.every((m) => paused.has(m)))).map((x) => x.id));
     const outcomes = [];
     const started = Date.now();
+    tell({ type: "due", ids: due });
+    const push = (o) => { outcomes.push(o); tell({ type: "done", ...o }); };
     const one = async (sourceId) => {
       // One pass fits one serverless call: a source not started with at least 8 s left waits for the next pass (still
       // due), and the one that starts gets only the time that's left (a crawl's own 45 s cap otherwise).
       const left = budgetMs - (Date.now() - started);
-      if (left < 8000) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); return; }
-      try { outcomes.push({ sourceId, ...(await collectOne(sourceId, false, left)) }); }
-      catch (e) { outcomes.push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
+      if (left < 8000) { push({ sourceId, ok: true, code: "DEFERRED" }); return; }
+      tell({ type: "start", sourceId });
+      try { const r = await collectOne(sourceId, false, left); push({ sourceId, ...r }); }
+      catch (e) { push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
     };
     // A long run (the GitHub Actions runner's minutes; 2026-11-07, crawl speed) collects up to PARALLEL sources at once,
     // never two on the same site, so each site still sees one request at a time at its own pace while the waits overlap.

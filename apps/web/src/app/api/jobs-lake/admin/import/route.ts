@@ -2,6 +2,7 @@ import { explainFailure } from "@/domain/gateway/failure";
 import { after, NextResponse } from "next/server";
 import { siteUrl } from "@/lib/siteUrl";
 import { startImport, startModuleImport } from "@/server/gateway/collectJob";
+import { liveActive, readLiveRun, recordLiveRequest } from "@/server/gateway/liveRun";
 import { dispatchCollection, runnerDispatchConfigured } from "@/server/gateway/dispatch";
 import { loadPlatformKeys } from "@/server/jobslake/platformKeys";
 import { collectGatewaySource, registerFromCatalogue, registerPartner, setGatewaySource, testGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
@@ -52,9 +53,10 @@ export async function POST(req: Request) {
   if ((action === "import" || action === "module_import") && runnerDispatchConfigured()) {
     const m = typeof body?.module === "string" && (MODULE_IDS as readonly string[]).includes(body.module) ? body.module : null;
     if (action === "module_import" && !m) return jlError("INVALID_REQUEST", "Name the module.", 400);
-    if (jobRunning(await readSetupJob())) return jlError("INVALID_REQUEST", "An import is already running on the collection runner.", 409);
+    if (jobRunning(await readSetupJob()) || liveActive(await readLiveRun())) return jlError("INVALID_REQUEST", "An import is already running on the collection runner.", 409);
     const d = await dispatchCollection(action === "import" ? { mode: "all", by: a.actor } : { mode: "module", module: m!, by: a.actor });
     if (!d.ok) return jlError("INVALID_REQUEST", d.message, 502);
+    await recordLiveRequest({ mode: action === "import" ? "all" : "module", ...(m ? { module: m } : {}), by: a.actor, at: new Date().toISOString() });
     await audit(a.actor, action === "import" ? "import.dispatched" : "import.module_dispatched", undefined, { ...(m ? { module: m } : {}) });
     return json({ ok: true, queued: 0, skipped: 0, dispatched: true });
   }

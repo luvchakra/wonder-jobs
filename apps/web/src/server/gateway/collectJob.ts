@@ -13,6 +13,7 @@ import { loadScheduler, recordCronRun } from "@/server/scheduler/store";
 import { refreshGatewayListings } from "@/server/jobslake/warm";
 import { setupTodo } from "@/server/jobslake/setup";
 import { hostedGateway } from "./index";
+import type { CollectProgress } from "../../../../data-gateway/src/handler.mjs";
 import { gatewaySourceModules } from "./admin";
 import { handOnSetupJob, jobRunning, readSetupJob, startSetupJob } from "./setupJob";
 import { ARCHIVE_AFTER, failStreaks, lastScheduledRunWithin, listImportRuns, recentFailures, recordImportRun, RETRY_AFTER_MS, type ImportRun } from "./importRuns";
@@ -106,6 +107,10 @@ export interface CollectionOptions {
   handOnSetup?: (origin: string) => Promise<boolean>;
   /** Collect now even right after the last scheduled run (a run started by hand). Each source's own floor still holds. */
   force?: boolean;
+  /** The runner's live progress (liveRun.ts): each due source as it starts and ends, and each module's Find refresh. */
+  onProgress?: (e: CollectProgress) => void;
+  onRefresh?: (modules: string[]) => void;
+  onModule?: (module: string, stored: number | null, next?: string) => void;
 }
 
 export async function runGatewayCollection(trigger: "cron" | "admin", origin: string, notify: (run: ImportRun, earlier: ImportRun[]) => Promise<unknown> = sendImportEmail, hop = 0, handOn: typeof handOnCollection = handOnCollection, chain?: string, pendingRefresh: string[] = [], opts: CollectionOptions = {}): Promise<GatewayRunResult> {
@@ -155,7 +160,7 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // Collection takes at most COLLECT_BUDGET_MS of the call (each source only the time left), so the Find refresh and the
   // run's record still fit in Vercel's 60 s: runs that ran out of time (504) never refreshed Find (owner, 2026-11-04:
   // descriptions stayed flattened after the fix).
-  const outcomes = (await hosted.gateway.collectDue(opts.limits?.collectMs ?? COLLECT_BUDGET_MS, settings.gateway.pausedModules, floor)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
+  const outcomes = (await hosted.gateway.collectDue(opts.limits?.collectMs ?? COLLECT_BUDGET_MS, settings.gateway.pausedModules, floor, opts.onProgress ?? null)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
   const setupRunning = jobRunning(await readSetupJob());
   if (setupRunning) await handOnSetup(origin);
 
@@ -168,7 +173,9 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // of the chain ran out of time for. Each call refreshes what fits before its deadline and hands the rest on.
   const wanted = setupRunning ? [] : trigger === "admin" || stale ? MODULE_IDS.slice() : [...pendingRefresh, ...(await Promise.all(collected.map((o) => gatewaySourceModules(o.sourceId)))).flat()];
   if (wanted.length) {
-    const r = await refreshGatewayListings([...new Set([...pendingRefresh, ...wanted])], new Date(), deadline).catch(() => null);
+    const mods = [...new Set([...pendingRefresh, ...wanted])];
+    opts.onRefresh?.(mods);
+    const r = await refreshGatewayListings(mods, new Date(), deadline, opts.onModule).catch(() => null);
     if (r && Object.keys(r.stored).length) refreshed = r.stored;
     refreshLeft = r?.remaining ?? [];
   }

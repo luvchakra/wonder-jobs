@@ -31,9 +31,14 @@ if (check) {
   console.log("runner code loads");
   process.exit(0);
 }
+// This run on GitHub, for "View on GitHub" on Sources → Import (GitHub sets these on every run).
+const runUrl = () => {
+  const { GITHUB_SERVER_URL: host, GITHUB_REPOSITORY: repo, GITHUB_RUN_ID: id } = process.env;
+  return host && repo && /^\d+$/.test(id ?? "") ? `${host}/${repo}/actions/runs/${id}` : undefined;
+};
 const mode = ["scheduled", "all", "module"].includes(process.env.WJ_COLLECT_MODE ?? "") ? process.env.WJ_COLLECT_MODE : "scheduled";
 try {
-  const r = await runOnRunner({ mode, module: process.env.WJ_COLLECT_MODULE || undefined, by: process.env.WJ_COLLECT_BY || undefined, force: process.env.WJ_COLLECT_FORCE === "1" });
+  const r = await runOnRunner({ mode, module: process.env.WJ_COLLECT_MODULE || undefined, by: process.env.WJ_COLLECT_BY || undefined, force: process.env.WJ_COLLECT_FORCE === "1", runUrl: runUrl() });
   console.log(`${r.ok ? "done" : "not run"}: ${r.summary}`);
   process.exit(r.ok ? 0 : 1);
 } catch (e) {

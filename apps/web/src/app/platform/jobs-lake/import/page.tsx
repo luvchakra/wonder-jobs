@@ -1,9 +1,9 @@
 "use client";
 import { explainFailure, failureSummary } from "@/domain/gateway/failure";
 import Link from "next/link";
-import { ArrowRight, ChevronDown, Play } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Circle, ExternalLink, Loader2, Play, X } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
-import type { ImportAction, ImportModule, ImportRow, ImportView } from "@/server/jobslake/importView";
+import type { ImportAction, ImportModule, ImportRow, ImportView, LiveView } from "@/server/jobslake/importView";
 import type { ImportRun } from "@/server/gateway/importRuns";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -36,8 +36,9 @@ const STATE: Record<ImportRow["state"], { label: string; tone: "success" | "warn
 export default function ImportPage() {
   const { data, error, reload } = useAdmin<ImportView>("import");
   const [starting, setStarting] = useState(false);
-  const running = !!data?.job?.running;
-  // While an import runs, the page re-reads it every 10 s (only while shown); nothing runs once it's done.
+  // A run on the GitHub runner counts from the press (sent, waiting for GitHub to start it) to its last step.
+  const running = !!data?.job?.running || !!data?.live?.active;
+  // While an import runs, the page re-reads it every 5 s (only while shown); nothing runs once it's done.
   useEffect(() => {
     if (!running) return;
     const t = setInterval(() => {
@@ -51,7 +52,7 @@ export default function ImportPage() {
     const r = await post({ action: "import" });
     setStarting(false);
     const skipped = r.ok && Number(r.data.skipped) ? ` ${num(Number(r.data.skipped))} that didn't go live in the last day are left out; each has Try again on its module's card.` : "";
-    if (r.ok && (r.data as { dispatched?: boolean }).dispatched) toast.success("Import started on the collection runner", "GitHub sets up the waiting sources, collects and refreshes every module's Find; progress shows here within a minute. You can leave this page.");
+    if (r.ok && (r.data as { dispatched?: boolean }).dispatched) toast.success("Import sent to GitHub", "Its progress shows at the top of this page. You can leave this page.");
     else if (r.ok) toast.success("Import started", (Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed.` : "Collecting, then refreshing every module's Find.") + skipped + " You can leave this page.");
     else toast.error("Didn't start", r.error.message);
     reload();
@@ -63,7 +64,7 @@ export default function ImportPage() {
         title="Import"
         subtitle="How listings get from sources into Find, for every module. Import now sets up waiting sources, collects, and refreshes Find; the same job runs on its own every few hours. Each module can be imported on its own or paused; each source has Details for what it did lately and the ways to fix or pause it."
         actions={
-          <Button icon={<Play className="size-4" aria-hidden />} loading={starting} disabled={running || !data?.gatewayConfigured} onClick={() => void importNow()}>
+          <Button icon={running ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Play className="size-4" aria-hidden />} loading={starting} disabled={running || !data?.gatewayConfigured} onClick={() => void importNow()}>
             {running ? "Importing…" : "Import now"}
           </Button>
         }
@@ -73,6 +74,7 @@ export default function ImportPage() {
       {data && !data.gatewayConfigured && <Note tone="warning">The gateway isn&apos;t running on this deployment (it needs Supabase and SECRET_ENCRYPTION_KEY), so only WorksLake&apos;s own sources bring listings in.</Note>}
       {data && (
         <div className="flex flex-col gap-4">
+          {data.live && <RunnerProgress live={data.live} />}
           <ProgressBanner d={data} />
           <Pipeline d={data} />
           <Schedule d={data} reload={reload} />
@@ -182,6 +184,130 @@ function Pipeline({ d }: { d: ImportView }) {
  * 2026-11-02): a bar, the source being worked on and its step, counts so far, and every source in a fold. After it
  * finishes, its outcome stays for a day.
  */
+const MODE: Record<"scheduled" | "all" | "module", string> = { scheduled: "Scheduled collection", all: "Import now", module: "Module import" };
+const moduleLabel = (id: string) => MODULES.find((m) => m.id === id)?.label ?? id;
+
+/**
+ * The collection runner's progress (owner, 2026-11-07: "change the button status and other elements on the page when
+ * import is running, also show progress and whats completed"): the steps, each source's collection and each module's
+ * Find refresh, as the runner reports them (server/gateway/liveRun.ts).
+ */
+function RunnerProgress({ live }: { live: LiveView }) {
+  const { request, run } = live;
+  // A press GitHub hasn't started yet (a scheduled run may be ahead of it in the queue).
+  const waiting = request && !request.stale ? request : null;
+  if (!run && !request) return null;
+  const title = run ? `${MODE[run.mode]}${run.module ? `: ${moduleLabel(run.module)}` : ""}` : `${MODE[request!.mode]}${request!.module ? `: ${moduleLabel(request!.module)}` : ""}`;
+  const on = run?.state === "running" && !run.silent;
+  const tone = on || waiting ? "border-brand-200 bg-brand-50" : run?.state === "failed" || run?.silent || request?.stale ? "border-warning-100 bg-warning-100/40" : "border-success-100 bg-success-100/40";
+
+  const srcDone = run ? run.sources.filter((x) => x.status === "collected" || x.status === "failed" || x.status === "deferred").length : 0;
+  const srcTotal = run?.sources.length ?? 0;
+  const modsDone = run ? Object.keys(run.refresh.done).length : 0;
+  const modsTotal = run?.refresh.modules.length ?? 0;
+  const pct = !run || !on ? (run?.state === "done" ? 100 : 0) : run.step === "refreshing" && modsTotal ? Math.round((modsDone / modsTotal) * 100) : run.step === "collecting" && srcTotal ? Math.round((srcDone / srcTotal) * 100) : 5;
+
+  const headline = !run
+    ? request!.stale
+      ? `Sent to GitHub ${when(request!.at)}, but no run has started. Check GitHub Actions.`
+      : "Sent to GitHub. Waiting for the runner to start (usually under a minute)…"
+    : run.silent
+      ? `No word from the runner since ${when(run.updatedAt)}. It may have stopped; check GitHub.`
+      : run.state === "running"
+        ? run.step === "starting"
+          ? "Runner started. Getting ready…"
+          : run.step === "setup"
+            ? "Setting up waiting sources…"
+            : run.step === "collecting"
+              ? `Collecting: ${num(srcDone)} of ${num(srcTotal)} sources`
+              : `Refreshing Find: ${num(modsDone)} of ${num(modsTotal)} modules`
+        : run.state === "failed"
+          ? `Stopped ${when(run.finishedAt)}`
+          : `Finished ${when(run.finishedAt)}`;
+
+  // The steps in order; Set up shows only when this run had sources waiting to set up.
+  const order = (["starting", "setup", "collecting", "refreshing", "done"] as const).filter((s) => s !== "setup" || run?.steps.includes("setup"));
+  const STEP_LABEL = { starting: "Started", setup: "Set up waiting sources", collecting: "Collect sources", refreshing: "Refresh Find", done: "Done" } as const;
+  const stepState = (s: (typeof order)[number]): "done" | "now" | "todo" | "skipped" => {
+    if (!run) return "todo";
+    if (s === "done") return run.state === "running" ? "todo" : "done";
+    if (run.step === s && on) return "now";
+    if (run.steps.includes(s)) return "done";
+    // A finished run that never needed a step (nothing due, nothing to refresh).
+    return run.state === "running" ? "todo" : "skipped";
+  };
+
+  return (
+    <div role="status" aria-live="polite" className={`rounded-[14px] border px-4 py-3 text-[13px] ${tone}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="font-semibold text-ink">
+          {title} · {headline}
+        </p>
+        <p className="flex items-center gap-2 text-[12px] text-ink-3">
+          {run ? `Started ${when(run.startedAt)} by ${run.by}` : `Pressed ${when(request!.at)} by ${request!.by}`}
+          {run?.runUrl && (
+            <a href={run.runUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">
+              GitHub <ExternalLink className="size-3" aria-hidden />
+            </a>
+          )}
+        </p>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70" aria-hidden>
+        <div className={`h-full rounded-full ${on || waiting ? "bg-brand-500" : run?.state === "done" ? "bg-success-600" : "bg-warning-600"} transition-[width] ${waiting && !run ? "animate-pulse" : ""}`} style={{ width: `${waiting && !run ? 100 : pct}%` }} />
+      </div>
+      <ol className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]" aria-label="Steps">
+        <li className="inline-flex items-center gap-1 text-ink-2">
+          <Check className="size-3.5 text-success-700" aria-hidden />
+          Sent to GitHub
+        </li>
+        {order.map((s) => {
+          const st = stepState(s);
+          return (
+            <li key={s} className={`inline-flex items-center gap-1 ${st === "now" ? "font-semibold text-ink" : st === "todo" || st === "skipped" ? "text-ink-3" : "text-ink-2"}`}>
+              {st === "done" ? <Check className="size-3.5 text-success-700" aria-hidden /> : st === "now" ? <Loader2 className="size-3.5 animate-spin text-brand-600" aria-hidden /> : <Circle className="size-3" aria-hidden />}
+              {STEP_LABEL[s]}
+              {st === "skipped" ? " (nothing to do)" : ""}
+            </li>
+          );
+        })}
+      </ol>
+      {waiting && run && run.state === "running" && <p className="mt-1 text-[12px] text-ink-3">Your {MODE[waiting.mode]} starts when this run ends.</p>}
+      {run && srcTotal > 0 && (
+        <details open={on} className="mt-2">
+          <summary className="cursor-pointer text-[12.5px] font-medium text-ink-2">
+            Sources: {num(run.sources.filter((x) => x.status === "collected").length)} collected · {num(run.sources.filter((x) => x.status === "failed").length)} failed · {num(srcTotal - srcDone)} to go
+          </summary>
+          <ul className="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
+            {run.sources.map((x) => (
+              <li key={x.id} className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
+                {x.status === "collected" ? <Check className="size-3.5 shrink-0 text-success-700" aria-hidden /> : x.status === "failed" ? <X className="size-3.5 shrink-0 text-danger-600" aria-hidden /> : x.status === "running" ? <Loader2 className="size-3.5 shrink-0 animate-spin text-brand-600" aria-hidden /> : <Circle className="size-3 shrink-0 text-ink-3" aria-hidden />}
+                <span className={`truncate ${x.status === "waiting" || x.status === "deferred" ? "text-ink-3" : "text-ink"}`}>{x.name}</span>
+                <span className="shrink-0 text-ink-3">
+                  {x.status === "collected" ? `· ${num(x.valid ?? 0)} listings` : x.status === "failed" ? `· ${explainFailure("Collect", x.message).label}` : x.status === "running" ? "· collecting…" : x.status === "deferred" ? "· next run" : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {run && modsTotal > 0 && (
+        <p className="mt-2 text-[12.5px] text-ink-2">
+          Find:{" "}
+          {run.refresh.modules.map((m, i) => (
+            <Fragment key={m}>
+              {i ? ", " : ""}
+              <span className={run.refresh.done[m] != null ? "text-ink" : run.refresh.current === m ? "font-semibold text-ink" : "text-ink-3"}>
+                {moduleLabel(m)} {run.refresh.done[m] != null ? `${num(run.refresh.done[m])} ✓` : run.refresh.current === m ? "…" : ""}
+              </span>
+            </Fragment>
+          ))}
+        </p>
+      )}
+      {run && !on && run.summary && <p className="mt-1 text-[12px] text-ink-3">{run.summary}</p>}
+    </div>
+  );
+}
+
 function ProgressBanner({ d }: { d: ImportView }) {
   const j = d.job;
   if (!j) return null;

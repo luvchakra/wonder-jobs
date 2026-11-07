@@ -8,11 +8,13 @@ export interface GatewayStore {
   flush(): Promise<unknown>;
 }
 export interface CollectOutcome { sourceId: string; ok: boolean; code?: string; discovered?: number; valid?: number }
+export type CollectProgress = { type: "due"; ids: string[] } | { type: "start"; sourceId: string } | ({ type: "done" } & CollectOutcome);
 export interface Gateway {
   handle(request: Request): Promise<Response>;
   /** Collects every active source that is due; a source feeding only `skipModules` waits. */
   /** `floorMinutes`: no source collected more often than this (the scheduled run's budget). */
-  collectDue(budgetMs?: number, skipModules?: string[], floorMinutes?: number): Promise<CollectOutcome[]>;
+  /** `onProgress`: the due sources once, then each source's start and outcome, as they happen. */
+  collectDue(budgetMs?: number, skipModules?: string[], floorMinutes?: number, onProgress?: ((e: CollectProgress) => void) | null): Promise<CollectOutcome[]>;
   /** Collects one active source now (or only tests it). Throws with a `code` when it can't. */
   collectOne(sourceId: string, testOnly?: boolean, budgetMs?: number): Promise<{ ok: boolean; discovered: number; valid: number; crawl?: unknown }>;
 }

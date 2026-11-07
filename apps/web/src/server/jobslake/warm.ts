@@ -69,7 +69,8 @@ export const REFRESH_MODULE_MS = 12_000;
  * `deadline` (ms since epoch): modules not started by then are left in `remaining` for the next call (owner, 2026-11-05:
  * refreshing every module's 1,000 listings in one call ran past Vercel's 60 s, a 504, so nothing was recorded).
  */
-export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date(), deadline?: number): Promise<GatewayRefresh> {
+/** `onModule`: told as each module starts (stored null) and finishes (its count), for the runner's live progress. */
+export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date(), deadline?: number, onModule?: (module: string, stored: number | null, next?: string) => void): Promise<GatewayRefresh> {
   const result: GatewayRefresh = { at: now.toISOString(), stored: {}, failed: [] };
   // A module whose import is paused (Sources → Import) keeps what Find has; nothing new is stored for it.
   const paused = new Set((await loadScheduler()).gateway.pausedModules);
@@ -80,6 +81,7 @@ export async function refreshGatewayListings(modules?: Iterable<string>, now = n
       break;
     }
     if (paused.has(mod)) continue;
+    onModule?.(mod, null, mod);
     const sources = (await listSources(mod as ModuleId)).filter((s) => isGatewayFed(s) && (s.status === "active" || s.status === "degraded"));
     const observations: Observation[] = [];
     // Each source's read is recorded as a "refresh" run, so Overview and Runs count what the job fetched.
@@ -100,10 +102,14 @@ export async function refreshGatewayListings(modules?: Iterable<string>, now = n
       }
     }
     if (runs.length) await jobsLakeStore().recordRuns(runs).catch(() => undefined);
-    if (!sources.length) continue;
+    if (!sources.length) {
+      onModule?.(mod, null);
+      continue;
+    }
     const opps = canonicalize(observations).opportunities.filter((o) => validateOpportunity(o).length === 0);
     if (opps.length) await jobsLakeStore().upsertOpportunities(opps, mod as ModuleId);
     result.stored[mod] = opps.length;
+    onModule?.(mod, opps.length);
   }
   // The new stamp retires every gateway-fed source's cached answers (core.ts keys them with it).
   await stateStore.put(PLATFORM_TENANT, KEY, result);
