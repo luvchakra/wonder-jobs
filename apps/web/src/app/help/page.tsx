@@ -100,7 +100,7 @@ export default async function HelpPage() {
             <section className="mt-14 rounded-[24px] bg-ink p-6 text-white md:p-8" aria-label="Still stuck">
               <h2 className="text-[20px] font-semibold">Still stuck?</h2>
               <p className="mt-1 text-[14px] text-white/75">Send a note and a human will get back to you.</p>
-              <Link href="/#contact" className="mt-4 inline-flex items-center gap-1 rounded-full bg-white px-4 py-2 text-[13.5px] font-semibold text-ink">
+              <Link href="/contact" className="mt-4 inline-flex items-center gap-1 rounded-full bg-white px-4 py-2 text-[13.5px] font-semibold text-ink">
                 Contact us
               </Link>
             </section>

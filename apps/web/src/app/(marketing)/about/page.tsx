@@ -40,7 +40,7 @@ export default function AboutPage() {
             <>
               <p>WonderWorks is a small team. We&apos;re not hiring right now, but we read every message. If you&apos;d like to work on job search, matching, or the agent runtime, tell us what you&apos;d build first.</p>
               <p>
-                <Link href="/#contact" className="font-semibold text-brand-600 hover:underline">
+                <Link href="/contact" className="font-semibold text-brand-600 hover:underline">
                   Introduce yourself
                 </Link>
               </p>

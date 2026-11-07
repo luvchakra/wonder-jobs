@@ -1,44 +1,79 @@
 import type { Metadata } from "next";
-import { MarketingNav } from "@/components/landing/MarketingNav";
-import { ParallaxHero } from "@/components/landing/ParallaxHero";
-import { AgentSection, FinalCTA, JourneySection, MarketingFooter, SourceLogoStrip } from "@/components/landing/Sections";
-import { ContactSection } from "@/components/landing/Showcase";
-import { KindsSection } from "@/components/landing/Kinds";
-import { PricingSection } from "@/components/landing/Pricing";
-import { getPlansConfig } from "@/server/billing/plansConfig";
-import { DEFAULT_PLANS, mergePlansConfig } from "@/domain/billing/plans";
+import Link from "next/link";
+import { WonderLogo } from "@/components/brand/WonderLogo";
 
 export const metadata: Metadata = {
   title: "WonderWorks — Your next opportunity is out there. Wonder finds it.",
-  description: "One account for jobs, internships, teaching, hiring a pro, counsellors, co-founders, events and buying or selling. Tell Wonder what you need and see real listings in a minute — the source named on every one, every match explained. Apply with Wonder fills the employer's form and you review and submit. Free, Pro and Max plans; your own AI key works too.",
+  description: "WonderWorks quietly looks for what you need — work, learning, people, help and things — so your time goes to what matters.",
 };
 
-/** Prices come from the billing configuration; re-read every few minutes. */
-// Regenerated at most this often: each regeneration is server CPU and an ISR write (owner, 2026-11-01: cut Vercel usage).
-export const revalidate = 3600;
+/**
+ * The landing page: one quiet page (owner, 2026-11-07: "i want the landing page of WonderWorks to be like [zenhabits.net].
+ * minimum words, just few bullet points on how this application can enrich the life of its user. add basic branding
+ * stuff. overall just 1 page. subtle cta. no pricing info on landing page"). One narrow column, the wordmark, a line, a
+ * few bullets, a text link to begin. The detail lives on /features, /about and /help; the contact form on /contact.
+ */
+const WAYS = [
+  "Find work that fits you — jobs, internships, teaching and part-time roles, with every match explained.",
+  "Keep learning — scholarships and projects that match your level and field.",
+  "Meet your people — events nearby, and co-founders who share your idea.",
+  "Get help when you need it — a trusted pro for the home, or a counsellor to talk to.",
+  "Buy, sell or rent, close to home.",
+  "Spend less time searching. Wonder reads the sources, names each one, and leaves the choices to you.",
+];
 
-/** Page one of two: what WonderWorks is, the eight kinds, how a search becomes an application, the price. Page two is /features. */
-export default async function LandingPage() {
-  // At most 3 s (an unreachable database hung static renders and failed the production build, 2026-11-01); the
-  // built-in plans otherwise.
-  const { plans } = await Promise.race([getPlansConfig(), new Promise<Awaited<ReturnType<typeof getPlansConfig>>>((r) => setTimeout(() => r(mergePlansConfig(DEFAULT_PLANS)), 3000))]);
+export default function LandingPage() {
   return (
-    <div className="bg-white text-ink">
-      <a href="#main" className="wj-sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-white focus:px-4 focus:py-2">
-        Skip to content
-      </a>
-      <MarketingNav />
-      <main id="main">
-        <ParallaxHero />
-        <SourceLogoStrip />
-        <KindsSection />
-        <AgentSection />
-        <JourneySection />
-        <PricingSection plans={plans} />
-        <FinalCTA />
-        <ContactSection />
+    <div className="flex min-h-dvh flex-col bg-white text-ink">
+      <header className="mx-auto flex w-full max-w-[640px] items-center justify-between px-6 pt-10">
+        <WonderLogo size={26} />
+        <Link href="/sign-in" className="text-[14px] text-ink-3 transition-colors hover:text-ink">
+          Sign in
+        </Link>
+      </header>
+
+      <main id="main" className="mx-auto w-full max-w-[640px] flex-1 px-6 pb-16 pt-20 sm:pt-28">
+        <h1 className="text-[30px] font-semibold leading-[1.2] tracking-tight text-ink sm:text-[36px]">
+          Your next opportunity is out there.
+          <br />
+          <span className="wj-gradient-text">Wonder finds it.</span>
+        </h1>
+        <p className="mt-6 text-[17px] leading-relaxed text-ink-2">Less time searching, more time living.</p>
+
+        <ul className="mt-12 flex flex-col gap-5 text-[16.5px] leading-relaxed text-ink-2">
+          {WAYS.map((w) => (
+            <li key={w} className="flex gap-4">
+              <span className="mt-[0.7em] size-1.5 shrink-0 rounded-full bg-brand-500" aria-hidden />
+              <span>{w}</span>
+            </li>
+          ))}
+        </ul>
+
+        {/* The one call to action, kept quiet: a link, not a banner. */}
+        <p className="mt-14 text-[16.5px]">
+          <Link href="/sign-up" className="font-medium text-brand-600 underline decoration-brand-200 underline-offset-[6px] transition-colors hover:decoration-brand-600">
+            Get started →
+          </Link>
+        </p>
       </main>
-      <MarketingFooter />
+
+      <footer className="mx-auto w-full max-w-[640px] px-6 pb-10 text-[13px] text-ink-4">
+        <nav aria-label="More" className="flex flex-wrap gap-x-5 gap-y-2 border-t border-line pt-6">
+          {[
+            ["/features", "Features"],
+            ["/about", "About"],
+            ["/help", "Help"],
+            ["/contact", "Contact"],
+            ["/privacy", "Privacy"],
+            ["/terms", "Terms"],
+          ].map(([href, label]) => (
+            <Link key={href} href={href} className="hover:text-ink">
+              {label}
+            </Link>
+          ))}
+        </nav>
+        <p className="mt-4">© {new Date().getFullYear()} WonderWorks</p>
+      </footer>
     </div>
   );
 }
