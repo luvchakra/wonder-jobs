@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { PlatformKeyStatus } from "@/server/jobslake/platformKeys";
+import type { KeyNote } from "@/server/jobslake/keyNotes";
 import { Button } from "@/components/common/Button";
 import { Input, Textarea } from "@/components/common/Input";
 import { adminFetch, LoadError, Loading, Panel, useAdmin } from "@/components/jobslake/ui";
@@ -23,13 +24,22 @@ export const PLATFORM_GROUPS: KeyGroup[] = ["email", "ai", "push", "runner"];
 
 /** The sections for `groups`, in order, each with its keys and any action (Send a test email, Generate a key pair). */
 export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
-  const { data, error, reload } = useAdmin<{ keys: PlatformKeyStatus[] }>("keys");
+  const { data, error, reload } = useAdmin<{ keys: PlatformKeyStatus[]; notes?: Record<string, KeyNote> }>("keys");
   // Show only the keys still to set (owner, 2026-11-07: "add an easy filter to show fields not set").
   const [show, setShow] = useState<"all" | "missing" | "set">("all");
+  // And by the admin's own tags, or the keys whose reminder is due (owner, 2026-11-07: "allow to add some tags and notes
+  // to this for further filtering and reminders").
+  const [tag, setTag] = useState<string | null>(null);
+  const [dueOnly, setDueOnly] = useState(false);
+  const notes = data?.notes ?? {};
   const sections = data ? GROUPS.filter((g) => groups.includes(g.id)).map((g) => ({ g, keys: data.keys.filter((k) => (k.group ?? "sources") === g.id) })).filter((x) => x.keys.length) : [];
   const all = sections.flatMap((x) => x.keys);
   const missingAll = all.filter((k) => !k.set).length;
-  const shown = (k: PlatformKeyStatus) => show === "all" || (show === "missing" ? !k.set : k.set);
+  const isDue = (k: PlatformKeyStatus) => dueOn(notes[k.name]);
+  const tags = [...new Set(all.flatMap((k) => notes[k.name]?.tags ?? []))].sort();
+  const due = all.filter(isDue).length;
+  const shown = (k: PlatformKeyStatus) => (show === "all" || (show === "missing" ? !k.set : k.set)) && (!tag || (notes[k.name]?.tags ?? []).includes(tag)) && (!dueOnly || isDue(k));
+  const chip = (on: boolean) => `rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors ${on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line text-ink-2 hover:bg-bg-soft"}`;
   return (
     <>
       {error && <LoadError error={error} onRetry={reload} />}
@@ -48,14 +58,25 @@ export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
               type="button"
               aria-pressed={show === id}
               onClick={() => setShow(id)}
-              className={`rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors ${show === id ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line text-ink-2 hover:bg-bg-soft"}`}
+              className={chip(show === id)}
             >
               {label}
             </button>
           ))}
+          {due > 0 && (
+            <button type="button" aria-pressed={dueOnly} onClick={() => setDueOnly((d) => !d)} className={`${chip(dueOnly)} ${dueOnly ? "" : "border-warning-600/40 text-warning-600"}`}>
+              Follow-up due {due}
+            </button>
+          )}
+          {tags.length > 0 && <span className="ml-1 text-[12px] text-ink-4">Tags</span>}
+          {tags.map((t) => (
+            <button key={t} type="button" aria-pressed={tag === t} onClick={() => setTag((x) => (x === t ? null : t))} className={chip(tag === t)}>
+              #{t}
+            </button>
+          ))}
         </div>
       )}
-      {data && show !== "all" && sections.every((x) => !x.keys.some(shown)) && <p className="mb-4 text-[13px] text-ink-3">{show === "missing" ? "Every key here is set." : "No key here is set yet."}</p>}
+      {data && (show !== "all" || tag || dueOnly) && sections.every((x) => !x.keys.some(shown)) && <p className="mb-4 text-[13px] text-ink-3">No key matches these filters.</p>}
       {sections.map(({ g, keys }) => {
         const missing = keys.filter((k) => !k.set).length;
         const visible = keys.filter(shown);
@@ -65,7 +86,7 @@ export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
             <p className="-mt-1 mb-1 text-[12.5px] text-ink-3">{g.hint}</p>
             <ul className="flex flex-col divide-y divide-line">
               {visible.map((k) => (
-                <KeyRow key={k.name} k={k} onChanged={reload} />
+                <KeyRow key={k.name} k={k} note={notes[k.name]} allTags={tags} onChanged={reload} />
               ))}
             </ul>
             {g.id === "email" && <GroupAction action="test_email" label="Send a test email" busyLabel="Sending" />}
@@ -103,7 +124,109 @@ function GroupAction({ action, label, busyLabel, onDone }: { action: string; lab
   );
 }
 
-function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void }) {
+/** Pure: a note's reminder is due (its day has come, local time). */
+function dueOn(n: KeyNote | undefined, today = new Date()): boolean {
+  if (!n?.remindOn) return false;
+  const d = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return n.remindOn <= d;
+}
+
+/** A key's tags, note and reminder: shown under the key, edited in place. Plain text, never the key's value. */
+function KeyNotes({ name, note, allTags, onChanged }: { name: string; note?: KeyNote; allTags: string[]; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [tags, setTags] = useState("");
+  const [text, setText] = useState("");
+  const [remindOn, setRemindOn] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const edit = () => {
+    setTags((note?.tags ?? []).join(", "));
+    setText(note?.note ?? "");
+    setRemindOn(note?.remindOn ?? "");
+    setMsg(null);
+    setOpen(true);
+  };
+  const save = async (clear = false) => {
+    setBusy(true);
+    const body = clear ? { action: "note", name, tags: [], note: "", remindOn: "" } : { action: "note", name, tags: tags.split(",").map((t) => t.trim()).filter(Boolean), note: text, remindOn };
+    const r = await adminFetch<{ message: string }>("keys", { method: "POST", body: JSON.stringify(body) });
+    setBusy(false);
+    if (r.ok) {
+      setOpen(false);
+      onChanged();
+    } else setMsg(r.error.message);
+  };
+  const due = dueOn(note);
+  if (!open)
+    return (
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px]">
+        {note?.tags.map((t) => (
+          <span key={t} className="rounded-full bg-bg-soft px-2 py-0.5 text-ink-2">
+            #{t}
+          </span>
+        ))}
+        {note?.remindOn && <span className={due ? "font-medium text-warning-600" : "text-ink-3"}>{due ? `Follow up: due ${note.remindOn}` : `Follow up on ${note.remindOn}`}</span>}
+        {note?.note && <span className="min-w-0 basis-full whitespace-pre-line text-ink-2">{note.note}</span>}
+        <button type="button" onClick={edit} className="font-medium text-brand-600 hover:underline">
+          {note ? "Edit note" : "Add tags or a note"}
+        </button>
+      </div>
+    );
+  const suggestions = allTags.filter((t) => !tags.split(",").map((x) => x.trim().toLowerCase()).includes(t));
+  return (
+    <form
+      className="flex flex-col gap-2 rounded-[10px] bg-bg-soft p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save();
+      }}
+    >
+      <label className="flex flex-col gap-1 text-[12px] text-ink-3">
+        Tags, separated by commas
+        <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. waiting approval, paid, ask partner" className="h-9" />
+      </label>
+      {suggestions.length > 0 && (
+        <span className="flex flex-wrap gap-1.5 text-[12px]">
+          {suggestions.map((t) => (
+            <button key={t} type="button" onClick={() => setTags((x) => (x.trim() ? `${x.replace(/,\s*$/, "")}, ${t}` : t))} className="rounded-full border border-line px-2 py-0.5 text-ink-2 hover:bg-surface">
+              + {t}
+            </button>
+          ))}
+        </span>
+      )}
+      <label className="flex flex-col gap-1 text-[12px] text-ink-3">
+        Note
+        <Textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Applied for API access on 7 Nov; approval takes a week" maxLength={500} />
+      </label>
+      <label className="flex flex-wrap items-center gap-2 text-[12px] text-ink-3">
+        Remind me on
+        <Input type="date" value={remindOn} onChange={(e) => setRemindOn(e.target.value)} className="h-9 w-auto" />
+        {remindOn && (
+          <button type="button" onClick={() => setRemindOn("")} className="text-ink-3 hover:text-ink">
+            No reminder
+          </button>
+        )}
+      </label>
+      <span className="flex flex-wrap items-center gap-2">
+        <Button type="submit" size="sm" loading={busy}>
+          Save note
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        {note && (
+          <button type="button" disabled={busy} onClick={() => void save(true)} className="text-[12px] font-medium text-danger-600 hover:underline">
+            Clear note
+          </button>
+        )}
+        {msg && <span className="text-[12px] text-danger-600">{msg}</span>}
+      </span>
+      <span className="text-[11.5px] text-ink-4">Shown only to admins here. Never put a key or password in a note.</span>
+    </form>
+  );
+}
+
+function KeyRow({ k, note, allTags, onChanged }: { k: PlatformKeyStatus; note?: KeyNote; allTags: string[]; onChanged: () => void }) {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -235,6 +358,7 @@ function KeyRow({ k, onChanged }: { k: PlatformKeyStatus; onChanged: () => void 
         )}
         {msg ? ` · ${msg}` : ""}
       </span>
+      <KeyNotes name={k.name} note={note} allTags={allTags} onChanged={onChanged} />
     </li>
   );
 }

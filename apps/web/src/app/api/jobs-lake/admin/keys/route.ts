@@ -8,6 +8,7 @@ import { generateVapidKeys } from "@/server/push/subscriptions";
 import { renderEmailLayout } from "@/server/email/layout";
 import { siteUrl } from "@/lib/siteUrl";
 import { TESTABLE, testPlatformKey } from "@/server/jobslake/keyTest";
+import { readKeyNotes, setKeyNote } from "@/server/jobslake/keyNotes";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
-  return json({ keys: (await platformKeyStatus()).map((k) => ({ ...k, testable: TESTABLE.has(k.name) })) });
+  const [keys, notes] = await Promise.all([platformKeyStatus(), readKeyNotes()]);
+  return json({ keys: keys.map((k) => ({ ...k, testable: TESTABLE.has(k.name) })), notes });
 }
 
 /** Set, replace or remove one key. Audited by name only; the value is encrypted and never logged or returned. */
@@ -24,6 +26,14 @@ export async function POST(req: Request) {
   if (a instanceof NextResponse) return a;
   const body = (await readJson(req, 10_000)) as { name?: unknown; value?: unknown; test?: unknown; removeAt?: unknown; importEnv?: unknown; action?: unknown } | null;
   const name = typeof body?.name === "string" ? body.name.slice(0, 64) : "";
+  // The admin's own tags, note and reminder on a key (keyNotes.ts): plain text, never a value.
+  if (body?.action === "note") {
+    const b = body as { tags?: unknown; note?: unknown; remindOn?: unknown };
+    const r = await setKeyNote(name, { tags: b.tags, note: b.note, remindOn: b.remindOn }, a.actor);
+    if (!r.ok) return jlError("NOT_FOUND", r.message, 404);
+    await audit(a.actor, "platform_key.noted", undefined, { name, cleared: !r.note });
+    return json({ ok: true, note: r.note, message: r.note ? "Note saved." : "Note cleared." });
+  }
   // Email: one test message to the admin who pressed it, through the mailbox set here (or in the deployment).
   if (body?.action === "test_email") {
     await loadPlatformKeys(Date.now(), true);
