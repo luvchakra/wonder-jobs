@@ -7,6 +7,6 @@ export const revalidate = 86400;
 export function GET() {
   const base = siteUrl().origin;
   const expires = new Date(Date.now() + 180 * 86_400_000).toISOString();
-  const body = [`Contact: ${base}/security#report`, `Contact: ${base}/#contact`, `Expires: ${expires}`, `Policy: ${base}/security#report`, "Preferred-Languages: en", `Canonical: ${base}/.well-known/security.txt`, ""].join("\n");
+  const body = [`Contact: ${base}/security#report`, `Contact: ${base}/contact`, `Expires: ${expires}`, `Policy: ${base}/security#report`, "Preferred-Languages: en", `Canonical: ${base}/.well-known/security.txt`, ""].join("\n");
   return new Response(body, { headers: { "content-type": "text/plain; charset=utf-8" } });
 }

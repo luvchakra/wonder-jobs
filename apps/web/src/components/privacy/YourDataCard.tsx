@@ -87,7 +87,7 @@ export function YourDataCard() {
                 </a>
               </>
             ) : (
-              <Link href="/#contact" className="underline">
+              <Link href="/contact" className="underline">
                 the contact form (choose “Privacy request”)
               </Link>
             )}
