@@ -11,7 +11,7 @@ import { RatingStars } from "./RatingStars";
  * revenue as TheirStack or Wikidata report them, its open roles, H-1B filings from the Department of Labor), each
  * with its source. Shows only what was found.
  */
-export function CompanyFold({ job, open }: { job: { company: string; companyDomain?: string; industry?: string }; open?: boolean }) {
+export function CompanyFold({ job, open }: { job: { company: string; companyDomain?: string; website?: string; industry?: string }; open?: boolean }) {
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   useEffect(() => {
     if (getClientMode().mode !== "user") return;
@@ -30,7 +30,7 @@ export function CompanyFold({ job, open }: { job: { company: string; companyDoma
   return (
     <Fold title="Company" hint={hint || undefined} open={open}>
       <div className="flex items-center gap-3">
-        <CompanyLogo name={job.company} domain={job.companyDomain} logo size={44} />
+        <CompanyLogo name={job.company} domain={job.companyDomain} website={job.website} logo size={44} />
         <div className="min-w-0">
           <h2 className="truncate text-[15px] font-semibold text-ink">{job.company}</h2>
           {job.companyDomain && <p className="text-[13px] text-ink-3">{job.companyDomain}</p>}

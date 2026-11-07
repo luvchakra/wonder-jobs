@@ -42,7 +42,7 @@ export const ServiceCard = memo(function ServiceCard({ item: l, onOpen }: { item
       share={shareOf(l)}
       aside={
         <>
-          <CompanyLogo name={l.company} logo size={44} />
+          <CompanyLogo name={l.company} website={l.applyUrl} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.top} bottom={fit.bottom} srText={fit.title} />}
           {l.origin === "wonderstar" && !requested && (
             <Link href={`${listingHref(l.id)}?quote=1`} onClick={() => onOpen(l.id)} aria-label={`Request a quote from ${l.company}`} title="Request a quote" className={APPLY_BTN}>
