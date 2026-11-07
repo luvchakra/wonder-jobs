@@ -4,20 +4,21 @@ import { MarketingPage } from "@/components/landing/MarketingPage";
 
 export const metadata: Metadata = { title: "About WonderWorks", description: "Why WonderWorks exists, what it will and won't do for you, and who builds it." };
 
+/** About, written for all of WonderWorks, not only job search (owner, 2026-11-07: "make it generic"). */
 export default function AboutPage() {
   return (
     <MarketingPage
       eyebrow="About"
-      title="Job searching is a full-time job. It shouldn't be."
-      intro="WonderWorks is an AI career agent that does the repetitive part of a job search and leaves the decisions to you."
+      title="Looking for things shouldn't take over your life."
+      intro="WonderWorks does the searching and the busywork, so your time goes to the choices that matter. You decide; Wonder does the legwork."
       sections={[
         {
           id: "mission",
           title: "What we're building",
           body: (
             <>
-              <p>Most job seekers spend their evenings re-typing the same details into the same forms, scanning the same boards, and guessing whether a role is worth it. Wonder searches real sources, removes duplicates, reads each posting for skills, seniority, location and pay, and explains how well it fits your Career Profile.</p>
-              <p>When something is worth pursuing, Wonder drafts a tailored resume, cover letter and screening answers, lays your resume out in one of eight ATS-friendly templates, and can fill the employer&apos;s application form in your browser. It stops for anything only you should answer, and you review and submit. Wonder submits for you only if you switch that on, per application or for your account; otherwise it never submits on your behalf.</p>
+              <p>Work, learning, people, help, things to buy: finding the right one usually means the same forms, the same sites and the same guesswork, again and again. WonderWorks brings them into one place.</p>
+              <p>Tell Wonder what you need. It searches real sources, removes duplicates, explains how well each one fits you, and helps with the next step: an application, a message, an RSVP. Anything only you should decide, it leaves to you.</p>
             </>
           ),
         },
@@ -26,10 +27,10 @@ export default function AboutPage() {
           title: "Principles",
           body: (
             <ul>
-              <li>Real data, honestly labelled. Every job links back to its source and every score explains itself.</li>
-              <li>You stay in control. Automation levels, approval gates and a full audit trail of every external action.</li>
-              <li>Your AI, your keys. Bring your own provider key or use WonderWorks AI. Keys are encrypted and never leave the server.</li>
-              <li>Quiet by default. A scheduled run that finds nothing says nothing.</li>
+              <li>Real data, honestly labelled. Every listing links back to its source, and every match explains itself.</li>
+              <li>You stay in control. Wonder acts only as far as you allow, and every action it takes is recorded.</li>
+              <li>Your data is yours. Your keys and documents are encrypted; you can export or delete them any time.</li>
+              <li>Quiet by default. Wonder speaks up when there&apos;s something worth your time.</li>
             </ul>
           ),
         },
@@ -38,7 +39,7 @@ export default function AboutPage() {
           title: "Careers",
           body: (
             <>
-              <p>WonderWorks is a small team. We&apos;re not hiring right now, but we read every message. If you&apos;d like to work on job search, matching, or the agent runtime, tell us what you&apos;d build first.</p>
+              <p>WonderWorks is a small team. We&apos;re not hiring right now, but we read every message. If there&apos;s something you&apos;d like to build with us, tell us what you&apos;d start with.</p>
               <p>
                 <Link href="/contact" className="font-semibold text-brand-600 hover:underline">
                   Introduce yourself
