@@ -16,16 +16,64 @@ import { allowedBy, checkRobots, decodeEntities, PAGE_ACCEPT, parseNextData, par
  * is read only when the site's own robots.txt lists it (or it is on the site's host). Pages still come only from the site.
  */
 export const CRAWL_LIMITS = Object.freeze({ maxPagesPerRun: 50, maxDiscovered: 5000, maxSitemaps: 5, sitemapBytes: 12_000_000, minDelayMs: 1000, maxDelayMs: 30000, budgetMs: 45000 });
+/**
+ * A long run (the scheduled collection on the GitHub Actions runner, given minutes rather than a serverless call's
+ * seconds; 2026-11-07, "improve on speed and content scope"): more of a big site per cycle, still one page at a time
+ * per site and never faster than its Crawl-delay. A run is long when it is given more than LONG_RUN_MS.
+ */
+export const LONG_CRAWL_LIMITS = Object.freeze({ maxPagesPerRun: 300, maxDiscovered: 20000, maxSitemaps: 20, budgetMs: 240_000, pageScale: 5 });
+export const LONG_RUN_MS = 60_000;
+/** Two 429/503 answers in a row end a crawl run early (the site wants us to slow down; the next run carries on). */
+const MAX_BACKOFFS = 2;
 
 /**
  * The `<loc>` URLs of a sitemap, and whether it is an index of other sitemaps. `keep` filters a page sitemap's URLs before
- * the cap, so a big sitemap (the Linux Foundation's 8,800) still yields every page the source wants.
+ * the cap, so a big sitemap (the Linux Foundation's 8,800) still yields every page the source wants. `lastmod` maps each
+ * URL to its `<lastmod>` (epoch ms) when the sitemap gives one, so a crawl reads new and changed pages first.
  */
-export function parseSitemap(xml, keep = null) {
-  const index = /<sitemapindex\b/i.test(xml);
-  let locs = [...String(xml).matchAll(/<loc>\s*(?:<!\[CDATA\[)?\s*([^<\]\s]+)\s*(?:\]\]>)?\s*<\/loc>/gi)].map((m) => decodeEntities(m[1]));
+export function parseSitemap(xml, keep = null, max = CRAWL_LIMITS.maxDiscovered) {
+  const text = String(xml);
+  const index = /<sitemapindex\b/i.test(text);
+  const lastmod = new Map();
+  let locs = [];
+  for (const m of text.matchAll(/<(url|sitemap)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    const loc = /<loc>\s*(?:<!\[CDATA\[)?\s*([^<\]\s]+)\s*(?:\]\]>)?\s*<\/loc>/i.exec(m[2]);
+    if (!loc) continue;
+    const url = decodeEntities(loc[1]);
+    locs.push(url);
+    const lm = /<lastmod>\s*([^<\s]+)\s*<\/lastmod>/i.exec(m[2]);
+    const at = lm ? Date.parse(lm[1]) : NaN;
+    if (Number.isFinite(at)) lastmod.set(url, at);
+  }
+  // A sitemap written without <url> wrappers still lists its <loc>s.
+  if (!locs.length) locs = [...text.matchAll(/<loc>\s*(?:<!\[CDATA\[)?\s*([^<\]\s]+)\s*(?:\]\]>)?\s*<\/loc>/gi)].map((m) => decodeEntities(m[1]));
   if (keep && !index) locs = locs.filter(keep);
-  return { index, urls: locs.slice(0, CRAWL_LIMITS.maxDiscovered) };
+  return { index, urls: locs.slice(0, max), lastmod };
+}
+
+/**
+ * The order to read a run's pages in (exported for tests). With sitemap dates and a watermark from earlier runs, pages
+ * new or changed since the watermark come first, newest first; then the rest carry on from the cursor, round the list.
+ */
+export function readOrder(targets, lastmod, watermark, cursor) {
+  const start = Number.isInteger(cursor) && cursor >= 0 && cursor < targets.length ? cursor : 0;
+  const rotated = targets.slice(start).concat(targets.slice(0, start));
+  if (!lastmod?.size || !Number.isFinite(watermark)) return { order: rotated, fresh: 0 };
+  const fresh = rotated.filter((u) => (lastmod.get(u) ?? -Infinity) > watermark).sort((a, b) => lastmod.get(b) - lastmod.get(a));
+  const freshSet = new Set(fresh);
+  return { order: fresh.concat(rotated.filter((u) => !freshSet.has(u))), fresh: fresh.length };
+}
+
+/**
+ * The next wait between pages (AutoThrottle, as Scrapy does it): halfway between the last wait and how long the site took
+ * to answer, never under the site's own floor (its Crawl-delay, the source's, at least a second) or over the cap. A slow
+ * site is asked less often; a 429 or 503 at least doubles the wait, or waits as long as its Retry-After says.
+ */
+export function nextDelay(current, floor, { latencyMs = null, backoff = false, retryAfterMs = null } = {}) {
+  let d = current;
+  if (backoff) d = Math.max(current * 2, retryAfterMs ?? 0);
+  else if (Number.isFinite(latencyMs)) d = (current + latencyMs) / 2;
+  return Math.round(Math.min(CRAWL_LIMITS.maxDelayMs, Math.max(floor, d)));
 }
 
 /** Links on an index page, made absolute against it. */
@@ -108,11 +156,16 @@ export async function crawlRecords(source, deps = {}) {
   const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   const now = deps.now ?? (() => Date.now());
   const started = now();
-  const budget = Math.min(deps.budgetMs ?? CRAWL_LIMITS.budgetMs, CRAWL_LIMITS.budgetMs);
+  const long = (deps.budgetMs ?? 0) > LONG_RUN_MS;
+  const budget = Math.min(deps.budgetMs ?? CRAWL_LIMITS.budgetMs, long ? LONG_CRAWL_LIMITS.budgetMs : CRAWL_LIMITS.budgetMs);
+  const maxSitemaps = long ? LONG_CRAWL_LIMITS.maxSitemaps : CRAWL_LIMITS.maxSitemaps;
+  const maxFound = long ? LONG_CRAWL_LIMITS.maxDiscovered : CRAWL_LIMITS.maxDiscovered;
 
   // Robots first, for the start URL itself; its rules then filter every page.
   const policy = await robots(source);
-  const delayMs = Math.min(CRAWL_LIMITS.maxDelayMs, Math.max(CRAWL_LIMITS.minDelayMs, (policy.crawlDelay ?? 0) * 1000, source.crawlDelayMs ?? 0));
+  const floorMs = Math.min(CRAWL_LIMITS.maxDelayMs, Math.max(CRAWL_LIMITS.minDelayMs, (policy.crawlDelay ?? 0) * 1000, source.crawlDelayMs ?? 0));
+  let delayMs = floorMs;
+  const lastmod = new Map();
   const host = new URL(source.url).hostname;
 
   // Find the pages. The sitemap is the source URL, or the one it names, which must be on the site's host or listed in
@@ -127,15 +180,20 @@ export async function crawlRecords(source, deps = {}) {
   const first = await get(mapUrl, { origin: mapHost, ...(source.discover === "sitemap" ? { maxBytes: CRAWL_LIMITS.sitemapBytes } : { accept: PAGE_ACCEPT }) });
   if (source.discover === "sitemap") {
     const keep = (u) => crawlTargets([u], source, policy.rules).length > 0;
-    const top = parseSitemap(first, keep);
+    const top = parseSitemap(first, keep, maxFound);
+    for (const [u, t] of top.lastmod) lastmod.set(u, t);
     if (top.index) {
       // A site whose index lists dated sitemaps (Hasgeek's daily ones) sets sitemapOrder: "newest" to read the last ones.
       const all = childSitemaps(top.urls, mapUrl, host, mapHost === host ? policy.rules : []);
-      const children = source.sitemapOrder === "newest" ? all.slice(-CRAWL_LIMITS.maxSitemaps).reverse() : all.slice(0, CRAWL_LIMITS.maxSitemaps);
+      const children = source.sitemapOrder === "newest" ? all.slice(-maxSitemaps).reverse() : all.slice(0, maxSitemaps);
       for (const child of children) {
         if (now() - started > budget / 3) break;
         await sleep(delayMs);
-        try { found.push(...parseSitemap(await get(child, { origin: new URL(child).hostname, maxBytes: CRAWL_LIMITS.sitemapBytes }), keep).urls); } catch { /* one child missing doesn't stop the rest */ }
+        try {
+          const part = parseSitemap(await get(child, { origin: new URL(child).hostname, maxBytes: CRAWL_LIMITS.sitemapBytes }), keep, maxFound);
+          found.push(...part.urls);
+          for (const [u, t] of part.lastmod) lastmod.set(u, t);
+        } catch { /* one child missing doesn't stop the rest */ }
       }
     } else found = top.urls;
   } else {
@@ -155,26 +213,44 @@ export async function crawlRecords(source, deps = {}) {
   const targets = newest ? crawlTargets(found, source, policy.rules, { keepOrder: true }).slice(-newest).reverse() : crawlTargets(found, source, policy.rules);
   if (!targets.length) throw new ApiError(422, "INVALID_SOURCE", "No pages to crawl under the source's path");
 
-  // Read this run's share, carrying on from the last run.
-  const perRun = Math.max(1, Math.min(CRAWL_LIMITS.maxPagesPerRun, source.maxPagesPerRun ?? 20));
-  const start = Number.isInteger(source.crawlCursor) && source.crawlCursor < targets.length ? source.crawlCursor : 0;
+  // Read this run's share: pages new or changed since the last run first (their sitemap <lastmod>), then on from the cursor.
+  const perRun = Math.max(1, long
+    ? Math.min(LONG_CRAWL_LIMITS.maxPagesPerRun, (source.maxPagesPerRun ?? 20) * LONG_CRAWL_LIMITS.pageScale)
+    : Math.min(CRAWL_LIMITS.maxPagesPerRun, source.maxPagesPerRun ?? 20));
+  const watermark = Date.parse(source.crawlWatermark ?? "");
+  const { order, fresh } = readOrder(targets, newest ? null : lastmod, watermark, source.crawlCursor);
   const items = [];
-  let read = 0, failed = 0, at = start;
-  while (read < perRun && read < targets.length) {
+  let read = 0, failed = 0, backoffs = 0, stoppedEarly = false;
+  while (read < perRun && read < order.length) {
     if (now() - started + delayMs > budget) break;
     await sleep(delayMs);
-    const url = targets[at];
-    at = (at + 1) % targets.length;
+    const url = order[read];
     read++;
+    const t0 = now();
     try {
       // A record without its own URL takes the page's.
       const html = await get(url, { origin: host, accept: PAGE_ACCEPT });
+      backoffs = 0;
+      delayMs = nextDelay(delayMs, floorMs, { latencyMs: now() - t0 });
       // A Next.js site states its listing in the page's own data (source.nextDataPath, read through source.mapping);
       // every other page through its schema.org blocks.
       const found = source.nextDataPath ? parseNextData(html, source.nextDataPath, source.mapping) : parseStructured(html);
       for (const item of found) items.push({ ...item, canonicalUrl: item.canonicalUrl || url });
-    } catch { failed++; }
+    } catch (e) {
+      failed++;
+      if (e?.upstream === 429 || e?.upstream === 503) {
+        delayMs = nextDelay(delayMs, floorMs, { backoff: true, retryAfterMs: e.retryAfterMs });
+        if (++backoffs >= MAX_BACKOFFS) { stoppedEarly = true; break; }
+      }
+    }
   }
+  // The cursor moves past the round-robin pages read (fresh ones were extra); the watermark moves to the newest page
+  // date once every fresh page has been read, so the next run starts from what changed after it.
+  const roundRead = Math.max(0, read - fresh);
+  const base = Number.isInteger(source.crawlCursor) && source.crawlCursor < targets.length ? source.crawlCursor : 0;
+  const at = (base + roundRead) % targets.length;
+  const newestDate = lastmod.size ? Math.max(...targets.map((u) => lastmod.get(u) ?? -Infinity)) : -Infinity;
+  const nextWatermark = Number.isFinite(newestDate) && (read >= fresh || !Number.isFinite(watermark)) ? new Date(newestDate).toISOString() : (Number.isFinite(watermark) ? new Date(watermark).toISOString() : null);
 
   const observedAt = new Date(now()).toISOString();
   const n = normalizeAll(source, items, observedAt, now());
@@ -183,6 +259,6 @@ export async function crawlRecords(source, deps = {}) {
     ...n,
     // Crawled sources add to what earlier runs found instead of replacing it.
     merge: true,
-    crawl: { pages: targets.length, read, failed, cursor: at, delayMs },
+    crawl: { pages: targets.length, read, failed, cursor: at, delayMs, fresh, watermark: nextWatermark, ...(stoppedEarly ? { backedOff: true } : {}) },
   };
 }

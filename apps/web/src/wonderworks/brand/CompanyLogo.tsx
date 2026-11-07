@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Building2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useHydration } from "@/store/hydration";
 import { companyDomain, companyKey } from "@/domain/jobslake/companies";
@@ -43,7 +44,8 @@ export function CompanyLogo({ name, color, size = 40, className, logo, domain, w
       style={{ width: size, height: size, color: color ?? "var(--wj-brand-600)", fontSize: Math.max(12, size * 0.42) }}
       aria-hidden="true"
     >
-      {name.trim()[0]?.toUpperCase()}
+      {/* No name to take an initial from (a listing that names no provider): a building, never an empty tile. */}
+      {known ? name.trim()[0]?.toUpperCase() : <Building2 className="size-[45%] text-ink-4" aria-hidden />}
       {src && (
         // eslint-disable-next-line @next/next/no-img-element -- a small, CDN-cached icon from our own API; next/image adds nothing here
         <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} className="absolute inset-0 size-full bg-surface object-contain p-[12%]" />

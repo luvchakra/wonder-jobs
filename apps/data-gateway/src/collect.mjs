@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { request } from "node:https";
 import { isIP } from "node:net";
+import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 import { ApiError, normalizeAll } from "./core.mjs";
 import { crawlRecords } from "./crawl.mjs";
 
@@ -94,10 +95,13 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
     const req = request(url, {
       method: "GET",
       timeout: requestTimeoutMs(input),
-      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept },
+      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept, "accept-encoding": "gzip, deflate, br" },
       lookup: pinnedLookup(selected),
     }, (res) => {
-      readBody(res, { maxBytes, partial: partial && res.statusCode === 200, abort: (e) => req.destroy(e) }).then((text) => resolve({ status: res.statusCode, headers: res.headers, text }), reject);
+      // Compressed transfer (2026-11-07, crawl speed): HTML, feeds and sitemaps are 5-10x smaller over the wire. The size
+      // limit applies to the decoded text, so a small compressed body can never expand past it.
+      const body = decoded(res, url);
+      readBody(body, { maxBytes, partial: partial && res.statusCode === 200, abort: (e) => req.destroy(e) }).then((text) => resolve({ status: res.statusCode, headers: res.headers, text }), reject);
     });
     req.on("timeout", () => req.destroy(new ApiError(504, "SOURCE_TIMEOUT", "Source timed out")));
     req.on("error", reject);
@@ -107,8 +111,32 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
     if (!redirects || !response.headers.location) throw new ApiError(502, "UNSAFE_REDIRECT", "Too many redirects");
     return safeGet(new URL(response.headers.location, url).toString(), { origin: origin || url.hostname, maxBytes, redirects: redirects - 1, accept, partial });
   }
-  if (response.status !== 200) throw new ApiError(502, "SOURCE_UNAVAILABLE", "Source responded " + response.status);
+  if (response.status !== 200) {
+    // The source's own status and Retry-After travel with the error, so a crawl can slow down on 429/503 (crawl.mjs).
+    const e = new ApiError(502, "SOURCE_UNAVAILABLE", "Source responded " + response.status);
+    e.upstream = response.status;
+    e.retryAfterMs = retryAfterMs(response.headers["retry-after"]);
+    throw e;
+  }
   return response.text;
+}
+
+/** A response's body as text bytes: decompressed when the source sent it gzip, deflate or brotli, or as a .gz sitemap file. */
+export function decoded(res, url) {
+  const enc = String(res.headers["content-encoding"] || "").trim().toLowerCase();
+  const fail = (z) => { z.on("error", (e) => z.destroyed || z.destroy(e)); res.on("error", (e) => z.destroy(e)); return res.pipe(z); };
+  if (enc === "gzip" || enc === "x-gzip" || (!enc && /\.gz$/i.test(url.pathname))) return fail(createGunzip());
+  if (enc === "br") return fail(createBrotliDecompress());
+  if (enc === "deflate") return fail(createInflate());
+  return res;
+}
+
+/** Retry-After in ms: seconds or an HTTP date; null when absent or unreadable. Capped at 10 minutes. */
+export function retryAfterMs(value, now = Date.now()) {
+  if (value === undefined || value === null || value === "") return null;
+  const v = String(value).trim();
+  const ms = /^\d+$/.test(v) ? Number(v) * 1000 : Date.parse(v) - now;
+  return Number.isFinite(ms) ? Math.min(600_000, Math.max(0, ms)) : null;
 }
 
 /**
@@ -285,6 +313,10 @@ export function parseStructured(html) {
       if (!o || typeof o !== "object") return;
       if (o["@graph"]) walk(o["@graph"]);
       const kinds = [o["@type"]].flat().filter(Boolean);
+      // A listing page often carries all its listings in one ItemList (or as the page's mainEntity); each is read, so a
+      // page gives every listing it shows, not only the page's own (2026-11-07, content scope).
+      if (kinds.includes("ItemList") && o.itemListElement) { for (const el of [o.itemListElement].flat()) walk(el?.item && typeof el.item === "object" ? el.item : el); return; }
+      if (o.mainEntity && typeof o.mainEntity === "object") walk(o.mainEntity);
       if (kinds.includes("BreadcrumbList") && !crumbs.length) {
         for (const i of [o.itemListElement].flat()) {
           const name = typeof i?.name === "string" ? i.name : i?.item?.name;
