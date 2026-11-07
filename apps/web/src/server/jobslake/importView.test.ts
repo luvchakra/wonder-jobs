@@ -93,3 +93,13 @@ describe("Archived: sources that keep failing move to the page's end (2026-11-05
     expect(collectStreaks([run("2026-11-05T03:00:00Z", false), run("2026-11-05T02:00:00Z", false), run("2026-11-05T01:00:00Z", true), run("2026-11-05T00:00:00Z", false)]).get("gateway:s")).toBe(2);
   });
 });
+
+describe("rows that share a name", () => {
+  it("get what sets each apart: the differing part of the URL path, or of the catalogue file", async () => {
+    const { distinctNames } = await import("./importView");
+    const row = (id: string, name = "Houzz (houzz.in)") => ({ id, name, kind: "Gateway" as const, state: "waiting" as const, detail: "", more: [], history: [] });
+    const paths: Record<string, string> = { "gateway:a": "/professionals/architects/probr0-bo~t_26676", "gateway:b": "/professionals/construction/probr0-bo~t_26732" };
+    const out = distinctNames([row("gateway:a"), row("gateway:b"), row("catalogue:houzz-flooring-and-carpet.json", "Houzz (india)"), row("catalogue:houzz-tile-stone.json", "Houzz (india)"), row("gateway:c", "Remotive")], (id) => paths[id]);
+    expect(out.map((r) => r.name)).toEqual(["Houzz (houzz.in) · Architects", "Houzz (houzz.in) · Construction", "Houzz (india) · Flooring and carpet", "Houzz (india) · Tile stone", "Remotive"]);
+  });
+});
