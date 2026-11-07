@@ -37,6 +37,10 @@ const PROBES: Record<string, Probe> = {
   flipkart: { needs: ["FLIPKART_AFFILIATE_ID", "FLIPKART_AFFILIATE_TOKEN"], request: (k) => ({ url: `https://affiliate-api.flipkart.net/affiliate/api/${encodeURIComponent(k("FLIPKART_AFFILIATE_ID"))}.json`, init: { headers: { "Fk-Affiliate-Id": k("FLIPKART_AFFILIATE_ID"), "Fk-Affiliate-Token": k("FLIPKART_AFFILIATE_TOKEN") } } }) },
   // eBay: asking for an application token checks the keyset itself (a wrong one is refused with 401); no item is searched.
   ebay: { needs: ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET"], request: (k) => ({ url: "https://api.ebay.com/identity/v1/oauth2/token", init: { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", authorization: `Basic ${Buffer.from(`${k("EBAY_CLIENT_ID")}:${k("EBAY_CLIENT_SECRET")}`).toString("base64")}` }, body: "grant_type=client_credentials&scope=https%3A%2F%2Fapi.ebay.com%2Foauth%2Fapi_scope" } }) },
+  // Reddit: asking for an application token checks the app's client ID and secret (a wrong pair is refused with 401); no post is read.
+  reddit: { needs: ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"], request: (k) => ({ url: "https://www.reddit.com/api/v1/access_token", init: { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", authorization: `Basic ${Buffer.from(`${k("REDDIT_CLIENT_ID")}:${k("REDDIT_CLIENT_SECRET")}`).toString("base64")}`, "user-agent": "WonderWorks/1.0 (key test)" }, body: "grant_type=client_credentials" } }) },
+  // Product Hunt: one product's id, to check the developer token; never a maker or a user.
+  producthunt: { needs: ["PRODUCTHUNT_TOKEN"], request: (k) => ({ url: "https://api.producthunt.com/v2/api/graphql", init: { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${k("PRODUCTHUNT_TOKEN")}`, "user-agent": "WonderWorks/1.0 (key test)" }, body: JSON.stringify({ query: "query { posts(first: 1) { nodes { id } } }" }) } }) },
 };
 
 /** The probe a key belongs to, if any. */

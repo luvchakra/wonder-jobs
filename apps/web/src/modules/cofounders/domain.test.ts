@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFacets, bothAgree, cleanProfile, cleanTeam, matchListing, sideAgrees, sideOf, teamMay, viewProfile, type CofounderListing, type ConnShape } from "./domain";
+import { applyFacets, bothAgree, cleanProfile, cleanTeam, isOutside, KIND_LABEL, matchListing, sideAgrees, sideOf, teamMay, viewProfile, type CofounderListing, type ConnShape } from "./domain";
 
 const P = { name: "Asha Rao", headline: "Backend engineer, ex-fintech", role: "Tech", skills: ["Engineering", "Data / AI"], commitment: "Full time", location: "Pune", ideaState: "idea", idea: "Invoices that chase themselves for small shops", about: "Ten years of payments.", lookingFor: "A sales-minded partner", equity: "Equal split", open: true };
 
@@ -95,5 +95,27 @@ describe("Refine and fit", () => {
     expect(matchListing({ ...person, terms: { role: "Business", commitment: "Full time" } }, me).fit).toBe("strong");
     expect(matchListing(team, me).fit).toBe("some");
     expect(matchListing(person, null).fit).toBe("unknown");
+  });
+});
+
+describe("posts and startups from outside", () => {
+  const post: CofounderListing = { id: "cofounders_p", kind: "post", title: "Looking for a co-founder", company: "Hacker News", location: "", terms: { handle: "raj" }, description: "x", url: "https://news.ycombinator.com/item?id=1", sourceId: "cof_outside", sourceName: "Hacker News", shareable: true };
+  const startup: CofounderListing = { ...post, id: "cofounders_s", kind: "startup", title: "Ledgerly", terms: { batch: "Summer 2026" }, url: "https://www.ycombinator.com/companies/ledgerly", sourceName: "Y Combinator" };
+  const person: CofounderListing = { id: "cfp_1", kind: "person", title: "Backend", company: "x", location: "", terms: { role: "Tech", commitment: "Full time" }, description: "", sourceId: "s", sourceName: "w" };
+
+  it("are labelled apart: People, Teams, Posts and New startups", () => {
+    expect(KIND_LABEL).toEqual({ person: "People", team: "Teams", post: "Posts", startup: "New startups" });
+    expect([post, startup, person].map(isOutside)).toEqual([true, true, false]);
+  });
+  it("Refine by kind keeps them apart, and a role or commitment filter leaves them out (they state neither)", () => {
+    expect(applyFacets([post, startup, person], { kind: "post" }).kept).toEqual([post]);
+    expect(applyFacets([post, startup, person], { kind: "startup" }).kept).toEqual([startup]);
+    expect(applyFacets([post, startup, person], { role: "Tech" }).kept).toEqual([person]);
+    expect(applyFacets([post, startup, person], { commitment: "Full time" }).kept).toEqual([person]);
+  });
+  it("never claim to fit the searcher", () => {
+    const me = { role: "Tech" as const, skills: [], commitment: "Full time" as const };
+    expect(matchListing(post, me).fit).toBe("unknown");
+    expect(matchListing(startup, me).fit).toBe("unknown");
   });
 });

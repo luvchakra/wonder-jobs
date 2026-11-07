@@ -58,3 +58,5 @@ export function requireAdmin(header: string | null | undefined, adminToken: stri
 export function requireConsumer(store: { read<T>(fn: (state: any) => T): Promise<T> }, header: string | null | undefined): Promise<{ id: string; consumerId: string; scopes: string[] }>;
 /** Throws unless the key may read the module. */
 export function checkScope(key: { scopes: string[] }, module: string): void;
+/** Text with email addresses, phone numbers and messaging handles removed (sources of people's public posts). */
+export function scrubContacts(text: string): string;

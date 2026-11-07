@@ -191,7 +191,7 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
       if (sourceModule(s) === "services") return runServicesSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "therapists") return runTherapistsSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "events") return runEventsSource(s, c, (m) => new NeedsSetupError(m));
-      if (sourceModule(s) === "cofounders") return runCofoundersSource(s, c);
+      if (sourceModule(s) === "cofounders") return runCofoundersSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "marketplace") return runMarketplaceSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) === "scholarships") return runScholarshipSource(s, c, (m) => new NeedsSetupError(m));
       if (sourceModule(s) !== "jobs") return runInternshipSource(s, c, depth, (m) => new NeedsSetupError(m));
