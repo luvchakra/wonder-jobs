@@ -13,6 +13,9 @@ import { refreshGatewayListings } from "@/server/jobslake/warm";
 import { siteUrl } from "@/lib/siteUrl";
 import { runGatewayCollection, startImport, startModuleImport } from "./collectJob";
 import { continueSetupJob, runSetupItem, SETUP_PAUSE_MS } from "./setupJob";
+import { hostedGateway } from "./index";
+import { LiveRunTracker } from "./liveRun";
+import { MODULE_IDS } from "@/wonderworks/manifest";
 
 /** The runner's budgets: collection's share and the Find refresh's deadline, from the run's start. */
 export const RUNNER_LIMITS = { collectMs: 20 * 60_000, deadlineMs: 25 * 60_000 };
@@ -31,6 +34,8 @@ export interface RunnerDeps {
   importModule?: typeof startModuleImport;
   sleep?: (ms: number) => Promise<void>;
   log?: (line: string) => void;
+  /** The run's live progress on Sources → Import (liveRun.ts); tests pass none. */
+  live?: LiveRunTracker | null;
 }
 
 /** Works the Setup job until it's done: each call runs what fits its budget, so the runner just calls again. */
@@ -42,7 +47,10 @@ export async function drainSetupJob(deps: RunnerDeps = {}): Promise<{ calls: num
     const r = await cont({
       run: (run, onStep) => runSetupItem(run, onStep, RUNNER_STEP_BUDGET_MS),
       // The refresh gets the runner's deadline, not a Vercel call's 45 s.
-      refresh: (modules) => refreshGatewayListings(modules, new Date(), Date.now() + RUNNER_LIMITS.deadlineMs),
+      refresh: (modules) => {
+        deps.live?.refreshStart(modules ?? MODULE_IDS.slice());
+        return refreshGatewayListings(modules, new Date(), Date.now() + RUNNER_LIMITS.deadlineMs, deps.live?.refreshModule);
+      },
     });
     ran += r.ran;
     // Done, or nothing this process can do (no job, or another server holds its lease).
@@ -56,21 +64,38 @@ export async function drainSetupJob(deps: RunnerDeps = {}): Promise<{ calls: num
  * One run on the runner. `ok` is false only when the run itself couldn't happen (a refused import, a missing module);
  * a source that failed is in the summary and the run's record, as on Vercel.
  */
-export async function runOnRunner(input: { mode: RunnerMode; module?: string; by?: string; force?: boolean }, deps: RunnerDeps = {}): Promise<{ ok: boolean; summary: string }> {
+export async function runOnRunner(input: { mode: RunnerMode; module?: string; by?: string; force?: boolean; runUrl?: string }, deps: RunnerDeps = {}): Promise<{ ok: boolean; summary: string }> {
+  const live = deps.live === undefined ? new LiveRunTracker({ mode: input.mode, module: input.module, by: input.by?.trim().slice(0, 120) || (input.mode === "scheduled" ? "the scheduled run" : "GitHub (Run workflow)"), runUrl: input.runUrl }) : deps.live;
+  await live?.start();
+  try {
+    const hosted = hostedGateway();
+    if (live && hosted) live.setNames(await hosted.store.read((s) => new Map((s.sources as { id: string; attribution?: string }[]).map((x) => [x.id, String(x.attribution ?? x.id)]))).catch(() => new Map<string, string>()));
+    const r = await runSteps(input, { ...deps, live });
+    await live?.finish(r.ok, r.summary);
+    return r;
+  } catch (e) {
+    await live?.finish(false, e instanceof Error ? e.message : String(e));
+    throw e;
+  }
+}
+
+async function runSteps(input: { mode: RunnerMode; module?: string; by?: string; force?: boolean }, deps: RunnerDeps): Promise<{ ok: boolean; summary: string }> {
+  const live = deps.live;
   const log = deps.log ?? ((line: string) => console.info(`[gateway-runner] ${line}`));
   const collect = deps.collect ?? runGatewayCollection;
   const origin = siteUrl().origin;
   const by = input.by?.trim().slice(0, 120) || "GitHub (Run workflow)";
   const lines: string[] = [];
+  const progress = live ? { onProgress: live.progress, onRefresh: (m: string[]) => live.refreshStart(m), onModule: live.refreshModule } : {};
 
   const before = await drainSetupJob(deps);
   if (before.ran) lines.push(`finished a Setup job left over: ${before.ran} items`);
 
   if (input.mode === "scheduled") {
-    const r = await collect("cron", origin, undefined, 0, never, undefined, [], { limits: RUNNER_LIMITS, handOnSetup: never, force: input.force });
+    const r = await collect("cron", origin, undefined, 0, never, undefined, [], { limits: RUNNER_LIMITS, handOnSetup: never, force: input.force, ...progress });
     lines.push(r.summary);
   } else if (input.mode === "all") {
-    const r = await (deps.importAll ?? startImport)(by, origin, { handOn: never, collect: (t, o) => collect(t, o, undefined, 0, never, undefined, [], { limits: RUNNER_LIMITS, handOnSetup: never }) });
+    const r = await (deps.importAll ?? startImport)(by, origin, { handOn: never, collect: (t, o) => collect(t, o, undefined, 0, never, undefined, [], { limits: RUNNER_LIMITS, handOnSetup: never, ...progress }) });
     if (!r.ok) return { ok: false, summary: r.message };
     lines.push(r.queued ? `${r.queued} waiting sources queued${r.skipped ? ` (${r.skipped} skipped)` : ""}` : (r.summary ?? "collected and refreshed"));
   } else {
@@ -80,6 +105,8 @@ export async function runOnRunner(input: { mode: RunnerMode; module?: string; by
     lines.push(`${r.queued} steps queued for ${input.module}`);
   }
 
+  // Waiting sources were queued as a Setup job: its own progress shows on the page; this run's step says so.
+  if (live && input.mode !== "scheduled" && !live.current.steps.includes("collecting")) live.step("setup");
   const after = await drainSetupJob(deps);
   if (after.ran || !after.done) lines.push(`Setup job: ${after.ran} items${after.done ? "" : " (not finished)"}`);
   const summary = lines.join(" · ");
