@@ -3,7 +3,7 @@ import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, Clock, MapPin, Users } from "lucide-react";
+import { Bookmark, Clock, ExternalLink, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { Select } from "@/components/common/Input";
@@ -14,10 +14,10 @@ import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { DECISION_LABEL, STAGE_OF, STATUS_LABEL, type CofounderListing, type ConnStatus } from "../domain";
+import { DECISION_LABEL, isOutside, STAGE_OF, STATUS_LABEL, type CofounderListing, type ConnStatus } from "../domain";
 import { useCofoundersStore } from "../store";
 import { Act } from "./Act";
-import { FIT, connStatus, useMatch, verbOf } from "./Listing";
+import { FIT, connStatus, openOn, useMatch, verbOf } from "./Listing";
 import { Safety } from "./Safety";
 import { shareOf } from "../share";
 
@@ -53,7 +53,12 @@ function Page({ l }: { l: CofounderListing }) {
   const [expanded, setExpanded] = useState(false);
   const t = l.terms;
   const team = l.kind === "team";
-  const rows: [string, string][] = team
+  const outside = isOutside(l);
+  const rows: [string, string][] = outside
+    ? l.kind === "post"
+      ? [["Posted by", t.handle ? `@${t.handle}` : "Not shown"], ["Posted on", l.sourceName], ["Date", l.postedAt ? new Date(l.postedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Not stated"]]
+      : [["Batch", t.batch ?? "Not stated"], ["Team size", t.teamSize ? String(t.teamSize) : "Not stated"], ["Hiring", t.hiring === undefined ? "Not stated" : t.hiring ? "Yes" : "No"], ["Where", l.location || "Not stated"], ["Listed by", l.sourceName]]
+    : team
     ? [
         ["Stage", t.stage ?? "Not stated"],
         ["Founders", String(t.founders ?? 1)],
@@ -83,7 +88,7 @@ function Page({ l }: { l: CofounderListing }) {
       <ListingMain>
         <ListingHead
           company={l.title}
-          name={team ? "Team" : t.role ? `${t.role} founder` : "Founder"}
+          name={l.kind === "post" ? `Post on ${l.sourceName}` : l.kind === "startup" ? "New startup" : team ? "Team" : t.role ? `${t.role} founder` : "Founder"}
           facts={[
             l.location && (
               <span key="l" className="inline-flex items-center gap-1">
@@ -111,9 +116,16 @@ function Page({ l }: { l: CofounderListing }) {
           </div>
         )}
         <p className="mt-3 rounded-[12px] bg-surface-2 px-3 py-2 text-[12px] text-ink-3">
-          {team ? "This is what the team's founders chose to list." : "This is only what they chose to show everyone. Their name, the rest of their profile and any contact details stay hidden until you both agree."} WonderWorks has not checked any of it.
+          {l.kind === "post"
+            ? `A public post on ${l.sourceName}, shown as its title, the start of its text, its date and the author's public handle. WonderWorks does not contact the author or hold their details; reply on ${l.sourceName}.`
+            : l.kind === "startup"
+              ? `A company from ${l.sourceName}'s public directory, not a request for a co-founder. No founder is named here.`
+              : team
+                ? "This is what the team's founders chose to list."
+                : "This is only what they chose to show everyone. Their name, the rest of their profile and any contact details stay hidden until you both agree."}{" "}
+          WonderWorks has not checked any of it.
         </p>
-        <TranslatedText id={l.id} title={l.title} heading={team ? "What they're building" : "In their words"} text={(team ? [l.company, l.description].filter(Boolean).join("\n\n") : l.description) || "They show nothing more than the details below."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={l.kind === "post" ? "From the post" : team || l.kind === "startup" ? "What they're building" : "In their words"} text={(team || l.kind === "startup" ? [l.company, l.description].filter(Boolean).join("\n\n") : l.description) || "They show nothing more than the details below."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <div className="mt-3 flex min-w-0 flex-col gap-3">
             {m.signals.length > 0 && (
@@ -128,7 +140,7 @@ function Page({ l }: { l: CofounderListing }) {
                 </ul>
               </Fold>
             )}
-            {m.signals.length === 0 && (
+            {m.signals.length === 0 && !outside && (
               <p className="text-sm text-ink-3">
                 Save your role and commitment in <Link href="/app/m/cofounders/you/profile" className="font-medium text-brand-600 hover:underline">Co-founders → You</Link> to see how they compare.
               </p>
@@ -143,15 +155,25 @@ function Page({ l }: { l: CofounderListing }) {
                 ))}
               </dl>
             </Fold>
-            <Fold title={`Block or report ${team ? "this team" : "this person"}`}>
-              <Safety kind={team ? "team" : "person"} id={l.id} noun={team ? "this team" : "them"} onBlocked={() => router.push(FIND.href)} />
-            </Fold>
+            {!outside && (
+              <Fold title={`Block or report ${team ? "this team" : "this person"}`}>
+                <Safety kind={team ? "team" : "person"} id={l.id} noun={team ? "this team" : "them"} onBlocked={() => router.push(FIND.href)} />
+              </Fold>
+            )}
           </div>
         )}
       </ListingMain>
       <ListingAside>
-        <Connect l={l} />
-        {!team && <InviteToTeam l={l} />}
+        {outside ? (
+          <Button full external href={l.url} icon={<ExternalLink className="size-4" aria-hidden />}>
+            {openOn(l)}
+          </Button>
+        ) : (
+          <>
+            <Connect l={l} />
+            {!team && <InviteToTeam l={l} />}
+          </>
+        )}
       </ListingAside>
     </ListingPage>
   );

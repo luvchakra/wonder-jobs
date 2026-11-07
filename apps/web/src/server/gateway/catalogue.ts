@@ -55,6 +55,8 @@ import weWorkRemotelyCustomerSupport from "../../../../data-gateway/sources/we-w
 import weWorkRemotelySalesMarketing from "../../../../data-gateway/sources/we-work-remotely-sales-marketing.json";
 import weWorkRemotelyManagementFinance from "../../../../data-gateway/sources/we-work-remotely-management-finance.json";
 import weWorkRemotelyOther from "../../../../data-gateway/sources/we-work-remotely-other.json";
+import hnCofounderPosts from "../../../../data-gateway/sources/hn-cofounder-posts.json";
+import ycStartups from "../../../../data-gateway/sources/yc-startups.json";
 
 /**
  * The reviewed source definitions that ship with the gateway (`apps/data-gateway/sources/*.json`), so an admin can add
@@ -119,6 +121,8 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "we-work-remotely-sales-marketing.json": weWorkRemotelySalesMarketing as Record<string, unknown>,
   "we-work-remotely-management-finance.json": weWorkRemotelyManagementFinance as Record<string, unknown>,
   "we-work-remotely-other.json": weWorkRemotelyOther as Record<string, unknown>,
+  "hn-cofounder-posts.json": hnCofounderPosts as Record<string, unknown>,
+  "yc-startups.json": ycStartups as Record<string, unknown>,
 };
 
 export interface CatalogueEntry {

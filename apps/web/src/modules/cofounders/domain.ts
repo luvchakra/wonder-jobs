@@ -184,7 +184,18 @@ export const teamMay = (role: string | undefined | null, action: TeamAction): bo
 
 /* ------------------------------------------------------------------ what Find lists */
 
-export type ListingKind = "person" | "team";
+/**
+ * What a listing is. A person and a team chose to be listed on WonderWorks. A post is something someone published for
+ * others to read (a co-founder request on Hacker News or Reddit), shown as its title, excerpt, date and the author's public
+ * handle, linking to the post: never a profile, never contact details. A startup is a company from a public directory
+ * (Y Combinator, Product Hunt), shown under "New startups" apart from the rest: a company is not a request for a co-founder.
+ */
+export type ListingKind = "person" | "team" | "post" | "startup";
+export const KIND_LABEL: Record<ListingKind, string> = { person: "People", team: "Teams", post: "Posts", startup: "New startups" };
+/** A listing from a public source outside WonderWorks: read-only, linking to where it was published. */
+export const isOutside = (l: Pick<CofounderListing, "kind">) => l.kind === "post" || l.kind === "startup";
+/** How recent a post must be to be listed (owner, 2026-11-05: the last 60 days). */
+export const POST_MAX_AGE_DAYS = 60;
 
 export interface CofounderTerms {
   role?: Role;
@@ -197,6 +208,12 @@ export interface CofounderTerms {
   openRoles?: OpenRole[];
   decision?: Decision;
   founders?: number;
+  /** A post's author, by the public handle they posted under. */
+  handle?: string;
+  /** A startup's batch ("Summer 2026"), team size and whether it is hiring, as its directory states them. */
+  batch?: string;
+  teamSize?: number;
+  hiring?: boolean;
 }
 
 /** One person or team as Find shows them: only what they chose to show everyone. */
@@ -212,6 +229,8 @@ export interface CofounderListing {
   terms: CofounderTerms;
   description: string;
   postedAt?: string;
+  /** Where an outside post or startup was published: its link, always https. Missing for people and teams. */
+  url?: string;
   /** The owner allows sharing this outside WonderWorks. Missing means no: an older saved copy never shares content. */
   shareable?: boolean;
   sourceId: string;
@@ -262,7 +281,7 @@ export interface Persona {
 }
 
 export function matchListing(l: CofounderListing, me: Persona | null): Fit {
-  if (!me || (!me.role && !me.commitment)) return { fit: "unknown", signals: [] };
+  if (isOutside(l) || !me || (!me.role && !me.commitment)) return { fit: "unknown", signals: [] };
   const signals: Fit["signals"] = [];
   const theirRoles = l.kind === "team" ? (l.terms.openRoles ?? []).map((o) => o.role) : l.terms.role ? [l.terms.role] : [];
   if (me.role && theirRoles.length) {

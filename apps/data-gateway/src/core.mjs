@@ -6,6 +6,10 @@ export const MODULES = Object.freeze(["jobs", "internships", "teaching", "servic
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
 /** Modules that may take public business listings from open data (OpenStreetMap…) without per-person opt-in. Marketplace: a shop's or dealer's own catalogue (never a private seller). */
 const PUBLIC_BUSINESS_MODULES = new Set(["services", "therapists", "marketplace"]);
+// Co-founders (owner, 2026-11-07): public posts people wrote for others to see (their public handle only, contact details removed)
+// and company-level listings (a startup, never its founders). Never a person's profile.
+const PUBLIC_POST_MODULES = new Set(["cofounders"]);
+const PUBLIC_COMPANY_MODULES = new Set(["cofounders"]);
 const VALID_KINDS = new Set(["json_api", "rss", "structured", "crawl", "upload"]);
 const VALID_PERMISSION = new Set(["terms_permit", "granted_in_writing"]);
 const MAX_PAGE = 100;
@@ -137,7 +141,13 @@ export function validateSource(source) {
   // source — Talent & Services and Therapists only, never people's profiles (Co-founders) or private sellers.
   const publicBusinesses = source.publicBusinesses === true && source.modules.every((m) => PUBLIC_BUSINESS_MODULES.has(m));
   if (source.publicBusinesses === true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Public business listings are allowed only for services, therapists and marketplace");
-  if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights, or public business listings from open data (services, therapists, marketplace)");
+  const publicPosts = source.publicPosts === true && source.modules.every((m) => PUBLIC_POST_MODULES.has(m));
+  if (source.publicPosts === true && !publicPosts) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Public posts are allowed only for co-founders");
+  if (publicPosts && source.scrubContacts !== true) throw new ApiError(400, "INVALID_REQUEST", "A public-posts source needs scrubContacts: true, so no email address or phone number is kept");
+  const publicCompanies = source.publicCompanies === true && source.modules.every((m) => PUBLIC_COMPANY_MODULES.has(m));
+  if (source.publicCompanies === true && !publicCompanies) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Company listings are allowed only for co-founders");
+  if (source.scrubContacts !== undefined && typeof source.scrubContacts !== "boolean") throw new ApiError(400, "INVALID_REQUEST", "scrubContacts must be true or false");
+  if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true && !publicBusinesses && !publicPosts && !publicCompanies) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights, or public business listings from open data (services, therapists, marketplace)");
   if (source.kind === "json_api" && (!source.mapping || typeof source.mapping !== "object" || typeof source.itemsPath !== "string")) throw new ApiError(400, "INVALID_REQUEST", "API requires itemsPath and mapping");
   if (source.kind === "json_api" && source.nextPath !== undefined) {
     if (typeof source.nextPath !== "string" || !/^[\w.]{1,100}$/.test(source.nextPath)) throw new ApiError(400, "INVALID_REQUEST", "nextPath must be a dot path like links.next");
@@ -261,6 +271,20 @@ export function countryName(v) {
   if (!/^[A-Z]{2}$/.test(v) || !regionNames) return v;
   try { const n = regionNames.of(v); return n && n !== v ? n : v; } catch { return v; }
 }
+/**
+ * Text with the ways to reach a person taken out: email addresses (also written "name [at] host dot com"), phone numbers,
+ * and handles of messaging apps ("telegram: @x", "whatsapp +91..."). For sources of people's public posts, where the post
+ * may carry the author's own contact details; those are never kept (owner, 2026-11-07).
+ */
+export function scrubContacts(text) {
+  return String(text ?? "")
+    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, " ")
+    .replace(/[\w.+-]+\s*[[(]\s*at\s*[\])]\s*[\w-]+(?:\s*(?:\.|[[(]\s*dot\s*[\])])\s*[\w-]+)+/gi, " ")
+    .replace(/(?:whats\s?app|telegram|signal|skype|discord|wechat|dm me|call me|text me)[^\n.]{0,40}/gi, " ")
+    .replace(/\+?\d[\d ().-]{7,}\d/g, (m) => (m.replace(/\D/g, "").length < 9 || /^\d{4}-\d{2}-\d{2}/.test(m) || /^\d{4}\s?[-–]\s?\d{4}$/.test(m) ? m : " "))
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
 export function normalize(source, raw, module, observedAt = iso()) {
   // An unmapped field is absent, never the whole record; and only text, numbers and booleans count as values.
   const one = (path) => {
@@ -289,8 +313,9 @@ export function normalize(source, raw, module, observedAt = iso()) {
     return parts.length ? parts.join(", ") : undefined;
   };
   const field = (name) => source.kind === "json_api" ? value(source.mapping[name]) : raw && ["string", "number", "boolean"].includes(typeof raw[name]) ? raw[name] : undefined;
-  let title = plainText(field("title")).slice(0, 240);
-  let organization = plainText(field("organization") ?? field("employer")).slice(0, 200);
+  const scrub = (t) => (source.scrubContacts === true ? scrubContacts(t) : t);
+  let title = scrub(plainText(field("title"))).slice(0, 240);
+  let organization = scrub(plainText(field("organization") ?? field("employer"))).slice(0, 200);
   // A feed that names the company only as "Company: Title" says so in its own format; the source opts in to reading it.
   if (!organization && source.titleCompanyPrefix) {
     const at = title.indexOf(": ");
@@ -309,7 +334,7 @@ export function normalize(source, raw, module, observedAt = iso()) {
   const orgUrl = String(field("organizationUrl") ?? "").trim();
   const domainOf = (u) => { try { const h = new URL(/^https?:\/\//i.test(u) ? u : "https://" + u).hostname.toLowerCase().replace(/^www\./, ""); return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(h) ? h : ""; } catch { return ""; } };
   const organizationDomain = domainOf(orgUrl) || (source.organizationOptional ? domainOf(parsed.toString()) : "");
-  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: richText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: withZone(source, attributesOf(source, value, raw)), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
+  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: scrub(richText(field("description"))).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: withZone(source, attributesOf(source, value, raw)), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
 }
 function signCursor(payload, secret) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");

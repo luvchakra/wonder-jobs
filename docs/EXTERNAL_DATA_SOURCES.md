@@ -64,7 +64,7 @@ Each module's real search was run against the live feeds (no mocks). What came b
 | **Teaching** | 3 | Yes | none | No live-vacancy feed for Indian schools; coverage thin |
 | **Talent & Services** | 2 (+ OpenStreetMap built, an admin registers it) | Yes | none | Nothing else is open; supply must come from WonderWorks pros; Freelancer.com terms (§6 issue 4) |
 | **Therapists** | 1 (+ OpenStreetMap practices built, an admin registers it) | — | none | No register or directory is open; practices only, nothing verified |
-| **Co-founders** | 0 | — | — | Deliberately none: people are listed only by consent |
+| **Co-founders** | 4 | Yes | Reddit and Product Hunt (keys) | People and teams by consent; outside posts and startups (Hacker News, Y Combinator live; Reddit, Product Hunt keyed) |
 | **Events & Social** | 0 | Researched: Ticketmaster | — | No India-strong open feed |
 | **Buy, Sell & Rent** | 0 | none found | eBay (partner contract) | No open data; scrapers carry terms risk |
 
@@ -334,6 +334,21 @@ Template (CSV or JSON, the gateway's single template, **Download the template** 
 Copy to give a partner (plain words):
 
 > WonderWorks Co-founders helps founders find people to build with. If your programme or community has founders who want to be found by a possible co-founder, you can send us a list of them. Each person must have agreed, in writing or on your sign-up form, to being listed by you on WonderWorks. Send only a headline and what they do (their role, skills and the time they can commit), and a page on your site where they can be reached. We show only that, never a name or contact details, and a person can ask you to remove them. You can send a new list any time and it replaces the last. We ask you to confirm that every person agreed before we turn the list on.
+
+**Outside posts and startups (2026-11-07, WJ-612)**
+
+Two new listing kinds, shown with the source and a link back, never mixed with people and teams: **posts** (a title, the start of the text with email addresses and phone numbers removed, the date and the author's public handle) and **New startups** (a company, never its founders; found only under its own Refine chip). A gateway change makes this possible without weakening the opt-in rule for people: a source may be `publicPosts` (Co-founders only, needs `scrubContacts`) or `publicCompanies` (Co-founders only).
+
+| Source | Kind | Status | Count / result |
+|---|---|---|---|
+| Hacker News via Algolia (`hn-cofounder-posts.json`, four phrase searches, titles that ask for a co-founder) | posts | Built, paused until Test & Activate. Terms pending: confirm HN allows reusing a title and excerpt with a link back. | Live test 2026-11-07: 42 listings of 80 read (38 filtered out as not requests). Listed only when under 60 days old. |
+| Y Combinator companies via the yc-oss mirror (`yc-startups.json`, eight recent batches) | startups | Built, paused until Test & Activate. Terms pending: confirm YC's terms and the mirror. | Live test 2026-11-07: 1,330 companies. No date (the directory gives a batch). |
+| Reddit Data API (OAuth client credentials) | posts | Built as a direct source, **Needs setup**: REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET (free app at reddit.com/prefs/apps). Terms pending: its Data API terms limit commercial use. | Not run live (no key). Tested against recorded response shapes only. Asked at most every six hours. |
+| Reddit public RSS (r/cofounder and searches) | posts | **Not read.** Answered the gateway with 403 and, from other clients, 429; never worked around. | 0 |
+| Product Hunt API v2 | startups | Built as a direct source, **Needs setup**: PRODUCTHUNT_TOKEN (free developer token). Terms pending: its API terms limit commercial use. | Not run live (no token). Asks for the product's own fields only, never a maker. |
+| Indie Hackers | posts | **Not read.** robots.txt allows the sitemap (about 11 MB each, over the gateway's 2 MB limit), but every page answers a Cloudflare "Just a moment" challenge, a bot block we do not get past. | 0 |
+| BetaList, Microlaunch, Uneed | startups | **Not built.** Product launch sites, not startup directories; Uneed's tool pages carry SoftwareApplication JSON-LD, which the crawler does not read, and BetaList has no sitemap. | 0 |
+| Accelerator portfolios: Techstars, Antler, 500 Global, Seedcamp, SOSV, Berkeley SkyDeck, Entrepreneurs First, Founder Institute, StartX, NSRCEL (Plug and Play: stub page; IIMCIP: 404) | startups | **Not built.** Each answers with a portfolio list page, but none publishes companies as structured data (the JSON-LD on them is site-level), so the crawler reads nothing. Needs a list reader per site: owner decision `cofounders-accelerator-portfolios`. | 0 |
 
 **Open issues**
 1. **By design, people are listed only by their own choice**, and contact is shared only when both sides are interested. No outside source fits that.

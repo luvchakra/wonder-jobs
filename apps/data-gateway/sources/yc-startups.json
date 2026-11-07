@@ -1,0 +1,44 @@
+{
+  "url": "https://yc-oss.github.io/api/batches/summer-2026.json",
+  "extraUrls": [
+    "https://yc-oss.github.io/api/batches/winter-2026.json",
+    "https://yc-oss.github.io/api/batches/spring-2026.json",
+    "https://yc-oss.github.io/api/batches/fall-2025.json",
+    "https://yc-oss.github.io/api/batches/summer-2025.json",
+    "https://yc-oss.github.io/api/batches/spring-2025.json",
+    "https://yc-oss.github.io/api/batches/winter-2025.json",
+    "https://yc-oss.github.io/api/batches/fall-2024.json"
+  ],
+  "kind": "json_api",
+  "modules": [
+    "cofounders"
+  ],
+  "geography": [
+    "global"
+  ],
+  "publicCompanies": true,
+  "organizationOptional": true,
+  "itemsPath": "",
+  "mapping": {
+    "id": "id",
+    "title": "name",
+    "description": "long_description",
+    "location": "all_locations",
+    "applyUrl": "url",
+    "organizationUrl": "website",
+    "attr.batch": "batch",
+    "attr.oneLiner": "one_liner",
+    "attr.teamSize": "team_size",
+    "attr.stage": "stage",
+    "attr.hiring": "isHiring",
+    "attr.status": "status"
+  },
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm Y Combinator's terms allow listing its public company directory entries, and that the yc-oss mirror (github.com/yc-oss/api) may be read. Checked 2026-11-07: yc-oss.github.io/api serves YC's public company directory (ycombinator.com/companies) as open JSON, no key. A listing is a company: its name, one-line description, location, batch and size, linking to its page on ycombinator.com. No founder is named or profiled.",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "Y Combinator",
+  "retentionHours": 720,
+  "minIntervalMinutes": 720
+}
