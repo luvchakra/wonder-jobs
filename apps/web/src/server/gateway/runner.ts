@@ -25,7 +25,7 @@ export const RUNNER_STEP_BUDGET_MS = 60_000;
 export const MAX_SETUP_CALLS = 500;
 const never = async () => false;
 
-export type RunnerMode = "scheduled" | "all" | "module";
+export type RunnerMode = "scheduled" | "all" | "module" | "resume";
 
 export interface RunnerDeps {
   continueSetup?: typeof continueSetupJob;
@@ -91,7 +91,10 @@ async function runSteps(input: { mode: RunnerMode; module?: string; by?: string;
   const before = await drainSetupJob(deps);
   if (before.ran) lines.push(`finished a Setup job left over: ${before.ran} items`);
 
-  if (input.mode === "scheduled") {
+  if (input.mode === "resume") {
+    // Finishing a stopped import is the drain above and below; nothing new is started.
+    lines.push(before.done ? "import finished" : "import not finished");
+  } else if (input.mode === "scheduled") {
     const r = await collect("cron", origin, undefined, 0, never, undefined, [], { limits: RUNNER_LIMITS, handOnSetup: never, force: input.force, ...progress });
     lines.push(r.summary);
   } else if (input.mode === "all") {
@@ -106,7 +109,7 @@ async function runSteps(input: { mode: RunnerMode; module?: string; by?: string;
   }
 
   // Waiting sources were queued as a Setup job: its own progress shows on the page; this run's step says so.
-  if (live && input.mode !== "scheduled" && !live.current.steps.includes("collecting")) live.step("setup");
+  if (live && input.mode !== "scheduled" && input.mode !== "resume" && !live.current.steps.includes("collecting")) live.step("setup");
   const after = await drainSetupJob(deps);
   if (after.ran || !after.done) lines.push(`Setup job: ${after.ran} items${after.done ? "" : " (not finished)"}`);
   const summary = lines.join(" · ");

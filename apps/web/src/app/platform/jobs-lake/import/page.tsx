@@ -184,7 +184,7 @@ function Pipeline({ d }: { d: ImportView }) {
  * 2026-11-02): a bar, the source being worked on and its step, counts so far, and every source in a fold. After it
  * finishes, its outcome stays for a day.
  */
-const MODE: Record<"scheduled" | "all" | "module", string> = { scheduled: "Scheduled collection", all: "Import now", module: "Module import" };
+const MODE: Record<"scheduled" | "all" | "module" | "resume", string> = { scheduled: "Scheduled collection", all: "Import now", module: "Module import", resume: "Finishing a stopped import" };
 const moduleLabel = (id: string) => MODULES.find((m) => m.id === id)?.label ?? id;
 
 /**
@@ -339,32 +339,71 @@ function ProgressBanner({ d }: { d: ImportView }) {
         {j.stored && Object.keys(j.stored).length ? ` · In Find: ${Object.entries(j.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}` : ""}
         {j.running ? ". It runs on the server; you can leave this page." : "."}
       </p>
-      {j.stalled && <ContinueImport />}
+      {j.stalled && <ContinueImport jobId={j.id} />}
       <RunItems items={j.items} />
     </div>
   );
 }
 
 /** A running import no server has picked up for a while: one press carries it on (the scheduled run would, later). */
-function ContinueImport() {
-  const [busy, setBusy] = useState(false);
+/**
+ * A job no server worked on for minutes (its runner or hand-on stopped) is picked up again on its own, once per job
+ * (owner, 2026-11-07: "when it shows paused, what am i supposed to do, cant it auto continue and ensure it finshes?").
+ * The scheduled run finishes it too; Try again is only there if the automatic pick-up couldn't start.
+ */
+function ContinueImport({ jobId }: { jobId: string }) {
+  const key = `wj.import.resumed.${jobId}`;
+  // Asked already in this tab (a reload): don't ask again; the server also refuses a second while the first runs.
+  const [asked] = useState(() => {
+    try {
+      return !!sessionStorage.getItem(key);
+    } catch {
+      return false;
+    }
+  });
+  const [state, setState] = useState<"starting" | "started" | "failed">(asked ? "started" : "starting");
+  const [error, setError] = useState("");
+  const resume = async () => {
+    const r = await post({ action: "continue" });
+    if (r.ok) setState("started");
+    else {
+      setError(r.error.message);
+      setState("failed");
+    }
+  };
+  useEffect(() => {
+    if (asked) return;
+    try {
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* storage off: ask anyway */
+    }
+    // Once per job, after this render.
+    const t = setTimeout(() => void resume(), 0);
+    return () => clearTimeout(t);
+  }, [asked, key]);
   return (
-    <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-warning-600">
-      It has paused: no server has worked on it for a few minutes.
-      <Button
-        size="sm"
-        variant="outline"
-        loading={busy}
-        onClick={async () => {
-          setBusy(true);
-          const r = await post({ action: "continue" });
-          setBusy(false);
-          if (!r.ok) toast.error("Couldn't continue it", r.error.message);
-          else toast.success("Continuing on the server", "This page shows where it gets to.");
-        }}
-      >
-        Continue
-      </Button>
+    <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-2">
+      {state === "failed" ? (
+        <>
+          <span className="text-warning-600">It stopped, and picking it up again didn&apos;t start: {error}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setState("starting");
+              void resume();
+            }}
+          >
+            Try again
+          </Button>
+        </>
+      ) : (
+        <span>
+          <Loader2 className="mr-1 inline size-3.5 animate-spin" aria-hidden />
+          It stopped part-way, so it&apos;s being picked up again automatically. Nothing to do.
+        </span>
+      )}
     </p>
   );
 }

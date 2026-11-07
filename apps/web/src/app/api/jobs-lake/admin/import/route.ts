@@ -8,7 +8,7 @@ import { loadPlatformKeys } from "@/server/jobslake/platformKeys";
 import { collectGatewaySource, registerFromCatalogue, registerPartner, setGatewaySource, testGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
 import { updateSource } from "@/server/jobslake/admin";
 import { MODULE_IDS } from "@/wonderworks/manifest";
-import { continueSetupJob, handOnSetupJob, jobRunning, readSetupJob, runSetupItem } from "@/server/gateway/setupJob";
+import { continueSetupJob, handOnSetupJob, jobRunning, jobStalled, readSetupJob, runSetupItem } from "@/server/gateway/setupJob";
 import { recordTry } from "@/server/gateway/importRuns";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
@@ -72,7 +72,18 @@ export async function POST(req: Request) {
     return json({ ok: true, queued: r.queued, skipped: r.skipped });
   }
   if (action === "continue") {
-    // A running import whose hand-on was lost (2026-11-02: stuck at 13 of 16 for two hours): carry it on now.
+    // A running import whose hand-on was lost (2026-11-02: stuck at 13 of 16 for two hours), or whose runner stopped:
+    // carry it on now, on the collection runner when it's set up (the page asks for this on its own, 2026-11-07).
+    await loadPlatformKeys();
+    if (!jobStalled(await readSetupJob())) return json({ ok: true, already: true });
+    if (runnerDispatchConfigured()) {
+      if (liveActive(await readLiveRun())) return json({ ok: true, already: true });
+      const d = await dispatchCollection({ mode: "resume", by: a.actor });
+      if (!d.ok) return jlError("INVALID_REQUEST", d.message, 502);
+      await recordLiveRequest({ mode: "resume", by: a.actor, at: new Date().toISOString() });
+      await audit(a.actor, "import.continued", undefined, { runner: true });
+      return json({ ok: true, dispatched: true });
+    }
     after(async () => {
       const c = await continueSetupJob();
       if (c.more) await handOnSetupJob(origin);

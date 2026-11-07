@@ -12,7 +12,7 @@ import { dataTypeOf } from "@/domain/jobslake/moduleData";
 import type { CronRun } from "@/domain/scheduler/settings";
 import { MODULES, type ModuleId } from "@/modules/registry";
 import { gatewayOverview, type GatewayRunRow, type GatewaySourceRow } from "@/server/gateway/admin";
-import { readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
+import { jobStalled, readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
 import { liveActive, readLiveRun, REQUEST_STALE_MS, RUN_SILENT_MS, type LiveDoc, type LiveRequest, type LiveRun } from "@/server/gateway/liveRun";
 import { listImportRuns, type ImportRun } from "@/server/gateway/importRuns";
 import { failedLately } from "@/server/gateway/collectJob";
@@ -262,7 +262,7 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
   return {
     id: job.id,
     running: !job.finishedAt,
-    ...(!job.finishedAt && (!job.leaseUntil || Date.now() - Date.parse(job.leaseUntil) > 120_000) ? { stalled: true as const } : {}),
+    ...(jobStalled(job) ? { stalled: true as const } : {}),
     phase: job.finishedAt ? "done" : job.phase === "refreshing" ? "refreshing" : "setup",
     kind: job.kind ?? "import",
     ...(job.module ? { module: job.module } : {}),

@@ -39,6 +39,8 @@ export interface SetupJob {
   finishedAt?: string;
   /** Until when a server is working on it (ISO); another server waits until it has passed. */
   leaseUntil?: string;
+  /** When a server last saved it (each step, and every LEASE_BEAT_MS while one source is worked on). */
+  workedAt?: string;
   items: SetupJobItem[];
   /** Who started it: an admin's press on Sources → Import, or the scheduled Gateway collection. */
   trigger?: "admin" | "scheduler";
@@ -73,9 +75,28 @@ const MAX_ITEMS = 200;
 export async function readSetupJob(): Promise<SetupJob | null> {
   return ((await stateStore.get(PLATFORM_TENANT, KEY))?.state as SetupJob | undefined) ?? null;
 }
-const save = (job: SetupJob) => stateStore.put(PLATFORM_TENANT, KEY, job);
+const save = (job: SetupJob) => {
+  job.workedAt = new Date().toISOString();
+  return stateStore.put(PLATFORM_TENANT, KEY, job);
+};
+/**
+ * While one source is set up (a test and a first collection can take minutes on the runner), the lease is renewed this
+ * often, so the job never looks stopped while it works (owner, 2026-11-07: "when it shows paused, what am i supposed to
+ * do"), and no other server takes it over.
+ */
+export const LEASE_BEAT_MS = 20_000;
 
 export const jobRunning = (job: SetupJob | null) => !!job && !job.finishedAt;
+
+/** No server has worked on it for this long: it really stopped (a lost hand-on, a runner that died). */
+export const STALL_MS = 3 * 60_000;
+/** Pure: an unfinished job that no server holds and none has saved for STALL_MS. A job between two calls isn't stalled. */
+export function jobStalled(job: SetupJob | null, at = Date.now()): boolean {
+  if (!job || job.finishedAt) return false;
+  if (job.leaseUntil && Date.parse(job.leaseUntil) > at) return false;
+  const last = Math.max(job.leaseUntil ? Date.parse(job.leaseUntil) : 0, job.workedAt ? Date.parse(job.workedAt) : Date.parse(job.createdAt));
+  return at - last > STALL_MS;
+}
 
 /** Queues these items as the new job. Refused while another job hasn't finished. */
 export async function startSetupJob(items: { id: string; name: string; run: SetupRun }[], by: string, now = new Date(), trigger: "admin" | "scheduler" = "admin", scope: { kind?: "import" | "module"; module?: string } = {}): Promise<{ ok: true; job: SetupJob } | { ok: false; message: string }> {
@@ -158,10 +179,16 @@ export async function continueSetupJob(deps: ContinueDeps = {}): Promise<{ ran: 
     item.startedAt = new Date(now()).toISOString();
     await save(job);
     // Each step is saved as it starts, so a reloaded page shows exactly where the job is.
+    const beat = setInterval(() => {
+      job.leaseUntil = new Date(now() + LEASE_MS).toISOString();
+      void save(job).catch(() => undefined);
+    }, LEASE_BEAT_MS);
     const r = await run(item.run, (s) => {
       item.step = s;
       void save(job).catch(() => undefined);
-    }).catch((e: unknown) => ({ ok: false as const, step: item.step ?? "Run", message: e instanceof Error ? e.message : String(e) }));
+    })
+      .catch((e: unknown) => ({ ok: false as const, step: item.step ?? "Run", message: e instanceof Error ? e.message : String(e) }))
+      .finally(() => clearInterval(beat));
     if (r.ok) {
       Object.assign(item, { status: "live", valid: r.valid, step: undefined, message: undefined });
     } else Object.assign(item, { status: "failed", step: r.step, message: r.message.slice(0, 300) });

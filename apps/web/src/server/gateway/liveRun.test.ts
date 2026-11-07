@@ -107,3 +107,18 @@ describe("LiveRunTracker", () => {
     await expect(t.finish(false, "x")).resolves.toBeUndefined();
   });
 });
+
+describe("a stopped import", () => {
+  it("is stalled only when no server holds it and none saved it for minutes", async () => {
+    const { jobStalled, STALL_MS } = await import("./setupJob");
+    const at = Date.parse("2026-11-07T10:00:00Z");
+    const job = { id: "s", by: "a", createdAt: "2026-11-07T09:00:00Z", items: [] };
+    // Between two calls (no lease, saved a moment ago): not stalled.
+    expect(jobStalled({ ...job, workedAt: new Date(at - 5_000).toISOString() }, at)).toBe(false);
+    // Lease still held (a long source on the runner, renewed by its heartbeat): not stalled.
+    expect(jobStalled({ ...job, leaseUntil: new Date(at + 30_000).toISOString(), workedAt: new Date(at - 60_000).toISOString() }, at)).toBe(false);
+    // Nobody for longer than STALL_MS: stalled.
+    expect(jobStalled({ ...job, leaseUntil: new Date(at - STALL_MS - 1_000).toISOString(), workedAt: new Date(at - STALL_MS - 60_000).toISOString() }, at)).toBe(true);
+    expect(jobStalled({ ...job, finishedAt: "2026-11-07T09:10:00Z" }, at)).toBe(false);
+  });
+});

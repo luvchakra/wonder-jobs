@@ -11,7 +11,7 @@ import type { CollectProgress } from "../../../../data-gateway/src/handler.mjs";
 
 const KEY = "wj.liverun" as const;
 
-export type LiveRunMode = "scheduled" | "all" | "module";
+export type LiveRunMode = "scheduled" | "all" | "module" | "resume";
 export type LiveRunStep = "starting" | "setup" | "collecting" | "refreshing" | "done";
 
 export interface LiveRunSource {
