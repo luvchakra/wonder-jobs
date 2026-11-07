@@ -33,6 +33,27 @@ export interface ModuleResponseRef {
   note?: string;
 }
 
+export interface ModuleRefine {
+  values: Record<string, string>;
+  places: string[];
+  sort?: string;
+}
+
+/** Pure: Refine as it's kept: set values only, capped, so a stray or huge value never grows the document. Exported for tests. */
+export function compactRefine(r: Partial<ModuleRefine> | null | undefined): ModuleRefine | null {
+  if (!r) return null;
+  const values = Object.fromEntries(
+    Object.entries(r.values ?? {})
+      .filter((e): e is [string, string] => typeof e[1] === "string" && e[1] !== "" && e[0].length <= 40)
+      .slice(0, 20)
+      .map(([k, v]) => [k, v.slice(0, 200)]),
+  );
+  const places = (r.places ?? []).filter((p) => typeof p === "string" && p.trim()).slice(0, 10).map((p) => p.slice(0, 80));
+  const sort = typeof r.sort === "string" && r.sort ? r.sort.slice(0, 40) : undefined;
+  if (!Object.keys(values).length && !places.length && !sort) return null;
+  return { values, places, ...(sort ? { sort } : {}) };
+}
+
 /** The last search as Find showed it: what was searched, where, each source's count, and the results in order. */
 export type StoredRun = FindRun<{ id: string }> & { at: string };
 
@@ -55,6 +76,12 @@ export interface ModuleState {
   closed: Record<string, { at: string; reason: string }>;
   /** When each listing's own link was last found open (id → ISO time), so it isn't re-checked every visit. */
   linkOpenAt: Record<string, string>;
+  /**
+   * Find's Refine as last saved: its choices, places and sort (owner, 2026-11-07: "once i refresh the page, the selection
+   * disappears. ensure all saved refine items are persisted in all modules"). Null until Refine is first saved.
+   */
+  refine: ModuleRefine | null;
+  setRefine: (patch: Partial<ModuleRefine>) => void;
   /** Save or unsave; `item` is the listing as the card showed it. */
   toggleSaved: (listingId: string, item?: unknown) => void;
   /**
@@ -112,7 +139,7 @@ function storedRun(run: StoredRun | null | undefined, trim: (item: unknown) => u
 
 /** What persists: trimmed to the caps, and listing snapshots only for what's still saved or responded to. Exported for tests. */
 export function compactModuleState(
-  s: Pick<ModuleState, "saved" | "responses" | "recentSearches"> & Partial<Pick<ModuleState, "items" | "persona" | "recentSavedSearches" | "lastRun" | "closed" | "linkOpenAt">>,
+  s: Pick<ModuleState, "saved" | "responses" | "recentSearches"> & Partial<Pick<ModuleState, "items" | "persona" | "recentSavedSearches" | "lastRun" | "closed" | "linkOpenAt" | "refine">>,
   trim: (item: unknown) => unknown = storedListing,
 ) {
   const saved = newestFirst(s.saved, (v) => v, MODULE_SAVED_CAP);
@@ -130,6 +157,7 @@ export function compactModuleState(
     lastRun,
     closed: recentEntries(s.closed, (c) => c.at, CLOSED_DAYS, CLOSED_CAP),
     linkOpenAt: lastEntries(s.linkOpenAt, CLOSED_CAP, (id) => shown.has(id) || id in saved),
+    refine: compactRefine(s.refine),
   };
 }
 
@@ -141,8 +169,9 @@ function make(id: Exclude<ModuleId, "jobs">, opts: ModuleStoreOptions) {
   const privateSearch = PRIVATE_SEARCH_MODULES.has(id);
   // Persisting runs on every change; the run (up to MODULE_CATALOG_CAP listings) is copied only when it changed.
   const persisted = memoOnInputs(
-    (saved: ModuleState["saved"], responses: ModuleState["responses"], recentSearches: string[], recentSavedSearches: string[], items: ModuleState["items"], persona: ModuleState["persona"], lastRun: ModuleState["lastRun"], closed: ModuleState["closed"], linkOpenAt: ModuleState["linkOpenAt"]) =>
-      compactModuleState(privateSearch ? { saved, responses, recentSearches: [], recentSavedSearches: [], items, persona, lastRun: null, closed, linkOpenAt } : { saved, responses, recentSearches, recentSavedSearches, items, persona, lastRun, closed, linkOpenAt }, trim),
+    (saved: ModuleState["saved"], responses: ModuleState["responses"], recentSearches: string[], recentSavedSearches: string[], items: ModuleState["items"], persona: ModuleState["persona"], lastRun: ModuleState["lastRun"], closed: ModuleState["closed"], linkOpenAt: ModuleState["linkOpenAt"], refine: ModuleState["refine"]) =>
+      // A private-search module keeps no searches, and so no Refine either (what someone narrows to can say as much).
+      compactModuleState(privateSearch ? { saved, responses, recentSearches: [], recentSavedSearches: [], items, persona, lastRun: null, closed, linkOpenAt, refine: null } : { saved, responses, recentSearches, recentSavedSearches, items, persona, lastRun, closed, linkOpenAt, refine }, trim),
   );
   const store = create<ModuleState>()(
     persist<ModuleState, [], [], Persisted>(
@@ -156,6 +185,8 @@ function make(id: Exclude<ModuleId, "jobs">, opts: ModuleStoreOptions) {
         lastRun: null,
         closed: {},
         linkOpenAt: {},
+        refine: null,
+        setRefine: (patch) => set((s) => ({ refine: compactRefine({ values: {}, places: [], ...s.refine, ...patch }) })),
         toggleSaved: (listingId, item) =>
           set((s) => {
             const saved = { ...s.saved };
@@ -206,7 +237,7 @@ function make(id: Exclude<ModuleId, "jobs">, opts: ModuleStoreOptions) {
         version: 1,
         storage: createRemoteStorage<Persisted>(),
         skipHydration: true,
-        partialize: (s) => persisted(s.saved, s.responses, s.recentSearches, s.recentSavedSearches, s.items, s.persona, s.lastRun, s.closed, s.linkOpenAt),
+        partialize: (s) => persisted(s.saved, s.responses, s.recentSearches, s.recentSavedSearches, s.items, s.persona, s.lastRun, s.closed, s.linkOpenAt, s.refine),
         merge: (p, current) => ({ ...current, ...(p as Partial<Persisted>) }),
       },
     ),

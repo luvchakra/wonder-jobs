@@ -114,3 +114,18 @@ describe("module responses", () => {
     expect(findListing({ items: {}, lastRun: null }, "b")).toBeUndefined();
   });
 });
+
+describe("Refine, kept across reloads", () => {
+  it("keeps set choices, places and sort, capped; an empty Refine keeps nothing", async () => {
+    const { compactRefine } = await import("./store");
+    expect(compactRefine({ values: { kind: "startup", role: "", x: undefined as unknown as string }, places: ["Pune", " "], sort: "new" })).toEqual({ values: { kind: "startup" }, places: ["Pune"], sort: "new" });
+    expect(compactRefine({ values: {}, places: [] })).toBeNull();
+    expect(compactRefine({ values: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`k${i}`, "v".repeat(500)])) })!.values).toSatisfy((v: Record<string, string>) => Object.keys(v).length === 20 && Object.values(v).every((x) => x.length === 200));
+  });
+
+  it("is saved with the module's other state", async () => {
+    const { compactModuleState } = await import("./store");
+    const s = compactModuleState({ saved: {}, responses: {}, recentSearches: [], refine: { values: { kind: "startup" }, places: [] } });
+    expect(s.refine).toEqual({ values: { kind: "startup" }, places: [] });
+  });
+});
