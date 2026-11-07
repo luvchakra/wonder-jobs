@@ -24,28 +24,55 @@ export const PLATFORM_GROUPS: KeyGroup[] = ["email", "ai", "push", "runner"];
 /** The sections for `groups`, in order, each with its keys and any action (Send a test email, Generate a key pair). */
 export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
   const { data, error, reload } = useAdmin<{ keys: PlatformKeyStatus[] }>("keys");
+  // Show only the keys still to set (owner, 2026-11-07: "add an easy filter to show fields not set").
+  const [show, setShow] = useState<"all" | "missing" | "set">("all");
+  const sections = data ? GROUPS.filter((g) => groups.includes(g.id)).map((g) => ({ g, keys: data.keys.filter((k) => (k.group ?? "sources") === g.id) })).filter((x) => x.keys.length) : [];
+  const all = sections.flatMap((x) => x.keys);
+  const missingAll = all.filter((k) => !k.set).length;
+  const shown = (k: PlatformKeyStatus) => show === "all" || (show === "missing" ? !k.set : k.set);
   return (
     <>
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
-      {data &&
-        GROUPS.filter((g) => groups.includes(g.id)).map((g) => {
-          const keys = data.keys.filter((k) => (k.group ?? "sources") === g.id);
-          if (!keys.length) return null;
-          const missing = keys.filter((k) => !k.set).length;
-          return (
-            <Panel key={g.id} title={`${g.title}${missing ? ` · ${missing} of ${keys.length} not set` : " · all set"}`} className="mb-4">
-              <p className="-mt-1 mb-1 text-[12.5px] text-ink-3">{g.hint}</p>
-              <ul className="flex flex-col divide-y divide-line">
-                {keys.map((k) => (
-                  <KeyRow key={k.name} k={k} onChanged={reload} />
-                ))}
-              </ul>
-              {g.id === "email" && <GroupAction action="test_email" label="Send a test email" busyLabel="Sending" />}
-              {g.id === "push" && !keys.some((k) => k.set && k.name !== "VAPID_SUBJECT") && <GroupAction action="generate_vapid" label="Generate a key pair" busyLabel="Generating" onDone={reload} />}
-            </Panel>
-          );
-        })}
+      {data && all.length > 0 && (
+        <div role="group" aria-label="Show" className="mb-3 flex flex-wrap items-center gap-2">
+          {(
+            [
+              ["all", `All ${all.length}`],
+              ["missing", `Not set ${missingAll}`],
+              ["set", `Set ${all.length - missingAll}`],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={show === id}
+              onClick={() => setShow(id)}
+              className={`rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors ${show === id ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line text-ink-2 hover:bg-bg-soft"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {data && show !== "all" && sections.every((x) => !x.keys.some(shown)) && <p className="mb-4 text-[13px] text-ink-3">{show === "missing" ? "Every key here is set." : "No key here is set yet."}</p>}
+      {sections.map(({ g, keys }) => {
+        const missing = keys.filter((k) => !k.set).length;
+        const visible = keys.filter(shown);
+        if (!visible.length) return null;
+        return (
+          <Panel key={g.id} title={`${g.title}${missing ? ` · ${missing} of ${keys.length} not set` : " · all set"}`} className="mb-4">
+            <p className="-mt-1 mb-1 text-[12.5px] text-ink-3">{g.hint}</p>
+            <ul className="flex flex-col divide-y divide-line">
+              {visible.map((k) => (
+                <KeyRow key={k.name} k={k} onChanged={reload} />
+              ))}
+            </ul>
+            {g.id === "email" && <GroupAction action="test_email" label="Send a test email" busyLabel="Sending" />}
+            {g.id === "push" && !keys.some((k) => k.set && k.name !== "VAPID_SUBJECT") && <GroupAction action="generate_vapid" label="Generate a key pair" busyLabel="Generating" onDone={reload} />}
+          </Panel>
+        );
+      })}
     </>
   );
 }
