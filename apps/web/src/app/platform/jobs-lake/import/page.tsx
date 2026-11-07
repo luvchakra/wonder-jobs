@@ -74,8 +74,10 @@ export default function ImportPage() {
       {data && !data.gatewayConfigured && <Note tone="warning">The gateway isn&apos;t running on this deployment (it needs Supabase and SECRET_ENCRYPTION_KEY), so only WorksLake&apos;s own sources bring listings in.</Note>}
       {data && (
         <div className="flex flex-col gap-4">
-          {data.live && <RunnerProgress live={data.live} />}
-          <ProgressBanner d={data} />
+          {/* Only what's under way, or stopped and needing a look, stays on top; finished runs go to History below
+              (owner, 2026-11-07: "show history in separate section below"). */}
+          {data.live && liveNow(data.live) && <RunnerProgress live={data.live} />}
+          {data.job && (data.job.running || data.job.stalled) && <ProgressBanner d={data} />}
           <Pipeline d={data} />
           <Schedule d={data} reload={reload} />
           <div className="flex flex-col gap-3">
@@ -85,7 +87,14 @@ export default function ImportPage() {
             ))}
           </div>
           <AddSources reload={reload} />
-          <RunHistory runs={data.runs} />
+          <section aria-labelledby="import-history" className="flex flex-col gap-3">
+            <h2 id="import-history" className="text-[15px] font-semibold text-ink">
+              History
+            </h2>
+            {data.live && !liveNow(data.live) && <RunnerProgress live={data.live} />}
+            {data.job && !data.job.running && !data.job.stalled && <ProgressBanner d={data} />}
+            <RunHistory runs={data.runs} />
+          </section>
           <Emails d={data} reload={reload} />
           <RecentRuns d={data} />
           <DataTypes />
@@ -184,6 +193,9 @@ function Pipeline({ d }: { d: ImportView }) {
  * 2026-11-02): a bar, the source being worked on and its step, counts so far, and every source in a fold. After it
  * finishes, its outcome stays for a day.
  */
+/** A runner run that's under way, waiting to start, or stopped without finishing: shown on top until it's settled. */
+const liveNow = (l: LiveView) => l.active || !!l.request?.stale || !!l.run?.silent;
+
 const MODE: Record<"scheduled" | "all" | "module" | "resume", string> = { scheduled: "Scheduled collection", all: "Import now", module: "Module import", resume: "Finishing a stopped import" };
 const moduleLabel = (id: string) => MODULES.find((m) => m.id === id)?.label ?? id;
 
