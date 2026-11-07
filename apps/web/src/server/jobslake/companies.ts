@@ -426,6 +426,38 @@ export async function wikidataLogo(qid: string, fetcher: typeof fetch): Promise<
  */
 const NAME_MISS = new Map<string, number>();
 const NAME_MISS_MS = 86_400_000;
+/**
+ * Other ways to write an organisation's name that Wikidata knows it by (owner, 2026-11-07: "iit madras has a well defined
+ * logo, why can't you get and show it"). A listing often writes the acronym inside the name ("Indian Institute of
+ * Technology (IIT), Madras" → key "indian institute of technology iit madras"), which matches nothing; without it
+ * ("indian institute of technology madras") or as acronym + the rest ("iit madras") it does. The key itself comes first.
+ */
+export function nameVariants(nameKey: string): string[] {
+  const words = nameKey.split(" ").filter(Boolean);
+  const out = [nameKey];
+  const small = new Set(["of", "and", "the", "for", "in", "de"]);
+  for (let i = 1; i < words.length; i++) {
+    const t = words[i];
+    if (t.length < 2 || t.length > 6) continue;
+    const initials = words.slice(0, i).filter((w) => !small.has(w)).map((w) => w[0]).join("");
+    if (initials.length < 2 || !initials.endsWith(t) || initials.length - t.length > 1) continue;
+    const before = words.slice(0, i), after = words.slice(i + 1);
+    out.push([...before, ...after].join(" "));
+    if (after.length) out.push([t, ...after].join(" "));
+    break;
+  }
+  // A government body written with its government ("ministry of tribal affairs government of india"): Wikidata names
+  // the body alone.
+  const gov = nameKey.replace(/ (?:government|govt) of [a-z ]+$/, "");
+  if (gov !== nameKey && gov.split(" ").length >= 2) out.push(gov);
+  return [...new Set(out)].filter((v) => v.length >= 2);
+}
+
+/**
+ * An organisation known only by name, found on Wikidata: its official website (P856) gives the domain its logo is
+ * fetched from. The search tries the name and its variants (nameVariants), and accepts a hit only when its label or the
+ * alias it matched is that exact name, never a person, and only with an official website.
+ */
 export async function resolveCompanyByName(nameKey: string, fetcher: typeof fetch, now = Date.now()): Promise<{ domain: string; name: string; wikidataId: string } | undefined> {
   if (!nameKey || nameKey.length < 2 || nameKey.length > 80) return undefined;
   const missed = NAME_MISS.get(nameKey);
@@ -437,18 +469,23 @@ export async function resolveCompanyByName(nameKey: string, fetcher: typeof fetc
   };
   try {
     const opts = { signal: AbortSignal.timeout(4000), headers: { "user-agent": UA, accept: "application/json" } };
-    const res = await fetcher(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(nameKey)}&language=en&type=item&limit=1&format=json`, opts);
-    if (!res.ok) return undefined;
-    const hit = ((await res.json()) as { search?: { id?: string; label?: string }[] }).search?.[0];
-    if (!hit?.id || !/^Q\d{1,12}$/.test(hit.id) || companyKey(hit.label ?? "") !== nameKey) return miss();
-    const ent = await fetcher(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${hit.id}&props=claims&format=json`, opts);
-    if (!ent.ok) return undefined;
-    type Claim = { mainsnak?: { datavalue?: { value?: unknown } } };
-    const claims = ((await ent.json()) as { entities?: Record<string, { claims?: Record<string, Claim[]> }> }).entities?.[hit.id]?.claims ?? {};
-    const isPerson = (claims.P31 ?? []).some((c) => (c.mainsnak?.datavalue?.value as { id?: string } | undefined)?.id === "Q5");
-    const site = (claims.P856 ?? []).map((c) => c.mainsnak?.datavalue?.value).find((v): v is string => typeof v === "string");
-    const domain = !isPerson && site ? companyDomain(site) : undefined;
-    return domain ? { domain, name: hit.label ?? nameKey, wikidataId: hit.id } : miss();
+    type Hit = { id?: string; label?: string; match?: { type?: string; text?: string } };
+    for (const variant of nameVariants(nameKey).slice(0, 3)) {
+      const res = await fetcher(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(variant)}&language=en&type=item&limit=3&format=json`, opts);
+      if (!res.ok) return undefined;
+      const hits = ((await res.json()) as { search?: Hit[] }).search ?? [];
+      const hit = hits.find((h) => h.id && /^Q\d{1,12}$/.test(h.id) && (companyKey(h.label ?? "") === variant || companyKey(h.match?.text ?? "") === variant));
+      if (!hit?.id) continue;
+      const ent = await fetcher(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${hit.id}&props=claims&format=json`, opts);
+      if (!ent.ok) return undefined;
+      type Claim = { mainsnak?: { datavalue?: { value?: unknown } } };
+      const claims = ((await ent.json()) as { entities?: Record<string, { claims?: Record<string, Claim[]> }> }).entities?.[hit.id]?.claims ?? {};
+      const isPerson = (claims.P31 ?? []).some((c) => (c.mainsnak?.datavalue?.value as { id?: string } | undefined)?.id === "Q5");
+      const site = (claims.P856 ?? []).map((c) => c.mainsnak?.datavalue?.value).find((v): v is string => typeof v === "string");
+      const domain = !isPerson && site ? companyDomain(site) : undefined;
+      if (domain) return { domain, name: hit.label ?? nameKey, wikidataId: hit.id };
+    }
+    return miss();
   } catch {
     return undefined;
   }
