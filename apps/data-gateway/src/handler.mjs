@@ -107,7 +107,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       await store.change((s) => {
         const src = s.sources.find((x) => x.id === sourceId);
         if (!src) return;
-        if (report.crawl) { src.crawlCursor = report.crawl.cursor; src.lastCrawl = { at: now, pages: report.crawl.pages, read: report.crawl.read, failed: report.crawl.failed }; }
+        if (report.crawl) { src.crawlCursor = report.crawl.cursor; if (report.crawl.watermark) src.crawlWatermark = report.crawl.watermark; src.lastCrawl = { at: now, pages: report.crawl.pages, read: report.crawl.read, failed: report.crawl.failed }; }
         src.lastSuccessAt = now;
         src.lastError = null;
         src.nextRunAt = new Date(Date.now() + src.minIntervalMinutes * 60000).toISOString();
@@ -125,6 +125,9 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     } finally { activeCrawls.delete(sourceId); }
   }
 
+  /** How many sources a long run collects at once (on different sites). */
+  const PARALLEL = 4;
+
   /** Collects every active source that is due. Returns what happened to each, never a secret or a payload. */
   async function collectDue(budgetMs = 35000, skipModules = [], floorMinutes = 0) {
     // A source feeding only paused modules (Data → Import) waits; one that also feeds a live module runs.
@@ -134,14 +137,32 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && !x.externalCollection && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now()) && rested(x) && !(paused.size && x.modules.every((m) => paused.has(m)))).map((x) => x.id));
     const outcomes = [];
     const started = Date.now();
-    for (const sourceId of due) {
+    const one = async (sourceId) => {
       // One pass fits one serverless call: a source not started with at least 8 s left waits for the next pass (still
       // due), and the one that starts gets only the time that's left (a crawl's own 45 s cap otherwise).
       const left = budgetMs - (Date.now() - started);
-      if (left < 8000) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); continue; }
+      if (left < 8000) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); return; }
       try { outcomes.push({ sourceId, ...(await collectOne(sourceId, false, left)) }); }
       catch (e) { outcomes.push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
-    }
+    };
+    // A long run (the GitHub Actions runner's minutes; 2026-11-07, crawl speed) collects up to PARALLEL sources at once,
+    // never two on the same site, so each site still sees one request at a time at its own pace while the waits overlap.
+    // A short (serverless) pass stays one at a time.
+    const parallel = budgetMs > 60000 ? PARALLEL : 1;
+    const hostOf = await store.read((s) => Object.fromEntries(s.sources.map((x) => { try { return [x.id, new URL(x.url).hostname.replace(/^www\./, "")]; } catch { return [x.id, x.id]; } })));
+    const queue = [...due];
+    const busy = new Set();
+    const worker = async () => {
+      for (;;) {
+        const i = queue.findIndex((id) => !busy.has(hostOf[id] ?? id));
+        if (i < 0) { if (!queue.length) return; await new Promise((r) => setTimeout(r, 250)); continue; }
+        const [sourceId] = queue.splice(i, 1);
+        const host = hostOf[sourceId] ?? sourceId;
+        busy.add(host);
+        try { await one(sourceId); } finally { busy.delete(host); }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(parallel, Math.max(1, due.length)) }, worker));
     return outcomes;
   }
 
