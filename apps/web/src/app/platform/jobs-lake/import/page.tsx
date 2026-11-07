@@ -105,7 +105,7 @@ const KIND: Record<ImportRow["kind"], { label: string; text: string }> = {
   Gateway: { label: "Collected regularly", text: "Collected every few hours and stored; searches read what was collected. You: Test & activate it once; then nothing." },
   Partner: { label: "Uploaded", text: "A partner's own list. You: upload it, then Activate." },
   Catalogue: { label: "Not added yet", text: "A reviewed source we can collect regularly. You: Add & activate." },
-  Decision: { label: "Your decision", text: "A call only you can make. Do what it says (Open shows where), then Mark decided." },
+  Decision: { label: "Your decision", text: "A call only you can make. Read it, do what it asks (its Open link shows where), then press the button with your answer." },
 };
 
 /** What each source's state means and what's expected of the admin (owner, 2026-11-05: "put a legend section briefly"). */
@@ -120,7 +120,7 @@ const LEGEND: { state: ImportRow["state"]; text: string }[] = [
 
 /** What each row button does (owner, 2026-11-05: "what do you mean by Mark decided? create a small legend section"). */
 const BUTTONS: { label: string; text: string }[] = [
-  { label: "Mark decided", text: "For a Decision row: you've made that call or done what it asks (applied for access, checked a setting). It only takes the row off the list and records who and when; it changes nothing else." },
+  { label: "Your answer (e.g. Yes, build it · Not now · Secrets added)", text: "On a Decision row, each button is an answer or a thing done; the line under it says what each one means. Pressing one records your answer, who and when, and takes the row off the list. It changes nothing else by itself: the line says what follows, such as asking Claude to build something." },
   { label: "Terms confirmed", text: "You've checked the source's terms allow our use. Recorded, and the row stops asking." },
   { label: "Test & activate", text: "Fetches a sample now; if it reads well the source goes live. Try again does the same after a failure." },
   { label: "Add & activate", text: "Adds a reviewed catalogue source, then tests and activates it." },
@@ -133,7 +133,7 @@ const BUTTONS: { label: string; text: string }[] = [
 
 function StateLegend() {
   return (
-    <Fold title="What the states and buttons mean" hint="Needs you, Waiting, Live, Down, Off · Mark decided, Test & activate…">
+    <Fold title="What the states and buttons mean" hint="Needs you, Waiting, Live, Down, Off · decision answers, Test & activate…">
       <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-2">
         {LEGEND.map((l) => (
           <li key={l.state} className="flex items-baseline gap-2">
@@ -184,7 +184,7 @@ function Pipeline({ d }: { d: ImportView }) {
  * 2026-11-02): a bar, the source being worked on and its step, counts so far, and every source in a fold. After it
  * finishes, its outcome stays for a day.
  */
-const MODE: Record<"scheduled" | "all" | "module", string> = { scheduled: "Scheduled collection", all: "Import now", module: "Module import" };
+const MODE: Record<"scheduled" | "all" | "module" | "resume", string> = { scheduled: "Scheduled collection", all: "Import now", module: "Module import", resume: "Finishing a stopped import" };
 const moduleLabel = (id: string) => MODULES.find((m) => m.id === id)?.label ?? id;
 
 /**
@@ -339,32 +339,71 @@ function ProgressBanner({ d }: { d: ImportView }) {
         {j.stored && Object.keys(j.stored).length ? ` · In Find: ${Object.entries(j.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}` : ""}
         {j.running ? ". It runs on the server; you can leave this page." : "."}
       </p>
-      {j.stalled && <ContinueImport />}
+      {j.stalled && <ContinueImport jobId={j.id} />}
       <RunItems items={j.items} />
     </div>
   );
 }
 
 /** A running import no server has picked up for a while: one press carries it on (the scheduled run would, later). */
-function ContinueImport() {
-  const [busy, setBusy] = useState(false);
+/**
+ * A job no server worked on for minutes (its runner or hand-on stopped) is picked up again on its own, once per job
+ * (owner, 2026-11-07: "when it shows paused, what am i supposed to do, cant it auto continue and ensure it finshes?").
+ * The scheduled run finishes it too; Try again is only there if the automatic pick-up couldn't start.
+ */
+function ContinueImport({ jobId }: { jobId: string }) {
+  const key = `wj.import.resumed.${jobId}`;
+  // Asked already in this tab (a reload): don't ask again; the server also refuses a second while the first runs.
+  const [asked] = useState(() => {
+    try {
+      return !!sessionStorage.getItem(key);
+    } catch {
+      return false;
+    }
+  });
+  const [state, setState] = useState<"starting" | "started" | "failed">(asked ? "started" : "starting");
+  const [error, setError] = useState("");
+  const resume = async () => {
+    const r = await post({ action: "continue" });
+    if (r.ok) setState("started");
+    else {
+      setError(r.error.message);
+      setState("failed");
+    }
+  };
+  useEffect(() => {
+    if (asked) return;
+    try {
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* storage off: ask anyway */
+    }
+    // Once per job, after this render.
+    const t = setTimeout(() => void resume(), 0);
+    return () => clearTimeout(t);
+  }, [asked, key]);
   return (
-    <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-warning-600">
-      It has paused: no server has worked on it for a few minutes.
-      <Button
-        size="sm"
-        variant="outline"
-        loading={busy}
-        onClick={async () => {
-          setBusy(true);
-          const r = await post({ action: "continue" });
-          setBusy(false);
-          if (!r.ok) toast.error("Couldn't continue it", r.error.message);
-          else toast.success("Continuing on the server", "This page shows where it gets to.");
-        }}
-      >
-        Continue
-      </Button>
+    <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-2">
+      {state === "failed" ? (
+        <>
+          <span className="text-warning-600">It stopped, and picking it up again didn&apos;t start: {error}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setState("starting");
+              void resume();
+            }}
+          >
+            Try again
+          </Button>
+        </>
+      ) : (
+        <span>
+          <Loader2 className="mr-1 inline size-3.5 animate-spin" aria-hidden />
+          It stopped part-way, so it&apos;s being picked up again automatically. Nothing to do.
+        </span>
+      )}
     </p>
   );
 }
@@ -561,13 +600,20 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
       {(canImport || review > 0) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6">
           {canImport && (
-            <Button size="sm" variant={m.waiting ? "primary" : "outline"} loading={busy === "import"} disabled={!!busy || jobRunning} onClick={() => void importNow()}>
-              {m.waiting ? `Set up ${num(m.waiting)}` : "Import"}
+            <Button
+              size="sm"
+              variant={m.waiting ? "primary" : "outline"}
+              loading={busy === "import"}
+              disabled={!!busy || jobRunning}
+              title={m.waiting ? `Tests and switches on its ${num(m.waiting)} waiting sources, collects its live ones, then refreshes Find.` : "Collects its live sources now and refreshes Find, instead of waiting for the schedule."}
+              onClick={() => void importNow()}
+            >
+              {m.waiting ? `Set up ${num(m.waiting)} new sources` : `Collect ${m.label} now`}
             </Button>
           )}
           {review > 0 && (
-            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-              Review {num(review)}
+            <Button size="sm" variant="outline" title="Opens the card on the sources and decisions that need you." onClick={() => setOpen(true)}>
+              See {num(review)} that {review === 1 ? "needs" : "need"} you
             </Button>
           )}
         </div>
@@ -602,13 +648,13 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
   if (a.kind === "upload") return <Upload sourceId={a.sourceId} busy={busy} setBusy={setBusy} setMsg={setMsg} reload={reload} />;
   const body: Record<string, unknown> =
     a.kind === "run" ? { action: "item", id: rowId }
-    : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true }
+    : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true, note: a.label }
     : a.kind === "source_status" ? { action: "source_status", id: a.id, status: a.status }
     : a.kind === "dismiss" ? { action: "dismiss", id: a.id, dismissed: a.dismissed }
     : { action: a.kind, sourceId: a.sourceId };
   const done = (d: Record<string, unknown>) =>
     a.kind === "run" ? `Live · ${num(Number(d.valid ?? 0))} listings`
-    : a.kind === "decide" ? "Decided"
+    : a.kind === "decide" ? `Recorded: ${a.label}`
     : a.kind === "pause" ? "Paused"
     : a.kind === "activate" ? "Live"
     : a.kind === "collect" ? `Collected · ${num(Number(d.valid ?? 0))} listings`
@@ -616,7 +662,7 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
     : a.kind === "dismiss" ? (a.dismissed ? "Dismissed: Import won't try it again" : "Restored")
     : a.kind === "source_status" && a.status === "paused" ? "Paused" : "Resumed";
   return (
-    <Button size={size} variant="outline" loading={busy} onClick={() => void act(body, done)}>
+    <Button size={size} variant="outline" loading={busy} title={a.kind === "decide" ? a.hint : undefined} onClick={() => void act(body, done)}>
       {a.label}
     </Button>
   );
@@ -692,6 +738,7 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
           {r.state === "needs_you" && r.more.map((a) => <ActionButton key={a.label} a={a} {...shared} />)}
         </div>
       )}
+      {r.hint && !msg && <p className="mt-1.5 text-[11.5px] leading-snug text-ink-4">{r.hint}</p>}
       {details && (
         <div className="mt-2 flex flex-col gap-2 rounded-[10px] bg-bg-soft px-3 py-2">
           {r.history.length > 0 && (

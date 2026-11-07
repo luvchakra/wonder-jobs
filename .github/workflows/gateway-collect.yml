@@ -16,10 +16,10 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "scheduled: what's due · all: Import now · module: Import this module"
+        description: "scheduled: what's due · all: Import now · module: Import this module · resume: finish an import that stopped"
         type: choice
         default: scheduled
-        options: [scheduled, all, module]
+        options: [scheduled, all, module, resume]
       module:
         description: "Module id, for mode=module (jobs, internships, teaching, events, …)"
         type: string

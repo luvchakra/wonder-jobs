@@ -17,7 +17,8 @@ export function runnerDispatchConfigured(env: Env = withPlatformKeys()): boolean
 }
 
 export interface DispatchInputs {
-  mode: "all" | "module";
+  /** resume: finish an import that stopped (its Setup job), nothing else. */
+  mode: "all" | "module" | "resume";
   module?: string;
   /** Who pressed it (shown on Sources → Import as the run's "by"). */
   by: string;

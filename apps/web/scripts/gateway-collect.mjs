@@ -5,7 +5,7 @@
  * its environment. The site is never called. Loads the TypeScript through jiti with the app's "@/…" alias, like
  * scripts/ui-check.mjs.
  *
- *   WJ_COLLECT_MODE    scheduled (default: what's due) · all (Import now) · module (Import this module)
+ *   WJ_COLLECT_MODE    scheduled (default: what's due) · all (Import now) · module (Import this module) · resume (finish a stopped import)
  *   WJ_COLLECT_MODULE  the module, for mode=module
  *   WJ_COLLECT_BY      who started it (the run's record)
  *   WJ_COLLECT_FORCE   1 to collect even right after the last scheduled run (Run workflow by hand)
@@ -36,7 +36,7 @@ const runUrl = () => {
   const { GITHUB_SERVER_URL: host, GITHUB_REPOSITORY: repo, GITHUB_RUN_ID: id } = process.env;
   return host && repo && /^\d+$/.test(id ?? "") ? `${host}/${repo}/actions/runs/${id}` : undefined;
 };
-const mode = ["scheduled", "all", "module"].includes(process.env.WJ_COLLECT_MODE ?? "") ? process.env.WJ_COLLECT_MODE : "scheduled";
+const mode = ["scheduled", "all", "module", "resume"].includes(process.env.WJ_COLLECT_MODE ?? "") ? process.env.WJ_COLLECT_MODE : "scheduled";
 try {
   const r = await runOnRunner({ mode, module: process.env.WJ_COLLECT_MODULE || undefined, by: process.env.WJ_COLLECT_BY || undefined, force: process.env.WJ_COLLECT_FORCE === "1", runUrl: runUrl() });
   console.log(`${r.ok ? "done" : "not run"}: ${r.summary}`);
