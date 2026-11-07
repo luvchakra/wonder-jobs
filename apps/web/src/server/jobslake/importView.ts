@@ -21,6 +21,7 @@ import { listCronRuns, loadScheduler } from "@/server/scheduler/store";
 import { parseEmailList, smtpConfig } from "@/server/notify";
 import { isGatewayBridge } from "./gatewaySources";
 import { setupTodo, type SetupItem } from "./setup";
+import { decisionAnswers } from "./decisions";
 import { jobsLakeStore } from "./store";
 import { listAllSourceViews, type SourceView } from "./views";
 import { lastGatewayRefresh } from "./warm";
@@ -52,7 +53,7 @@ export type ImportState = "live" | "waiting" | "needs_you" | "down" | "off";
 export type ImportAction =
   | { kind: "run"; label: string; run: NonNullable<SetupItem["run"]> }
   | { kind: "link"; label: string; href: string }
-  | { kind: "decide"; label: string; decision: string }
+  | { kind: "decide"; label: string; decision: string; hint?: string }
   | { kind: "pause" | "activate" | "collect" | "test"; label: string; sourceId: string }
   | { kind: "upload"; label: string; sourceId: string }
   | { kind: "source_status"; label: string; id: string; status: "paused" | "active" }
@@ -76,6 +77,8 @@ export interface ImportRow {
   /** What it did lately, for the row's Details: never a secret. */
   history: { label: string; value: string }[];
   termsPending?: boolean;
+  /** What the row's buttons do, in a line (decisions). */
+  hint?: string;
 }
 
 export interface ImportModule {
@@ -192,7 +195,13 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
   // Owner decisions and catalogue sources not yet added: only the Setup list knows them.
   for (const i of items) {
     if (i.module !== mod && !(i.module === "all" && mod === "jobs")) continue;
-    if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") }, more: i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link", label: i.action.label, href: i.action.href }] : [], history: [] });
+    if (i.decision) {
+      // One button per answer, each saying what it means (decisions.ts::DECISION_ANSWERS), then where to act.
+      const decision = i.id.replace(/^decision:/, "");
+      const answers = decisionAnswers(decision).map((a): ImportAction => ({ kind: "decide", label: a.label, decision, hint: a.hint }));
+      const open = i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link" as const, label: openLabel(i.action.href), href: i.action.href }] : [];
+      rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: answers[0], more: [...answers.slice(1), ...open], history: [], hint: decisionAnswers(decision).map((a) => `${a.label}: ${a.hint}`).join(" · ") });
+    }
     else if (i.run?.kind === "add") {
       const f = failed.get(i.id);
       if (dismissed.has(i.id)) rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: "off", detail: "Dismissed: Import never tries it.", action: { kind: "dismiss", label: "Restore", id: i.id, dismissed: false }, more: [], history: [] });
@@ -269,6 +278,19 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
     items: job.items.map((i) => ({ name: i.name, status: i.status, ...(i.step ? { step: i.step } : {}), ...(i.message ? { message: i.message } : {}), ...(i.valid != null ? { valid: i.valid } : {}) })),
     ...(job.stored ? { stored: job.stored } : {}),
   };
+}
+
+/** Where a decision's link goes, named (not just "Open"). */
+export function openLabel(href: string): string {
+  if (/^https?:/.test(href)) {
+    try {
+      return `Open ${new URL(href).hostname.replace(/^www\./, "")} ↗`;
+    } catch {
+      return "Open ↗";
+    }
+  }
+  const page: Record<string, string> = { "/platform/jobs-lake/keys": "Open Keys", "/platform/jobs-lake/scheduler": "Open Scheduler", "/platform/jobs-lake": "Open Sources", "/platform/jobs-lake/platform-keys": "Open Platform keys" };
+  return page[href] ?? "Open";
 }
 
 export interface LiveView {

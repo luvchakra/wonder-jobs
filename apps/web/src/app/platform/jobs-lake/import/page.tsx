@@ -105,7 +105,7 @@ const KIND: Record<ImportRow["kind"], { label: string; text: string }> = {
   Gateway: { label: "Collected regularly", text: "Collected every few hours and stored; searches read what was collected. You: Test & activate it once; then nothing." },
   Partner: { label: "Uploaded", text: "A partner's own list. You: upload it, then Activate." },
   Catalogue: { label: "Not added yet", text: "A reviewed source we can collect regularly. You: Add & activate." },
-  Decision: { label: "Your decision", text: "A call only you can make. Do what it says (Open shows where), then Mark decided." },
+  Decision: { label: "Your decision", text: "A call only you can make. Read it, do what it asks (its Open link shows where), then press the button with your answer." },
 };
 
 /** What each source's state means and what's expected of the admin (owner, 2026-11-05: "put a legend section briefly"). */
@@ -120,7 +120,7 @@ const LEGEND: { state: ImportRow["state"]; text: string }[] = [
 
 /** What each row button does (owner, 2026-11-05: "what do you mean by Mark decided? create a small legend section"). */
 const BUTTONS: { label: string; text: string }[] = [
-  { label: "Mark decided", text: "For a Decision row: you've made that call or done what it asks (applied for access, checked a setting). It only takes the row off the list and records who and when; it changes nothing else." },
+  { label: "Your answer (e.g. Yes, build it · Not now · Secrets added)", text: "On a Decision row, each button is an answer or a thing done; the line under it says what each one means. Pressing one records your answer, who and when, and takes the row off the list. It changes nothing else by itself: the line says what follows, such as asking Claude to build something." },
   { label: "Terms confirmed", text: "You've checked the source's terms allow our use. Recorded, and the row stops asking." },
   { label: "Test & activate", text: "Fetches a sample now; if it reads well the source goes live. Try again does the same after a failure." },
   { label: "Add & activate", text: "Adds a reviewed catalogue source, then tests and activates it." },
@@ -133,7 +133,7 @@ const BUTTONS: { label: string; text: string }[] = [
 
 function StateLegend() {
   return (
-    <Fold title="What the states and buttons mean" hint="Needs you, Waiting, Live, Down, Off · Mark decided, Test & activate…">
+    <Fold title="What the states and buttons mean" hint="Needs you, Waiting, Live, Down, Off · decision answers, Test & activate…">
       <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-2">
         {LEGEND.map((l) => (
           <li key={l.state} className="flex items-baseline gap-2">
@@ -561,13 +561,20 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
       {(canImport || review > 0) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6">
           {canImport && (
-            <Button size="sm" variant={m.waiting ? "primary" : "outline"} loading={busy === "import"} disabled={!!busy || jobRunning} onClick={() => void importNow()}>
-              {m.waiting ? `Set up ${num(m.waiting)}` : "Import"}
+            <Button
+              size="sm"
+              variant={m.waiting ? "primary" : "outline"}
+              loading={busy === "import"}
+              disabled={!!busy || jobRunning}
+              title={m.waiting ? `Tests and switches on its ${num(m.waiting)} waiting sources, collects its live ones, then refreshes Find.` : "Collects its live sources now and refreshes Find, instead of waiting for the schedule."}
+              onClick={() => void importNow()}
+            >
+              {m.waiting ? `Set up ${num(m.waiting)} new sources` : `Collect ${m.label} now`}
             </Button>
           )}
           {review > 0 && (
-            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-              Review {num(review)}
+            <Button size="sm" variant="outline" title="Opens the card on the sources and decisions that need you." onClick={() => setOpen(true)}>
+              See {num(review)} that {review === 1 ? "needs" : "need"} you
             </Button>
           )}
         </div>
@@ -602,13 +609,13 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
   if (a.kind === "upload") return <Upload sourceId={a.sourceId} busy={busy} setBusy={setBusy} setMsg={setMsg} reload={reload} />;
   const body: Record<string, unknown> =
     a.kind === "run" ? { action: "item", id: rowId }
-    : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true }
+    : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true, note: a.label }
     : a.kind === "source_status" ? { action: "source_status", id: a.id, status: a.status }
     : a.kind === "dismiss" ? { action: "dismiss", id: a.id, dismissed: a.dismissed }
     : { action: a.kind, sourceId: a.sourceId };
   const done = (d: Record<string, unknown>) =>
     a.kind === "run" ? `Live · ${num(Number(d.valid ?? 0))} listings`
-    : a.kind === "decide" ? "Decided"
+    : a.kind === "decide" ? `Recorded: ${a.label}`
     : a.kind === "pause" ? "Paused"
     : a.kind === "activate" ? "Live"
     : a.kind === "collect" ? `Collected · ${num(Number(d.valid ?? 0))} listings`
@@ -616,7 +623,7 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
     : a.kind === "dismiss" ? (a.dismissed ? "Dismissed: Import won't try it again" : "Restored")
     : a.kind === "source_status" && a.status === "paused" ? "Paused" : "Resumed";
   return (
-    <Button size={size} variant="outline" loading={busy} onClick={() => void act(body, done)}>
+    <Button size={size} variant="outline" loading={busy} title={a.kind === "decide" ? a.hint : undefined} onClick={() => void act(body, done)}>
       {a.label}
     </Button>
   );
@@ -692,6 +699,7 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
           {r.state === "needs_you" && r.more.map((a) => <ActionButton key={a.label} a={a} {...shared} />)}
         </div>
       )}
+      {r.hint && !msg && <p className="mt-1.5 text-[11.5px] leading-snug text-ink-4">{r.hint}</p>}
       {details && (
         <div className="mt-2 flex flex-col gap-2 rounded-[10px] bg-bg-soft px-3 py-2">
           {r.history.length > 0 && (

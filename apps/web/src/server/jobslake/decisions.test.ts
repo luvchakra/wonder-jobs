@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { decisionsDone, OWNER_DECISIONS, setDecision } from "./decisions";
+import { DECISION_ANSWERS, decisionAnswers, decisionsDone, OWNER_DECISIONS, setDecision } from "./decisions";
+import { openLabel } from "./importView";
 import { MODULES } from "@/modules/registry";
 
 describe("owner decisions on Sources → Import", () => {
@@ -11,6 +12,28 @@ describe("owner decisions on Sources → Import", () => {
       expect(d.detail.length).toBeGreaterThan(20);
       for (const g of d.geography ?? []) expect(g).toMatch(/^([A-Z]{2}|global|remote)$/);
     }
+  });
+
+  it("give every decision its own answer buttons, each with a hint, and never the old \"Mark decided\"", () => {
+    for (const d of OWNER_DECISIONS) {
+      const answers = DECISION_ANSWERS[d.id];
+      expect(answers, d.id).toBeDefined();
+      expect(answers.length).toBeGreaterThanOrEqual(1);
+      expect(answers.length).toBeLessThanOrEqual(2);
+      for (const a of answers) {
+        expect(a.label).not.toMatch(/mark decided/i);
+        expect(a.label.length).toBeLessThanOrEqual(28);
+        expect(a.hint.length).toBeGreaterThan(10);
+      }
+    }
+    // No answers for ids that aren't decisions any more.
+    for (const id of Object.keys(DECISION_ANSWERS)) expect(OWNER_DECISIONS.some((d) => d.id === id), id).toBe(true);
+    expect(decisionAnswers("not-listed-yet")).toEqual([{ label: "Done", hint: expect.any(String) }]);
+  });
+
+  it("names where a decision's link goes", () => {
+    expect(openLabel("https://github.com/luvchakra/wonder-jobs/settings/secrets/actions")).toBe("Open github.com ↗");
+    expect(openLabel("/platform/jobs-lake/keys")).toBe("Open Keys");
   });
 
   it("marks one done and back, refuses unknown ids, and keeps who and when", async () => {

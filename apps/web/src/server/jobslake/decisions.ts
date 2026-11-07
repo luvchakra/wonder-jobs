@@ -65,6 +65,76 @@ export const OWNER_DECISIONS: OwnerDecision[] = [
   { id: "scheduler-settings", module: "all", title: "Check the Scheduler settings", detail: "Unit tests overwrote wj.scheduler earlier (before tests were isolated). Check the collection schedules and limits are what you want.", href: "/platform/jobs-lake/scheduler" },
 ];
 
+/**
+ * The buttons a decision row shows (owner, 2026-11-07: "change the button names to something more descriptive and
+ * meaningfull, give hints etc. "mark decided" doesnt tell me what to do"). Each says the answer or the thing done, in
+ * the owner's words; its hint says what pressing it changes. Pressing any of them records that answer (who, when, which)
+ * and takes the row off the list; it changes nothing else on its own, and the hint says what follows.
+ */
+export interface DecisionAnswer {
+  label: string;
+  hint: string;
+}
+
+const done = (label: string, hint = "Takes it off this list once you've done it.") => [{ label, hint }];
+const yesNo = (yes: string, yesHint: string, no: string, noHint: string): DecisionAnswer[] => [
+  { label: yes, hint: yesHint },
+  { label: no, hint: noHint },
+];
+const BUILD = "Records your yes; ask Claude to build it.";
+const KEEP_OFF = "Records your no; it stays as it is.";
+const TERMS_OK = "Records that you confirmed; the source stays live.";
+const PAUSE_IT = "Records your no; pause the source on its module's card.";
+
+export const DECISION_ANSWERS: Record<string, DecisionAnswer[]> = {
+  "collection-runner-secrets": done("Secrets added", "Press once the three secrets and SITE_URL are in GitHub."),
+  "teaching-vacancies-duplicate": done("Paused the copy", "Press once the copy with fewer listings is paused."),
+  "theirstack-credits": yesNo("Topped up or new key", "Press once credits are added or a new key is set.", "Pause TheirStack", "Records your no; pause it on Jobs' card."),
+  "buddy4study-crawl": yesNo("Yes, crawl it", BUILD, "No, link only", KEEP_OFF),
+  "buddy4study-readd": done("Re-added (or never added)", "Press once it's removed and added again, or if it was never added."),
+  "nsp-link-only": yesNo("Link only is fine", "Records that a link is enough.", "I have a dataset", "Records it; tell Claude which dataset to read."),
+  "osm-overpass-server": yesNo("Keep public servers", "Records it; collection stays as it runs now.", "Use a paid server", "Records it; tell Claude which server to use."),
+  "ticketmaster-cache": yesNo("24-hour cache is OK", TERMS_OK, "No caching", "Records it; ask Claude to turn caching off."),
+  "developers-events-nc": yesNo("Our use is allowed", "Records it; then Test & activate the source.", "Keep it off", KEEP_OFF),
+  "gdg-cncf-robots": yesNo("Keep it off", KEEP_OFF, "I'll ask for permission", "Records it; tell Claude when you have it."),
+  "freelancer-terms": yesNo("Confirmed with Freelancer", TERMS_OK, "Hide its ratings", "Records it; ask Claude to stop showing ratings."),
+  "therapists-legal": done("Legal input received", "Press once you have the legal input; share it with Claude."),
+  "therapists-india-hospitals": yesNo("Yes, import hospitals", BUILD, "No, leave it out", KEEP_OFF),
+  "cofounders-outside-terms": yesNo("Terms confirmed", TERMS_OK, "Keep them paused", "Records your no; they stay paused."),
+  "cofounders-posts-people": yesNo("Show handles as now", "Records that handles stay shown.", "Hide handles", "Records it; ask Claude to hide handles or add removal requests."),
+  "reddit-rss-blocked": done("Understood", "Takes it off the list; Reddit waits for its keys on Admin → Keys."),
+  "cofounders-accelerator-portfolios": yesNo("Yes, build the reader", BUILD, "Not now", KEEP_OFF),
+  "cofounders-india-partners": done("Partners contacted", "Press once you've asked the partners you picked."),
+  "teaching-nav-token": yesNo("Token requested", "Records it; send Claude the token when NAV replies.", "Skip Norway", KEEP_OFF),
+  "teaching-india-partners": done("Partners contacted", "Press once you've asked the schools or recruiters you picked."),
+  "teachaway-permission": yesNo("Permission received", "Records it; then Test & activate TeachAway.", "Keep it paused", KEEP_OFF),
+  "helsinki-crowding": yesNo("Activated it", "Press once it's activated on Events' card.", "Keep it paused", KEEP_OFF),
+  "india-gov-internships": done("Understood", "Takes it off the list; nothing is read from these portals."),
+  "internshala-partnership": yesNo("Partnership asked", "Records it; tell Claude when Internshala answers.", "Skip Internshala", KEEP_OFF),
+  "luma-events": yesNo("Yes, add Luma", BUILD, "No, skip it", KEEP_OFF),
+  "thesportsdb-key": yesNo("Paid key set", "Press once THESPORTSDB_API_KEY is set on Admin → Keys.", "Keep the free feed", KEEP_OFF),
+  "unstop-robots": yesNo("Permission received", TERMS_OK, "Pause both", PAUSE_IT),
+  "houzz-wedmegood-blocked": yesNo("Access asked", "Records it; tell Claude when they answer.", "Leave them out", KEEP_OFF),
+  "places-api-licence": yesNo("Licence bought", "Records it; tell Claude which one, and set its key.", "Leave them out", KEEP_OFF),
+  "wedmegood-content-signal": yesNo("Fits, add them", "Records it; then add, Test & activate its sources.", "Leave them out", KEEP_OFF),
+  "wwr-gateway-swap": done("Swapped the sources", "Press once the old source is removed and the category sources are live."),
+  "nav-feed-token": yesNo("Token requested", "Records it; set it on Admin → Keys when NAV sends it.", "Skip Norway", KEEP_OFF),
+  "nlx-approval": yesNo("Applied for access", "Records it; tell Claude when it's granted.", "Skip NLx", KEEP_OFF),
+  "ncs-data-access": yesNo("Access asked", "Records it; tell Claude when NCS answers.", "Skip NCS", KEEP_OFF),
+  "india-boards-blocked": yesNo("I'll approach them", "Records it; tell Claude when one agrees.", "Leave them out", KEEP_OFF),
+  "udyam-list-api": yesNo("API requested", "Records it; tell Claude when data.gov.in publishes it.", "Leave it out", KEEP_OFF),
+  "marketplace-india-shops": yesNo("Terms confirmed", "Records it; then Test & activate each shop.", "Keep them paused", KEEP_OFF),
+  "marketplace-flipkart-terms": yesNo("Allowed, keys set", "Press once you've confirmed and set both keys.", "Leave Flipkart out", KEEP_OFF),
+  "marketplace-ebay-terms": yesNo("Licence OK, keys set", "Press once you've confirmed and set both keys.", "Leave eBay out", KEEP_OFF),
+  "marketplace-india-preloved": yesNo("I'll name dealers", "Records it; send Claude the names to ask.", "Auctions stay out", KEEP_OFF),
+  "scheduler-settings": done("Settings checked", "Press once the schedules and limits look right."),
+};
+
+/** A decision's buttons; one that has none listed yet gets a plain "Done". */
+export function decisionAnswers(id: string): DecisionAnswer[] {
+  return DECISION_ANSWERS[id] ?? done("Done");
+}
+
 export interface DecisionState {
   at: string;
   by: string;
