@@ -12,7 +12,14 @@ const LINKS: { href: string; label: string }[] = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function MarketingNav() {
+/** The full landing page's own sections (FullLanding), linked only while that page is the one in use. */
+const FULL_LINKS: { href: string; label: string }[] = [
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#pricing", label: "Pricing" },
+];
+
+export function MarketingNav({ full = false }: { /** On the full landing page: its sections are linked too. */ full?: boolean } = {}) {
+  const links = full ? [FULL_LINKS[0], ...LINKS.slice(0, 1), FULL_LINKS[1], ...LINKS.slice(1)] : LINKS;
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -27,7 +34,7 @@ export function MarketingNav() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <WonderLogo />
         <nav aria-label="Marketing" className="hidden items-center gap-7 lg:flex">
-          {LINKS.map((l) => (
+          {links.map((l) => (
             <a key={l.href} href={l.href} className="whitespace-nowrap text-[13.5px] font-medium text-ink-2 transition-colors hover:text-ink">
               {l.label}
             </a>
@@ -48,7 +55,7 @@ export function MarketingNav() {
       {open && (
         <div className="border-t border-line bg-white/95 px-4 pb-5 pt-2 lg:hidden">
           <nav aria-label="Marketing" className="flex flex-col">
-            {LINKS.map((l) => (
+            {links.map((l) => (
               <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="py-3 text-[15px] font-medium text-ink-2">
                 {l.label}
               </a>
