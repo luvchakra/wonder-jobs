@@ -5,19 +5,19 @@ import { renderContactEmail } from "@/server/notify";
 const base = { origin: "https://works.wonderapps.biz", preheader: "3 strong matches", bodyHtml: "<p>Body</p>", bodyText: "Body", reason: "You're getting this because you asked for it." };
 
 describe("renderEmailLayout — the one branded frame for every email", () => {
-  it("puts the PNG logo, built from the site URL, in the header", () => {
+  it("puts the mark (a PNG built from the site URL) and the name as live text in the header, so dark mode can't hide it", () => {
     const { html } = renderEmailLayout(base);
-    expect(emailLogoUrl("https://works.wonderapps.biz")).toBe("https://works.wonderapps.biz/brand/wonderstar-logo.png");
-    expect(html).toContain('<img src="https://works.wonderapps.biz/brand/wonderstar-logo.png"');
-    expect(html).toContain('alt="WonderWorks"');
-    expect(renderEmailLayout({ ...base, origin: "http://localhost:3000" }).html).toContain('src="http://localhost:3000/brand/wonderstar-logo.png"');
+    expect(emailLogoUrl("https://works.wonderapps.biz")).toBe("https://works.wonderapps.biz/brand/wonderstar-mark-square.png");
+    expect(html).toContain('<img src="https://works.wonderapps.biz/brand/wonderstar-mark-square.png"');
+    expect(html).toMatch(/>Wonder<span style="color:#6d4cf5">Works<\/span>/);
+    expect(renderEmailLayout({ ...base, origin: "http://localhost:3000" }).html).toContain('src="http://localhost:3000/brand/wonderstar-mark-square.png"');
   });
 
-  it("is table-based with inline styles only, max 600px, and a hidden preheader", () => {
+  it("is table-based with inline styles only, max 560px, and a hidden preheader", () => {
     const { html } = renderEmailLayout(base);
     expect(html).not.toMatch(/<style|<link|<script|<svg|data:image/i);
     expect(html).toContain('role="presentation"');
-    expect(html).toContain("max-width:600px");
+    expect(html).toContain("max-width:560px");
     expect(html).toMatch(/<div style="display:none;[^"]*mso-hide:all[^"]*">3 strong matches/);
     expect(html).toContain("<p>Body</p>");
   });
@@ -65,7 +65,7 @@ describe("the contact notification goes through the layout", () => {
   it("produces branded HTML and a plain-text twin with the same content", () => {
     const mail = renderContactEmail(payload, "https://works.wonderapps.biz");
     expect(mail.subject).toBe("[WonderWorks contact] support — Sample <Visitor>");
-    expect(mail.html).toContain('src="https://works.wonderapps.biz/brand/wonderstar-logo.png"');
+    expect(mail.html).toContain('src="https://works.wonderapps.biz/brand/wonderstar-mark-square.png"');
     expect(mail.html).toContain("set to receive WonderWorks contact-form messages");
     expect(mail.html).not.toContain("/app/settings/notifications");
     expect(mail.html).toContain("Sample &lt;Visitor&gt;");
