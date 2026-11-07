@@ -51,10 +51,10 @@ export function ListingAside({ children }: { children: React.ReactNode }) {
 }
 
 /** The head: the logo, the company line (with what's known of it), and the listing's facts in one wrapping row. */
-export function ListingHead({ company, domain, name, hideName, icon, facts }: { company: string; domain?: string; /** The company line; the company's name when not given. */ name?: React.ReactNode; /** No company line at all (a listing that names no organiser): the facts take its place. */ hideName?: boolean; /** A tile in place of the logo, for a listing with no organiser or site to take one from. */ icon?: React.ReactNode; facts: React.ReactNode[] }) {
+export function ListingHead({ company, domain, website, name, hideName, icon, facts }: { company: string; domain?: string; /** The organisation's own website, when there's no domain: finds its logo (a job board's or shared host is ignored). */ website?: string; /** The company line; the company's name when not given. */ name?: React.ReactNode; /** No company line at all (a listing that names no organiser): the facts take its place. */ hideName?: boolean; /** A tile in place of the logo, for a listing with no organiser or site to take one from. */ icon?: React.ReactNode; facts: React.ReactNode[] }) {
   return (
     <div className="flex items-start gap-3">
-      {icon ? <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">{icon}</span> : <CompanyLogo name={company} domain={domain} logo size={40} />}
+      {icon ? <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">{icon}</span> : <CompanyLogo name={company} domain={domain} website={website} logo size={40} />}
       <div className="min-w-0 flex-1">
         {!hideName && <p className="text-[15px] font-semibold text-ink">{name ?? company}</p>}
         <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-3", hideName ? "min-h-10" : "mt-0.5")}>{facts.filter(Boolean)}</div>

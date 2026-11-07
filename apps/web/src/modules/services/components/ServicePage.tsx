@@ -96,6 +96,7 @@ function Page({ l }: { l: ServiceListing }) {
       <ListingMain>
         <ListingHead
           company={l.company}
+          website={l.applyUrl}
           name={
             // A directory listing is named for the business itself, which the title above already says: the line says where it is listed.
             sameName(l) ? (
