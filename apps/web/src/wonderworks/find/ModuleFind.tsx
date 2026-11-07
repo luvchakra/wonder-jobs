@@ -81,6 +81,8 @@ function SearchClock() {
 const forWhat = (query: string, start = false) => (query ? `${start ? "For" : "for"} “${query}”` : start ? "Latest listings" : "· latest");
 const noop = () => () => undefined;
 const STATE_LABEL: Record<SourceState, string> = { ok: "", empty: "none found", needs_setup: "Needs setup", unavailable: "Unavailable", skipped: "not asked" };
+const NONE: string[] = [];
+const NO_VALUES: FacetValues = {};
 const set = (v: FacetValues) => Object.values(v).filter((x) => x !== undefined && x !== "").length;
 
 export function ModuleFind<L extends { id: string }>({ module, noun, placeholder, startWords, facets, sorts, search, refine, Card, Sheet, idle, dictateHint, global = false, ownFilter = true, isOwn = postedOnWonderWorks }: ModuleFindProps<L>) {
@@ -98,11 +100,18 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   const draft = typed ?? (mounted ? (run ? run.searched.query : (recent[0] ?? startWords ?? "")) : "");
   const [boxFocused, setBoxFocused] = useState(false);
   const dictation = useDictation({ textAtStart: () => draft, onText: setTyped });
-  const [places, setPlaces] = useState<string[]>([]);
+  // Refine's saved choices, places and sort live in the module's synced store, so a reload keeps them
+  // (owner, 2026-11-07: "ensure all saved refine items are persisted in all modules"). Read after mount, like the run.
+  const savedRefine = useStore(store, (s) => s.refine);
+  const keptRefine = mounted ? savedRefine : null;
+  const places = keptRefine?.places ?? NONE;
+  const setPlaces = (p: string[]) => store.getState().setRefine({ places: p });
   // What Refine shows while open (saved with Save), and what the list uses.
-  const [values, setValues] = useState<FacetValues>({});
+  const values: FacetValues = keptRefine?.values ?? NO_VALUES;
+  const setValues = (v: FacetValues) => store.getState().setRefine({ values: Object.fromEntries(Object.entries(v).filter((e): e is [string, string] => typeof e[1] === "string")) });
   const [editing, setEditing] = useState<FacetValues>({});
-  const [sort, setSort] = useState(Object.keys(sorts)[0]);
+  const sort = keptRefine?.sort && keptRefine.sort in sorts ? keptRefine.sort : Object.keys(sorts)[0];
+  const setSort = (v: string) => store.getState().setRefine({ sort: v });
   const [busy, setBusy] = useState<{ query: string; places: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE);
@@ -182,9 +191,8 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   const answered = run?.sources.filter((s) => s.state === "ok" || s.state === "empty").length ?? 0;
   const clear = () => {
     setEditing({});
-    setValues({});
-    setPlaces([]);
-    setSort(Object.keys(sorts)[0]);
+    // One write: every choice, place and the sort back to the start.
+    store.getState().setRefine({ values: {}, places: [], sort: undefined });
   };
 
   const field = (f: FacetSpec) => {
