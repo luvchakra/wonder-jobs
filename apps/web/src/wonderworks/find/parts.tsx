@@ -461,7 +461,8 @@ export function ResultCard({ className, cover, aside, title, facts, tags = [], r
             {shown.map((f, i) => (
               <Fragment key={i}>
                 {i > 0 && <span aria-hidden>·</span>}
-                {f}
+                {/* A fact never runs past three lines (owner, 2026-11-09: a posting listing 150 countries). */}
+                <span className="line-clamp-3 min-w-0 break-words">{f}</span>
               </Fragment>
             ))}
           </p>
