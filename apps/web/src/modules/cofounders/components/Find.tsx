@@ -12,9 +12,8 @@ const SORTS = { relevance: "Relevance", date: "Newest" };
 const IS_OWN = (l: { sourceId: string }) => l.sourceId === "cof_wonderworks";
 
 export function refineCofounders(list: CofounderListing[], v: FacetValues, sort: string) {
-  // New startups are companies, not requests for a co-founder (owner, 2026-11-05): they appear only under their own chip, never mixed in with the rest.
-  const pool = list.filter((l) => (l.kind === "startup") === (v.kind === "startup"));
-  const { kept, hidden } = applyFacets(pool, { kind: (v.kind as ListingKind) || undefined, role: (v.role as Role) || undefined, commitment: (v.commitment as Commitment) || undefined, hasIdea: v.idea === "1" || undefined });
+  // Any (the default) shows every kind: people, teams, posts and New startups (owner, 2026-11-09). A chip narrows to that kind; each card says what it is.
+  const { kept, hidden } = applyFacets(list, { kind: (v.kind as ListingKind) || undefined, role: (v.role as Role) || undefined, commitment: (v.commitment as Commitment) || undefined, hasIdea: v.idea === "1" || undefined });
   return { kept: sort === "date" ? [...kept].sort((a, b) => (b.postedAt ?? "").localeCompare(a.postedAt ?? "")) : kept, hidden };
 }
 
@@ -28,7 +27,7 @@ const search = (query: string, places: string[]) => call<FindRun<CofounderListin
 export function CofoundersFind() {
   const facets = useMemo<FacetSpec[]>(
     () => [
-      { key: "kind", label: "People or teams", kind: "chips", any: "Any", options: (Object.keys(KIND_LABEL) as ListingKind[]).map((k) => ({ value: k, label: KIND_LABEL[k] })), pill: (v) => (v ? KIND_LABEL[v as ListingKind] : "People, teams and posts") },
+      { key: "kind", label: "People or teams", kind: "chips", any: "Any", options: (Object.keys(KIND_LABEL) as ListingKind[]).map((k) => ({ value: k, label: KIND_LABEL[k] })), pill: (v) => (v ? KIND_LABEL[v as ListingKind] : "All kinds") },
       { key: "role", label: "Role", kind: "chips", any: "Any", options: ROLES.map((r) => ({ value: r, label: r })), pill: (v) => v || "Tech or Business" },
       { key: "commitment", label: "Commitment", kind: "select", any: "Any", options: COMMITMENTS.map((c) => ({ value: c, label: c })) },
       { key: "idea", label: "Has an idea", kind: "check", title: "Only people and teams who say what they're building" },
