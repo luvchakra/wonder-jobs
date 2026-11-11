@@ -555,10 +555,17 @@ export function websiteOf(listing) {
   }
   return "";
 }
+/** A website's host as a search token ("domq<host, letters and digits>q"), so a row is found by its organisation's domain. */
+export function domainToken(urlOrDomain) {
+  let host = String(urlOrDomain ?? "").trim().toLowerCase();
+  try { host = new URL(/^https?:\/\//.test(host) ? host : "https://" + host).hostname; } catch { return ""; }
+  const key = host.replace(/^www\./, "").replace(/[^a-z0-9]/g, "");
+  return key.length >= 4 && key.length <= 60 ? "domq" + key + "q" : "";
+}
 /**
  * A prospect dataset's row: the listing as normalised, plus the nearest listed city when its address names none (the
  * map point decides, as the app does for Talent & Services; marked `cityDerived`), and the tokens a prospect search
- * filters by: `catq<tag>q` per category, `hasqwebsiteq`, `hasqphoneq`, `hasqemailq`. Nothing else is derived.
+ * filters by: `catq<tag>q` per category, `hasqwebsiteq`, `hasqphoneq`, `hasqemailq`, `domq<host>q`. Nothing else is derived.
  */
 export function datasetRow(n) {
   const a = { ...(n.attributes ?? {}) };
@@ -572,7 +579,8 @@ export function datasetRow(n) {
       if (!location.toLowerCase().includes(near.name.toLowerCase())) location = [location, near.name].filter(Boolean).join(", ").slice(0, 180);
     }
   }
-  const tokens = [...categoriesOf({ attributes: a }).map((t) => "catq" + t + "q"), websiteOf({ attributes: a }) ? "hasqwebsiteq" : "", [a.phone, a.contactPhone].some((v) => typeof v === "string" && v.replace(/\D/g, "").length >= 7) ? "hasqphoneq" : "", [a.email, a.contactEmail].some((v) => typeof v === "string" && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim())) ? "hasqemailq" : ""].filter(Boolean).join(" ");
+  const site = websiteOf({ attributes: a });
+  const tokens = [...categoriesOf({ attributes: a }).map((t) => "catq" + t + "q"), site ? "hasqwebsiteq" : "", site ? domainToken(site) : "", [a.phone, a.contactPhone].some((v) => typeof v === "string" && v.replace(/\D/g, "").length >= 7) ? "hasqphoneq" : "", [a.email, a.contactEmail].some((v) => typeof v === "string" && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim())) ? "hasqemailq" : ""].filter(Boolean).join(" ");
   return { ...n, location, attributes: a, ...(tokens ? { tokens } : {}) };
 }
 

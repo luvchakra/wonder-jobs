@@ -55,9 +55,10 @@ function sourcePublic(s) {
  * The gateway's whole API as one function from a web `Request` to a `Response`, so the standalone Node service and the
  * Next app serve the very same code. `store` has read(fn), change(fn), lazy(fn) and flush(); `env` is the settings
  * (GATEWAY_ADMIN_TOKEN, GATEWAY_CURSOR_SECRET, GATEWAY_ALLOW_EXTERNAL_CONSUMERS, GATEWAY_RATE_LIMIT_PER_MINUTE,
- * GATEWAY_COLLECTORS_ENABLED); `storage` names where state lives, for /v1/health.
+ * GATEWAY_COLLECTORS_ENABLED); `storage` names where state lives, for /v1/health; `prospectHooks` are what the host
+ * adds to the prospect routes (its company directory; tests pass a site reader).
  */
-export function createGateway({ store, env = {}, storage = "local_durable_file", limiter }) {
+export function createGateway({ store, env = {}, storage = "local_durable_file", limiter, prospectHooks = {} }) {
   const adminToken = env.GATEWAY_ADMIN_TOKEN;
   const cursorSecret = env.GATEWAY_CURSOR_SECRET;
   if (!adminToken || adminToken.length < 32 || !cursorSecret || cursorSecret.length < 32 || adminToken === cursorSecret) throw Error("Set GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET to separate 32+ character random secrets");
@@ -69,7 +70,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   const activeCrawls = new Set();
   // Where listings live: the store's own table when it has one, else the state document.
   const listings = store.listings ?? stateListings(store);
-  const prospects = createProspects({ store, listings, cursorSecret, reply, readBody });
+  const prospects = createProspects({ store, listings, cursorSecret, reply, readBody, hooks: prospectHooks });
 
   async function collectOne(sourceId, testOnly = false, budgetMs = undefined) {
     if (activeCrawls.has(sourceId)) throw new ApiError(409, "CRAWL_IN_PROGRESS", "Collection already running");
