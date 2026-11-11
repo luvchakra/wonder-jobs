@@ -3,12 +3,15 @@ import { stateStore } from "@/server/state";
 import { getSupabaseAdmin } from "@/server/supabase";
 import { dataEvery, loadDataDb, type DataTable } from "@/server/dataDb";
 import { MODULE_IDS } from "@/modules/registry";
+import { PROSPECT_DATASETS } from "../../../../data-gateway/src/core.mjs";
 
 /**
  * Storage safeguards (owner, 2026-11-01: "build the safeguards ... give the safeguards parameter adjustment fine tune
  * option in admin"). The free database stops taking writes at 500 MB, so a daily pass in the scheduled-runs cron:
  *  1. removes WorksLake listings no source has shown for `staleDays`, except any a person saved or responded to;
- *  2. keeps each gateway source to `gatewayMaxPerSource` listings (newest kept) and no listing older than `gatewayMaxAgeDays`;
+ *  2. keeps each gateway source to `gatewayMaxPerSource` listings per module (newest kept) and no listing older than
+ *     `gatewayMaxAgeDays`; a source's rows in a prospect dataset (WJ-816) are counted apart, against `prospectMaxPerSource`,
+ *     so feeding a dataset never costs a module its listings;
  *  3. measures the database against `limitMb` and alerts on Admin → Overview past `alertPercent`.
  * Every number is the admin's (Settings → Storage); `enabled` false stops the deleting, never the measuring.
  */
@@ -17,6 +20,8 @@ export interface SafeguardSettings {
   staleDays: number;
   gatewayMaxPerSource: number;
   gatewayMaxAgeDays: number;
+  /** Rows one source may hold in a prospect dataset (businesses, channels), apart from its module listings. */
+  prospectMaxPerSource: number;
   limitMb: number;
   /** The optional data database's plan size (DDB, dataDb), for its headroom on Admin → Databases. */
   dataLimitMb: number;
@@ -25,13 +30,14 @@ export interface SafeguardSettings {
   maxDeletesPerRun: number;
 }
 
-export const SAFEGUARD_DEFAULTS: SafeguardSettings = { enabled: true, staleDays: 21, gatewayMaxPerSource: 5000, gatewayMaxAgeDays: 21, limitMb: 500, dataLimitMb: 500, alertPercent: 70, maxDeletesPerRun: 5000 };
+export const SAFEGUARD_DEFAULTS: SafeguardSettings = { enabled: true, staleDays: 21, gatewayMaxPerSource: 5000, gatewayMaxAgeDays: 21, prospectMaxPerSource: 50000, limitMb: 500, dataLimitMb: 500, alertPercent: 70, maxDeletesPerRun: 5000 };
 
 /** The allowed range of each number; anything outside is clamped. */
 export const SAFEGUARD_RANGES: Record<Exclude<keyof SafeguardSettings, "enabled">, [number, number]> = {
   staleDays: [3, 365],
   gatewayMaxPerSource: [100, 200000],
   gatewayMaxAgeDays: [1, 365],
+  prospectMaxPerSource: [100, 300000],
   limitMb: [100, 1000000],
   dataLimitMb: [100, 1000000],
   alertPercent: [10, 99],
@@ -133,6 +139,21 @@ async function referencedIds(): Promise<Set<string>> {
 }
 
 /** The daily pass. Measures always; deletes only when enabled, and never more than maxDeletesPerRun. */
+/**
+ * How far each source is over its limit, counted per module: a source's listings in one module never count against
+ * another, and its rows in a prospect dataset have their own limit (WJ-816).
+ */
+export function overCap(rows: { source_id: string; module: string }[], s: Pick<SafeguardSettings, "gatewayMaxPerSource" | "prospectMaxPerSource">): { source: string; module: string; over: number }[] {
+  const per = new Map<string, { source: string; module: string; n: number }>();
+  for (const r of rows) {
+    const key = `${r.source_id}|${r.module}`;
+    const e = per.get(key) ?? { source: r.source_id, module: r.module, n: 0 };
+    e.n++;
+    per.set(key, e);
+  }
+  return [...per.values()].map((e) => ({ source: e.source, module: e.module, over: e.n - (PROSPECT_DATASETS.includes(e.module) ? s.prospectMaxPerSource : s.gatewayMaxPerSource) })).filter((e) => e.over > 0);
+}
+
 export async function runSafeguards(now = new Date()): Promise<SafeguardRun> {
   const { settings } = await loadSafeguards();
   const run: SafeguardRun = { at: now.toISOString(), opportunitiesDeleted: 0, opportunitiesKept: 0, gatewayDeleted: 0, dbBytes: null };
@@ -166,13 +187,11 @@ export async function runSafeguards(now = new Date()): Promise<SafeguardRun> {
         if (ea) throw new Error(`couldn't remove old gateway listings: ${ea.message}`);
         run.gatewayDeleted += aged ?? 0;
         budget -= aged ?? 0;
-        const { data: srcs } = await data("gateway_listings").select("source_id").limit(100000);
-        const per = new Map<string, number>();
-        for (const r of srcs ?? []) per.set(r.source_id, (per.get(r.source_id) ?? 0) + 1);
-        for (const [source, n] of per) {
-          if (n <= settings.gatewayMaxPerSource || budget <= 0) continue;
-          const over = Math.min(n - settings.gatewayMaxPerSource, budget);
-          const { data: oldest } = await data("gateway_listings").select("id").eq("source_id", source).order("observed_at", { ascending: true }).limit(over);
+        const { data: srcs } = await data("gateway_listings").select("source_id, module").limit(100000);
+        for (const { source, module, over: extra } of overCap((srcs ?? []) as { source_id: string; module: string }[], settings)) {
+          if (budget <= 0) break;
+          const over = Math.min(extra, budget);
+          const { data: oldest } = await data("gateway_listings").select("id").eq("source_id", source).eq("module", module).order("observed_at", { ascending: true }).limit(over);
           const del = (oldest ?? []).map((r) => r.id as string);
           for (let i = 0; i < del.length; i += 200) {
             const { error: e } = await data("gateway_listings").delete().in("id", del.slice(i, i + 200));
