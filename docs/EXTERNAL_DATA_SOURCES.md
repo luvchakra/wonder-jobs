@@ -620,3 +620,22 @@ The gateway is served from the WonderWorks app itself, in the same Vercel projec
 
 The reviewed source files in `apps/data-gateway/sources/*.json` (confs.tech, OpenStreetMap Calendar, UK Teaching Vacancies, We Work Remotely) are listed on Platform → Sources → Partners & gateway → **Add from catalogue**. **Add** registers one paused (as `register.mjs` would, without handling the admin token); **Test & activate** on its row in Sources runs the gateway's test and turns it on when it passes. A module session that adds a source file also adds it to `server/gateway/catalogue.ts` (a test checks every file is listed). OpenStreetMap Calendar (osmcal.org) documents an integration API and robots allows it, but states no data licence: the owner confirms before activating.
 
+## 14. Prospect data for WonderArk (2026-11-11, WJ-815)
+
+WonderArk's Discovery module reads WorksLake through the gateway's `/v1/prospects/` routes, as the gateway's one outside consumer (owner, 2026-11-11). The contract and build spec are in `docs/PROSPECT_DATA_API.md`. Prospect data is kept in two datasets, `businesses` and `channels`, that no WonderWorks module can read; a prospect route never reads a module.
+
+| Source | Dataset | Outside use | State | Notes |
+|---|---|---|---|---|
+| OpenStreetMap services (`osm-services-{north,west,south,east,more}.json`) | `businesses` (and Talent & Services, unchanged) | **Yes**, owner approved 2026-11-11 | **Built**; rows arrive with the next weekly collection | ODbL. Each row carries "OpenStreetMap contributors (ODbL)" and a link to its map feature. The dataset's rows also keep the business's own published phone, email and website where the map states them (`datasetMapping`); Talent & Services' rows do not. A city missing from the address is the nearest listed city to the mapped point, marked as derived. Terms pending: attribution wording in WonderArk and share-alike when merged at read time (owner decision `prospects-osm-terms`). |
+| Houzz, WedMeGood | none | No | **Not bound** | Terms pending and both refuse our server. Bound to `businesses` only once the owner confirms access and that listings may be passed on (owner decision `prospects-houzz-wedmegood`). |
+| OpenStreetMap therapists | none | No | **Not bound** | The owner's approval of 2026-11-11 names the services sources only. |
+| Google Places, Apollo, data.gov.in, YouTube, Podcast Index, Hunter | live providers | n/a | **Not built yet** (packages A3, A4) | Each will be a platform key on Admin → Keys, "Needs setup" until set, and recorded here with what its terms say about storage, display and passing results on. |
+| Overture Maps Places, Foursquare Open Source Places | `businesses` | Yes (permissive licences) | **Not built yet** (package A5) | Bulk collection on the GitHub runner. |
+
+Rules that hold for every prospect source:
+
+- Organisations and public outlets only. A source may feed `businesses` only if it is a source of public business or company listings (`publicBusinesses` or `publicCompanies`); the gateway refuses any other.
+- A registered source takes its reviewed file's outside-use flag, dataset bindings, the dataset's extra fields and its permission evidence (`reconcileSource`), audited as `source.reconciled`. Nothing else about a registered source changes.
+- The usage ledger records the tenant (an opaque id), the route, counts and paid units. It never records what was searched for or found.
+- Every WonderArk business has a monthly allowance (500 searches, 50 paid units by default) and the platform has a paid cap; all three are set on Sources → Import → Prospect data.
+

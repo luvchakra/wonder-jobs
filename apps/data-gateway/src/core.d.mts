@@ -8,6 +8,8 @@ export interface GatewayState {
   usage: Record<string, unknown>[];
   audits: Record<string, unknown>[];
   runs: Record<string, unknown>[];
+  /** Prospect data settings (outside consumers, tenant quotas, the paid cap); absent ones take their defaults. */
+  settings?: Record<string, unknown>;
 }
 export function initial(): GatewayState;
 
@@ -29,6 +31,8 @@ export interface GatewayListing {
   remote: boolean;
   attributes: Record<string, string | number | boolean>;
   status: string;
+  /** A prospect dataset row's search tokens (category and contact marks); module listings have none. */
+  tokens?: string;
 }
 export interface GatewaySearchResult {
   requestId: string;
@@ -44,6 +48,16 @@ export function search(
   secret: string,
 ): GatewaySearchResult;
 export const MODULES: readonly string[];
+/** Prospect datasets (organisations, public outlets): served only by /v1/prospects/, never a module. */
+export const PROSPECT_DATASETS: readonly string[];
+export const PROSPECT_SCOPES: readonly string[];
+/** What a listing is searched by: its words, plus a dataset row's tokens. */
+export function listingText(listing: GatewayListing): string;
+/** A prospect search's token filters: every `all` token, and one of `any` when given. */
+export function matchesTokens(text: string, plan: { any?: string[]; all?: string[] }): boolean;
+/** Copies a reviewed definition's outside-use flag, dataset bindings and evidence onto a registered source; returns the changed fields. */
+export function reconcileSource(stored: Record<string, unknown>, definition: Record<string, unknown>): string[];
+export const RECONCILED_FIELDS: readonly string[];
 /** SHA-256 hex of an API key: how the gateway stores and finds keys. */
 export function digestKey(key: string): string;
 
@@ -60,3 +74,5 @@ export function requireConsumer(store: { read<T>(fn: (state: any) => T): Promise
 export function checkScope(key: { scopes: string[] }, module: string): void;
 /** Text with email addresses, phone numbers and messaging handles removed (sources of people's public posts). */
 export function scrubContacts(text: string): string;
+/** Adds an entry to the audit trail, kept to its newest entries. */
+export function pushAudit(state: GatewayState, entry: Record<string, unknown>): void;

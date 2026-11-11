@@ -117,7 +117,7 @@ describe("trades, cities and the definition files", () => {
     const asked: string[] = [];
     for (const f of files) {
       const d = JSON.parse(readFileSync(join(dir, f), "utf8"));
-      expect(d).toMatchObject({ kind: "json_api", modules: ["services"], itemsPath: "elements", attribution: OSM_GATEWAY_NAME, publicBusinesses: true, externalRedistributionAllowed: false, minIntervalMinutes: 10080 });
+      expect(d).toMatchObject({ kind: "json_api", modules: ["services"], itemsPath: "elements", attribution: OSM_GATEWAY_NAME, publicBusinesses: true, externalRedistributionAllowed: true, datasets: ["businesses"], minIntervalMinutes: 10080 });
       expect(d.consentVerified).toBeUndefined();
       // The gateway's own check accepts it as public business listings (no opt-in is claimed), and keeps its evidence whole.
       const { validateSource } = (await import("../../../../data-gateway/src/core.mjs")) as unknown as { validateSource: (s: unknown) => { permissionEvidence: string } };

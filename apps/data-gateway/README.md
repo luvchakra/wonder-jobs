@@ -52,3 +52,15 @@ For a site that publishes listings as pages with schema.org data (JobPosting, Ev
 ## Production limitations
 
 This is an isolated **single-instance MVP**, not a publicly scalable service. Its JSON file store persists across process restarts on one mounted persistent disk only; multi-replica operation can corrupt state. Before production, migrate to PostgreSQL transactions, distributed job queue/locks and a shared rate limiter (today's is per process), run source licensing/privacy reviews, add monitoring and verify production deployment behind TLS. No external API consumers should be provisioned before those controls are in place.
+
+### One outside consumer: WonderArk (2026-11-11, WJ-815)
+
+One outside consumer, `wonderark`, is provisioned for the prospect data API (`/v1/prospects/`, `docs/PROSPECT_DATA_API.md`). What was hardened for it:
+
+- Outside consumers are an administrator's setting (`POST /v1/admin/settings`, Sources → Import → Prospect data), off by default. The old `GATEWAY_ALLOW_EXTERNAL_CONSUMERS=1` still turns it on for a deployment that set it.
+- Its key holds the five prospect scopes and no module scope; a key never holds both kinds. It gets 403 on every module route, and no module route can read the `businesses` or `channels` datasets.
+- Every prospect request names its tenant (`X-Tenant-Id`), and each tenant has a monthly allowance of searches and paid units, with a platform-wide paid cap.
+- It sees only sources whose reviewed definition sets `externalRedistributionAllowed: true`.
+
+Still true: the per-key rate limit is per process, so a shared limiter is needed before a second outside consumer (owner decision `prospects-gateway-hardening`).
+
