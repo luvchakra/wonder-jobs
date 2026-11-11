@@ -58,11 +58,15 @@
   --wj-gradient-text: linear-gradient(90deg, #7c3aed 0%, #4f46e5 50%, #3b82f6 100%);
 
   /* elevation */
-  --wj-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --wj-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
-  --wj-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --wj-shadow-lg: 0 20px 48px rgba(15, 23, 42, 0.12);
-  --wj-shadow-brand: 0 10px 30px rgba(124, 58, 237, 0.28);
+  /* Layered (owner, 2026-11-11, the polish pass): a tight contact shadow plus a soft, navy-tinted ambient one, so
+     surfaces sit on the page rather than float above it. */
+  --wj-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --wj-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+  --wj-shadow-md: 0 2px 4px -1px rgba(15, 23, 42, 0.05), 0 12px 28px -6px rgba(31, 22, 84, 0.12);
+  --wj-shadow-lg: 0 4px 8px -2px rgba(15, 23, 42, 0.06), 0 24px 56px -12px rgba(31, 22, 84, 0.2);
+  /* The primary button: a crisp edge, a short brand glow and a lit top edge. */
+  --wj-shadow-brand: 0 1px 2px rgba(76, 29, 149, 0.28), 0 6px 16px -4px rgba(124, 58, 237, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --wj-shadow-brand-hover: 0 1px 2px rgba(76, 29, 149, 0.3), 0 10px 22px -4px rgba(124, 58, 237, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.24);
 
   /* radius */
   --wj-radius-sm: 10px;
@@ -141,6 +145,7 @@
   --shadow-md: var(--wj-shadow-md);
   --shadow-lg: var(--wj-shadow-lg);
   --shadow-brand: var(--wj-shadow-brand);
+  --shadow-brand-hover: var(--wj-shadow-brand-hover);
 
   --font-sans: var(--font-poppins), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -177,10 +182,93 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    /* Native checkboxes, radios, ranges and the text cursor carry the brand. */
+    accent-color: var(--wj-brand-500);
+    caret-color: var(--wj-brand-600);
     overflow-x: hidden;
+  }
+  /* Headings break into even lines; body text avoids a lone last word. */
+  h1, h2 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  /* Checkboxes and radios drawn in the brand's shape and colour, the same in every browser. A size class on the
+     input still sets its size; the tick and dot scale with it. */
+  input[type="checkbox"], input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-grid;
+    place-content: center;
+    flex-shrink: 0;
+    width: 1.125rem;
+    height: 1.125rem;
+    margin: 0;
+    vertical-align: -0.2em;
+    border: 1.5px solid var(--wj-line-strong);
+    background: var(--wj-surface) center / 78% no-repeat;
+    box-shadow: var(--wj-shadow-xs);
+    cursor: pointer;
+    transition: background-color var(--wj-dur-fast) ease-out, border-color var(--wj-dur-fast) ease-out, box-shadow var(--wj-dur-fast) ease-out;
+  }
+  input[type="checkbox"] {
+    border-radius: 6px;
+  }
+  input[type="radio"] {
+    border-radius: 999px;
+  }
+  input[type="checkbox"]:hover, input[type="radio"]:hover {
+    border-color: var(--wj-brand-400);
+  }
+  input[type="checkbox"]:checked, input[type="radio"]:checked {
+    border-color: var(--wj-brand-500);
+    background-color: var(--wj-brand-500);
+  }
+  input[type="checkbox"]:checked {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg>");
+  }
+  input[type="radio"]:checked {
+    background-image: radial-gradient(circle, #fff 0 34%, transparent 38%);
+    background-size: 100%;
+  }
+  input[type="checkbox"]:disabled, input[type="radio"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  /* Thin, quiet scrollbars that match the surface (Firefox, then WebKit). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--wj-line-strong) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--wj-line-strong);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--wj-ink-4);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  /* Dialogs arrive, not appear: the sheet rises a little and the backdrop fades in. */
+  dialog[open] {
+    animation: wj-dialog-in var(--wj-dur) var(--wj-ease);
+  }
+  dialog::backdrop {
+    animation: wj-backdrop-in var(--wj-dur) ease-out;
   }
   ::selection {
     background: var(--wj-brand-200);
+    color: var(--wj-brand-900);
   }
   :focus-visible {
     outline: 2px solid var(--wj-brand-500);
@@ -208,6 +296,7 @@
     border: 1px solid var(--wj-line);
     border-radius: var(--wj-radius-xl);
     box-shadow: var(--wj-shadow-xs);
+    transition: border-color var(--wj-dur) var(--wj-ease), box-shadow var(--wj-dur) var(--wj-ease), transform var(--wj-dur) var(--wj-ease);
   }
   .wj-glass {
     background: var(--wj-glass);
@@ -222,7 +311,8 @@
     color: transparent;
   }
   .wj-gradient-bg {
-    background: var(--wj-gradient-brand);
+    /* A faint light from above over the brand gradient, so filled buttons read as raised. */
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 55%), var(--wj-gradient-brand);
   }
   .wj-eyebrow {
     font-size: 0.75rem;
@@ -271,6 +361,38 @@
   .wj-elevate:hover {
     transform: translateY(-2px);
     box-shadow: var(--wj-shadow-md);
+    border-color: var(--wj-brand-200);
+  }
+  /* Touch screens have no hover: a card never stays lifted after a tap. */
+  @media (hover: none) {
+    .wj-elevate:hover {
+      transform: none;
+      box-shadow: var(--wj-shadow-xs);
+      border-color: var(--wj-line);
+    }
+  }
+  /* A list's items arrive one after another (the first nine; the rest at once). `backwards`, so nothing is held
+     after the animation and hover transforms still apply. */
+  .wj-stagger > * {
+    animation: wj-fade-up 360ms var(--wj-ease) backwards;
+  }
+  .wj-stagger > :nth-child(1) { animation-delay: 0ms; }
+  .wj-stagger > :nth-child(2) { animation-delay: 30ms; }
+  .wj-stagger > :nth-child(3) { animation-delay: 60ms; }
+  .wj-stagger > :nth-child(4) { animation-delay: 90ms; }
+  .wj-stagger > :nth-child(5) { animation-delay: 120ms; }
+  .wj-stagger > :nth-child(6) { animation-delay: 150ms; }
+  .wj-stagger > :nth-child(7) { animation-delay: 180ms; }
+  .wj-stagger > :nth-child(8) { animation-delay: 210ms; }
+  .wj-stagger > :nth-child(9) { animation-delay: 240ms; }
+  .wj-stagger > :nth-child(n + 10) { animation: none; }
+  @keyframes wj-dialog-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes wj-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   .wj-press:active {
     transform: scale(0.985);
@@ -352,7 +474,7 @@
     60% { transform: scale(1) rotate(45deg); opacity: 1; }
   }
   .wj-skeleton {
-    background: linear-gradient(90deg, var(--wj-bg-soft) 25%, #fff 50%, var(--wj-bg-soft) 75%);
+    background: linear-gradient(90deg, var(--wj-bg-soft) 20%, var(--wj-surface-2) 50%, var(--wj-bg-soft) 80%);
     background-size: 200% 100%;
     animation: wj-shimmer 1.4s linear infinite;
     border-radius: var(--wj-radius-sm);
@@ -363,6 +485,8 @@
     .wj-ww-wing-l, .wj-ww-wing-r, .wj-ww-star { animation: none; }
     .wj-hero-in { animation: none; opacity: 1; }
     .wj-install-banner { animation: none; }
+    .wj-stagger > * { animation: none; }
+    dialog[open], dialog::backdrop { animation: none; }
     .wj-sweep { animation: none; transform: none; width: 100%; opacity: 0.5; }
   }
 }

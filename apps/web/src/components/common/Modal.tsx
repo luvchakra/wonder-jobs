@@ -80,7 +80,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       ref={ref}
       aria-labelledby="wj-modal-title"
       className={cn(
-        "m-0 w-full max-w-full max-h-[92dvh] overflow-y-auto border-0 bg-surface p-0 text-ink shadow-lg backdrop:bg-ink/40 backdrop:backdrop-blur-sm",
+        "m-0 w-full max-w-full max-h-[92dvh] overflow-y-auto border-0 bg-surface p-0 text-ink shadow-lg ring-1 ring-ink/5 backdrop:bg-ink/40 backdrop:backdrop-blur-sm",
         placement === "top" ? "fixed inset-x-0 top-0 bottom-auto rounded-b-[24px] sm:inset-0 sm:m-auto sm:h-fit sm:rounded-[24px]" : "fixed inset-x-0 bottom-0 top-auto rounded-t-[24px] sm:inset-0 sm:m-auto sm:h-fit sm:rounded-[24px]",
         widths[size],
       )}

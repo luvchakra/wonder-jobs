@@ -19,14 +19,14 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   full?: boolean;
 }
 
-const base = "inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap select-none transition-[background-color,color,box-shadow,transform] duration-150 disabled:opacity-50 disabled:pointer-events-none wj-press";
+const base = "inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap select-none transition-[background-color,border-color,color,box-shadow,transform,filter] duration-200 ease-out-soft disabled:opacity-50 disabled:pointer-events-none wj-press";
 const variants: Record<Variant, string> = {
-  primary: "wj-gradient-bg text-white shadow-brand hover:brightness-105",
+  primary: "wj-gradient-bg text-white shadow-brand hover:brightness-105 hover:shadow-brand-hover hover:-translate-y-px active:translate-y-0",
   secondary: "bg-brand-50 text-brand-700 hover:bg-brand-100",
   ghost: "bg-transparent text-ink-2 hover:bg-bg-soft",
-  outline: "bg-surface border border-line text-ink hover:border-line-strong hover:bg-surface-2",
+  outline: "bg-surface border border-line text-ink shadow-xs hover:border-line-strong hover:bg-surface-2",
   danger: "bg-danger-100 text-danger-600 hover:brightness-95",
-  dark: "bg-ink text-white hover:bg-ink-2",
+  dark: "bg-ink text-white shadow-sm hover:bg-ink-2",
   glass: "wj-glass text-ink hover:bg-white/90",
 };
 const sizes: Record<Size, string> = {
