@@ -253,15 +253,22 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
           if (action === "ingest") {
             // Records collected outside the app (the weekly GitHub job), checked and mapped like the source's own
             // fetch, then they replace its listings. Counts as the source's test, as a partner upload does.
-            const { items } = await readBody(request, 4_000_000) ?? {};
+            // A bulk collection (WJ-817, Overture Maps) arrives in batches: every batch carries the run's start as
+            // `observedAt`, the ones before the last say `merge: true` (add to what the source holds), and the last
+            // one replaces: whatever this run did not bring goes.
+            const { items, merge, observedAt } = await readBody(request, 4_000_000) ?? {};
             const source = await store.read((s) => s.sources.find((x) => x.id === id));
             if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
             if (source.kind !== "json_api") throw new ApiError(409, "NOT_INGESTIBLE", "Only a JSON source takes delivered records");
             if (!Array.isArray(items) || items.length > 10000) throw new ApiError(400, "INVALID_REQUEST", "items: an array of up to 10,000 records");
-            const startedAt = Date.now(), at = new Date().toISOString();
+            const startedAt = Date.now();
+            if (merge !== undefined && typeof merge !== "boolean") throw new ApiError(400, "INVALID_REQUEST", "merge must be true or false");
+            const given = observedAt === undefined ? null : Date.parse(String(observedAt));
+            if (given !== null && (!Number.isFinite(given) || given > startedAt + 300_000 || given < startedAt - 48 * 3600_000)) throw new ApiError(400, "INVALID_REQUEST", "observedAt must be the run's start, within the last 48 hours");
+            const at = given !== null ? new Date(given).toISOString() : new Date().toISOString();
             const report = normalizeAll(source, items, at, Date.now());
             const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
-            const kept = ok ? await listings.replace(id, report.results, false) : null;
+            const kept = ok ? await listings.replace(id, report.results, merge === true) : null;
             await store.change((s) => {
               const src = s.sources.find((x) => x.id === id);
               if (!src) return;

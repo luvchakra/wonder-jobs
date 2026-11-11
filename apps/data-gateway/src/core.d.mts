@@ -53,8 +53,8 @@ export const PROSPECT_DATASETS: readonly string[];
 export const PROSPECT_SCOPES: readonly string[];
 /** What a listing is searched by: its words, plus a dataset row's tokens. */
 export function listingText(listing: GatewayListing): string;
-/** A prospect search's token filters: every `all` token, and one of `any` when given. */
-export function matchesTokens(text: string, plan: { any?: string[]; all?: string[] }): boolean;
+/** A prospect search's token filters: every `all` token, and one token of each `anyOf` group. */
+export function matchesTokens(text: string, plan: { anyOf?: string[][]; all?: string[] }): boolean;
 /** Copies a reviewed definition's outside-use flag, dataset bindings and evidence onto a registered source; returns the changed fields. */
 export function reconcileSource(stored: Record<string, unknown>, definition: Record<string, unknown>): string[];
 export const RECONCILED_FIELDS: readonly string[];

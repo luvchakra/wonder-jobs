@@ -9,7 +9,7 @@ import { adminCall, ingestByUrl, setGatewaySource } from "./admin";
 import { syncCatalogueDefinitions } from "./catalogueSync";
 import { CATALOGUE } from "./catalogue";
 import { hostedGateway } from "./index";
-import { issueProspectKey, prospectAdminView, revokeProspectKey, setOutsideConsumers, setProspectQuotas } from "./prospectsAdmin";
+import { addProspectSource, issueProspectKey, prospectAdminView, revokeProspectKey, setOutsideConsumers, setProspectQuotas, setProspectSource } from "./prospectsAdmin";
 import { resetGatewayListingsForTests } from "./store";
 
 // WJ-815: prospect data served by the hosted gateway (docs/PROSPECT_DATA_API.md, packages A1 and A2).
@@ -87,7 +87,7 @@ describe("prospect data on the hosted gateway", () => {
     await setGatewaySource(id, "activate");
     let view = await prospectAdminView();
     expect(view).toMatchObject({ configured: true, allowExternalConsumers: false, forcedOn: false, quotas: { search: 500, paid: 50 }, paidPlatformCap: 1000, keys: [] });
-    expect(view.sources).toEqual([expect.objectContaining({ id, datasets: ["businesses"], live: true, outside: true, rows: 2, termsPending: false })]);
+    expect(view.sources).toEqual([expect.objectContaining({ id, datasets: ["businesses"], state: "live", own: false, live: true, outside: true, rows: 2, termsPending: false }), expect.objectContaining({ id: "overture-places-in.json", state: "not_added" })]);
 
     await setOutsideConsumers(true);
     const issued = await issueProspectKey();
@@ -112,6 +112,33 @@ describe("prospect data on the hosted gateway", () => {
     expect((await revokeProspectKey(view.keys[0].id)).status).toBe(200);
     expect((await prospects(key, "sources")).status).toBe(401);
     expect((await prospectAdminView()).keys).toEqual([]);
+  });
+
+  it("a prospect-only source is added, filled in batches and activated from the card; module sources are not its to switch (WJ-817)", async () => {
+    const FILE2 = "overture-places-in.json";
+    const place = (n: number) => ({ id: `ov-${n}`, name: `Works ${n}`, url: "https://explore.overturemaps.org/#17/18.52/73.85", categories: "electrician;home_service;trades", words: "electrician", website: `https://works${n}.example`, phone: "+91 20 5550 0100", city: "Pune", region: "Maharashtra", lat: 18.52, lon: 73.85, confidence: 0.9, providers: "meta" });
+    let view = await prospectAdminView();
+    expect(view.sources).toEqual([expect.objectContaining({ id: FILE2, state: "not_added", own: true, outside: true, termsPending: true, rows: 0 })]);
+    expect((await addProspectSource("osm-services-west.json")).status).toBe(404);
+    const added = await addProspectSource(FILE2);
+    expect(added.status).toBe(201);
+    const id = String(added.body.id);
+    expect((await prospectAdminView()).sources).toEqual([expect.objectContaining({ id, state: "waiting", rows: 0 })]);
+    expect((await setProspectSource(id, "activate")).status).toBe(409);
+
+    const url = String(CATALOGUE[FILE2].url);
+    const observedAt = new Date().toISOString();
+    expect((await ingestByUrl(url, [place(1), place(2)], { merge: true, observedAt }))[0].body).toMatchObject({ ok: true, kept: 2 });
+    expect((await ingestByUrl(url, [place(3)], { merge: false, observedAt }))[0].body).toMatchObject({ ok: true, kept: 3 });
+    expect((await prospectAdminView()).sources).toEqual([expect.objectContaining({ id, state: "ready", rows: 3 })]);
+    expect((await setProspectSource(id, "activate")).status).toBe(200);
+    view = await prospectAdminView();
+    expect(view.sources).toEqual([expect.objectContaining({ id, state: "live", live: true })]);
+
+    // A source that also feeds a module is switched on its module's card, never here.
+    const osm = await registerAsBefore();
+    expect((await setProspectSource(osm, "pause")).status).toBe(404);
+    expect((await setProspectSource(id, "pause")).status).toBe(200);
   });
 
   it("the gateway's city list is the app's own, so a business gets the same nearest city in both", () => {

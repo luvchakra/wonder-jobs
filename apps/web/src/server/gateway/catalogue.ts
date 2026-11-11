@@ -57,6 +57,7 @@ import weWorkRemotelyManagementFinance from "../../../../data-gateway/sources/we
 import weWorkRemotelyOther from "../../../../data-gateway/sources/we-work-remotely-other.json";
 import hnCofounderPosts from "../../../../data-gateway/sources/hn-cofounder-posts.json";
 import ycStartups from "../../../../data-gateway/sources/yc-startups.json";
+import overturePlacesIn from "../../../../data-gateway/sources/overture-places-in.json";
 
 /**
  * The reviewed source definitions that ship with the gateway (`apps/data-gateway/sources/*.json`), so an admin can add
@@ -123,6 +124,8 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "we-work-remotely-other.json": weWorkRemotelyOther as Record<string, unknown>,
   "hn-cofounder-posts.json": hnCofounderPosts as Record<string, unknown>,
   "yc-startups.json": ycStartups as Record<string, unknown>,
+  // Prospect data only (WJ-817): no module reads it; it is added and activated from the Prospect data card.
+  "overture-places-in.json": overturePlacesIn as Record<string, unknown>,
 };
 
 export interface CatalogueEntry {

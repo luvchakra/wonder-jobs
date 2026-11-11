@@ -18,6 +18,11 @@ export const DEFAULT_QUOTAS = Object.freeze({ search: 500, paid: 50 });
 export const DEFAULT_PAID_PLATFORM_CAP = 1000;
 const ROUTE_SEARCH = "/v1/prospects/search";
 const KIND_DATASET = Object.freeze({ business: "businesses", channel: "channels" });
+/** Category groups a search may ask for by name: each is the group tags a collection gives its rows. */
+export const CATEGORY_GROUPS = Object.freeze({
+  trades: ["trades"], retailwholesale: ["retailwholesale"], manufacturing: ["manufacturing"], professional: ["professional"], clinics: ["clinics"], education: ["education"],
+  fitnesscommunity: ["fitnesscommunity"], gatheringplaces: ["education", "fitnesscommunity"],
+});
 const iso = () => new Date().toISOString();
 
 /** The gateway's prospect settings as they apply now: the stored ones, each falling back to its default. */
@@ -237,22 +242,27 @@ export function prospectPlan(state, caller, payload, secret) {
   const categories = [...new Set(list(f.categories).map(categoryTag).filter(Boolean))];
   const channelTypes = [...new Set(list(f.channelTypes).map(categoryTag).filter(Boolean))];
   const hasWebsite = f.hasWebsite === true;
+  // A named group of categories (the collection's own groups; "gathering_places" is where people meet: schools,
+  // colleges, coaching centres, gyms, clubs, community centres, coworking spaces).
+  const groupName = typeof f.categoryGroup === "string" ? categoryTag(f.categoryGroup) : "";
+  const group = groupName ? (CATEGORY_GROUPS[groupName] ?? null) : [];
+  if (group === null) throw new ApiError(400, "INVALID_REQUEST", "categoryGroup: one of " + Object.keys(CATEGORY_GROUPS).join(", "));
   // Stored rows carry no industry, headcount, audience size or language: such a filter is reported, not silently applied.
-  const ignoredFilters = [...(list(f.industries).length ? ["industries"] : []), ...(list(f.employeeRanges).length ? ["employeeRanges"] : []), ...(dataset === "channels" && num(f.minAudience) !== null ? ["minAudience"] : []), ...(list(f.languages).length ? ["languages"] : []), ...(typeof f.categoryGroup === "string" && f.categoryGroup ? ["categoryGroup"] : [])];
+  const ignoredFilters = [...(list(f.industries).length ? ["industries"] : []), ...(list(f.employeeRanges).length ? ["employeeRanges"] : []), ...(dataset === "channels" && num(f.minAudience) !== null ? ["minAudience"] : []), ...(list(f.languages).length ? ["languages"] : [])];
   const locations = readLocations(payload.locations);
   const countries = [...new Set(locations.map((l) => l.country).filter(Boolean))];
   const points = locations.filter((l) => l.lat !== null);
   // Text places, each with the listed city it is another name for; a point adds the listed cities it reaches, so the
   // rows read are the ones near it (their distance is checked exactly afterwards).
   const places = [...new Set([...locations.flatMap((l) => (l.text ? placeNames(l.text) : [])), ...points.flatMap((l) => citiesNear(l.lat, l.lon, l.radiusKm + 25).map((c) => c.name.toLowerCase()))])].slice(0, 20);
-  const fingerprint = createHash("sha256").update(JSON.stringify({ dataset, query, categories, channelTypes, hasWebsite, locations, providers })).digest("hex");
+  const fingerprint = createHash("sha256").update(JSON.stringify({ dataset, query, categories, channelTypes, hasWebsite, group: groupName, locations, providers })).digest("hex");
   const cursor = readCursor(payload.cursor, secret);
   if (cursor && (cursor.f !== fingerprint || !Number.isInteger(cursor.offset) || cursor.offset < 0 || cursor.offset > CANDIDATE_CAP)) throw new ApiError(400, "INVALID_CURSOR", "Cursor does not match search");
   const sources = readableSources(state, caller, dataset).filter((s) => !countries.length || !s.geography?.length || s.geography.some((g) => g === "global" || countries.includes(g)));
   return {
     kind: payload.kind, dataset, providers, limit, offset: cursor?.offset ?? 0, fingerprint, ignoredFilters, points, textGiven: locations.some((l) => l.text),
-    // The listing store's own search: all words, one of the categories, every contact mark, one of the places.
-    store: { module: dataset, query, locations: places, limit: CANDIDATE_CAP, offset: 0, sourceIds: sources.map((s) => s.id), any: [...categories.map((c) => "catq" + c + "q"), ...channelTypes.map((c) => "catq" + c + "q")], all: hasWebsite ? ["hasqwebsiteq"] : [], noCount: true },
+    // The listing store's own search: all words, one of the categories, one of the group's tags, every contact mark, one of the places.
+    store: { module: dataset, query, locations: places, limit: CANDIDATE_CAP, offset: 0, sourceIds: sources.map((s) => s.id), anyOf: [[...categories.map((c) => "catq" + c + "q"), ...channelTypes.map((c) => "catq" + c + "q")], group.map((c) => "catq" + c + "q")], all: hasWebsite ? ["hasqwebsiteq"] : [], noCount: true },
   };
 }
 

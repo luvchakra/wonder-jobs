@@ -312,3 +312,81 @@ test("every prospect route, scope, header and error is in the OpenAPI document",
   for (const s of [...PROSPECT, "read:jobs"]) assert.ok(pattern.test(s), s);
   assert.ok(!pattern.test("read:people"));
 });
+
+// WJ-817: bulk open data (Overture Maps Places) into the businesses dataset (package A5).
+const overture = async () => JSON.parse(await readFile(join(here, "..", "sources", "overture-places-in.json"), "utf8"));
+const place = (n, over = {}) => ({ id: "ov-" + n, name: "Works " + n, url: "https://explore.overturemaps.org/#17/18.52/73.85", categories: "plumbing;home_service;trades", words: "plumbing home service", website: "https://works" + n + ".example", phone: "+91 20 5550 01" + String(n).padStart(2, "0"), city: "Pune", region: "Maharashtra", lat: 18.52, lon: 73.85, confidence: 0.9, providers: "meta", ...over });
+
+test("a bulk run arrives in batches: earlier ones add, the last replaces, and only what the run did not bring goes", async () => {
+  const t = await setup();
+  try {
+    await t.call("/v1/admin/settings", { body: { allowExternalConsumers: true } });
+    const src = await t.call("/v1/admin/sources", { body: await overture() });
+    assert.equal(src.status, 201, JSON.stringify(src.body));
+    const ingest = (items, extra) => t.call(`/v1/admin/sources/${src.body.id}/ingest`, { body: { items, ...extra } });
+    const count = () => t.store.read((s) => s.listings.filter((l) => l.sourceId === src.body.id).length);
+
+    const first = new Date(Date.now() - 3600_000).toISOString();
+    assert.equal((await ingest([place(1), place(2)], { merge: true, observedAt: first })).body.kept, 2);
+    assert.equal((await ingest([place(3)], { merge: false, observedAt: first })).body.kept, 3, "the last batch keeps the run's earlier batches");
+    // The next run brings 2 and 4: 1 and 3 are no longer in the source, so they go.
+    const second = new Date().toISOString();
+    assert.equal((await ingest([place(2)], { merge: true, observedAt: second })).body.kept, 3);
+    assert.equal((await ingest([place(4)], { merge: false, observedAt: second })).body.kept, 2);
+    assert.equal(await count(), 2);
+    assert.deepEqual((await t.store.read((s) => s.listings.map((l) => l.title))).sort(), ["Works 2", "Works 4"]);
+
+    assert.equal((await ingest([place(5)], { observedAt: "yesterday" })).status, 400);
+    assert.equal((await ingest([place(5)], { observedAt: new Date(Date.now() - 72 * 3600_000).toISOString() })).status, 400, "not a run from days ago");
+    assert.equal((await ingest([place(5)], { merge: "yes" })).status, 400);
+    assert.equal(await count(), 2, "a refused delivery changes nothing");
+  } finally { await t.done(); }
+});
+
+test("one tag for a trade whatever a source calls it, and a named group of categories", async () => {
+  const t = await setup();
+  try {
+    await t.call("/v1/admin/settings", { body: { allowExternalConsumers: true } });
+    await t.addSource(await osm(), [{ type: "node", id: 9, lat: 18.52, lon: 73.85, tags: { name: "Deccan Plumbers", craft: "plumber" } }]);
+    await t.addSource(await overture(), [place(1), place(2, { name: "Sunrise Coaching", categories: "tutoring_service;education", words: "tutoring service" }), place(3, { name: "Iron Gym", categories: "gym;fitness_community", words: "gym" })]);
+    const key = (await t.issue("wonderark", PROSPECT)).body.key;
+    const names = async (body) => (await search(t, key, { kind: "business", ...body })).body.results.map((b) => b.name).sort();
+
+    assert.deepEqual(await names({ filters: { categories: ["plumbing"] } }), ["Deccan Plumbers", "Works 1"], "plumbing and plumber are one trade");
+    assert.deepEqual(await names({ filters: { categories: ["Plumber"] } }), ["Deccan Plumbers", "Works 1"]);
+    assert.deepEqual(await names({ query: "plumbing" }), ["Works 1"], "a word search reads the source's own words");
+    assert.deepEqual(await names({ filters: { categoryGroup: "gathering_places" } }), ["Iron Gym", "Sunrise Coaching"]);
+    assert.deepEqual(await names({ filters: { categoryGroup: "trades" } }), ["Works 1"]);
+    assert.deepEqual(await names({ filters: { categoryGroup: "gathering_places", categories: ["gym"] } }), ["Iron Gym"]);
+    assert.equal((await search(t, key, { kind: "business", filters: { categoryGroup: "people" } })).status, 400);
+
+    const b = (await search(t, key, { kind: "business", filters: { categories: ["plumbing"] }, locations: [{ text: "Pune" }] })).body.results.find((x) => x.name === "Works 1");
+    assert.equal(b.source.name, "Overture Maps Foundation (CDLA Permissive 2.0)");
+    assert.match(b.source.url, /^https:\/\/explore\.overturemaps\.org\//);
+    assert.equal(b.source.termsPending, true);
+    assert.equal(b.domain, "works1.example");
+    assert.equal(b.location.text, "Pune, Maharashtra");
+    assert.equal(b.location.region, "Maharashtra");
+    assert.deepEqual(b.provenance, {}, "a city the source states is not marked as derived");
+    const sources = (await t.call("/v1/prospects/sources", { token: key, tenant: TENANT })).body.sources[0];
+    assert.equal(sources.attribution, "OpenStreetMap contributors (ODbL); Overture Maps Foundation (CDLA Permissive 2.0)");
+  } finally { await t.done(); }
+});
+
+test("the Overture collection's config and source agree: shares sum to one, every group is searchable, each country has its source", async () => {
+  const cfg = JSON.parse(await readFile(join(here, "..", "prospects", "overture-places.json"), "utf8"));
+  const { CATEGORY_GROUPS } = await import("../src/prospects.mjs");
+  const { categoryTag } = await import("../src/core.mjs");
+  assert.ok(Math.abs(cfg.groups.reduce((n, g) => n + g.share, 0) - 1) < 1e-9);
+  for (const g of cfg.groups) assert.ok(CATEGORY_GROUPS[categoryTag(g.id)], g.id + " is a group a search can ask for");
+  assert.ok(cfg.rowCap <= 50000, "within Admin → Storage's default limit for prospect rows per source");
+  assert.deepEqual(cfg.licences, ["CDLA-Permissive-2.0", "Apache-2.0", "CC0-1.0"]);
+  for (const country of Object.keys(cfg.countries)) {
+    const def = JSON.parse(await readFile(join(here, "..", "sources", `overture-places-${country.toLowerCase()}.json`), "utf8"));
+    const checked = validateSource(def);
+    assert.deepEqual(checked.modules, [], "it feeds no module");
+    assert.deepEqual(checked.datasets, ["businesses"]);
+    assert.deepEqual(def.geography, [country]);
+    assert.equal(checked.permissionEvidence, def.permissionEvidence, "the evidence is kept whole");
+  }
+});

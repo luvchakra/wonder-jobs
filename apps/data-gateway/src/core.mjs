@@ -396,10 +396,10 @@ export function matchesWords(text, query) {
 }
 /** What a listing is searched by: its words, and for a prospect dataset row its tokens (category and contact marks). */
 export const listingText = (x) => x.title + " " + x.description + " " + x.organization + " " + (x.attributes?.breadcrumb ?? "") + (x.tokens ? " " + x.tokens : "");
-/** A prospect search's token filters: every `all` token present, and one of `any` when given. Other searches have neither. */
+/** A prospect search's token filters: every `all` token present, and one token of each `anyOf` group. Other searches have neither. */
 export function matchesTokens(text, plan) {
   const t = String(text ?? "").toLowerCase();
-  return (plan.all ?? []).every((k) => t.includes(k)) && (!plan.any?.length || plan.any.some((k) => t.includes(k)));
+  return (plan.all ?? []).every((k) => t.includes(k)) && (plan.anyOf ?? []).every((group) => !group.length || group.some((k) => t.includes(k)));
 }
 /** The search as an in-memory filter (a file store; tests). A database store runs the same filter in SQL. */
 export function filterListings(listings, plan, now = Date.now()) {
@@ -422,8 +422,11 @@ export function stateListings(store) {
     async get(id) { return store.read((s) => s.listings.find((x) => x.id === id)); },
     async replace(sourceId, results, merge) {
       const fresh = new Set(results.map((x) => x.id));
+      // As the database store does: a run that replaces removes what is older than the run, so the earlier batches of
+      // one bulk run (delivered with merge, the same observedAt) stay when its last batch replaces (WJ-817).
+      const runAt = results.reduce((m, l) => (l.observedAt < m ? l.observedAt : m), new Date().toISOString());
       return store.change((s) => {
-        s.listings = s.listings.filter((x) => x.sourceId !== sourceId || (merge && !fresh.has(x.id))).concat(results).filter((x) => Date.parse(x.expiresAt) > Date.now());
+        s.listings = s.listings.filter((x) => x.sourceId !== sourceId || (!fresh.has(x.id) && (merge || x.observedAt >= runAt))).concat(results).filter((x) => Date.parse(x.expiresAt) > Date.now());
         return s.listings.filter((x) => x.sourceId === sourceId).length;
       });
     },
@@ -521,8 +524,19 @@ export function pushAudit(state, entry) {
   if (state.audits.length > MAX_AUDITS) state.audits.splice(0, state.audits.length - MAX_AUDITS);
 }
 
-/** A category as a tag: lower case, letters and digits only ("electronics_repair" and "Electronics repair" are one). */
-export const categoryTag = (v) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+const CATEGORY_ALIASES = Object.freeze({
+  plumbing: "plumber", plumbers: "plumber", electricians: "electrician", electrical: "electrician", hvacservice: "hvac", airconditioning: "hvac", acrepair: "hvac", acservice: "hvac",
+  painting: "painter", painters: "painter", carpentry: "carpenter", carpenters: "carpenter", roofing: "roofer", tiling: "tiler",
+  appliancerepairservice: "appliancerepair", pestcontrolservice: "pestcontrol", homecleaning: "cleaning", cleaningservice: "cleaning", janitorialservice: "cleaning",
+  electronicsrepairshop: "electronicsrepair", solarinstallation: "solar", itserviceandcomputerrepair: "itservices", computerrepair: "itservices", mobilephonerepair: "mobilerepair",
+  interiordesign: "interiordesigner", keyandlocksmith: "locksmith", waterpurificationservice: "waterpurifier", homesecurity: "securitysystems", elevatorservice: "elevator",
+  fitnesscommunity: "fitnesscommunity", retailwholesale: "retailwholesale",
+});
+/**
+ * A category as a tag: lower case, letters and digits only ("electronics_repair" and "Electronics repair" are one), and
+ * one tag for the names sources use for the same trade ("plumbing" and "plumber"; WJ-817).
+ */
+export const categoryTag = (v) => { const t = String(v ?? "").toLowerCase().replace(/[^a-z0-9]+/g, ""); return CATEGORY_ALIASES[t] ?? t; };
 /** A listing's stated categories (OpenStreetMap's craft, a source's own category), as tags. */
 export function categoriesOf(listing) {
   const a = listing.attributes ?? {};
