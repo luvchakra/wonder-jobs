@@ -412,7 +412,7 @@ const site = (fields = {}, mailboxes = []) => async () => ({ status: "ok", field
 test("enrich fills each blank from the cheapest source first and says where every value came from", async () => {
   const wikidata = { provider: "wikidata", name: "Wikidata", url: "https://www.wikidata.org/wiki/Q1", termsPending: false };
   const t = await setupA4({
-    companyFacts: async ({ domain }) => (domain === "acme.example" ? [{ field: "industry", value: "Software <b>tools</b>", source: wikidata, observedAt: "2026-10-30T00:00:00Z" }, { field: "hq", value: "Pune, India", source: wikidata, observedAt: "2026-10-30T00:00:00Z" }] : []),
+    companyFacts: async ({ domain }) => (domain === "acme.example" ? [{ field: "industry", value: "Software <b>tools</b>", source: wikidata, observedAt: "2026-10-30T00:00:00Z" }, { field: "hq", value: "Pune, India", source: wikidata, observedAt: null }] : []),
     readSite: site({ description: "We repair cooling systems.", phone: "+91 20 5550 0199", hq: "Mumbai, India", linkedinUrl: "https://www.linkedin.com/company/acme/" }),
   });
   try {
@@ -438,6 +438,9 @@ test("enrich fills each blank from the cheapest source first and says where ever
     assert.equal(r.body.usage.unitsSpent, 0);
     assert.deepEqual(r.body.metadata.providers.map((p) => [p.id, p.status]), [["directory", "ok"], ["stored", "ok"], ["site", "ok"]]);
     assert.equal(r.body.usage.tenantRemaining.search, DEFAULT_QUOTAS.search - 1, "a free lookup counts against the free allowance");
+
+    // WJ-821: every filled field carries a date, even when its source gave none.
+    for (const v of Object.values(f)) if (v) assert.ok(typeof v.observedAt === "string" && Number.isFinite(Date.parse(v.observedAt)), "observedAt is always a date");
 
     // Only the fields asked for; paid sources only on request, and none is connected.
     const paid = await t.call("/v1/prospects/enrich", { token: t.key, tenant: TENANT, body: { domain: "acme.example", fields: ["employeeRange"], allowPaid: true } });
