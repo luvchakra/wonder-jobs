@@ -58,7 +58,7 @@ export function MobileNav() {
           <MoreHorizontal className="size-6" aria-hidden />
         </button>
       )}
-      <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
+      <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.18)] backdrop-blur-xl transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
         <ul className="grid grid-flow-col auto-cols-fr">
           {nav.map((item) => {
             const active = isActivePath(pathname, item);
@@ -66,7 +66,7 @@ export function MobileNav() {
             return (
               <li key={item.href}>
                 <Link href={item.href} aria-current={active ? "page" : undefined} className={cn("flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium", active ? "text-brand-600" : "text-ink-3")}>
-                  <span className={cn("flex h-7 w-11 items-center justify-center rounded-full transition-colors", active && "bg-brand-50")}>
+                  <span className={cn("flex h-7 w-11 items-center justify-center rounded-full transition-colors duration-200", active && "bg-brand-50")}>
                     <Icon className="size-5" aria-hidden />
                   </span>
                   {item.label}

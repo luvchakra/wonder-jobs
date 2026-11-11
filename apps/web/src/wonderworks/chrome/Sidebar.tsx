@@ -62,13 +62,13 @@ function NavLink({ item, pathname, collapsed }: { item: NavItem; pathname: strin
       aria-label={collapsed ? item.label : undefined}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "group flex items-center gap-3 rounded-[12px] px-3 font-medium transition-colors",
+        "group flex items-center gap-3 rounded-[12px] px-3 font-medium transition-colors duration-200",
         collapsed ? "h-11 text-[14px]" : "h-9 text-[14px]",
-        active ? "bg-brand-50 text-brand-700" : "text-ink-2 hover:bg-bg-soft hover:text-ink",
+        active ? "bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100" : "text-ink-2 hover:bg-bg-soft hover:text-ink",
         collapsed && "justify-center px-0",
       )}
     >
-      <Icon className={cn("size-[18px] shrink-0", active ? "text-brand-600" : "text-ink-3 group-hover:text-ink-2")} aria-hidden />
+      <Icon className={cn("size-[18px] shrink-0 transition-colors duration-200", active ? "text-brand-600" : "text-ink-3 group-hover:text-ink-2")} aria-hidden />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );

@@ -372,7 +372,7 @@ export function ResultsLine({ summary, sort, pinned = true }: { summary: React.R
 /** The results, one column on a phone and up to three on a wide screen. */
 export function ResultsGrid({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label={label}>
+    <ul className="wj-stagger grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 [&>li]:flex [&>li>*]:min-w-0 [&>li>*]:flex-1" aria-label={label}>
       {children}
     </ul>
   );
@@ -451,7 +451,8 @@ export function ResultCard({ className, cover, aside, title, facts, tags = [], r
   return (
     <article className={cn("wj-card wj-elevate relative flex flex-col px-4 py-3", className)}>
       {cover}
-      <div className="flex items-stretch gap-3">
+      {/* Cards in a row share its height: the body takes the spare room, so every footer sits on the same line. */}
+      <div className="flex flex-1 items-stretch gap-3">
         {/* The fit sits under the logo, so the title gets the card's whole width. */}
         <div className="flex shrink-0 flex-col items-center gap-1">{aside}</div>
         <div className="flex min-w-0 flex-1 flex-col">
