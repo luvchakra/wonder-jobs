@@ -10,6 +10,8 @@ export interface GatewayState {
   runs: Record<string, unknown>[];
   /** Prospect data settings (outside consumers, tenant quotas, the paid cap); absent ones take their defaults. */
   settings?: Record<string, unknown>;
+  /** Removal requests, each a keyed hash of an address or "@domain" (never the address). */
+  suppressions?: string[];
 }
 export function initial(): GatewayState;
 

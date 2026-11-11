@@ -7,8 +7,9 @@
  * for quotas and usage counts only; it stores no tenant's prospects, approvals or messages.
  */
 import { createHash, createHmac } from "node:crypto";
-import { ApiError, PROSPECT_SCOPES, categoriesOf, categoryTag, id, recordUsage, secureEqual, websiteOf } from "./core.mjs";
+import { ApiError, PROSPECT_SCOPES, categoriesOf, categoryTag, domainToken, id, plainText, pushAudit, recordUsage, secureEqual, websiteOf } from "./core.mjs";
 import { citiesNear, km, placeNames } from "./places.mjs";
+import { cleanDomain, organisationMailbox, readOrganisationSite } from "./site.mjs";
 
 /** Most rows one search reads before it merges duplicates and pages. A wider search says so (`metadata.capped`). */
 export const CANDIDATE_CAP = 1000;
@@ -17,6 +18,16 @@ export const DEFAULT_QUOTAS = Object.freeze({ search: 500, paid: 50 });
 /** Paid units across every tenant in a month, so one provider bill cannot run away. */
 export const DEFAULT_PAID_PLATFORM_CAP = 1000;
 const ROUTE_SEARCH = "/v1/prospects/search";
+const ROUTE_ENRICH = "/v1/prospects/enrich";
+const ROUTE_CONTACTS = "/v1/prospects/contacts";
+/** Requests that count against a tenant's free allowance (stored data, free lookups). */
+const FREE_ROUTES = new Set([ROUTE_SEARCH, ROUTE_ENRICH, ROUTE_CONTACTS]);
+/** What enrich can fill for an organisation. */
+export const ENRICH_FIELDS = Object.freeze(["industry", "employeeRange", "description", "phone", "email", "linkedinUrl", "hq"]);
+/** Providers of named people. None is connected yet, so a contacts lookup says each needs setup (A3). */
+export const CONTACT_PROVIDERS = Object.freeze(["hunter", "apollo"]);
+/** The removal list is kept in the gateway's state document, so it is small; past this it needs its own table (an owner decision). */
+export const MAX_SUPPRESSIONS = 2000;
 const KIND_DATASET = Object.freeze({ business: "businesses", channel: "channels" });
 /** Category groups a search may ask for by name: each is the group tags a collection gives its rows. */
 export const CATEGORY_GROUPS = Object.freeze({
@@ -60,6 +71,21 @@ export function updateProspectSettings(state, patch) {
   return Object.keys(patch);
 }
 
+/** A removal request as it is kept: a keyed hash of the address (or "@domain"), never the address itself. */
+export const suppressionHash = (value, secret) => createHmac("sha256", secret).update("suppress:v1:" + String(value).trim().toLowerCase()).digest("hex").slice(0, 40);
+
+/** An enrich request, checked: a domain or a name, the fields wanted (all by default), and whether paid sources may be asked. */
+export function enrichRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "INVALID_REQUEST", "Send an enrich request");
+  const domain = cleanDomain(body.domain);
+  const name = typeof body.name === "string" ? plainText(body.name).slice(0, 200) : "";
+  if (!domain && !name) throw new ApiError(400, "INVALID_REQUEST", "domain or name is required");
+  if (body.domain && !domain) throw new ApiError(400, "INVALID_REQUEST", "domain: the organisation's own domain, e.g. acme.example");
+  const asked = Array.isArray(body.fields) && body.fields.length ? body.fields : ENRICH_FIELDS;
+  if (asked.some((f) => !ENRICH_FIELDS.includes(f))) throw new ApiError(400, "INVALID_REQUEST", "fields: " + ENRICH_FIELDS.join(", "));
+  return { domain, name, fields: [...new Set(asked)], allowPaid: body.allowPaid === true };
+}
+
 /** The request's tenant: required on every prospect route, an opaque id (letters, digits, - _ . :), never interpreted. */
 export function tenantOf(request) {
   const t = (request.headers.get("x-tenant-id") ?? "").trim();
@@ -84,7 +110,7 @@ export function tenantQuota(state, consumerId, tenant, now = Date.now()) {
     if (!u.tenant || !String(u.day).startsWith(month) || !String(u.route).startsWith("/v1/prospects/")) continue;
     paidAll += u.units ?? 0;
     if (u.consumerId !== consumerId || u.tenant !== tenant) continue;
-    if (u.route === ROUTE_SEARCH) searches += u.count ?? 0;
+    if (FREE_ROUTES.has(u.route)) searches += u.count ?? 0;
     paid += u.units ?? 0;
   }
   const resetAt = new Date(now + secondsToNextMonth(now) * 1000).toISOString();
@@ -299,7 +325,70 @@ export function prospectSources(state, caller, tenant, now = Date.now()) {
  * The /v1/prospects/ routes. `store` is the gateway's state store, `listings` its listing store and `cursorSecret`
  * signs the paging cursor. `handle` answers a request already authenticated and rate-limited by the gateway.
  */
-export function createProspects({ store, listings, cursorSecret, reply, readBody }) {
+export function createProspects({ store, listings, cursorSecret, reply, readBody, hooks = {} }) {
+  // An organisation's own site is read at most once per instance in a while, whoever asks (an hour; the page is public).
+  const siteCache = new Map();
+  async function readSite(domain) {
+    const hit = siteCache.get(domain);
+    if (hit && Date.now() - hit.at < 3600_000) return hit.value;
+    const value = await (hooks.readSite ?? readOrganisationSite)(domain);
+    if (siteCache.size > 500) siteCache.clear();
+    if (value.status === "ok") siteCache.set(domain, { at: Date.now(), value });
+    return value;
+  }
+  /** One free request against the tenant's monthly allowance; 429 once it is used up. */
+  async function spendFree(caller, tenant) {
+    const q = await store.read((s) => tenantQuota(s, caller.consumerId, tenant));
+    if (q.search.remaining <= 0) throw new ApiError(429, "QUOTA_EXCEEDED", "This business has used its " + q.search.limit + " free requests for the month; the allowance renews on " + q.resetAt.slice(0, 10), { "retry-after": String(secondsToNextMonth()) });
+  }
+
+  /**
+   * Fills an organisation's blanks from the cheapest source first, stopping at the first value per field: WorksLake's
+   * company directory (reported facts, then Wikidata), stored businesses rows with the same domain, then the
+   * organisation's own site. A paid provider is asked only with allowPaid, and none is connected yet.
+   */
+  async function enrich(ask) {
+    const fields = Object.fromEntries(ask.fields.map((f) => [f, null]));
+    const providers = [];
+    const want = () => ask.fields.filter((f) => fields[f] === null);
+    const put = (f, value, source, observedAt) => { if (f in fields && fields[f] === null && value !== null && value !== undefined && value !== "") fields[f] = { value, source, observedAt }; };
+
+    if (hooks.companyFacts) {
+      try {
+        const found = await hooks.companyFacts({ domain: ask.domain, name: ask.name });
+        let n = 0;
+        for (const e of found ?? []) { const before = fields[e.field]; put(e.field, typeof e.value === "string" ? plainText(e.value).slice(0, 600) : e.value, e.source, e.observedAt ?? null); if (before === null && fields[e.field]) n++; }
+        providers.push({ id: "directory", status: "ok", returned: n });
+      } catch { providers.push({ id: "directory", status: "unavailable", returned: 0 }); }
+    }
+
+    if (ask.domain && want().length) {
+      const token = domainToken(ask.domain);
+      const sources = await store.read((s) => readableSources(s, ask.caller, "businesses"));
+      const rows = token && sources.length ? (await listings.search({ module: "businesses", query: "", locations: [], limit: 20, offset: 0, sourceIds: sources.map((x) => x.id), all: [token], noCount: true })).rows : [];
+      const byId = new Map(sources.map((x) => [x.id, x]));
+      let n = 0;
+      for (const row of rows) {
+        const b = businessItem(row, byId.get(row.sourceId));
+        if (b.domain !== ask.domain) continue;
+        const src = { provider: "stored", name: b.source.name, url: b.source.url };
+        const hq = [b.location.city, b.location.region].filter(Boolean).join(", ") || null;
+        for (const [f, v] of [["description", b.description], ["phone", b.phone], ["email", b.email], ["hq", hq]]) { const before = fields[f]; put(f, v, src, b.observedAt); if (before === null && fields[f]) n++; }
+      }
+      providers.push({ id: "stored", status: "ok", returned: n });
+    }
+
+    if (ask.domain && want().some((f) => ["description", "phone", "email", "linkedinUrl", "hq"].includes(f))) {
+      const site = await readSite(ask.domain).catch(() => ({ status: "unavailable", fields: {} }));
+      let n = 0;
+      for (const [f, v] of Object.entries(site.fields ?? {})) { const before = fields[f]; put(f, v.value, { provider: "site", name: ask.domain, url: v.url }, iso()); if (before === null && fields[f]) n++; }
+      providers.push({ id: "site", status: site.status === "ok" ? "ok" : "unavailable", returned: n });
+    }
+    // Paid enrichment (Apollo) is asked only with allowPaid, and is not connected yet.
+    if (ask.allowPaid && want().length) providers.push({ id: "apollo", status: "needs_setup", returned: 0 });
+    return { fields, providers };
+  }
+
   async function handle(request, caller, p, method) {
     if (!caller.scopes.some((s) => PROSPECT_SCOPES.includes(s))) throw new ApiError(403, "FORBIDDEN", "This API key has no prospect scope");
     const tenant = tenantOf(request);
@@ -334,6 +423,58 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
         metadata: { matched: items.length, providers: [{ id: "stored", status: "ok", returned: page.length }], asOf: iso(), ...(found.rows.length >= CANDIDATE_CAP ? { capped: true } : {}), ...(plan.ignoredFilters.length ? { ignoredFilters: plan.ignoredFilters } : {}) },
         usage: { unitsSpent: 0, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } },
       });
+    }
+
+    if (method === "POST" && route === "enrich" && p.length === 3) {
+      if (!caller.scopes.includes("lookup:enrich")) throw new ApiError(403, "FORBIDDEN", "This API key cannot enrich");
+      const body = await readBody(request);
+      const ask = enrichRequest(body);
+      await spendFree(caller, tenant);
+      const result = await enrich({ ...ask, caller });
+      store.lazy((s) => recordUsage(s, caller, ROUTE_ENRICH, "enrich", Object.values(result.fields).filter(Boolean).length, { tenant, units: 0 }));
+      const after = await store.read((s) => tenantQuota(s, caller.consumerId, tenant));
+      return reply(200, { requestId: id("req"), domain: ask.domain || null, fields: result.fields, metadata: { providers: result.providers, asOf: iso() }, usage: { unitsSpent: 0, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } } });
+    }
+
+    if (method === "POST" && route === "contacts" && p.length === 3) {
+      if (!caller.scopes.includes("lookup:contacts")) throw new ApiError(403, "FORBIDDEN", "This API key cannot look up contacts");
+      const body = await readBody(request);
+      const domain = cleanDomain(body?.domain);
+      if (!domain) throw new ApiError(400, "INVALID_REQUEST", "domain: the organisation's own domain, e.g. acme.example");
+      await spendFree(caller, tenant);
+      // The organisation's own published mailboxes, free. People are looked up live by a provider on request and never
+      // stored here; none is connected yet, so each says it needs setup.
+      const site = await readSite(domain).catch(() => ({ status: "unavailable", mailboxes: [] }));
+      const suppressed = await store.read((s) => new Set(s.suppressions ?? []));
+      const hidden = (email) => suppressed.has(suppressionHash(email, cursorSecret)) || suppressed.has(suppressionHash("@" + domain, cursorSecret));
+      const generic = site.mailboxes.filter((m) => !hidden(m.email)).map((m) => ({ email: m.email, emailStatus: "unverified", source: { provider: "site", name: domain, url: m.url } }));
+      store.lazy((s) => recordUsage(s, caller, ROUTE_CONTACTS, "contacts", generic.length, { tenant, units: 0 }));
+      const after = await store.read((s) => tenantQuota(s, caller.consumerId, tenant));
+      return reply(200, {
+        requestId: id("req"), domain, contacts: [], generic,
+        metadata: { providers: [{ id: "site", status: site.status === "ok" ? "ok" : "unavailable", returned: generic.length }, ...CONTACT_PROVIDERS.map((x) => ({ id: x, status: "needs_setup", returned: 0 }))], asOf: iso() },
+        usage: { unitsSpent: 0, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } },
+      });
+    }
+
+    if (method === "POST" && route === "suppress" && p.length === 3) {
+      if (!caller.scopes.includes("lookup:contacts")) throw new ApiError(403, "FORBIDDEN", "This API key cannot record removal requests");
+      const body = await readBody(request);
+      const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 100) : []);
+      const emails = list(body?.emails).map((e) => e.trim().toLowerCase()).filter((e) => /^[^\s@]{1,64}@[^\s@]{3,190}$/.test(e));
+      const domains = list(body?.domains).map(cleanDomain).filter(Boolean);
+      if (!emails.length && !domains.length) throw new ApiError(400, "INVALID_REQUEST", "emails or domains: what to stop returning");
+      // Only a keyed hash is kept: the list can answer "is this one on it?" and nothing else.
+      const hashes = [...emails.map((e) => suppressionHash(e, cursorSecret)), ...domains.map((d) => suppressionHash("@" + d, cursorSecret))];
+      await store.change((s) => {
+        const have = new Set(s.suppressions ?? []);
+        for (const h of hashes) have.add(h);
+        // A removal request is never dropped to make room: a full list refuses the new one, loudly.
+        if (have.size > MAX_SUPPRESSIONS) throw new ApiError(507, "SUPPRESSION_LIST_FULL", "The removal list is full; nothing was recorded. Tell the WonderWorks administrator");
+        s.suppressions = [...have];
+        pushAudit(s, { at: iso(), action: "suppress.added", consumerId: caller.consumerId, count: hashes.length });
+      });
+      return reply(200, { accepted: hashes.length });
     }
 
     throw new ApiError(404, "NOT_FOUND", "No such prospect route");

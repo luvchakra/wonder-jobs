@@ -11,7 +11,15 @@
 - A business's `domain` is the domain of its own website, never the source's. `provenance` is keyed by field name, each value a source (`{ provider, name, url }`); a city worked out from the map point appears as `provenance["location.city"]` with provider `derived`. When several sources list the same organisation, the others are at `source.alsoListedBy`.
 - `metadata.ignoredFilters` names any filter the stored data cannot answer (`industries`, `employeeRanges`, `minAudience`, `languages`, `categoryGroup` today). `metadata.capped: true` means the search matched more rows than the 1,000 it reads before merging duplicates.
 - `GET /v1/prospects/sources` also returns `quota.resetAt`. `stored` is the only provider until A3; naming another returns 400.
-- `enrich`, `contacts`, `signals` and `suppress` are not served yet (404).
+- `signals` is not served yet (404). `enrich`, `contacts` and `suppress` are served since WJ-818 (below).
+
+**A4, enrich, contacts and suppress (WJ-818, 2026-11-11).**
+
+- `enrich` and `contacts` responses also carry `metadata.providers` (`directory`, `stored`, `site`, and the paid ones as `needs_setup`), like search. A free lookup counts against the tenant's `search` allowance.
+- `enrich` returns `domain: null` when only a name was given. Each filled field's `source` is `{ provider, name, url }`, with `termsPending` where it applies; `provider` is `workslake`, `wikidata`, `stored` or `site`.
+- The organisation's own site is read over HTTPS only. A site that serves plain HTTP only, disallows the gateway in robots.txt, or whose robots.txt cannot be read, is not read (`site` shows `unavailable`).
+- `contacts` returns `contacts: []` until a contact provider is connected (A3). `generic` holds only mailboxes that read as the organisation's own; a person-named mailbox on the site is not returned.
+- `suppress` needs the `lookup:contacts` scope, takes up to 100 emails and 100 domains a call, and answers 507 `SUPPRESSION_LIST_FULL` when the list (2,000 entries) is full.
 
 **A5, Overture Maps (WJ-817, 2026-11-11).**
 
