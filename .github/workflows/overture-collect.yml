@@ -1,0 +1,35 @@
+# Overture Maps Places collection for the businesses prospect dataset (WJ-817), run here rather than in the app: the
+# release is bulk Parquet, read with DuckDB over HTTPS so only the rows asked for are downloaded (about a minute).
+# The script keeps what apps/data-gateway/prospects/overture-places.json allows, then delivers the businesses to the app
+# in batches (/api/cron/gateway-ingest), which checks and stores them. Overture publishes monthly; the rows are kept 30
+# days, so this runs twice a month. Needs the repository secret CRON_SECRET (same value as on Vercel).
+name: Overture Maps collection
+
+on:
+  schedule:
+    - cron: "17 3 2,16 * *" # the 2nd and 16th, 08:47 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: overture-collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      SITE: ${{ vars.SITE_URL || 'https://works.wonderapps.biz' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DuckDB
+        run: pip install --quiet duckdb==2.0.0
+      - name: Collect and deliver
+        run: python apps/data-gateway/scripts/overture-collect.py

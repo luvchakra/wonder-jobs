@@ -118,11 +118,27 @@ function Body({ d, reload }: { d: ProspectAdminView; reload: () => void }) {
         {d.sources.map((s) => (
           <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
             <span className="min-w-0 text-ink-2">
-              {s.name} · {s.datasets.join(", ")} · {num(s.rows)} rows{s.lastSuccessAt ? ` · collected ${relativeTime(s.lastSuccessAt)}` : " · not collected yet"}
+              {s.name} · {s.datasets.join(", ")} · {s.state === "not_added" ? "not added yet" : `${num(s.rows)} rows${s.lastSuccessAt ? ` · collected ${relativeTime(s.lastSuccessAt)}` : " · nothing delivered yet"}`}
             </span>
             <span className="flex items-center gap-1.5">
               {s.termsPending && <Badge tone="warning">Terms pending</Badge>}
-              <Badge tone={s.live && s.outside ? "success" : "neutral"}>{!s.live ? "Paused" : s.outside ? "Served to WonderArk" : "WorksLake only"}</Badge>
+              <Badge tone={s.live && s.outside ? "success" : "neutral"}>{s.state === "not_added" ? "Not added" : !s.live ? (s.state === "ready" ? "Ready" : "Waiting") : s.outside ? "Served to WonderArk" : "WorksLake only"}</Badge>
+              {/* One action, and only for a source this card manages (one that feeds prospect data alone). */}
+              {s.own && s.state === "not_added" && (
+                <Button size="sm" variant="outline" loading={busy} title="Adds it paused. Then run its collection on GitHub (Actions → Overture Maps collection) and come back to activate it." onClick={() => void act({ action: "add_source", file: s.id }, "Couldn't add the source")}>
+                  Add
+                </Button>
+              )}
+              {s.own && s.state === "ready" && (
+                <Button size="sm" variant="outline" loading={busy} onClick={() => void act({ action: "activate_source", id: s.id }, "Couldn't activate the source")}>
+                  Activate
+                </Button>
+              )}
+              {s.own && s.state === "live" && (
+                <Button size="sm" variant="ghost" loading={busy} onClick={() => void act({ action: "pause_source", id: s.id }, "Couldn't pause the source")}>
+                  Pause
+                </Button>
+              )}
             </span>
           </div>
         ))}

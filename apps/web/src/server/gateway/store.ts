@@ -121,8 +121,8 @@ function toRow(l: GatewayListing) {
 const likeSafe = (s: string) => s.replace(/[%_\\,()"'*:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
 const CHUNK = 500;
 
-/** `any` / `all`: a prospect search's tokens (one of / every one of); `noCount`: skip the exact count (WJ-815). */
-type Plan = { module: string; query: string; locations: string[]; limit: number; offset: number; sourceIds: string[]; any?: string[]; all?: string[]; noCount?: boolean };
+/** `anyOf` / `all`: a prospect search's tokens (one of each group / every one of); `noCount`: skip the exact count (WJ-815). */
+type Plan = { module: string; query: string; locations: string[]; limit: number; offset: number; sourceIds: string[]; anyOf?: string[][]; all?: string[]; noCount?: boolean };
 /** A token is letters and digits only, so it is safe inside an ILIKE pattern and PostgREST's or(). */
 const tokenSafe = (t: string) => /^[a-z0-9]{1,60}$/.test(t);
 const g2 = globalThis as unknown as { __wlListings?: Map<string, GatewayListing> };
@@ -167,10 +167,12 @@ export class GatewayListingsTable {
     let req = (plan.noCount ? sb().select("doc") : sb().select("doc", { count: "exact" })).eq("module", plan.module).in("source_id", plan.sourceIds).gt("expires_at", now);
     // Every word must appear somewhere (not the words as one phrase).
     for (const w of words) req = req.ilike("search_text", `%${w}%`);
-    // A prospect search's tokens: every `all` one, and one of the `any` ones.
+    // A prospect search's tokens: every `all` one, and one of each `anyOf` group.
     for (const t of (plan.all ?? []).filter(tokenSafe)) req = req.ilike("search_text", `%${t}%`);
-    const any = (plan.any ?? []).filter(tokenSafe);
-    if (any.length) req = req.or(any.map((t) => `search_text.ilike.%${t}%`).join(","));
+    for (const group of plan.anyOf ?? []) {
+      const any = group.filter(tokenSafe);
+      if (any.length) req = req.or(any.map((t) => `search_text.ilike.%${t}%`).join(","));
+    }
     if (places.length) req = req.or(places.map((p) => `location.ilike.%${p}%`).join(","));
     const { data, error, count } = await req.order("sort_at", { ascending: false }).order("id").range(plan.offset, plan.offset + plan.limit - 1);
     if (error) throw new Error(`Could not search gateway listings: ${error.message}`);

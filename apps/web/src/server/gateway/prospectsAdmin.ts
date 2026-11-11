@@ -5,7 +5,8 @@
  */
 import { PROSPECT_DATASETS, PROSPECT_SCOPES } from "../../../../data-gateway/src/core.mjs";
 import { prospectSettings } from "../../../../data-gateway/src/prospects.mjs";
-import { adminCall } from "./admin";
+import { adminCall, registerFromCatalogue, setGatewaySource } from "./admin";
+import { CATALOGUE } from "./catalogue";
 import { syncCatalogueDefinitions } from "./catalogueSync";
 import { hostedGateway } from "./index";
 import { gatewayUrl } from "./secrets";
@@ -25,13 +26,19 @@ export interface ProspectAdminView {
   paidPlatformCap: number;
   /** Live keys of the outside consumer (never the secret). */
   keys: { id: string; prefix: string; createdAt: string; scopes: string[] }[];
-  /** Sources bound to a prospect dataset. */
-  sources: { id: string; name: string; datasets: string[]; live: boolean; outside: boolean; termsPending: boolean; rows: number; lastSuccessAt: string | null }[];
+  /**
+   * Sources bound to a prospect dataset. `state`: "not_added" (a reviewed catalogue file not registered yet; `id` is
+   * its file name), "waiting" (added, nothing delivered or its last delivery failed), "ready" (a good delivery, not
+   * serving yet), "live". `own` is true for a source that feeds only prospect data, which this card adds and activates;
+   * a source that also feeds a module is managed on that module's card.
+   */
+  sources: { id: string; name: string; datasets: string[]; state: "not_added" | "waiting" | "ready" | "live"; own: boolean; live: boolean; outside: boolean; termsPending: boolean; rows: number; lastSuccessAt: string | null }[];
   /** This calendar month (UTC), per consumer and per tenant: requests and paid units, never what was searched. */
   usage: { month: string; consumers: { consumerId: string; searches: number; results: number; paidUnits: number; tenants: { tenant: string; searches: number; paidUnits: number }[] }[] };
 }
 
-type Src = { id: string; attribution?: string; datasets?: string[]; enabled?: boolean; externalRedistributionAllowed?: boolean; permissionEvidence?: string; lastSuccessAt?: string | null };
+type Src = { id: string; url?: string; attribution?: string; modules?: string[]; datasets?: string[]; enabled?: boolean; externalRedistributionAllowed?: boolean; permissionEvidence?: string; lastSuccessAt?: string | null; lastTest?: { ok?: boolean; at?: string } };
+const termsPending = (evidence: unknown) => /terms (pending|to confirm)/i.test(String(evidence ?? ""));
 type Key = { id: string; prefix: string; consumerId: string; createdAt: string; scopes: string[]; revokedAt: string | null; expiresAt: string | null };
 type Use = { day: string; consumerId: string; route: string; tenant?: string; count?: number; results?: number; units?: number };
 
@@ -73,7 +80,13 @@ export async function prospectAdminView(now = new Date()): Promise<ProspectAdmin
     quotas: read.settings.quotas,
     paidPlatformCap: read.settings.paidPlatformCap,
     keys: read.keys,
-    sources: read.sources.map((x) => ({ id: x.id, name: String(x.attribution ?? x.id), datasets: x.datasets ?? [], live: x.enabled === true, outside: x.externalRedistributionAllowed === true, termsPending: /terms (pending|to confirm)/i.test(String(x.permissionEvidence ?? "")), rows: counts.bySource[x.id] ?? 0, lastSuccessAt: x.lastSuccessAt ?? null })).sort((a, b) => b.rows - a.rows || a.name.localeCompare(b.name)),
+    sources: [
+      ...read.sources.map((x) => ({ id: x.id, name: String(x.attribution ?? x.id), datasets: x.datasets ?? [], state: x.enabled === true ? ("live" as const) : x.lastTest?.ok ? ("ready" as const) : ("waiting" as const), own: !(x.modules ?? []).length, live: x.enabled === true, outside: x.externalRedistributionAllowed === true, termsPending: termsPending(x.permissionEvidence), rows: counts.bySource[x.id] ?? 0, lastSuccessAt: x.lastSuccessAt ?? null })).sort((a, b) => b.rows - a.rows || a.name.localeCompare(b.name)),
+      // Reviewed prospect-only sources in the catalogue that are not registered yet.
+      ...Object.entries(CATALOGUE)
+        .filter(([, def]) => !((def.modules as string[] | undefined) ?? []).length && ((def.datasets as string[] | undefined) ?? []).length && !read.sources.some((x) => x.url === def.url))
+        .map(([file, def]) => ({ id: file, name: String(def.attribution ?? file), datasets: def.datasets as string[], state: "not_added" as const, own: true, live: false, outside: def.externalRedistributionAllowed === true, termsPending: termsPending(def.permissionEvidence), rows: 0, lastSuccessAt: null })),
+    ],
     usage: { month, consumers: [...consumers.values()].sort((a, b) => b.searches - a.searches) },
   };
 }
@@ -101,4 +114,21 @@ export async function revokeProspectKey(keyId: string) {
   const mine = hosted ? await hosted.store.read((s) => (s.keys as Key[]).some((k) => k.id === keyId && k.consumerId !== "workslake" && k.scopes.some((sc) => PROSPECT_SCOPES.includes(sc)))) : false;
   if (!mine) return { status: 404, body: { error: { code: "NOT_FOUND", message: "No such prospect key" } } as Record<string, unknown> };
   return adminCall(`/v1/admin/keys/${encodeURIComponent(keyId)}/revoke`, {});
+}
+
+/** Adds a reviewed prospect-only source from the catalogue (paused, like any catalogue source). */
+export function addProspectSource(file: string) {
+  const def = CATALOGUE[file];
+  const prospectOnly = !!def && !((def.modules as string[] | undefined) ?? []).length && ((def.datasets as string[] | undefined) ?? []).length > 0;
+  if (!prospectOnly) return Promise.resolve({ status: 404, body: { error: { code: "NOT_FOUND", message: "No such prospect source in the catalogue" } } as Record<string, unknown> });
+  return registerFromCatalogue(file);
+}
+
+/** Starts or stops serving a prospect-only source. Activating needs a good delivery in the last day (the gateway's rule). */
+export async function setProspectSource(sourceId: string, action: "activate" | "pause") {
+  const hosted = hostedGateway();
+  // Only a source that feeds prospect data alone: one that also feeds a module is managed on that module's card.
+  const mine = hosted ? await hosted.store.read((s) => (s.sources as Src[]).some((x) => x.id === sourceId && !(x.modules ?? []).length && (x.datasets ?? []).length > 0)) : false;
+  if (!mine) return { status: 404, body: { error: { code: "NOT_FOUND", message: "No such prospect source" } } as Record<string, unknown> };
+  return setGatewaySource(sourceId, action);
 }

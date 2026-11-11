@@ -1,0 +1,20 @@
+{
+  "comment": "Overture Maps Places collection for the businesses dataset (WJ-817, docs/PROSPECT_DATA_API.md A5). The owner may edit this file: countries, the row budget per group, and which Overture categories each group keeps. A row needs a name and a phone or website; a listing named after an individual (Dr., Adv., Mr. and the like) is left out, and an email is kept only when it reads as the organisation's own mailbox. 'rowCap' is the most rows kept for one country; it must not exceed Admin -> Storage -> Prospect rows per source.",
+  "release": "latest",
+  "countries": { "IN": { "bbox": [68.0, 6.5, 97.5, 35.8] } },
+  "rowCap": 30000,
+  "minConfidence": 0.5,
+  "licences": ["CDLA-Permissive-2.0", "Apache-2.0", "CC0-1.0"],
+  "skipChains": true,
+  "perOrganisation": 2,
+  "sharedHosts": ["facebook.com", "fb.com", "fb.me", "instagram.com", "youtube.com", "youtu.be", "twitter.com", "x.com", "linkedin.com", "wa.me", "whatsapp.com", "t.me", "google.com", "goo.gl", "g.page", "business.site", "linktr.ee", "justdial.com", "indiamart.com", "sulekha.com", "tradeindia.com", "exportersindia.com", "urbanclap.com", "urbancompany.com", "practo.com", "zomato.com", "swiggy.com", "wixsite.com", "wordpress.com", "blogspot.com", "weebly.com", "godaddysites.com", "bit.ly", "tinyurl.com", "amazon.in", "flipkart.com"],
+  "groups": [
+    { "id": "trades", "share": 0.6, "basic": ["home_service", "building_or_construction_service"], "taxonomy": ["it_service_and_computer_repair", "mobile_phone_repair", "electronics_repair_shop", "elevator_service", "commercial_refrigeration", "generator_installation_repair", "b2b_equipment_maintenance_and_repair", "b2b_water_treatment_service", "automation_service", "cleaning_service", "janitorial_service", "b2b_cleaning_and_waste_management"] },
+    { "id": "retail_wholesale", "share": 0.12, "basic": ["hardware_home_and_garden_store", "electronics_store", "supplier_or_distributor", "wholesaler", "vehicle_parts_store", "warehouse_club_store", "specialty_store"], "taxonomy": [] },
+    { "id": "manufacturing", "share": 0.1, "basic": ["manufacturer", "b2b_industrial_and_machine_service", "automotive_service", "printing_service"], "taxonomy": ["machine_shop"] },
+    { "id": "professional", "share": 0.06, "basic": ["professional_service", "b2b_office_and_professional_service", "attorney_or_law_firm", "legal_service", "design_service", "media_service"], "taxonomy": ["accountant", "software_development", "it_consultant"] },
+    { "id": "clinics", "share": 0.04, "basic": ["dental_clinic", "vision_or_eye_care_clinic", "pediatric_clinic", "primary_care_or_general_clinic", "physical_medicine_and_rehabilitation", "diagnostics_imaging_or_lab_service"], "taxonomy": [] },
+    { "id": "education", "share": 0.04, "basic": ["specialty_school", "tutoring_service", "educational_service", "preschool", "elementary_school", "high_school", "college_university"], "taxonomy": [] },
+    { "id": "fitness_community", "share": 0.04, "basic": ["gym", "sport_or_fitness_facility", "sport_or_recreation_club", "community_center", "social_club"], "taxonomy": ["coworking_space"] }
+  ]
+}

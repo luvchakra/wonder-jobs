@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { json, readJson } from "@/server/jobslake/http";
-import { issueProspectKey, prospectAdminView, revokeProspectKey, setOutsideConsumers, setProspectQuotas } from "@/server/gateway/prospectsAdmin";
+import { addProspectSource, issueProspectKey, prospectAdminView, revokeProspectKey, setOutsideConsumers, setProspectQuotas, setProspectSource } from "@/server/gateway/prospectsAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +19,8 @@ const whole = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v
 /**
  * The card's actions, each audited: "outside" turns outside consumers on or off; "issue_key" issues the outside
  * product's key (its secret is in this one response and nowhere else); "revoke_key" stops one; "quotas" sets a
- * tenant's monthly allowance and the platform's paid cap.
+ * tenant's monthly allowance and the platform's paid cap; "add_source" adds a reviewed prospect-only source from the
+ * catalogue (paused); "activate_source" / "pause_source" start or stop serving one.
  */
 export async function POST(req: Request) {
   const a = await requireAdmin();
@@ -57,6 +58,22 @@ export async function POST(req: Request) {
     const r = await setProspectQuotas({ search, paid, paidPlatformCap });
     if (r.status !== 200) return fail(r);
     await audit(a.actor, "prospects.quotas", undefined, { ...(search !== undefined ? { search } : {}), ...(paid !== undefined ? { paid } : {}), ...(paidPlatformCap !== undefined ? { paidPlatformCap } : {}) });
+    return json({ ok: true });
+  }
+  if (action === "add_source") {
+    const file = typeof body?.file === "string" && /^[a-z0-9-]{1,80}\.json$/.test(body.file) ? body.file : "";
+    if (!file) return jlError("INVALID_REQUEST", "Name the source.", 400);
+    const r = await addProspectSource(file);
+    if (r.status !== 201) return fail(r);
+    await audit(a.actor, "prospects.source_added", String(r.body.id), { file });
+    return json({ ok: true, id: r.body.id });
+  }
+  if (action === "activate_source" || action === "pause_source") {
+    const id = typeof body?.id === "string" && /^src_[a-f0-9]{24}$/.test(body.id) ? body.id : "";
+    if (!id) return jlError("INVALID_REQUEST", "Name the source.", 400);
+    const r = await setProspectSource(id, action === "activate_source" ? "activate" : "pause");
+    if (r.status !== 200) return fail(r);
+    await audit(a.actor, action === "activate_source" ? "prospects.source_activated" : "prospects.source_paused", id, {});
     return json({ ok: true });
   }
   return jlError("INVALID_REQUEST", "Unknown action.", 400);

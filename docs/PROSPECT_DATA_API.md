@@ -12,6 +12,14 @@
 - `metadata.ignoredFilters` names any filter the stored data cannot answer (`industries`, `employeeRanges`, `minAudience`, `languages`, `categoryGroup` today). `metadata.capped: true` means the search matched more rows than the 1,000 it reads before merging duplicates.
 - `GET /v1/prospects/sources` also returns `quota.resetAt`. `stored` is the only provider until A3; naming another returns 400.
 - `enrich`, `contacts`, `signals` and `suppress` are not served yet (404).
+
+**A5, Overture Maps (WJ-817, 2026-11-11).**
+
+- One source per country, `overture-places-in.json`, bound to `businesses` only. The collector is `apps/data-gateway/scripts/overture-collect.py` (Python and DuckDB on the GitHub runner), its allowlist and budget `apps/data-gateway/prospects/overture-places.json`.
+- The row budget is 30,000 for India, not 300,000: the database is on the 500 MB free plan. Groups and their shares are in the config; trades and field services take 60%.
+- `filters.categoryGroup` is served: `trades`, `retail_wholesale`, `manufacturing`, `professional`, `clinics`, `education`, `fitness_community`, and `gathering_places` (education and fitness_community together). An unknown group is a 400.
+- Category names are folded to one tag per trade (`plumbing` and `plumber`), on stored rows and on a request alike.
+- Foursquare Open Source Places is not built.
 - A tenant id is 6 to 80 letters, digits, `-`, `_`, `.` or `:`.
 - Radius search works on rows that have coordinates; a place given in words also matches the nearest listed city of a row whose address names none.
 

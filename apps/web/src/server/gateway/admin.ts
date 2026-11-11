@@ -168,14 +168,14 @@ export function testGatewaySource(sourceId: string, budgetMs?: number) {
  * registered source read from `url`: mapped and checked as the source's own fetch would be, then they replace its
  * listings and count as its test. Returns each source's result.
  */
-export async function ingestByUrl(url: string, items: unknown[]): Promise<{ sourceId: string; status: number; body: Record<string, unknown> }[]> {
+export async function ingestByUrl(url: string, items: unknown[], batch: { merge?: boolean; observedAt?: string } = {}): Promise<{ sourceId: string; status: number; body: Record<string, unknown> }[]> {
   const hosted = hostedGateway();
   if (!hosted) return [];
   // The delivery is read with the reviewed definition's current bindings (a source newly bound to a prospect dataset).
   await syncCatalogueDefinitions().catch(() => undefined);
   const ids = await hosted.store.read((s) => s.sources.filter((x) => x.url === url && x.kind === "json_api").map((x) => x.id as string));
   const out = [];
-  for (const id of ids) out.push({ sourceId: id, ...(await adminCall(`/v1/admin/sources/${encodeURIComponent(id)}/ingest`, { items })) });
+  for (const id of ids) out.push({ sourceId: id, ...(await adminCall(`/v1/admin/sources/${encodeURIComponent(id)}/ingest`, { items, ...(batch.merge !== undefined ? { merge: batch.merge } : {}), ...(batch.observedAt ? { observedAt: batch.observedAt } : {}) })) });
   return out;
 }
 
@@ -184,4 +184,11 @@ export async function gatewaySourceModules(sourceId: string): Promise<string[]> 
   const hosted = hostedGateway();
   if (!hosted) return [];
   return hosted.store.read((s) => ((s.sources as { id: string; modules?: string[] }[]).find((x) => x.id === sourceId)?.modules ?? []).slice());
+}
+
+/** The prospect datasets a gateway source read from `url` feeds ([] when none does, or no gateway). */
+export async function gatewayUrlDatasets(url: string): Promise<string[]> {
+  const hosted = hostedGateway();
+  if (!hosted) return [];
+  return hosted.store.read((s) => [...new Set((s.sources as { url: string; datasets?: string[] }[]).filter((x) => x.url === url).flatMap((x) => x.datasets ?? []))]);
 }
