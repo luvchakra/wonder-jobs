@@ -547,3 +547,62 @@ test("the new lookup routes are in the OpenAPI document with the tenant header",
     for (const status of [400, 401, 403, 429]) assert.ok(op.responses[status], path + " " + status);
   }
 });
+
+// WJ-819: hiring signals (package A7).
+test("hiring signals return companies with counts and matched titles only, never a posting's text or link", async () => {
+  const asked = [];
+  const hiringSignals = async (q) => {
+    asked.push(q);
+    return { postingsRead: 3, companies: [
+      { domain: "acme.example", name: "Acme <b>Security</b>", matched: 2, matchedTitles: ["IAM Engineer", "Identity Governance Lead", "IAM Engineer", "A", "B", "C", "D"], openJobs: 4, newJobs7d: 1, industry: "Software", employeeRange: "201-500", hq: "Pune, India", factsSource: { provider: "wikidata", name: "Wikidata", url: "https://www.wikidata.org/wiki/Q1" }, description: "We are hiring. Apply at https://jobs.acme.example/apply/123", applyUrl: "https://jobs.acme.example/apply/123", salary: "40 LPA", postedBy: "Ravi" },
+      { domain: "beta.example", name: "Beta", matched: 5, matchedTitles: ["SailPoint Developer"] },
+      { domain: "10.0.0.1", name: "Not a company", matched: 9, matchedTitles: ["x"] },
+      { domain: "gamma.example", name: "Gamma", matched: 0, matchedTitles: [] },
+    ] };
+  };
+  const t = await setupA4({ hiringSignals });
+  try {
+    const r = await t.call("/v1/prospects/signals", { token: t.key, tenant: TENANT, body: { signal: "hiring", keywords: ["Identity Governance", "Saviynt", "SailPoint"], locations: [{ country: "IN" }, { text: "Pune", country: null, lat: null, lon: null, radiusKm: null }], sinceDays: 30, limit: 25, cursor: null } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual(asked[0], { keywords: ["identity governance", "saviynt", "sailpoint"], places: ["pune"], countries: ["IN"], sinceDays: 30 });
+    assert.deepEqual(r.body.results.map((x) => x.domain), ["beta.example", "acme.example"], "most matches first; not a domain and no match are left out");
+    const acme = r.body.results[1];
+    assert.equal(acme.kind, "business");
+    assert.equal(acme.name, "Acme Security");
+    assert.deepEqual(acme.signals, { openJobs: 4, newJobs7d: 1, matched: 2, matchedTitles: ["IAM Engineer", "Identity Governance Lead", "A", "B", "C"] });
+    assert.equal(acme.industry, "Software");
+    assert.equal(acme.provenance.industry.provider, "wikidata");
+    assert.equal(acme.source.termsPending, true);
+    assert.equal(acme.source.url, null);
+    const sent = JSON.stringify(r.body);
+    for (const never of ["jobs.acme.example", "apply", "40 LPA", "Ravi", "We are hiring"]) assert.ok(!sent.includes(never), never + " must not be returned");
+    assert.equal(r.body.metadata.postingsRead, 3);
+    assert.equal(r.body.usage.unitsSpent, 0);
+
+    const listed = await t.call("/v1/prospects/sources", { token: t.key, tenant: TENANT });
+    assert.deepEqual(listed.body.sources.map((x) => [x.id, x.kinds, x.status]), [["stored", [], "unavailable"], ["hiring", ["signal"], "active"]]);
+
+    assert.equal((await t.call("/v1/prospects/signals", { token: t.key, tenant: TENANT, body: { signal: "funding", keywords: ["x y"] } })).status, 400);
+    assert.equal((await t.call("/v1/prospects/signals", { token: t.key, tenant: TENANT, body: { signal: "hiring", keywords: [] } })).status, 400);
+    assert.equal((await t.call("/v1/prospects/signals", { token: t.key, body: { signal: "hiring", keywords: ["iam"] } })).body.error.code, "TENANT_REQUIRED");
+    const narrow = (await t.call("/v1/admin/keys", { body: { consumerId: "wonderark", scopes: ["read:businesses"] } })).body.key;
+    assert.equal((await t.call("/v1/prospects/signals", { token: narrow, tenant: TENANT, body: { signal: "hiring", keywords: ["iam"] } })).status, 403);
+  } finally { await t.done(); }
+});
+
+test("a gateway with no job data says the signal needs setup, and a failing read says unavailable", async () => {
+  const none = await setupA4({});
+  try {
+    const r = await none.call("/v1/prospects/signals", { token: none.key, tenant: TENANT, body: { signal: "hiring", keywords: ["iam"] } });
+    assert.equal(r.status, 503);
+    assert.equal(r.body.error.code, "PROVIDER_NEEDS_SETUP");
+    assert.deepEqual((await none.call("/v1/prospects/sources", { token: none.key, tenant: TENANT })).body.sources.map((x) => x.id), ["stored"]);
+  } finally { await none.done(); }
+  const broken = await setupA4({ hiringSignals: async () => { throw new Error("database down: secret detail"); } });
+  try {
+    const r = await broken.call("/v1/prospects/signals", { token: broken.key, tenant: TENANT, body: { signal: "hiring", keywords: ["iam"] } });
+    assert.equal(r.status, 502);
+    assert.equal(r.body.error.code, "PROVIDER_UNAVAILABLE");
+    assert.ok(!JSON.stringify(r.body).includes("secret detail"));
+  } finally { await broken.done(); }
+});

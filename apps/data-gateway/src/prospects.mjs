@@ -20,8 +20,9 @@ export const DEFAULT_PAID_PLATFORM_CAP = 1000;
 const ROUTE_SEARCH = "/v1/prospects/search";
 const ROUTE_ENRICH = "/v1/prospects/enrich";
 const ROUTE_CONTACTS = "/v1/prospects/contacts";
+const ROUTE_SIGNALS = "/v1/prospects/signals";
 /** Requests that count against a tenant's free allowance (stored data, free lookups). */
-const FREE_ROUTES = new Set([ROUTE_SEARCH, ROUTE_ENRICH, ROUTE_CONTACTS]);
+const FREE_ROUTES = new Set([ROUTE_SEARCH, ROUTE_ENRICH, ROUTE_CONTACTS, ROUTE_SIGNALS]);
 /** What enrich can fill for an organisation. */
 export const ENRICH_FIELDS = Object.freeze(["industry", "employeeRange", "description", "phone", "email", "linkedinUrl", "hq"]);
 /** Providers of named people. None is connected yet, so a contacts lookup says each needs setup (A3). */
@@ -31,8 +32,12 @@ export const MAX_SUPPRESSIONS = 2000;
 const KIND_DATASET = Object.freeze({ business: "businesses", channel: "channels" });
 /** Category groups a search may ask for by name: each is the group tags a collection gives its rows. */
 export const CATEGORY_GROUPS = Object.freeze({
-  trades: ["trades"], retailwholesale: ["retailwholesale"], manufacturing: ["manufacturing"], professional: ["professional"], clinics: ["clinics"], education: ["education"],
-  fitnesscommunity: ["fitnesscommunity"], gatheringplaces: ["education", "fitnesscommunity"],
+  trades: ["trades"], itservices: ["itservices"], distribution: ["distribution"], retail: ["retail"], manufacturing: ["manufacturing"], automotive: ["automotive"],
+  professional: ["professional"], clinics: ["clinics"], education: ["education"], fitnesscommunity: ["fitnesscommunity"],
+  // Wider names for several groups at once. `retailwholesale` also matches rows collected before the two were split (WJ-820).
+  retailwholesale: ["retail", "distribution", "retailwholesale"], gatheringplaces: ["education", "fitnesscommunity"],
+  // The businesses with jobs in the field: trades, IT and equipment service, vehicle workshops.
+  fieldservice: ["trades", "itservices", "automotive"],
 });
 const iso = () => new Date().toISOString();
 
@@ -73,6 +78,53 @@ export function updateProspectSettings(state, patch) {
 
 /** A removal request as it is kept: a keyed hash of the address (or "@domain"), never the address itself. */
 export const suppressionHash = (value, secret) => createHmac("sha256", secret).update("suppress:v1:" + String(value).trim().toLowerCase()).digest("hex").slice(0, 40);
+
+/**
+ * A hiring-signal request, checked: up to 10 keywords of 2 to 60 characters, places as words or a country, a window of
+ * 1 to 30 days, and a page of up to 50.
+ */
+export function signalsRequest(body, secret) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "INVALID_REQUEST", "Send a signals request");
+  if (body.signal !== "hiring") throw new ApiError(400, "INVALID_REQUEST", "signal: hiring");
+  const keywords = [...new Set((Array.isArray(body.keywords) ? body.keywords : []).filter((k) => typeof k === "string").map((k) => plainText(k).toLowerCase().slice(0, 60)).filter((k) => k.length >= 2))].slice(0, 10);
+  if (!keywords.length) throw new ApiError(400, "INVALID_REQUEST", "keywords: one to ten words or phrases to look for in job titles and descriptions");
+  const locations = readLocations(body.locations);
+  const sinceDays = Math.min(30, Math.max(1, Number.isInteger(body.sinceDays) ? body.sinceDays : 30));
+  const limit = Math.min(PROSPECT_PAGE, Math.max(1, Number.isInteger(body.limit) ? body.limit : 25));
+  const fingerprint = createHash("sha256").update(JSON.stringify({ keywords, locations, sinceDays })).digest("hex");
+  const cursor = readCursor(body.cursor, secret);
+  if (cursor && (cursor.f !== fingerprint || !Number.isInteger(cursor.offset) || cursor.offset < 0 || cursor.offset > CANDIDATE_CAP)) throw new ApiError(400, "INVALID_CURSOR", "Cursor does not match the request");
+  return { keywords, places: locations.map((l) => l.text).filter(Boolean).map((t) => t.toLowerCase()), countries: locations.map((l) => l.country).filter(Boolean), sinceDays, limit, offset: cursor?.offset ?? 0, fingerprint };
+}
+
+/**
+ * One company showing the signal, as a business with only what a signal may carry: its name, domain, facts the
+ * directory holds, the counts and up to five matched job titles. Never a posting's text, link, salary or source.
+ */
+export function signalItem(c) {
+  const titles = [...new Set((c.matchedTitles ?? []).map((t) => plainText(t).slice(0, 120)).filter(Boolean))].slice(0, 5);
+  const domain = cleanDomain(c.domain);
+  const whole = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
+  return {
+    id: "signal_" + createHash("sha256").update("hiring|" + domain).digest("hex").slice(0, 24),
+    kind: "business",
+    name: plainText(c.name).slice(0, 200),
+    domain,
+    website: "https://" + domain + "/",
+    phone: null,
+    email: null,
+    categories: [],
+    industry: c.industry ? plainText(c.industry).slice(0, 120) : null,
+    employeeRange: c.employeeRange ? plainText(c.employeeRange).slice(0, 40) : null,
+    description: null,
+    location: { text: c.hq ? plainText(c.hq).slice(0, 120) : null, city: null, region: null, country: null, postcode: null, lat: null, lon: null },
+    signals: { openJobs: whole(c.openJobs), newJobs7d: whole(c.newJobs7d), matched: whole(c.matched) ?? titles.length, matchedTitles: titles },
+    // Terms pending (owner decision): job titles come from sources reviewed for WonderWorks only.
+    source: { id: "workslake_jobs", provider: "signals", name: "WorksLake job listings", url: null, termsPending: true },
+    observedAt: c.observedAt ?? iso(),
+    provenance: c.factsSource ? Object.fromEntries(["industry", "employeeRange"].filter((f) => c[f]).map((f) => [f, c.factsSource])) : {},
+  };
+}
 
 /** An enrich request, checked: a domain or a name, the fields wanted (all by default), and whether paid sources may be asked. */
 export function enrichRequest(body) {
@@ -395,7 +447,10 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
     const route = p[2];
 
     if (method === "GET" && route === "sources" && p.length === 3) {
-      return reply(200, await store.read((s) => prospectSources(s, caller, tenant)));
+      const listed = await store.read((s) => prospectSources(s, caller, tenant));
+      // The hiring signal is offered where the host has job data to read and the key may read signals.
+      if (hooks.hiringSignals && caller.scopes.includes("read:signals")) listed.sources.push({ id: "hiring", label: "Companies hiring for…", kinds: ["signal"], status: "active", paid: false, coverage: ["global"], attribution: "WorksLake job listings", termsPending: true });
+      return reply(200, listed);
     }
 
     if (method === "POST" && route === "search" && p.length === 3) {
@@ -455,6 +510,23 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
         metadata: { providers: [{ id: "site", status: site.status === "ok" ? "ok" : "unavailable", returned: generic.length }, ...CONTACT_PROVIDERS.map((x) => ({ id: x, status: "needs_setup", returned: 0 }))], asOf: iso() },
         usage: { unitsSpent: 0, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } },
       });
+    }
+
+    if (method === "POST" && route === "signals" && p.length === 3) {
+      if (!caller.scopes.includes("read:signals")) throw new ApiError(403, "FORBIDDEN", "This API key cannot read signals");
+      const ask = signalsRequest(await readBody(request), cursorSecret);
+      // The signal reads the host's own job data; a gateway without it has nothing to answer with.
+      if (!hooks.hiringSignals) throw new ApiError(503, "PROVIDER_NEEDS_SETUP", "Hiring signals are not available on this gateway");
+      await spendFree(caller, tenant);
+      let found;
+      try { found = await hooks.hiringSignals({ keywords: ask.keywords, places: ask.places, countries: ask.countries, sinceDays: ask.sinceDays }); }
+      catch { throw new ApiError(502, "PROVIDER_UNAVAILABLE", "Hiring signals could not be read just now"); }
+      const items = (found?.companies ?? []).filter((c) => cleanDomain(c.domain) && c.name).map(signalItem).filter((x) => x.signals.matched > 0).sort((a, b) => b.signals.matched - a.signals.matched || (b.signals.newJobs7d ?? 0) - (a.signals.newJobs7d ?? 0) || a.domain.localeCompare(b.domain)).slice(0, CANDIDATE_CAP);
+      const page = items.slice(ask.offset, ask.offset + ask.limit);
+      const nextCursor = ask.offset + ask.limit < items.length ? signCursor({ f: ask.fingerprint, offset: ask.offset + ask.limit }, cursorSecret) : null;
+      store.lazy((s) => recordUsage(s, caller, ROUTE_SIGNALS, "signals", page.length, { tenant, units: 0 }));
+      const after = await store.read((s) => tenantQuota(s, caller.consumerId, tenant));
+      return reply(200, { requestId: id("req"), signal: "hiring", results: page, nextCursor, metadata: { matched: items.length, postingsRead: Number.isInteger(found?.postingsRead) ? found.postingsRead : null, sinceDays: ask.sinceDays, asOf: iso() }, usage: { unitsSpent: 0, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } } });
     }
 
     if (method === "POST" && route === "suppress" && p.length === 3) {

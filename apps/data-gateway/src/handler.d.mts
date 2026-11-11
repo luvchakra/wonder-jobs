@@ -20,10 +20,14 @@ export interface Gateway {
 }
 /** One fact the host's company directory holds about an organisation, with where it came from. */
 export interface CompanyFactEntry { field: "industry" | "employeeRange" | "hq"; value: string; source: { provider: string; name: string; url?: string | null; termsPending?: boolean }; observedAt?: string | null }
+/** One company showing the hiring signal. */
+export interface HiringCompany { domain: string; name: string; matched: number; matchedTitles: string[]; openJobs?: number; newJobs7d?: number; industry?: string; employeeRange?: string; hq?: string; factsSource?: { provider: string; name: string; url?: string | null }; observedAt?: string }
 /** What the host adds to the prospect routes. */
 export interface ProspectHooks {
   /** What the company directory knows about an organisation, cheapest and most reliable first; [] when nothing. */
   companyFacts?(q: { domain: string; name: string }): Promise<CompanyFactEntry[]>;
+  /** Companies whose recent job postings mention any keyword: counts and matched titles only, never a posting. */
+  hiringSignals?(q: { keywords: string[]; places: string[]; countries: string[]; sinceDays: number }): Promise<{ companies: HiringCompany[]; postingsRead: number }>;
   /** Tests only: a stand-in for reading the organisation's own site. */
   readSite?(domain: string): Promise<{ status: string; fields: Record<string, { value: string; url: string }>; mailboxes: { email: string; url: string }[]; pages: string[] }>;
 }
