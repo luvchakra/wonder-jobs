@@ -11,7 +11,7 @@
 - A business's `domain` is the domain of its own website, never the source's. `provenance` is keyed by field name, each value a source (`{ provider, name, url }`); a city worked out from the map point appears as `provenance["location.city"]` with provider `derived`. When several sources list the same organisation, the others are at `source.alsoListedBy`.
 - `metadata.ignoredFilters` names any filter the stored data cannot answer (`industries`, `employeeRanges`, `minAudience`, `languages`, `categoryGroup` today). `metadata.capped: true` means the search matched more rows than the 1,000 it reads before merging duplicates.
 - `GET /v1/prospects/sources` also returns `quota.resetAt`. `stored` is the only provider until A3; naming another returns 400.
-- `signals` is not served yet (404). `enrich`, `contacts` and `suppress` are served since WJ-818 (below).
+- `enrich`, `contacts` and `suppress` are served since WJ-818, `signals` since WJ-819 (both below).
 
 **A4, enrich, contacts and suppress (WJ-818, 2026-11-11).**
 
@@ -20,6 +20,15 @@
 - The organisation's own site is read over HTTPS only. A site that serves plain HTTP only, disallows the gateway in robots.txt, or whose robots.txt cannot be read, is not read (`site` shows `unavailable`).
 - `contacts` returns `contacts: []` until a contact provider is connected (A3). `generic` holds only mailboxes that read as the organisation's own; a person-named mailbox on the site is not returned.
 - `suppress` needs the `lookup:contacts` scope, takes up to 100 emails and 100 domains a call, and answers 507 `SUPPRESSION_LIST_FULL` when the list (2,000 entries) is full.
+
+**A7, hiring signals (WJ-819, 2026-11-11).**
+
+- `POST /v1/prospects/signals` answers `{ requestId, signal, results, nextCursor, metadata: { matched, postingsRead, sinceDays, asOf }, usage }`. Each result is a business whose `signals` holds `openJobs`, `newJobs7d`, `matched` and `matchedTitles`; its `source` is `{ id: "workslake_jobs", provider: "signals", name: "WorksLake job listings", url: null, termsPending: true }`.
+- `locations` entries may give `text`, `country`, or both. Keywords are matched in a posting's title, skills and description; only titles are returned.
+- `GET /v1/prospects/sources` lists the signal as `{ id: "hiring", label: "Companies hiring for…", kinds: ["signal"], status: "active" }` when the key has `read:signals`.
+- A gateway without job data answers 503 `PROVIDER_NEEDS_SETUP`; a failed read answers 502 `PROVIDER_UNAVAILABLE`.
+
+**Wider groups (WJ-820, 2026-11-11).** The row budget is 50,000 and the groups are `trades`, `it_services`, `distribution`, `retail`, `manufacturing`, `automotive`, `professional`, `clinics`, `education`, `fitness_community`. `filters.categoryGroup` also takes `field_service` (trades, it_services, automotive), `retail_wholesale` (retail, distribution) and `gathering_places` (education, fitness_community).
 
 **A5, Overture Maps (WJ-817, 2026-11-11).**
 

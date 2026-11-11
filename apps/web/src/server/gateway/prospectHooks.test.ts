@@ -60,3 +60,38 @@ describe("the company directory as enrich's first source", () => {
     expect(body.metadata.providers.map((p) => p.id)).toEqual(["directory"]);
   });
 });
+
+// WJ-819: hiring signals from WorksLake's own job data (A7).
+import { hiringSignals } from "./prospectHooks";
+import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
+
+describe("hiring signals", () => {
+  const NOW = Date.parse("2026-11-11T00:00:00Z");
+  const posting = (over: Partial<CanonicalOpportunity>): CanonicalOpportunity =>
+    ({ id: "o" + Math.random(), employer: { name: "Acme", domain: "acme-co.com" }, title: "IAM Engineer", normalizedTitle: "iam engineer", locations: ["Pune"], country: "India", description: "Work with Saviynt and SailPoint. Apply at https://jobs.acme-co.com/1", requirements: [], niceToHave: [], skills: ["Saviynt"], postedAt: "2026-11-05T00:00:00.000Z", canonicalApplyUrl: "https://jobs.acme-co.com/1", applyPath: "employer_site", sourceRecords: [{ sourceId: "src" }], quality: { employerVerified: true }, ...over }) as unknown as CanonicalOpportunity;
+
+  it("counts matching postings per company and returns titles, never descriptions, links or anything about who posted", async () => {
+    const store = new __MemoryCompanies();
+    await store.upsert([record({ domain: "acme-co.com", openJobs: 6, newJobs7d: 2, wikidata: { industry: "Software", hqCity: "Pune", hqCountry: "India", sourceId: "Q1", from: "wikidata" }, facts: { industry: "Reported by a job source", from: "theirstack" } }) as never]);
+    __setCompanyStore(store);
+    const postings = [
+      posting({}),
+      posting({ title: "Identity Governance Lead", skills: [] }),
+      posting({ title: "Accountant", description: "Books and GST.", skills: [] }),
+      posting({ employer: { name: "Beta", domain: "beta-co.com" }, title: "SailPoint Developer", locations: ["London"], country: "United Kingdom" }),
+      posting({ employer: { name: "No Domain Ltd" }, canonicalApplyUrl: "https://jobboard.example/x", applyPath: "platform", title: "Saviynt Admin" }),
+      posting({ title: "Old Saviynt role", postedAt: "2026-09-01T00:00:00.000Z" }),
+      posting({ kind: "event", title: "Saviynt meetup" }),
+    ];
+    const all = await hiringSignals({ keywords: ["saviynt", "sailpoint"], places: [], countries: [], sinceDays: 30 }, NOW, postings);
+    expect(all.postingsRead).toBe(7);
+    expect(all.companies.map((c) => [c.domain, c.matched])).toEqual([["acme-co.com", 2], ["beta-co.com", 1]]);
+    expect(all.companies[0]).toMatchObject({ name: "Acme", matchedTitles: ["IAM Engineer", "Identity Governance Lead"], openJobs: 6, newJobs7d: 2, industry: "Software", hq: "Pune, India", factsSource: { provider: "wikidata" } });
+    const sent = JSON.stringify(all);
+    for (const never of ["jobs.acme-co.com", "Apply at", "Work with", "Reported by a job source", "theirstack"]) expect(sent).not.toContain(never);
+    // By country code and by place words.
+    expect((await hiringSignals({ keywords: ["sailpoint"], places: [], countries: ["IN"], sinceDays: 30 }, NOW, postings)).companies.map((c) => c.domain)).toEqual(["acme-co.com"]);
+    expect((await hiringSignals({ keywords: ["sailpoint"], places: ["london"], countries: [], sinceDays: 30 }, NOW, postings)).companies.map((c) => c.domain)).toEqual(["beta-co.com"]);
+    expect((await hiringSignals({ keywords: ["kubernetes"], places: [], countries: [], sinceDays: 30 }, NOW, postings)).companies).toEqual([]);
+  });
+});
