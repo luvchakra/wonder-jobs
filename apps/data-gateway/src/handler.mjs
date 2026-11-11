@@ -2,6 +2,7 @@ import { ApiError, MODULES, RateLimiter, normalizeAll, logRun, pushAudit, search
 import { fetchRecords } from "./collect.mjs";
 import { uploadListings } from "./upload.mjs";
 import { OPENAPI } from "./openapi.mjs";
+import { createProspects, prospectSettings, updateProspectSettings } from "./prospects.mjs";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" };
 const MAX_BODY = 65536;
@@ -62,10 +63,13 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
   if (!adminToken || adminToken.length < 32 || !cursorSecret || cursorSecret.length < 32 || adminToken === cursorSecret) throw Error("Set GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET to separate 32+ character random secrets");
   const perMinute = Number.isInteger(Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE)) && Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE) > 0 ? Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE) : 120;
   const rate = limiter ?? new RateLimiter(perMinute);
-  const allowExternal = env.GATEWAY_ALLOW_EXTERNAL_CONSUMERS === "1";
+  // Outside consumers (WJ-815): an administrator's setting, off until turned on. A deployment that set the old
+  // variable keeps what it had.
+  const allowExternal = (s) => env.GATEWAY_ALLOW_EXTERNAL_CONSUMERS === "1" || prospectSettings(s).allowExternalConsumers;
   const activeCrawls = new Set();
   // Where listings live: the store's own table when it has one, else the state document.
   const listings = store.listings ?? stateListings(store);
+  const prospects = createProspects({ store, listings, cursorSecret, reply, readBody });
 
   async function collectOne(sourceId, testOnly = false, budgetMs = undefined) {
     if (activeCrawls.has(sourceId)) throw new ApiError(409, "CRAWL_IN_PROGRESS", "Collection already running");
@@ -187,16 +191,25 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         if (method === "GET" && is("consumers")) return reply(200, { consumers: await store.read((s) => s.consumers) });
         if (method === "POST" && is("keys")) {
           const input = await readBody(request);
-          return reply(201, await store.change((s) => issueKey(s, input, allowExternal)));
+          return reply(201, await store.change((s) => issueKey(s, input, allowExternal(s))));
         }
         if (method === "POST" && p[2] === "keys" && p.length === 5 && p[4] === "revoke") return reply(200, await store.change((s) => revokeKey(s, p[3])));
         if (method === "POST" && p[2] === "keys" && p.length === 5 && p[4] === "rotate") return reply(201, await store.change((s) => {
           const old = s.keys.find((x) => x.id === p[3] && !x.revokedAt);
           if (!old) throw new ApiError(404, "NOT_FOUND", "Active key not found");
-          const issued = issueKey(s, { consumerId: old.consumerId, scopes: old.scopes, expiresAt: old.expiresAt }, allowExternal);
+          const issued = issueKey(s, { consumerId: old.consumerId, scopes: old.scopes, expiresAt: old.expiresAt }, allowExternal(s));
           revokeKey(s, old.id);
           return issued;
         }));
+        if (method === "GET" && is("settings")) return reply(200, { settings: await store.read((s) => ({ ...prospectSettings(s), allowExternalConsumers: allowExternal(s) })) });
+        if (method === "POST" && is("settings")) {
+          const patch = await readBody(request);
+          return reply(200, { settings: await store.change((s) => {
+            const fields = updateProspectSettings(s, patch);
+            pushAudit(s, { at: new Date().toISOString(), action: "settings.updated", fields });
+            return { ...prospectSettings(s), allowExternalConsumers: allowExternal(s) };
+          }) });
+        }
         if (method === "GET" && is("sources")) return reply(200, { sources: await store.read((s) => s.sources) });
         if (method === "POST" && is("sources")) {
           const created = validateSource(await readBody(request));
@@ -293,6 +306,8 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       const caller = await requireConsumer(store, auth);
       const wait = rate.take(caller.id);
       if (wait) throw new ApiError(429, "RATE_LIMITED", "Too many requests; retry in " + wait + "s", { "retry-after": String(wait) });
+      // Prospect data (docs/PROSPECT_DATA_API.md): its own scopes, its own datasets, a tenant on every request.
+      if (p[1] === "prospects") return await prospects.handle(request, caller, p, method);
       const module = p[2];
       if (method === "GET" && p[1] === "modules" && p.length === 2) return reply(200, { modules: MODULES.filter((m) => caller.scopes.includes("read:" + m)) });
       if (method === "GET" && p[1] === "sources" && p.length === 2) {
@@ -327,7 +342,8 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       if (method === "GET" && p[1] === "listings" && p.length === 3) {
         const found = await listings.get(p[2]);
         const entry = found && found.status === "active" && Date.parse(found.expiresAt) > Date.now() ? found : null;
-        if (!entry) throw new ApiError(404, "NOT_FOUND", "Listing unavailable");
+        // A prospect dataset's row is not a module listing: this route never serves it.
+        if (!entry || !MODULES.includes(entry.module)) throw new ApiError(404, "NOT_FOUND", "Listing unavailable");
         checkScope(caller, entry.module);
         const allowed = await store.read((s) => s.sources.some((x) => x.id === entry.sourceId && x.enabled && x.redistributionAllowed && (caller.consumerId === "workslake" || x.externalRedistributionAllowed)));
         if (!allowed) throw new ApiError(404, "NOT_FOUND", "Listing unavailable");

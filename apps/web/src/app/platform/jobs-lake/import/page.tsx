@@ -11,6 +11,7 @@ import { Fold } from "@/components/common/Fold";
 import { Field, Input, Select, Switch, Textarea } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { DataTypes } from "@/components/jobslake/DataTypes";
+import { ProspectData } from "@/components/jobslake/ProspectData";
 import { adminFetch, LoadError, Loading, Note, PageTitle, Panel, Stat, num, useAdmin } from "@/components/jobslake/ui";
 import { MODULES } from "@/modules/registry";
 import { relativeTime } from "@/lib/format";
@@ -87,6 +88,7 @@ export default function ImportPage() {
             ))}
           </div>
           <AddSources reload={reload} />
+          <ProspectData />
           <section aria-labelledby="import-history" className="flex flex-col gap-3">
             <h2 id="import-history" className="text-[15px] font-semibold text-ink">
               History

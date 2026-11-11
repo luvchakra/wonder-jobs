@@ -7,7 +7,7 @@
 import { table } from "@/server/db/table";
 import { getSupabaseAdmin } from "@/server/supabase";
 import { dataEvery, dataFrom, dataWritable, loadDataDb, WRITE_FRESH_MS } from "@/server/dataDb";
-import { initial, matchesWords, queryWords, type GatewayListing, type GatewayState } from "../../../../data-gateway/src/core.mjs";
+import { initial, listingText, matchesTokens, matchesWords, queryWords, type GatewayListing, type GatewayState } from "../../../../data-gateway/src/core.mjs";
 import type { GatewayStore } from "../../../../data-gateway/src/handler.mjs";
 
 type Part = "main" | "listings" | "usage";
@@ -108,7 +108,8 @@ function toRow(l: GatewayListing) {
     source_id: l.sourceId,
     module: l.module,
     location: (l.location ?? "").toLowerCase(),
-    search_text: `${l.title} ${l.organization} ${l.description} ${l.attributes?.breadcrumb ?? ""}`.toLowerCase().slice(0, 20000),
+    // A prospect dataset's row is also found by its tokens (category and contact marks); a module's row has none.
+    search_text: `${l.title} ${l.organization} ${l.description} ${l.attributes?.breadcrumb ?? ""}${l.tokens ? ` ${l.tokens}` : ""}`.toLowerCase().slice(0, 20000),
     sort_at: l.publishedAt || l.observedAt,
     observed_at: l.observedAt,
     expires_at: l.expiresAt,
@@ -120,7 +121,10 @@ function toRow(l: GatewayListing) {
 const likeSafe = (s: string) => s.replace(/[%_\\,()"'*:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
 const CHUNK = 500;
 
-type Plan = { module: string; query: string; locations: string[]; limit: number; offset: number; sourceIds: string[] };
+/** `any` / `all`: a prospect search's tokens (one of / every one of); `noCount`: skip the exact count (WJ-815). */
+type Plan = { module: string; query: string; locations: string[]; limit: number; offset: number; sourceIds: string[]; any?: string[]; all?: string[]; noCount?: boolean };
+/** A token is letters and digits only, so it is safe inside an ILIKE pattern and PostgREST's or(). */
+const tokenSafe = (t: string) => /^[a-z0-9]{1,60}$/.test(t);
 const g2 = globalThis as unknown as { __wlListings?: Map<string, GatewayListing> };
 const mem = () => (g2.__wlListings ??= new Map());
 
@@ -156,17 +160,22 @@ export class GatewayListingsTable {
     const sb = await listingsTable(plan.module);
     if (!sb) {
       const all = [...mem().values()]
-        .filter((l) => l.module === plan.module && plan.sourceIds.includes(l.sourceId) && l.status === "active" && l.expiresAt > now && matchesWords(`${l.title} ${l.organization} ${l.description} ${l.attributes?.breadcrumb ?? ""}`, words.join(" ")) && (!places.length || places.some((p) => l.location.toLowerCase().includes(p))))
+        .filter((l) => l.module === plan.module && plan.sourceIds.includes(l.sourceId) && l.status === "active" && l.expiresAt > now && matchesWords(listingText(l), words.join(" ")) && matchesTokens(listingText(l), plan) && (!places.length || places.some((p) => l.location.toLowerCase().includes(p))))
         .sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
       return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
     }
-    let req = sb().select("doc", { count: "exact" }).eq("module", plan.module).in("source_id", plan.sourceIds).gt("expires_at", now);
+    let req = (plan.noCount ? sb().select("doc") : sb().select("doc", { count: "exact" })).eq("module", plan.module).in("source_id", plan.sourceIds).gt("expires_at", now);
     // Every word must appear somewhere (not the words as one phrase).
     for (const w of words) req = req.ilike("search_text", `%${w}%`);
+    // A prospect search's tokens: every `all` one, and one of the `any` ones.
+    for (const t of (plan.all ?? []).filter(tokenSafe)) req = req.ilike("search_text", `%${t}%`);
+    const any = (plan.any ?? []).filter(tokenSafe);
+    if (any.length) req = req.or(any.map((t) => `search_text.ilike.%${t}%`).join(","));
     if (places.length) req = req.or(places.map((p) => `location.ilike.%${p}%`).join(","));
     const { data, error, count } = await req.order("sort_at", { ascending: false }).order("id").range(plan.offset, plan.offset + plan.limit - 1);
     if (error) throw new Error(`Could not search gateway listings: ${error.message}`);
-    return { rows: (data ?? []).map((r) => (r as { doc: GatewayListing }).doc), matched: count ?? 0 };
+    const found = (data ?? []).map((r) => (r as { doc: GatewayListing }).doc);
+    return { rows: found, matched: plan.noCount ? found.length : (count ?? 0) };
   }
 
   /** One listing by id: its module isn't known here, so each database that may hold it is asked in turn. */

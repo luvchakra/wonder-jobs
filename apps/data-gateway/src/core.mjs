@@ -1,8 +1,16 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { nearestCity } from "./places.mjs";
 
 export const MODULES = Object.freeze(["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace", "scholarships"]);
+/**
+ * Prospect datasets (WJ-815, docs/PROSPECT_DATA_API.md): organisations and public outlets served only by the
+ * /v1/prospects/ routes. They are not modules: no WonderWorks module list, admin module card, /v1/search or the
+ * compatibility route can read them, and a prospect route never reads a module.
+ */
+export const PROSPECT_DATASETS = Object.freeze(["businesses", "channels"]);
+export const PROSPECT_SCOPES = Object.freeze(["read:businesses", "read:channels", "read:signals", "lookup:enrich", "lookup:contacts"]);
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
 /** Modules that may take public business listings from open data (OpenStreetMap…) without per-person opt-in. Marketplace: a shop's or dealer's own catalogue (never a private seller). */
 const PUBLIC_BUSINESS_MODULES = new Set(["services", "therapists", "marketplace"]);
@@ -13,7 +21,7 @@ const PUBLIC_COMPANY_MODULES = new Set(["cofounders"]);
 const VALID_KINDS = new Set(["json_api", "rss", "structured", "crawl", "upload"]);
 const VALID_PERMISSION = new Set(["terms_permit", "granted_in_writing"]);
 const MAX_PAGE = 100;
-export const initial = () => ({ version: 1, sources: [], listings: [], consumers: [{ id: "workslake", name: "WorksLake", createdAt: new Date().toISOString() }], keys: [], usage: [], audits: [], runs: [] });
+export const initial = () => ({ version: 1, sources: [], listings: [], consumers: [{ id: "workslake", name: "WorksLake", createdAt: new Date().toISOString() }], keys: [], usage: [], audits: [], runs: [], settings: {} });
 
 export class ApiError extends Error {
   constructor(status, code, message, headers = {}) { super(message); this.status = status; this.code = code; this.headers = headers; }
@@ -90,7 +98,10 @@ export function checkScope(key, module) {
 export function issueKey(state, { consumerId = "workslake", scopes, expiresAt }, allowExternal = false) {
   if (consumerId !== "workslake" && !allowExternal) throw new ApiError(403, "FORBIDDEN", "External consumers are disabled");
   if (!/^[a-z][a-z0-9_-]{1,63}$/.test(consumerId)) throw new ApiError(400, "INVALID_REQUEST", "Invalid consumer ID");
-  if (!Array.isArray(scopes) || !scopes.length || scopes.some((s) => !MODULES.some((m) => s === "read:" + m))) throw new ApiError(400, "INVALID_REQUEST", "Invalid scopes");
+  const moduleScope = (s) => MODULES.some((m) => s === "read:" + m);
+  if (!Array.isArray(scopes) || !scopes.length || scopes.some((s) => !moduleScope(s) && !PROSPECT_SCOPES.includes(s))) throw new ApiError(400, "INVALID_REQUEST", "Invalid scopes");
+  // A key reads WorksLake's modules or the prospect data, never both, so neither side can reach the other's rows.
+  if (scopes.some(moduleScope) && scopes.some((s) => PROSPECT_SCOPES.includes(s))) throw new ApiError(400, "INVALID_REQUEST", "A key holds module scopes or prospect scopes, not both");
   if (expiresAt && (!Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.now())) throw new ApiError(400, "INVALID_REQUEST", "Invalid expiration");
   if (!state.consumers.find((c) => c.id === consumerId)) state.consumers.push({ id: consumerId, name: consumerId, createdAt: iso() });
   const raw = "wlg_" + randomBytes(32).toString("hex");
@@ -113,7 +124,17 @@ export function validateSource(source) {
   try { url = new URL(source.url); } catch { throw new ApiError(400, "INVALID_REQUEST", "Valid HTTPS source URL required"); }
   if (url.protocol !== "https:" || url.port || url.username || url.password || !/^[a-z0-9.-]+$/i.test(url.hostname)) throw new ApiError(400, "INVALID_REQUEST", "Public HTTPS source URL required");
   if (!VALID_KINDS.has(source.kind)) throw new ApiError(400, "INVALID_REQUEST", "Invalid source method");
-  if (!Array.isArray(source.modules) || !source.modules.length || source.modules.some((m) => !MODULES.includes(m))) throw new ApiError(400, "INVALID_REQUEST", "Invalid module assignment");
+  // A source may also feed a prospect dataset (each binding stated in its definition), or feed only a dataset.
+  const datasets = source.datasets === undefined ? [] : source.datasets;
+  if (!Array.isArray(datasets) || datasets.some((d) => !PROSPECT_DATASETS.includes(d))) throw new ApiError(400, "INVALID_REQUEST", "datasets: businesses or channels");
+  if (!Array.isArray(source.modules) || (!source.modules.length && !datasets.length) || source.modules.some((m) => !MODULES.includes(m))) throw new ApiError(400, "INVALID_REQUEST", "Invalid module assignment");
+  // Organisations only: a businesses binding needs a source of public business or company listings, never people's profiles.
+  if (datasets.includes("businesses") && source.publicBusinesses !== true && source.publicCompanies !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "The businesses dataset takes only public business or company listings");
+  if (source.datasetMapping !== undefined) {
+    const dm = source.datasetMapping;
+    if (!dm || typeof dm !== "object" || Array.isArray(dm) || !datasets.length || source.kind !== "json_api" || Object.keys(dm).some((k) => !/^attr\.\w{1,40}$/.test(k))) throw new ApiError(400, "INVALID_REQUEST", "datasetMapping: attr.<field> paths, on a JSON source bound to a dataset");
+    if (Object.values(dm).some((v) => !(typeof v === "string" && v.length <= 100) && !(Array.isArray(v) && v.length >= 1 && v.length <= 5 && v.every((x) => typeof x === "string" && x.length <= 100)))) throw new ApiError(400, "INVALID_REQUEST", "Mapping paths must be short strings, or a list of up to 5");
+  }
   if (!VALID_PERMISSION.has(source.permission) || source.termsReviewed !== true || source.redistributionAllowed !== true || typeof source.permissionEvidence !== "string" || source.permissionEvidence.trim().length < 8) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Documented permission and display rights required");
   if ((source.kind === "structured" || source.kind === "crawl") && source.robotsReviewed !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Robots review required");
   if (source.kind === "crawl") {
@@ -192,7 +213,7 @@ export function validateSource(source) {
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.moduleFilter ? { moduleFilter: Object.fromEntries(Object.entries(source.moduleFilter).map(([m, f]) => [m, { field: f.field, match: f.match, ...(f.negate ? { negate: true } : {}) }])) } : {}), ...(source.timezone ? { timezone: source.timezone } : {}), ...(source.geography?.length ? { geography: [...new Set(source.geography)] } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), ...(source.sitemapOrder ? { sitemapOrder: source.sitemapOrder } : {}), ...(source.newestPages ? { newestPages: source.newestPages } : {}), ...(source.nextDataPath ? { nextDataPath: source.nextDataPath } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], ...(datasets.length ? { datasets: [...new Set(datasets)] } : {}), ...(source.datasetMapping ? { datasetMapping: { ...source.datasetMapping } } : {}), permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.moduleFilter ? { moduleFilter: Object.fromEntries(Object.entries(source.moduleFilter).map(([m, f]) => [m, { field: f.field, match: f.match, ...(f.negate ? { negate: true } : {}) }])) } : {}), ...(source.timezone ? { timezone: source.timezone } : {}), ...(source.geography?.length ? { geography: [...new Set(source.geography)] } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), ...(source.sitemapOrder ? { sitemapOrder: source.sitemapOrder } : {}), ...(source.newestPages ? { newestPages: source.newestPages } : {}), ...(source.nextDataPath ? { nextDataPath: source.nextDataPath } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
@@ -373,10 +394,17 @@ export function matchesWords(text, query) {
   const t = String(text ?? "").toLowerCase();
   return queryWords(query).every((w) => t.includes(w));
 }
+/** What a listing is searched by: its words, and for a prospect dataset row its tokens (category and contact marks). */
+export const listingText = (x) => x.title + " " + x.description + " " + x.organization + " " + (x.attributes?.breadcrumb ?? "") + (x.tokens ? " " + x.tokens : "");
+/** A prospect search's token filters: every `all` token present, and one of `any` when given. Other searches have neither. */
+export function matchesTokens(text, plan) {
+  const t = String(text ?? "").toLowerCase();
+  return (plan.all ?? []).every((k) => t.includes(k)) && (!plan.any?.length || plan.any.some((k) => t.includes(k)));
+}
 /** The search as an in-memory filter (a file store; tests). A database store runs the same filter in SQL. */
 export function filterListings(listings, plan, now = Date.now()) {
   const allowed = new Set(plan.sourceIds);
-  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && matchesWords(x.title + " " + x.description + " " + x.organization + " " + (x.attributes?.breadcrumb ?? ""), plan.query) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
+  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && matchesWords(listingText(x), plan.query) && matchesTokens(listingText(x), plan) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
   return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
 }
 export function search(state, consumer, payload, secret) {
@@ -409,11 +437,14 @@ export function stateListings(store) {
     },
   };
 }
-export function recordUsage(state, consumer, route, module, results = 0) {
+export function recordUsage(state, consumer, route, module, results = 0, extra = undefined) {
   const day = iso().slice(0, 10);
-  let item = state.usage.find((u) => u.day === day && u.consumerId === consumer.consumerId && u.keyId === consumer.id && u.route === route && u.module === module);
-  if (!item) state.usage.push(item = { day, consumerId: consumer.consumerId, keyId: consumer.id, route, module, count: 0, results: 0 });
+  // A prospect route also records whose request it was (an opaque tenant id) and the paid units spent: counts only.
+  const tenant = extra?.tenant ?? undefined;
+  let item = state.usage.find((u) => u.day === day && u.consumerId === consumer.consumerId && u.keyId === consumer.id && u.route === route && u.module === module && u.tenant === tenant);
+  if (!item) state.usage.push(item = { day, consumerId: consumer.consumerId, keyId: consumer.id, route, module, ...(tenant ? { tenant, units: 0 } : {}), count: 0, results: 0 });
   item.count++; item.results += results;
+  if (tenant) item.units = (item.units ?? 0) + (extra?.units ?? 0);
   state.usage = state.usage.filter((u) => Date.parse(u.day) > Date.now() - 93 * 86400000);
 }
 
@@ -453,17 +484,25 @@ export function normalizeAll(source, items, observedAt, now = Date.now()) {
   const out = [], seen = new Set();
   let repeats = 0, past = 0, filtered = 0;
   const today = new Date(now); today.setUTCHours(0, 0, 0, 0);
-  for (const module of source.modules) for (const item of items) {
-    const n = normalize(source, item, module, observedAt);
-    if (n && !keepForModule(source, module, n)) { filtered++; continue; }
+  const one = (from, item, module) => {
+    const n = normalize(from, item, module, observedAt);
+    if (n && !keepForModule(source, module, n)) { filtered++; return; }
     if (n && source.dropPastAfter) {
       const when = Date.parse(String(n.attributes?.[source.dropPastAfter] ?? ""));
-      if (Number.isFinite(when) && when < today.getTime()) { past++; continue; }
+      if (Number.isFinite(when) && when < today.getTime()) { past++; return; }
     }
     if (n && seen.has(n.id)) repeats++;
-    else if (n) { seen.add(n.id); out.push(n); }
-  }
-  return { results: out, valid: out.length, repeats, past, filtered, discovered: items.length * source.modules.length - repeats - past - filtered };
+    else if (n) { seen.add(n.id); out.push(PROSPECT_DATASETS.includes(module) ? datasetRow(n) : n); }
+  };
+  for (const module of source.modules) for (const item of items) one(source, item, module);
+  // What the source's own modules gave is what its quality is judged by, exactly as before it fed a dataset.
+  const judged = source.modules.length ? { valid: out.length, repeats, past, filtered, discovered: items.length * source.modules.length - repeats - past - filtered } : null;
+  // A dataset binding reads the same records again with the dataset's extra fields, as rows of the dataset.
+  const datasets = source.datasets ?? [];
+  const forDataset = datasets.length && source.datasetMapping ? { ...source, mapping: { ...source.mapping, ...source.datasetMapping } } : source;
+  for (const dataset of datasets) for (const item of items) one(forDataset, item, dataset);
+  if (judged) return { results: out, ...judged, ...(datasets.length ? { datasetRows: out.length - judged.valid } : {}) };
+  return { results: out, valid: out.length, repeats, past, filtered, discovered: items.length * datasets.length - repeats - past - filtered };
 }
 
 /** A source's per-module filter (validateSource): whether this listing belongs in this module. No filter keeps it. */
@@ -480,4 +519,60 @@ export const MAX_AUDITS = 1000;
 export function pushAudit(state, entry) {
   state.audits.push(entry);
   if (state.audits.length > MAX_AUDITS) state.audits.splice(0, state.audits.length - MAX_AUDITS);
+}
+
+/** A category as a tag: lower case, letters and digits only ("electronics_repair" and "Electronics repair" are one). */
+export const categoryTag = (v) => String(v ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+/** A listing's stated categories (OpenStreetMap's craft, a source's own category), as tags. */
+export function categoriesOf(listing) {
+  const a = listing.attributes ?? {};
+  const raw = [a.craft, a.category, a.shop, a.office, a.amenity].filter((v) => typeof v === "string").flatMap((v) => v.split(/[;,|]/));
+  return [...new Set(raw.map(categoryTag).filter((t) => t.length >= 2 && t.length <= 40))].slice(0, 8);
+}
+/** A website a source states, as an https/http URL; "" when it isn't one. */
+export function websiteOf(listing) {
+  const a = listing.attributes ?? {};
+  for (const v of [a.website, a.contactWebsite]) {
+    if (typeof v !== "string" || !v.trim()) continue;
+    try {
+      const u = new URL(/^https?:\/\//i.test(v.trim()) ? v.trim() : "https://" + v.trim());
+      if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(u.hostname) && !u.username && !u.password) return u.toString();
+    } catch { /* not a URL: left out */ }
+  }
+  return "";
+}
+/**
+ * A prospect dataset's row: the listing as normalised, plus the nearest listed city when its address names none (the
+ * map point decides, as the app does for Talent & Services; marked `cityDerived`), and the tokens a prospect search
+ * filters by: `catq<tag>q` per category, `hasqwebsiteq`, `hasqphoneq`, `hasqemailq`. Nothing else is derived.
+ */
+export function datasetRow(n) {
+  const a = { ...(n.attributes ?? {}) };
+  const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() && Number.isFinite(Number(v)) ? Number(v) : undefined);
+  const lat = num(a.lat) ?? num(a.clat), lon = num(a.lon) ?? num(a.clon);
+  let location = n.location;
+  if (!(typeof a.city === "string" && a.city.trim())) {
+    const near = lat !== undefined && lon !== undefined ? nearestCity(lat, lon) : undefined;
+    if (near) {
+      a.city = near.name; a.cityDerived = true;
+      if (!location.toLowerCase().includes(near.name.toLowerCase())) location = [location, near.name].filter(Boolean).join(", ").slice(0, 180);
+    }
+  }
+  const tokens = [...categoriesOf({ attributes: a }).map((t) => "catq" + t + "q"), websiteOf({ attributes: a }) ? "hasqwebsiteq" : "", [a.phone, a.contactPhone].some((v) => typeof v === "string" && v.replace(/\D/g, "").length >= 7) ? "hasqphoneq" : "", [a.email, a.contactEmail].some((v) => typeof v === "string" && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim())) ? "hasqemailq" : ""].filter(Boolean).join(" ");
+  return { ...n, location, attributes: a, ...(tokens ? { tokens } : {}) };
+}
+
+/**
+ * The parts of a reviewed definition that a registered source takes when its file changes (WJ-815): whether outside
+ * consumers may see it, its dataset bindings, the dataset's extra fields and the permission evidence. Everything else a
+ * registered source keeps as it was added. Returns the fields that changed; the source is checked again as a whole.
+ */
+export const RECONCILED_FIELDS = Object.freeze(["externalRedistributionAllowed", "datasets", "datasetMapping", "permissionEvidence"]);
+export function reconcileSource(stored, definition) {
+  const next = { ...stored };
+  for (const f of RECONCILED_FIELDS) { if (definition[f] === undefined) delete next[f]; else next[f] = definition[f]; }
+  const checked = validateSource(next);
+  const changed = RECONCILED_FIELDS.filter((f) => JSON.stringify(checked[f] ?? null) !== JSON.stringify(stored[f] ?? null));
+  for (const f of changed) { if (checked[f] === undefined) delete stored[f]; else stored[f] = checked[f]; }
+  return changed;
 }

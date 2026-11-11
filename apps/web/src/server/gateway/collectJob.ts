@@ -15,6 +15,7 @@ import { setupTodo } from "@/server/jobslake/setup";
 import { hostedGateway } from "./index";
 import type { CollectProgress } from "../../../../data-gateway/src/handler.mjs";
 import { gatewaySourceModules } from "./admin";
+import { syncCatalogueDefinitions } from "./catalogueSync";
 import { handOnSetupJob, jobRunning, readSetupJob, startSetupJob } from "./setupJob";
 import { ARCHIVE_AFTER, failStreaks, lastScheduledRunWithin, listImportRuns, recentFailures, recordImportRun, RETRY_AFTER_MS, type ImportRun } from "./importRuns";
 import { sendImportEmail } from "./importEmail";
@@ -160,6 +161,8 @@ export async function runGatewayCollection(trigger: "cron" | "admin", origin: st
   // Collection takes at most COLLECT_BUDGET_MS of the call (each source only the time left), so the Find refresh and the
   // run's record still fit in Vercel's 60 s: runs that ran out of time (504) never refreshed Find (owner, 2026-11-04:
   // descriptions stayed flattened after the fix).
+  // Registered sources first take their reviewed files' current outside-use flag and dataset bindings (WJ-815).
+  await syncCatalogueDefinitions().catch(() => undefined);
   const outcomes = (await hosted.gateway.collectDue(opts.limits?.collectMs ?? COLLECT_BUDGET_MS, settings.gateway.pausedModules, floor, opts.onProgress ?? null)).map((o) => ({ sourceId: o.sourceId, ok: o.ok, code: o.code, valid: o.valid }));
   const setupRunning = jobRunning(await readSetupJob());
   if (setupRunning) await handOnSetup(origin);
