@@ -403,7 +403,8 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
     const fields = Object.fromEntries(ask.fields.map((f) => [f, null]));
     const providers = [];
     const want = () => ask.fields.filter((f) => fields[f] === null);
-    const put = (f, value, source, observedAt) => { if (f in fields && fields[f] === null && value !== null && value !== undefined && value !== "") fields[f] = { value, source, observedAt }; };
+    // Every filled field says when it was observed: the source's own date, else now (when this lookup read it).
+    const put = (f, value, source, observedAt) => { if (f in fields && fields[f] === null && value !== null && value !== undefined && value !== "") fields[f] = { value, source, observedAt: typeof observedAt === "string" && Number.isFinite(Date.parse(observedAt)) ? observedAt : iso() }; };
 
     if (hooks.companyFacts) {
       try {

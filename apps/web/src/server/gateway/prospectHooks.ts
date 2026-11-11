@@ -31,7 +31,7 @@ export async function companyFacts(q: { domain: string; name: string }): Promise
   return [
     // Terms pending (owner decision prospects-directory-facts): these came from job-data sources reviewed for WonderWorks.
     ...entries(r.facts, { provider: "workslake", name: "WorksLake company directory", url: null, termsPending: true }, r.factsAt ?? r.lastSeenAt),
-    ...entries(r.wikidata, { provider: "wikidata", name: "Wikidata", url: r.wikidata?.sourceId ? `https://www.wikidata.org/wiki/${r.wikidata.sourceId}` : "https://www.wikidata.org/", termsPending: false }, r.wikidataAt),
+    ...entries(r.wikidata, { provider: "wikidata", name: "Wikidata", url: r.wikidata?.sourceId ? `https://www.wikidata.org/wiki/${r.wikidata.sourceId}` : "https://www.wikidata.org/", termsPending: false }, r.wikidataAt ?? r.lastSeenAt),
   ];
 }
 
