@@ -7,7 +7,7 @@
  * for quotas and usage counts only; it stores no tenant's prospects, approvals or messages.
  */
 import { createHash, createHmac } from "node:crypto";
-import { ApiError, PROSPECT_SCOPES, categoriesOf, categoryTag, domainToken, id, plainText, pushAudit, recordUsage, secureEqual, websiteOf } from "./core.mjs";
+import { ApiError, CHANNEL_TYPES, PROSPECT_SCOPES, categoriesOf, categoryTag, domainToken, id, plainText, pushAudit, recordUsage, secureEqual, websiteOf } from "./core.mjs";
 import { citiesNear, km, placeNames } from "./places.mjs";
 import { cleanDomain, organisationMailbox, readOrganisationSite } from "./site.mjs";
 import { DEFAULT_PROVIDER_CACHE_HOURS, LIVE_PROVIDERS, MAX_PROVIDER_CACHE_HOURS, createProviderRunner, providerById, providerListing, providerReady } from "./providers/index.mjs";
@@ -251,8 +251,11 @@ export function businessItem(listing, source) {
 /** A stored listing as the contract's channel: a named public outlet or gathering, never a person's profile. */
 export function channelItem(listing, source) {
   const a = listing.attributes ?? {};
-  const type = ["youtube_channel", "podcast", "community", "newsletter", "forum", "publication", "event", "organisation"].includes(a.channelType) ? a.channelType : "organisation";
+  const type = CHANNEL_TYPES.includes(a.channelType) ? a.channelType : "organisation";
   const audience = num(a.audience);
+  // An event's own dates, as its source states them (WJ-823); nothing else about an event is added.
+  const day = (v) => (typeof v === "string" && Number.isFinite(Date.parse(v)) ? v.slice(0, 25) : null);
+  const language = text(a.language ?? a.locales, 12);
   return {
     id: listing.id,
     kind: "channel",
@@ -261,10 +264,11 @@ export function channelItem(listing, source) {
     url: listing.canonicalUrl,
     topics: categoriesOf(listing),
     audience: audience !== null ? { value: audience, unit: text(a.audienceUnit, 30) ?? "members", asOf: listing.observedAt.slice(0, 10) } : null,
-    language: text(a.language, 12),
+    language: language && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(language) ? language.toLowerCase() : null,
     location: { text: listing.location || null, country: countryOf(source) },
     contactUrl: null,
     description: listing.description ? listing.description.slice(0, 600) : null,
+    ...(type === "event" ? { event: { startDate: day(a.startDate), endDate: day(a.endDate), online: a.online === true || a.online === "true" ? true : a.online === false || a.online === "false" ? false : null } } : {}),
     source: sourceOf(source, listing),
     observedAt: listing.observedAt,
   };

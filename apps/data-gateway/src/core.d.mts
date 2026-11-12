@@ -52,6 +52,7 @@ export function search(
 export const MODULES: readonly string[];
 /** Prospect datasets (organisations, public outlets): served only by /v1/prospects/, never a module. */
 export const PROSPECT_DATASETS: readonly string[];
+export const CHANNEL_TYPES: readonly string[];
 export const PROSPECT_SCOPES: readonly string[];
 /** What a listing is searched by: its words, plus a dataset row's tokens. */
 export function listingText(listing: GatewayListing): string;

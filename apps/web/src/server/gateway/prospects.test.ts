@@ -9,7 +9,7 @@ import { adminCall, ingestByUrl, setGatewaySource } from "./admin";
 import { syncCatalogueDefinitions } from "./catalogueSync";
 import { CATALOGUE } from "./catalogue";
 import { hostedGateway } from "./index";
-import { addProspectSource, issueProspectKey, prospectAdminView, revokeProspectKey, setOutsideConsumers, setProspectQuotas, setProspectSource } from "./prospectsAdmin";
+import { addProspectSource, issueProspectKey, prospectAdminView, revokeProspectKey, setOutsideConsumers, setProspectQuotas, setProspectSource, testProspectSource } from "./prospectsAdmin";
 import { resetGatewayListingsForTests } from "./store";
 
 // WJ-815: prospect data served by the hosted gateway (docs/PROSPECT_DATA_API.md, packages A1 and A2).
@@ -31,6 +31,9 @@ beforeEach(() => {
   vi.stubEnv("GATEWAY_CURSOR_SECRET", "c".repeat(40));
 });
 afterEach(() => vi.unstubAllEnvs());
+
+/** The reviewed Stack Exchange sites source (WJ-823): in the catalogue for the card to add, fetched by the gateway itself. */
+const FORUMS = expect.objectContaining({ id: "stack-exchange-sites.json", datasets: ["channels"], state: "not_added", own: true, fetched: true, termsPending: true });
 
 /** The source as it was registered before it fed a dataset: no binding, not for outside consumers. */
 async function registerAsBefore(): Promise<string> {
@@ -87,7 +90,7 @@ describe("prospect data on the hosted gateway", () => {
     await setGatewaySource(id, "activate");
     let view = await prospectAdminView();
     expect(view).toMatchObject({ configured: true, allowExternalConsumers: false, forcedOn: false, quotas: { search: 500, paid: 50 }, paidPlatformCap: 1000, keys: [] });
-    expect(view.sources).toEqual([expect.objectContaining({ id, datasets: ["businesses"], state: "live", own: false, live: true, outside: true, rows: 2, termsPending: false }), expect.objectContaining({ id: "overture-places-in.json", state: "not_added" })]);
+    expect(view.sources).toEqual([expect.objectContaining({ id, datasets: ["businesses"], state: "live", own: false, live: true, outside: true, rows: 2, termsPending: false }), expect.objectContaining({ id: "overture-places-in.json", state: "not_added" }), FORUMS]);
 
     await setOutsideConsumers(true);
     const issued = await issueProspectKey();
@@ -118,26 +121,30 @@ describe("prospect data on the hosted gateway", () => {
     const FILE2 = "overture-places-in.json";
     const place = (n: number) => ({ id: `ov-${n}`, name: `Works ${n}`, url: "https://explore.overturemaps.org/#17/18.52/73.85", categories: "electrician;home_service;trades", words: "electrician", website: `https://works${n}.example`, phone: "+91 20 5550 0100", city: "Pune", region: "Maharashtra", lat: 18.52, lon: 73.85, confidence: 0.9, providers: "meta" });
     let view = await prospectAdminView();
-    expect(view.sources).toEqual([expect.objectContaining({ id: FILE2, state: "not_added", own: true, outside: true, termsPending: true, rows: 0 })]);
+    expect(view.sources).toEqual([expect.objectContaining({ id: FILE2, state: "not_added", own: true, outside: true, termsPending: true, rows: 0 }), FORUMS]);
     expect((await addProspectSource("osm-services-west.json")).status).toBe(404);
     const added = await addProspectSource(FILE2);
     expect(added.status).toBe(201);
     const id = String(added.body.id);
-    expect((await prospectAdminView()).sources).toEqual([expect.objectContaining({ id, state: "waiting", rows: 0 })]);
+    expect((await prospectAdminView()).sources).toEqual([expect.objectContaining({ id, state: "waiting", rows: 0 }), FORUMS]);
     expect((await setProspectSource(id, "activate")).status).toBe(409);
 
     const url = String(CATALOGUE[FILE2].url);
     const observedAt = new Date().toISOString();
     expect((await ingestByUrl(url, [place(1), place(2)], { merge: true, observedAt }))[0].body).toMatchObject({ ok: true, kept: 2 });
     expect((await ingestByUrl(url, [place(3)], { merge: false, observedAt }))[0].body).toMatchObject({ ok: true, kept: 3 });
-    expect((await prospectAdminView()).sources).toEqual([expect.objectContaining({ id, state: "ready", rows: 3 })]);
+    expect((await prospectAdminView()).sources).toEqual([expect.objectContaining({ id, state: "ready", rows: 3 }), FORUMS]);
     expect((await setProspectSource(id, "activate")).status).toBe(200);
     view = await prospectAdminView();
-    expect(view.sources).toEqual([expect.objectContaining({ id, state: "live", live: true })]);
+    expect(view.sources).toEqual([expect.objectContaining({ id, state: "live", live: true }), FORUMS]);
 
     // A source that also feeds a module is switched on its module's card, never here.
     const osm = await registerAsBefore();
     expect((await setProspectSource(osm, "pause")).status).toBe(404);
+    // Test is for a source the gateway fetches itself: not one a GitHub collection delivers, not a module's.
+    expect(view.sources[0].fetched).toBe(false);
+    expect((await testProspectSource(id)).status).toBe(404);
+    expect((await testProspectSource(osm)).status).toBe(404);
     expect((await setProspectSource(id, "pause")).status).toBe(200);
   });
 

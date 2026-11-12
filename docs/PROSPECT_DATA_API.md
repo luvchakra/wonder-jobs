@@ -25,6 +25,15 @@
 - `filters.minAudience` and `filters.channelTypes` apply to live channels (a channel with no stated audience cannot meet a floor); `filters.languages` is passed to YouTube as its relevance language and filters podcasts by the feed's language.
 - A podcast result has `audience: null` (the index states none) and an extra `episodes` count.
 
+**A6, channels (WJ-823, 2026-11-12).**
+
+- With no keys, `kind: "channel"` returns what is stored: conferences from confs.tech as `channelType: "event"` and the Stack Exchange network's sites as `channelType: "forum"`, once an admin has activated them. With keys, naming `youtube` and `podcast_index` adds channels and podcasts. No source for `community`, `newsletter` or `publication` is built (`docs/EXTERNAL_DATA_SOURCES.md` §14.1 lists what was considered).
+- A channel of type `event` carries one extra field, `event: { startDate, endDate, online }`, as its source states them. Additive; nothing else in the channel shape changed.
+- `audience` is filled only where the source states a size: YouTube subscribers today. Podcasts, events and forums have `audience: null`.
+- Only one Events source feeds `channels`: confs.tech, whose MIT licence allows passing the data on. The other eight are not bound because their own files do not allow outside use.
+- Gathering places are businesses: `kind: "business"` with `filters.categoryGroup: "gathering_places"` (any spelling that reduces to those letters). It covers the `education` and `fitnesscommunity` groups.
+- A source definition bound to `channels` says what its rows are with `channelType`.
+
 **A4, enrich, contacts and suppress (WJ-818, 2026-11-11).**
 
 - `enrich` and `contacts` responses also carry `metadata.providers` (`directory`, `stored`, `site`, and the paid ones as `needs_setup`), like search. A free lookup counts against the tenant's `search` allowance.
