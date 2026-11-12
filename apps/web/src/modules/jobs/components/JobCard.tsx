@@ -2,8 +2,8 @@
 import { shortPlace } from "@/wonderworks/find/place";
 import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowUpRight, ThumbsDown, Zap } from "lucide-react";
-import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton, shortSourceNames } from "@/wonderworks/find/parts";
+import { ArrowUpRight, Banknote, Briefcase, Laptop, MapPin, ThumbsDown, Zap } from "lucide-react";
+import { APPLY_BTN, CARD_TARGET, FitRing, ResultCard, SaveButton, shortSourceNames } from "@/wonderworks/find/parts";
 import { FIT_META, WORK_MODE_LABEL, type CanonicalJob, type JobMatch, type JobQuality } from "@/domain/jobs/types";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { JOB_SOURCES } from "@/domain/jobs/sources";
@@ -47,12 +47,18 @@ export function sourceLine(job: Pick<CanonicalJob, "sourceIds" | "lake">, short 
  */
 export { shortPlace };
 
-const MATCH_TONE: Record<JobMatch["fit"], string> = {
-  strong: "bg-success-100 text-success-600",
-  worth_considering: "bg-brand-50 text-brand-700",
-  stretch: "bg-warning-100 text-warning-600",
-  low_fit: "bg-bg-soft text-ink-3",
+/** The match ring's colour, by fit. */
+const MATCH_COLOR: Record<JobMatch["fit"], string> = {
+  strong: "var(--wj-success-600)",
+  worth_considering: "var(--wj-brand-500)",
+  stretch: "var(--wj-warning-600)",
+  low_fit: "var(--wj-ink-4)",
 };
+
+/** A fact with its small icon in front (place, work mode, type, pay). */
+const FACT = "inline-flex items-center gap-1";
+const FACT_ICON = "size-3.5 shrink-0 text-ink-4";
+const APPLY = cn(APPLY_BTN, "mt-1.5 h-8 px-3 shadow-brand");
 
 export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare, brief, statusTone = "info" }: { job: CanonicalJob; brief?: CompanyBrief | null; statusTone?: Tone; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
@@ -66,18 +72,19 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   const summary = useMemo(() => jdSummary(job.description), [job.description]);
   return (
     <ResultCard
+      premium
       share={null}
       className={className}
       aside={
         <>
-          <CompanyLogo name={job.company} domain={job.companyDomain} logo size={compact ? 36 : 44} />
+          <CompanyLogo name={job.company} domain={job.companyDomain} logo size={compact ? 36 : 48} />
           {/* The company's employee-review rating, just under the logo, in its short form: ★ 4.3. */}
           {brief?.rating && <RatingStars value={brief.rating.value} title={`${brief.rating.value.toFixed(1)} out of 5${brief.rating.reviews ? ` from ${brief.rating.reviews.toLocaleString("en-US")} reviews` : ""} — ${brief.rating.source}`} size={13} compact className="-mt-0.5" />}
-          {match && <FitPill tone={MATCH_TONE[match.fit]} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`} top={<>{match.score}%</>} bottom="Match" srText={FIT_META[match.fit].label} />}
+          {match && <FitRing score={match.score} color={MATCH_COLOR[match.fit]} title={`${FIT_META[match.fit].label} — about ${match.score}% aligned with your Career Profile, a guide, not a verdict`} bottom="Match" srText={FIT_META[match.fit].label} />}
           {/* Apply straight from the list. The icon says which kind, in the button's own width: the bolt is Easy Apply
               (a job posted on WonderWorks; opens its page), the arrow opens the employer's listing in a new tab. */}
           {job.sourceIds.includes("employers") ? (
-            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderWorks" className={APPLY_BTN}>
+            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderWorks" className={APPLY}>
               <Zap className="size-3.5 shrink-0 fill-current" aria-hidden />
               Apply
             </Link>
@@ -85,7 +92,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             <a href={job.applyUrl} target="_blank" rel="noreferrer" aria-label={`Apply to ${job.title} at ${job.company} on the employer's site (opens in a new tab)`} title="Apply on the employer's site" onClick={() => {
                 noteApplyOpened(job.id);
                 track("apply_listing_opened", { jobId: job.id, from: "card" });
-              }} className={APPLY_BTN}>
+              }} className={APPLY}>
               Apply
               <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
             </a>
@@ -99,11 +106,11 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
       }
       // The company and the first place share the line below the title.
       facts={[
-        <span key="c" className="font-medium text-ink-2">{job.company}</span>,
-        <span key="p" title={job.location}>{shortPlace(job.location)}</span>,
-        <span key="m">{WORK_MODE_LABEL[job.workMode]}</span>,
-        type && <span key="t" title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}>{JOB_TYPE_LABEL[type]}</span>,
-        salary && <span key="s" className="font-medium text-ink-2">{salary}</span>,
+        <span key="c" className="font-semibold text-ink-2">{job.company}</span>,
+        <span key="p" title={job.location} className={FACT}><MapPin className={FACT_ICON} aria-hidden />{shortPlace(job.location)}</span>,
+        <span key="m" className={FACT}><Laptop className={FACT_ICON} aria-hidden />{WORK_MODE_LABEL[job.workMode]}</span>,
+        type && <span key="t" className={FACT} title={job.jobTypeFrom === "source" ? "As the source lists it" : "Read from the job title"}><Briefcase className={FACT_ICON} aria-hidden />{JOB_TYPE_LABEL[type]}</span>,
+        salary && <span key="s" className={cn(FACT, "font-semibold text-ink")}><Banknote className={FACT_ICON} aria-hidden />{salary}</span>,
       ]}
       // Skills and why it fits sit beside the logo, so nothing leaves a gap under it.
       tags={tags}
