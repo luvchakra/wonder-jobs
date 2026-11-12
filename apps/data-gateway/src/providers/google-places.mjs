@@ -37,6 +37,7 @@ function business(p, at) {
 
 export default {
   id: "google_places", label: "Google Places", kinds: ["business"], paid: true, units: 1, coverage: ["global"], attribution: "Google Maps", termsPending: true,
+  cost: "1 paid unit a page",
   keys: ["GOOGLE_PLACES_API_KEY"], maxPage: 20, defaultCacheHours: 0,
   async search(plan, ctx) {
     const point = pointOf(plan), place = placeOf(plan), country = countryOf(plan);

@@ -10,7 +10,9 @@ import { createHash, createHmac } from "node:crypto";
 import { ApiError, CHANNEL_TYPES, PROSPECT_SCOPES, categoriesOf, categoryTag, domainToken, id, plainText, pushAudit, recordUsage, secureEqual, websiteOf } from "./core.mjs";
 import { citiesNear, km, placeNames } from "./places.mjs";
 import { cleanDomain, organisationMailbox, readOrganisationSite } from "./site.mjs";
-import { DEFAULT_PROVIDER_CACHE_HOURS, LIVE_PROVIDERS, MAX_PROVIDER_CACHE_HOURS, createProviderRunner, providerById, providerListing, providerReady } from "./providers/index.mjs";
+import { DEFAULT_PROVIDER_CACHE_HOURS, LIVE_PROVIDERS, LOOKUP_PROVIDERS, MAX_PROVIDER_CACHE_HOURS, createProviderRunner, providerById, providerListing, providerReady } from "./providers/index.mjs";
+import { apolloOrganisation, apolloPeople, apolloReveal } from "./providers/apollo.mjs";
+import hunter, { hunterPeople, hunterVerify } from "./providers/hunter.mjs";
 
 /** Most rows one search reads before it merges duplicates and pages. A wider search says so (`metadata.capped`). */
 export const CANDIDATE_CAP = 1000;
@@ -26,8 +28,9 @@ const ROUTE_SIGNALS = "/v1/prospects/signals";
 const FREE_ROUTES = new Set([ROUTE_SEARCH, ROUTE_ENRICH, ROUTE_CONTACTS, ROUTE_SIGNALS]);
 /** What enrich can fill for an organisation. */
 export const ENRICH_FIELDS = Object.freeze(["industry", "employeeRange", "description", "phone", "email", "linkedinUrl", "hq"]);
-/** Providers of named people. None is connected yet, so a contacts lookup says each needs setup (A3). */
+/** Providers of named people, in the order a contacts lookup asks them (WJ-825): Hunter, then Apollo for the rest. */
 export const CONTACT_PROVIDERS = Object.freeze(["hunter", "apollo"]);
+export const CONTACT_LIMIT = 10;
 /** The removal list is kept in the gateway's state document, so it is small; past this it needs its own table (an owner decision). */
 export const MAX_SUPPRESSIONS = 2000;
 const KIND_DATASET = Object.freeze({ business: "businesses", channel: "channels" });
@@ -144,6 +147,28 @@ export function enrichRequest(body) {
   const asked = Array.isArray(body.fields) && body.fields.length ? body.fields : ENRICH_FIELDS;
   if (asked.some((f) => !ENRICH_FIELDS.includes(f))) throw new ApiError(400, "INVALID_REQUEST", "fields: " + ENRICH_FIELDS.join(", "));
   return { domain, name, fields: [...new Set(asked)], allowPaid: body.allowPaid === true };
+}
+
+/** A contacts request, checked: the organisation's domain, the roles wanted (any when none), how many people, whether to verify. */
+export function contactsRequest(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "INVALID_REQUEST", "Send a contacts request");
+  const domain = cleanDomain(body.domain);
+  if (!domain) throw new ApiError(400, "INVALID_REQUEST", "domain: the organisation's own domain, e.g. acme.example");
+  if (body.roles !== undefined && body.roles !== null && (!Array.isArray(body.roles) || body.roles.length > 10)) throw new ApiError(400, "INVALID_REQUEST", "roles: up to 10 job titles");
+  const roles = [...new Set((body.roles ?? []).filter((r) => typeof r === "string").map((r) => plainText(r).replace(/\s+/g, " ").trim().slice(0, 80)).filter(Boolean))];
+  if (body.limit !== undefined && body.limit !== null && !(Number.isInteger(body.limit) && body.limit >= 1 && body.limit <= CONTACT_LIMIT)) throw new ApiError(400, "INVALID_REQUEST", "limit: 1 to " + CONTACT_LIMIT);
+  return { domain, roles, limit: Number.isInteger(body.limit) ? body.limit : 3, verify: body.verify === true };
+}
+
+/** Short titles people write for a role, read as the words they stand for. */
+const ROLE_SHORT = Object.freeze({ ceo: "chief executive officer", cto: "chief technology officer", cfo: "chief financial officer", coo: "chief operating officer", cio: "chief information officer", ciso: "chief information security officer", cmo: "chief marketing officer", cro: "chief revenue officer", cpo: "chief product officer", vp: "vice president", hr: "human resources" });
+const roleWords = (t) => t.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).flatMap((w) => (ROLE_SHORT[w] ?? w).split(" ")).filter((w) => !["of", "and", "the", "for", "a", "an", "&"].includes(w));
+/** Whether a person's title is one of the roles asked for: every word of a role (short forms read out) is in the title. */
+export function matchesRole(title, roles) {
+  if (!roles.length) return true;
+  if (!title) return false;
+  const have = new Set(roleWords(title));
+  return roles.some((r) => { const want = roleWords(r); return want.length > 0 && want.every((w) => have.has(w)); });
 }
 
 /** The request's tenant: required on every prospect route, an opaque id (letters, digits, - _ . :), never interpreted. */
@@ -351,9 +376,9 @@ export function prospectPlan(state, caller, payload, secret) {
   const languages = [...new Set(list(f.languages).map((l) => l.trim().toLowerCase()).filter((l) => /^[a-z]{2,3}(-[a-z0-9]{2,8})?$/.test(l)))].slice(0, 5);
   const minAudience = num(f.minAudience);
   const named = providers.filter((p) => p !== "stored");
-  const live = { kind: payload.kind, query: plainText(query).slice(0, 200), categoryWords: list(f.categories).map((c) => plainText(c).slice(0, 60)).filter(Boolean), channelTypes, locations, languages, minAudience: minAudience !== null && minAudience > 0 ? minAudience : null, employeeRanges: list(f.employeeRanges).map((r) => r.trim().slice(0, 30)) };
+  const live = { kind: payload.kind, query: plainText(query).slice(0, 200), categoryWords: list(f.categories).map((c) => plainText(c).slice(0, 60)).filter(Boolean), channelTypes, locations, languages, minAudience: minAudience !== null && minAudience > 0 ? minAudience : null, employeeRanges: list(f.employeeRanges).map((r) => r.trim().slice(0, 30)), industries: list(f.industries).map((r) => plainText(r).slice(0, 60)).filter(Boolean) };
   // A search that names a live provider pages in steps of its first page, so the page size is part of what a cursor is signed to.
-  const fingerprint = createHash("sha256").update(JSON.stringify({ dataset, query, categories, channelTypes, hasWebsite, group: groupName, locations, providers, ...(named.length ? { languages, minAudience: live.minAudience, employeeRanges: live.employeeRanges, limit } : {}) })).digest("hex");
+  const fingerprint = createHash("sha256").update(JSON.stringify({ dataset, query, categories, channelTypes, hasWebsite, group: groupName, locations, providers, ...(named.length ? { languages, minAudience: live.minAudience, employeeRanges: live.employeeRanges, industries: live.industries, limit } : {}) })).digest("hex");
   const cursor = readCursor(payload.cursor, secret);
   if (cursor && (cursor.f !== fingerprint || !Number.isInteger(cursor.offset) || cursor.offset < 0 || cursor.offset > CANDIDATE_CAP)) throw new ApiError(400, "INVALID_CURSOR", "Cursor does not match search");
   const sources = readableSources(state, caller, dataset).filter((s) => !countries.length || !s.geography?.length || s.geography.some((g) => g === "global" || countries.includes(g)));
@@ -420,11 +445,11 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
   /**
    * Fills an organisation's blanks from the cheapest source first, stopping at the first value per field: WorksLake's
    * company directory (reported facts, then Wikidata), stored businesses rows with the same domain, then the
-   * organisation's own site. A paid provider is asked only with allowPaid, and none is connected yet.
+   * organisation's own site, then Apollo, a paid provider asked only with allowPaid.
    */
   async function enrich(ask) {
     const fields = Object.fromEntries(ask.fields.map((f) => [f, null]));
-    const providers = [];
+    const meta = [];
     const want = () => ask.fields.filter((f) => fields[f] === null);
     // Every filled field says when it was observed: the source's own date, else now (when this lookup read it).
     const put = (f, value, source, observedAt) => { if (f in fields && fields[f] === null && value !== null && value !== undefined && value !== "") fields[f] = { value, source, observedAt: typeof observedAt === "string" && Number.isFinite(Date.parse(observedAt)) ? observedAt : iso() }; };
@@ -434,8 +459,8 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
         const found = await hooks.companyFacts({ domain: ask.domain, name: ask.name });
         let n = 0;
         for (const e of found ?? []) { const before = fields[e.field]; put(e.field, typeof e.value === "string" ? plainText(e.value).slice(0, 600) : e.value, e.source, e.observedAt ?? null); if (before === null && fields[e.field]) n++; }
-        providers.push({ id: "directory", status: "ok", returned: n });
-      } catch { providers.push({ id: "directory", status: "unavailable", returned: 0 }); }
+        meta.push({ id: "directory", status: "ok", returned: n });
+      } catch { meta.push({ id: "directory", status: "unavailable", returned: 0 }); }
     }
 
     if (ask.domain && want().length) {
@@ -451,18 +476,110 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
         const hq = [b.location.city, b.location.region].filter(Boolean).join(", ") || null;
         for (const [f, v] of [["description", b.description], ["phone", b.phone], ["email", b.email], ["hq", hq]]) { const before = fields[f]; put(f, v, src, b.observedAt); if (before === null && fields[f]) n++; }
       }
-      providers.push({ id: "stored", status: "ok", returned: n });
+      meta.push({ id: "stored", status: "ok", returned: n });
     }
 
     if (ask.domain && want().some((f) => ["description", "phone", "email", "linkedinUrl", "hq"].includes(f))) {
       const site = await readSite(ask.domain).catch(() => ({ status: "unavailable", fields: {} }));
       let n = 0;
       for (const [f, v] of Object.entries(site.fields ?? {})) { const before = fields[f]; put(f, v.value, { provider: "site", name: ask.domain, url: v.url }, iso()); if (before === null && fields[f]) n++; }
-      providers.push({ id: "site", status: site.status === "ok" ? "ok" : "unavailable", returned: n });
+      meta.push({ id: "site", status: site.status === "ok" ? "ok" : "unavailable", returned: n });
     }
-    // Paid enrichment (Apollo) is asked only with allowPaid, and is not connected yet.
-    if (ask.allowPaid && want().length) providers.push({ id: "apollo", status: "needs_setup", returned: 0 });
-    return { fields, providers };
+    // Paid enrichment (Apollo, WJ-825) is asked last, only with allowPaid and a domain, for what is still blank. It
+    // spends one paid unit when it answers; a kept answer (the provider's cache setting) spends nothing.
+    let units = 0;
+    const apollo = providerById("apollo");
+    // Apollo states no email and no size band, so it is asked only for a field it can fill.
+    const apolloCan = () => want().some((f) => ["industry", "description", "phone", "linkedinUrl", "hq"].includes(f));
+    if (ask.allowPaid && ask.domain && apolloCan()) {
+      const hours = await store.read((s) => prospectSettings(s).providerCacheHours.apollo ?? 0);
+      const kept = providers.recall(apollo, { enrich: ask.domain }, hours);
+      let got = kept ? { status: "ok", value: kept } : null;
+      if (!got) {
+        const ready = providerReady(apollo, await providers.keys());
+        const left = ready ? (await store.read((s) => tenantQuota(s, ask.caller.consumerId, ask.tenant))).paid.remaining : 0;
+        got = !ready ? { status: "needs_setup" } : left < apollo.units ? { status: "quota" } : await providers.call(apollo, (ctx) => apolloOrganisation(ctx, ask.domain));
+        if (got.status === "ok") { units += apollo.units; providers.remember(apollo, { enrich: ask.domain }, hours, got.value); }
+      }
+      let n = 0;
+      if (got.status === "ok") for (const [f, v] of Object.entries(got.value ?? {})) { const before = fields[f]; put(f, v, { provider: "apollo", name: "Apollo", url: null, termsPending: true }, iso()); if (before === null && fields[f]) n++; }
+      meta.push({ id: "apollo", status: got.status, returned: n, unitsSpent: got.status === "ok" && !kept ? apollo.units : 0, ...(got.reason ? { reason: got.reason } : {}), ...(kept ? { cached: true } : {}) });
+    } else if (ask.allowPaid && want().length && !providerReady(apollo, await providers.keys())) meta.push({ id: "apollo", status: "needs_setup", returned: 0, unitsSpent: 0 });
+    return { fields, providers: meta, units };
+  }
+
+  /**
+   * Named people at one organisation (WJ-825, A4), looked up live and never kept: the organisation's own published
+   * mailboxes (free), then Hunter's domain search filtered to the roles, then Apollo's people search by title for the
+   * rest, then, with `verify`, Hunter's verifier on each address. Each paid call needs a unit left in the tenant's paid
+   * allowance (and the platform's cap) and spends one when it answers. Anyone on the removal list is dropped without a
+   * trace, from every provider. People live only in this function's memory and the response: nothing about them is
+   * cached, written to the state, logged or put in an error.
+   */
+  async function contacts(ask, caller, tenant) {
+    const { domain, roles, limit } = ask;
+    const site = await readSite(domain).catch(() => ({ status: "unavailable", mailboxes: [] }));
+    const suppressed = await store.read((s) => new Set(s.suppressions ?? []));
+    const hidden = (email) => suppressed.has(suppressionHash(email, cursorSecret)) || suppressed.has(suppressionHash("@" + domain, cursorSecret)) || suppressed.has(suppressionHash("@" + email.slice(email.lastIndexOf("@") + 1), cursorSecret));
+    const generic = site.mailboxes.filter((m) => !hidden(m.email)).map((m) => ({ email: m.email, emailStatus: "unverified", source: { provider: "site", name: domain, url: m.url } }));
+    const meta = [{ id: "site", status: site.status === "ok" ? "ok" : "unavailable", returned: generic.length }];
+    const keys = await providers.keys();
+    let paidLeft = (await store.read((s) => tenantQuota(s, caller.consumerId, tenant))).paid.remaining, units = 0;
+    const people = [], seen = new Set(generic.map((g) => g.email));
+    const at = iso();
+    const take = (c, provider, name) => {
+      if (people.length >= limit || seen.has(c.email) || hidden(c.email)) return false;
+      seen.add(c.email);
+      people.push({ firstName: c.firstName, lastName: c.lastName, title: c.title, email: c.email, emailStatus: c.emailStatus, linkedinUrl: c.linkedinUrl, source: { provider, name, retrievedAt: at, termsPending: true } });
+      return true;
+    };
+    const entry = (pid, got, returned, spent) => ({ id: pid, status: got.status, returned, unitsSpent: spent, ...(got.reason ? { reason: got.reason } : {}) });
+
+    // Hunter: one domain search (it bills only a search that finds someone).
+    if (!providerReady(hunter, keys)) meta.push({ id: "hunter", status: "needs_setup", returned: 0, unitsSpent: 0 });
+    else if (paidLeft < hunter.units) meta.push({ id: "hunter", status: "quota", returned: 0, unitsSpent: 0 });
+    else {
+      const got = await providers.call(hunter, (ctx) => hunterPeople(ctx, { domain, size: CONTACT_LIMIT }), { keys });
+      const spent = got.status === "ok" && got.value.length ? hunter.units : 0;
+      paidLeft -= spent; units += spent;
+      let n = 0;
+      if (got.status === "ok") for (const c of got.value) if (matchesRole(c.title, roles) && take(c, "hunter", "Hunter")) n++;
+      meta.push(entry("hunter", got, n, spent));
+    }
+
+    // Apollo, for the rest: a people search by title (free), then each person's work email (a unit each).
+    const apollo = providerById("apollo");
+    if (!providerReady(apollo, keys)) meta.push({ id: "apollo", status: "needs_setup", returned: 0, unitsSpent: 0 });
+    else if (people.length < limit) {
+      const found = await providers.call(apollo, (ctx) => apolloPeople(ctx, { domain, titles: roles, size: (limit - people.length) * 2 }), { keys });
+      let n = 0, spent = 0, status = found;
+      if (found.status === "ok") {
+        const wanted = found.value.filter((x) => matchesRole(x.title, roles)).slice(0, Math.min(limit - people.length, paidLeft));
+        if (!wanted.length && found.value.length && paidLeft < apollo.units) status = { status: "quota" };
+        const revealed = await Promise.all(wanted.map((x) => providers.call(apollo, (ctx) => apolloReveal(ctx, x.id, domain), { keys })));
+        for (const r of revealed) {
+          if (r.status !== "ok") { status = r; continue; }
+          spent += apollo.units;
+          if (r.value && take(r.value, "apollo", "Apollo")) n++;
+        }
+      }
+      paidLeft -= spent; units += spent;
+      meta.push(entry("apollo", status, n, spent));
+    } else meta.push({ id: "apollo", status: "ok", returned: 0, unitsSpent: 0 });
+
+    // Hunter's verifier on every address found, as far as the paid allowance goes.
+    if (ask.verify && people.length) {
+      if (!providerReady(hunter, keys)) meta.push({ id: "hunter_verifier", status: "needs_setup", returned: 0, unitsSpent: 0 });
+      else {
+        const check = people.slice(0, Math.max(0, paidLeft));
+        const results = await Promise.all(check.map((c) => providers.call(hunter, (ctx) => hunterVerify(ctx, c.email), { keys })));
+        let n = 0, spent = 0, status = { status: check.length < people.length ? "quota" : "ok" };
+        results.forEach((r, i) => { if (r.status === "ok") { check[i].emailStatus = r.value; n++; spent += hunter.units; } else status = r; });
+        units += spent;
+        meta.push(entry("hunter_verifier", status, n, spent));
+      }
+    }
+    return { contacts: people, generic, providers: meta, units };
   }
 
   /**
@@ -517,6 +634,8 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
       // Live providers this key's scopes cover, each "active" with its key set and "needs_setup" without (WJ-822).
       const keys = await providers.keys();
       for (const lp of LIVE_PROVIDERS) if (lp.kinds.some((k) => caller.scopes.includes("read:" + KIND_DATASET[k]))) listed.sources.push(providerListing(lp, keys));
+      // Contact providers (WJ-825) for a key that may look up contacts; Apollo also answers contacts and enrich.
+      if (caller.scopes.includes("lookup:contacts")) for (const lp of LOOKUP_PROVIDERS) listed.sources.push(providerListing(lp, keys));
       // The hiring signal is offered where the host has job data to read and the key may read signals.
       if (hooks.hiringSignals && caller.scopes.includes("read:signals")) listed.sources.push({ id: "hiring", label: "Companies hiring for…", kinds: ["signal"], status: "active", paid: false, coverage: ["global"], attribution: "WorksLake job listings", termsPending: true });
       return reply(200, listed);
@@ -583,30 +702,27 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
       const body = await readBody(request);
       const ask = enrichRequest(body);
       await spendFree(caller, tenant);
-      const result = await enrich({ ...ask, caller });
-      store.lazy((s) => recordUsage(s, caller, ROUTE_ENRICH, "enrich", Object.values(result.fields).filter(Boolean).length, { tenant, units: 0 }));
+      const result = await enrich({ ...ask, caller, tenant });
+      // Paid units are written before the answer leaves, so a spend is never lost.
+      const usage = (s) => recordUsage(s, caller, ROUTE_ENRICH, "enrich", Object.values(result.fields).filter(Boolean).length, { tenant, units: result.units });
+      if (result.units > 0) await store.change(usage); else store.lazy(usage);
       const after = await store.read((s) => tenantQuota(s, caller.consumerId, tenant));
-      return reply(200, { requestId: id("req"), domain: ask.domain || null, fields: result.fields, metadata: { providers: result.providers, asOf: iso() }, usage: { unitsSpent: 0, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } } });
+      return reply(200, { requestId: id("req"), domain: ask.domain || null, fields: result.fields, metadata: { providers: result.providers, asOf: iso() }, usage: { unitsSpent: result.units, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } } });
     }
 
     if (method === "POST" && route === "contacts" && p.length === 3) {
       if (!caller.scopes.includes("lookup:contacts")) throw new ApiError(403, "FORBIDDEN", "This API key cannot look up contacts");
-      const body = await readBody(request);
-      const domain = cleanDomain(body?.domain);
-      if (!domain) throw new ApiError(400, "INVALID_REQUEST", "domain: the organisation's own domain, e.g. acme.example");
+      const ask = contactsRequest(await readBody(request));
       await spendFree(caller, tenant);
-      // The organisation's own published mailboxes, free. People are looked up live by a provider on request and never
-      // stored here; none is connected yet, so each says it needs setup.
-      const site = await readSite(domain).catch(() => ({ status: "unavailable", mailboxes: [] }));
-      const suppressed = await store.read((s) => new Set(s.suppressions ?? []));
-      const hidden = (email) => suppressed.has(suppressionHash(email, cursorSecret)) || suppressed.has(suppressionHash("@" + domain, cursorSecret));
-      const generic = site.mailboxes.filter((m) => !hidden(m.email)).map((m) => ({ email: m.email, emailStatus: "unverified", source: { provider: "site", name: domain, url: m.url } }));
-      store.lazy((s) => recordUsage(s, caller, ROUTE_CONTACTS, "contacts", generic.length, { tenant, units: 0 }));
+      const found = await contacts(ask, caller, tenant);
+      // Counts only: the tenant, the route, the units and how many came back. No person reaches the state or a log.
+      const usage = (s) => recordUsage(s, caller, ROUTE_CONTACTS, "contacts", found.contacts.length + found.generic.length, { tenant, units: found.units });
+      if (found.units > 0) await store.change(usage); else store.lazy(usage);
       const after = await store.read((s) => tenantQuota(s, caller.consumerId, tenant));
       return reply(200, {
-        requestId: id("req"), domain, contacts: [], generic,
-        metadata: { providers: [{ id: "site", status: site.status === "ok" ? "ok" : "unavailable", returned: generic.length }, ...CONTACT_PROVIDERS.map((x) => ({ id: x, status: "needs_setup", returned: 0 }))], asOf: iso() },
-        usage: { unitsSpent: 0, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } },
+        requestId: id("req"), domain: ask.domain, contacts: found.contacts, generic: found.generic,
+        metadata: { providers: found.providers, asOf: iso() },
+        usage: { unitsSpent: found.units, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } },
       });
     }
 

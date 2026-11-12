@@ -5,7 +5,7 @@
  */
 import { PROSPECT_DATASETS, PROSPECT_SCOPES } from "../../../../data-gateway/src/core.mjs";
 import { prospectSettings } from "../../../../data-gateway/src/prospects.mjs";
-import { LIVE_PROVIDERS, providerReady } from "../../../../data-gateway/src/providers/index.mjs";
+import { ALL_PROVIDERS, providerReady } from "../../../../data-gateway/src/providers/index.mjs";
 import { providerKeys } from "./prospectHooks";
 import { adminCall, registerFromCatalogue, setGatewaySource, testGatewaySource } from "./admin";
 import { CATALOGUE } from "./catalogue";
@@ -37,7 +37,7 @@ export interface ProspectAdminView {
   /** `fetched`: the gateway reads it itself (a Test fetches it); false for one a GitHub collection delivers (Overture). */
   sources: { id: string; name: string; datasets: string[]; state: "not_added" | "waiting" | "ready" | "live"; own: boolean; fetched: boolean; live: boolean; outside: boolean; termsPending: boolean; rows: number; lastSuccessAt: string | null }[];
   /** Live providers (WJ-822): asked only when a search names one. "Needs setup" until its key is on Admin → Keys. */
-  providers: { id: string; label: string; kinds: string[]; paid: boolean; ready: boolean; termsPending: boolean; cacheHours: number; keys: string[] }[];
+  providers: { id: string; label: string; kinds: string[]; paid: boolean; cost: string; ready: boolean; termsPending: boolean; cacheHours: number; keys: string[] }[];
   /** This calendar month (UTC), per consumer and per tenant: requests and paid units, never what was searched. */
   usage: { month: string; consumers: { consumerId: string; searches: number; results: number; paidUnits: number; tenants: { tenant: string; searches: number; paidUnits: number }[] }[] };
 }
@@ -96,7 +96,7 @@ export async function prospectAdminView(now = new Date()): Promise<ProspectAdmin
         .filter(([, def]) => !((def.modules as string[] | undefined) ?? []).length && ((def.datasets as string[] | undefined) ?? []).length && !read.sources.some((x) => x.url === def.url))
         .map(([file, def]) => ({ id: file, name: String(def.attribution ?? file), datasets: def.datasets as string[], state: "not_added" as const, own: true, fetched: fetchedByGateway(def), live: false, outside: def.externalRedistributionAllowed === true, termsPending: termsPending(def.permissionEvidence), rows: 0, lastSuccessAt: null })),
     ],
-    providers: LIVE_PROVIDERS.map((p) => ({ id: p.id, label: p.label, kinds: [...p.kinds], paid: p.paid, ready: providerReady(p, liveKeys), termsPending: p.termsPending, cacheHours: read.settings.providerCacheHours[p.id] ?? p.defaultCacheHours, keys: [...p.keys] })),
+    providers: ALL_PROVIDERS.map((p) => ({ id: p.id, label: p.label, kinds: [...p.kinds], paid: p.paid, cost: p.cost, ready: providerReady(p, liveKeys), termsPending: p.termsPending, cacheHours: read.settings.providerCacheHours[p.id] ?? 0, keys: [...p.keys] })),
     usage: { month, consumers: [...consumers.values()].sort((a, b) => b.searches - a.searches) },
   };
 }

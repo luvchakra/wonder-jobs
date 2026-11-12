@@ -446,7 +446,7 @@ test("enrich fills each blank from the cheapest source first and says where ever
     // Only the fields asked for; paid sources only on request, and none is connected.
     const paid = await t.call("/v1/prospects/enrich", { token: t.key, tenant: TENANT, body: { domain: "acme.example", fields: ["employeeRange"], allowPaid: true } });
     assert.deepEqual(Object.keys(paid.body.fields), ["employeeRange"]);
-    assert.deepEqual(paid.body.metadata.providers.at(-1), { id: "apollo", status: "needs_setup", returned: 0 });
+    assert.deepEqual(paid.body.metadata.providers.at(-1), { id: "apollo", status: "needs_setup", returned: 0, unitsSpent: 0 });
     // By name alone the directory may answer; nothing is fetched.
     const named = await t.call("/v1/prospects/enrich", { token: t.key, tenant: TENANT, body: { name: "Unknown Co" } });
     assert.equal(named.status, 200);

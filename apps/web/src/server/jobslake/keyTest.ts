@@ -45,6 +45,10 @@ const PROBES: Record<string, Probe> = {
   // Prospect data's live providers (WJ-822). Google: one id-only place (its cheapest request). YouTube: one channel's id (1 quota unit).
   googleplaces: { needs: ["GOOGLE_PLACES_API_KEY"], request: (k) => ({ url: "https://places.googleapis.com/v1/places:searchText", init: { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": k("GOOGLE_PLACES_API_KEY"), "x-goog-fieldmask": "places.id" }, body: JSON.stringify({ textQuery: "post office", pageSize: 1 }) } }) },
   youtube: { needs: ["YOUTUBE_API_KEY"], request: (k) => ({ url: "https://www.googleapis.com/youtube/v3/channels?part=id&id=UC_x5XG1OV2P6uZZ5FSM9Ttw", init: { headers: { "x-goog-api-key": k("YOUTUBE_API_KEY") } } }) },
+  // WJ-824/825. Apollo: its documented key check, no credit. data.gov.in: one register record. Hunter: the account (free).
+  apollo: { needs: ["APOLLO_API_KEY"], request: (k) => ({ url: "https://api.apollo.io/api/v1/auth/health", init: { headers: { "x-api-key": k("APOLLO_API_KEY"), "cache-control": "no-cache" } } }) },
+  datagovin: { needs: ["DATA_GOV_IN_API_KEY"], request: (k) => ({ url: `https://api.data.gov.in/resource/4dbe5667-7b6b-41d7-82af-211562424d9a?api-key=${encodeURIComponent(k("DATA_GOV_IN_API_KEY"))}&format=json&limit=1` }) },
+  hunter: { needs: ["HUNTER_API_KEY"], request: (k) => ({ url: "https://api.hunter.io/v2/account", init: { headers: { "x-api-key": k("HUNTER_API_KEY") } } }) },
   podcastindex: {
     needs: ["PODCAST_INDEX_KEY", "PODCAST_INDEX_SECRET"],
     request: (k) => {

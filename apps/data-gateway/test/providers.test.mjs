@@ -75,7 +75,7 @@ test("without keys every live provider says it needs setup, and a search that na
   const t = await setup({ keys: {}, respond: () => { throw new Error("no provider may be called without its key"); } });
   try {
     const listed = (await t.call("/v1/prospects/sources", { token: t.key, tenant: TENANT })).body.sources;
-    for (const id of ["google_places", "youtube", "podcast_index"]) {
+    for (const id of ["google_places", "apollo", "data_gov_in", "youtube", "podcast_index", "reddit", "hunter"]) {
       const s = listed.find((x) => x.id === id);
       assert.equal(s?.status, "needs_setup", id);
       assert.equal(typeof s.attribution, "string");
@@ -96,8 +96,11 @@ test("without keys every live provider says it needs setup, and a search that na
     assert.equal(r.body.usage.unitsSpent, 0);
     assert.equal(r.body.nextCursor, null);
     assert.equal(t.calls.length, 0);
-    // Apollo is not built (the spec's cut order): it is not a provider a search can name.
-    assert.equal((await t.search({ ...ELECTRICIANS, providers: ["apollo"] })).status, 400);
+    // WJ-824: Apollo and data.gov.in are providers a search can name; without their keys they say so and cost nothing.
+    r = await t.search({ ...ELECTRICIANS, providers: ["apollo", "data_gov_in"] });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.metadata.providers, [{ id: "apollo", status: "needs_setup", returned: 0, unitsSpent: 0 }, { id: "data_gov_in", status: "needs_setup", returned: 0 }]);
+    assert.equal((await t.search({ ...ELECTRICIANS, providers: ["no_such_provider"] })).status, 400);
   } finally { await t.done(); }
 });
 

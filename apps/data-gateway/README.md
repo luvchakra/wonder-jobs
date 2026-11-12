@@ -62,7 +62,7 @@ One outside consumer, `wonderark`, is provisioned for the prospect data API (`/v
 - Every prospect request names its tenant (`X-Tenant-Id`), and each tenant has a monthly allowance of searches and paid units, with a platform-wide paid cap.
 - It sees only sources whose reviewed definition sets `externalRedistributionAllowed: true`.
 
-Live providers (WJ-822): `src/providers/` holds one adapter per official API (`google_places`, `youtube`, `podcast_index`), asked only when a prospect search names it, each with 8 seconds. This package holds no provider key: the host passes them in per request (`prospectHooks.providerKeys`), and a provider without its key answers `needs_setup`. Answers are never written to the listings table; they may be kept in memory for the provider's `providerCacheHours` setting (Google Places: 0).
+Live providers (WJ-822): `src/providers/` holds one adapter per official API (`google_places`, `apollo`, `data_gov_in`, `youtube`, `podcast_index`, `reddit`), asked only when a prospect search names it, each with 8 seconds. Contact providers (WJ-825): `hunter` and `apollo` answer `contacts` (people looked up live, never cached, stored or logged), and `apollo` answers `enrich` with `allowPaid`. This package holds no provider key: the host passes them in per request (`prospectHooks.providerKeys`), and a provider without its key answers `needs_setup`. Answers are never written to the listings table; they may be kept in memory for the provider's `providerCacheHours` setting (Google Places: 0).
 
 Still true: the per-key rate limit is per process, so a shared limiter is needed before a second outside consumer (owner decision `prospects-gateway-hardening`).
 
