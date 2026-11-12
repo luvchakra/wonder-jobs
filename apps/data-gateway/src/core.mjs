@@ -10,6 +10,8 @@ export const MODULES = Object.freeze(["jobs", "internships", "teaching", "servic
  * compatibility route can read them, and a prospect route never reads a module.
  */
 export const PROSPECT_DATASETS = Object.freeze(["businesses", "channels"]);
+/** What a channel can be (docs/PROSPECT_DATA_API.md): a named public outlet or gathering, never a person's profile. */
+export const CHANNEL_TYPES = Object.freeze(["youtube_channel", "podcast", "community", "newsletter", "forum", "publication", "event", "organisation"]);
 export const PROSPECT_SCOPES = Object.freeze(["read:businesses", "read:channels", "read:signals", "lookup:enrich", "lookup:contacts"]);
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
 /** Modules that may take public business listings from open data (OpenStreetMap…) without per-person opt-in. Marketplace: a shop's or dealer's own catalogue (never a private seller). */
@@ -130,6 +132,8 @@ export function validateSource(source) {
   if (!Array.isArray(source.modules) || (!source.modules.length && !datasets.length) || source.modules.some((m) => !MODULES.includes(m))) throw new ApiError(400, "INVALID_REQUEST", "Invalid module assignment");
   // Organisations only: a businesses binding needs a source of public business or company listings, never people's profiles.
   if (datasets.includes("businesses") && source.publicBusinesses !== true && source.publicCompanies !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "The businesses dataset takes only public business or company listings");
+  // What a source's rows are in the channels dataset (WJ-823): an events source feeds it as "event", a forum list as "forum".
+  if (source.channelType !== undefined && (!datasets.includes("channels") || !CHANNEL_TYPES.includes(source.channelType))) throw new ApiError(400, "INVALID_REQUEST", "channelType: one of " + CHANNEL_TYPES.join(", ") + ", on a source bound to channels");
   if (source.datasetMapping !== undefined) {
     const dm = source.datasetMapping;
     if (!dm || typeof dm !== "object" || Array.isArray(dm) || !datasets.length || source.kind !== "json_api" || Object.keys(dm).some((k) => !/^attr\.\w{1,40}$/.test(k))) throw new ApiError(400, "INVALID_REQUEST", "datasetMapping: attr.<field> paths, on a JSON source bound to a dataset");
@@ -197,7 +201,7 @@ export function validateSource(source) {
     const mf = source.moduleFilter;
     if (!mf || typeof mf !== "object" || Array.isArray(mf)) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter must be an object keyed by module");
     for (const [m, f] of Object.entries(mf)) {
-      if (!(source.modules ?? []).includes(m)) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter names a module the source isn't in");
+      if (!(source.modules ?? []).includes(m) && !datasets.includes(m)) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter names a module the source isn't in");
       if (!f || typeof f.field !== "string" || !/^(title|organization|attr\.\w{1,40})$/.test(f.field) || (f.field.startsWith("attr.") && !source.mapping?.[f.field])) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.field must be title, organization or a mapped attr.<field>");
       if (typeof f.match !== "string" || !f.match || f.match.length > 200) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.match must be a pattern of 1-200 characters");
       try { new RegExp(f.match, "i"); } catch { throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.match isn't a valid pattern"); }
@@ -213,7 +217,7 @@ export function validateSource(source) {
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], ...(datasets.length ? { datasets: [...new Set(datasets)] } : {}), ...(source.datasetMapping ? { datasetMapping: { ...source.datasetMapping } } : {}), permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.moduleFilter ? { moduleFilter: Object.fromEntries(Object.entries(source.moduleFilter).map(([m, f]) => [m, { field: f.field, match: f.match, ...(f.negate ? { negate: true } : {}) }])) } : {}), ...(source.timezone ? { timezone: source.timezone } : {}), ...(source.geography?.length ? { geography: [...new Set(source.geography)] } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), ...(source.sitemapOrder ? { sitemapOrder: source.sitemapOrder } : {}), ...(source.newestPages ? { newestPages: source.newestPages } : {}), ...(source.nextDataPath ? { nextDataPath: source.nextDataPath } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], ...(datasets.length ? { datasets: [...new Set(datasets)] } : {}), ...(source.datasetMapping ? { datasetMapping: { ...source.datasetMapping } } : {}), ...(source.channelType ? { channelType: source.channelType } : {}), permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.moduleFilter ? { moduleFilter: Object.fromEntries(Object.entries(source.moduleFilter).map(([m, f]) => [m, { field: f.field, match: f.match, ...(f.negate ? { negate: true } : {}) }])) } : {}), ...(source.timezone ? { timezone: source.timezone } : {}), ...(source.geography?.length ? { geography: [...new Set(source.geography)] } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), ...(source.sitemapOrder ? { sitemapOrder: source.sitemapOrder } : {}), ...(source.newestPages ? { newestPages: source.newestPages } : {}), ...(source.nextDataPath ? { nextDataPath: source.nextDataPath } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
@@ -495,7 +499,12 @@ export function normalizeAll(source, items, observedAt, now = Date.now()) {
       if (Number.isFinite(when) && when < today.getTime()) { past++; return; }
     }
     if (n && seen.has(n.id)) repeats++;
-    else if (n) { seen.add(n.id); out.push(PROSPECT_DATASETS.includes(module) ? datasetRow(n) : n); }
+    else if (n) {
+      seen.add(n.id);
+      // A channels row says what kind of outlet it is, from its source's definition; a module's row is untouched.
+      if (module === "channels" && source.channelType) n.attributes = { ...n.attributes, channelType: source.channelType };
+      out.push(PROSPECT_DATASETS.includes(module) ? datasetRow(n) : n);
+    }
   };
   for (const module of source.modules) for (const item of items) one(source, item, module);
   // What the source's own modules gave is what its quality is judged by, exactly as before it fed a dataset.
@@ -580,7 +589,7 @@ export function datasetRow(n) {
     }
   }
   const site = websiteOf({ attributes: a });
-  const tokens = [...categoriesOf({ attributes: a }).map((t) => "catq" + t + "q"), site ? "hasqwebsiteq" : "", site ? domainToken(site) : "", [a.phone, a.contactPhone].some((v) => typeof v === "string" && v.replace(/\D/g, "").length >= 7) ? "hasqphoneq" : "", [a.email, a.contactEmail].some((v) => typeof v === "string" && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim())) ? "hasqemailq" : ""].filter(Boolean).join(" ");
+  const tokens = [...categoriesOf({ attributes: a }).map((t) => "catq" + t + "q"), typeof a.channelType === "string" && CHANNEL_TYPES.includes(a.channelType) ? "catq" + categoryTag(a.channelType) + "q" : "", site ? "hasqwebsiteq" : "", site ? domainToken(site) : "", [a.phone, a.contactPhone].some((v) => typeof v === "string" && v.replace(/\D/g, "").length >= 7) ? "hasqphoneq" : "", [a.email, a.contactEmail].some((v) => typeof v === "string" && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim())) ? "hasqemailq" : ""].filter(Boolean).join(" ");
   return { ...n, location, attributes: a, ...(tokens ? { tokens } : {}) };
 }
 
@@ -589,7 +598,7 @@ export function datasetRow(n) {
  * consumers may see it, its dataset bindings, the dataset's extra fields and the permission evidence. Everything else a
  * registered source keeps as it was added. Returns the fields that changed; the source is checked again as a whole.
  */
-export const RECONCILED_FIELDS = Object.freeze(["externalRedistributionAllowed", "datasets", "datasetMapping", "permissionEvidence"]);
+export const RECONCILED_FIELDS = Object.freeze(["externalRedistributionAllowed", "datasets", "datasetMapping", "channelType", "permissionEvidence"]);
 export function reconcileSource(stored, definition) {
   const next = { ...stored };
   for (const f of RECONCILED_FIELDS) { if (definition[f] === undefined) delete next[f]; else next[f] = definition[f]; }

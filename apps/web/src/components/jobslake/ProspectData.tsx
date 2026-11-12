@@ -1,6 +1,7 @@
 "use client";
 import { ChevronDown, Copy } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 import type { ProspectAdminView } from "@/server/gateway/prospectsAdmin";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -124,8 +125,13 @@ function Body({ d, reload }: { d: ProspectAdminView; reload: () => void }) {
               {s.termsPending && <Badge tone="warning">Terms pending</Badge>}
               <Badge tone={s.live && s.outside ? "success" : "neutral"}>{s.state === "not_added" ? "Not added" : !s.live ? (s.state === "ready" ? "Ready" : "Waiting") : s.outside ? "Served to WonderArk" : "WorksLake only"}</Badge>
               {/* One action, and only for a source this card manages (one that feeds prospect data alone). */}
+              {s.own && s.state === "waiting" && s.fetched && (
+                <Button size="sm" variant="outline" loading={busy} title="Reads the source once. A good read lets you activate it." onClick={() => void act({ action: "test_source", id: s.id }, "The test didn't pass")}>
+                  Test
+                </Button>
+              )}
               {s.own && s.state === "not_added" && (
-                <Button size="sm" variant="outline" loading={busy} title="Adds it paused. Then run its collection on GitHub (Actions → Overture Maps collection) and come back to activate it." onClick={() => void act({ action: "add_source", file: s.id }, "Couldn't add the source")}>
+                <Button size="sm" variant="outline" loading={busy} title={s.fetched ? "Adds it paused. Then press Test, and activate it." : "Adds it paused. Then run its collection on GitHub (Actions → Overture Maps collection) and come back to activate it."} onClick={() => void act({ action: "add_source", file: s.id }, "Couldn't add the source")}>
                   Add
                 </Button>
               )}
@@ -139,6 +145,24 @@ function Body({ d, reload }: { d: ProspectAdminView; reload: () => void }) {
                   Pause
                 </Button>
               )}
+            </span>
+          </div>
+        ))}
+      </section>
+
+      <section className="flex flex-col gap-1.5" aria-label="Live providers">
+        <h3 className="text-[13px] font-medium text-ink-2">Live providers</h3>
+        <span className="text-[12px] text-ink-3">
+          Asked only when a search names one; nothing they return is stored. <Link href="/platform/jobs-lake/platform-keys" className="text-brand-600 hover:underline">Keys</Link>
+        </span>
+        {d.providers.map((p) => (
+          <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+            <span className="min-w-0 text-ink-2">
+              {p.label} · {p.kinds.join(", ")} · {p.paid ? "1 paid unit a page" : "free"} · {p.cacheHours ? `answers kept ${num(p.cacheHours)} h` : "answers not kept"}
+            </span>
+            <span className="flex items-center gap-1.5">
+              {p.termsPending && <Badge tone="warning">Terms pending</Badge>}
+              <Badge tone={p.ready ? "success" : "neutral"}>{p.ready ? "Active" : "Needs setup"}</Badge>
             </span>
           </div>
         ))}

@@ -95,3 +95,36 @@ describe("hiring signals", () => {
     expect((await hiringSignals({ keywords: ["kubernetes"], places: [], countries: [], sinceDays: 30 }, NOW, postings)).companies).toEqual([]);
   });
 });
+
+import { providerKeys } from "./prospectHooks";
+import { __resetPlatformKeys } from "@/server/jobslake/platformKeys";
+import { prospectAdminView } from "./prospectsAdmin";
+
+describe("live providers' keys (WJ-822)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    __resetPlatformKeys();
+  });
+
+  it("hands the gateway only the keys its providers name, and nothing when none is set", async () => {
+    expect(Object.keys(await providerKeys()).sort()).toEqual(["GOOGLE_PLACES_API_KEY", "PODCAST_INDEX_KEY", "PODCAST_INDEX_SECRET", "YOUTUBE_API_KEY"]);
+    expect(Object.values(await providerKeys()).every((v) => v === undefined)).toBe(true);
+    vi.stubEnv("YOUTUBE_API_KEY", " yt-key ");
+    vi.stubEnv("SMTP_PASS", "not-a-provider-key");
+    const keys = await providerKeys();
+    expect(keys.YOUTUBE_API_KEY).toBe("yt-key");
+    expect(JSON.stringify(keys)).not.toContain("not-a-provider-key");
+  });
+
+  it("the admin card shows each provider as Needs setup until its key is set, and never the key", async () => {
+    let view = await prospectAdminView();
+    expect(view.providers.map((p) => [p.id, p.ready, p.paid, p.cacheHours])).toEqual([["google_places", false, true, 0], ["youtube", false, false, 24], ["podcast_index", false, false, 24]]);
+    expect(view.providers.every((p) => p.termsPending)).toBe(true);
+    vi.stubEnv("PODCAST_INDEX_KEY", "pi-key");
+    expect((await prospectAdminView()).providers.find((p) => p.id === "podcast_index")?.ready).toBe(false);
+    vi.stubEnv("PODCAST_INDEX_SECRET", "pi-secret-value");
+    view = await prospectAdminView();
+    expect(view.providers.find((p) => p.id === "podcast_index")?.ready).toBe(true);
+    expect(JSON.stringify(view)).not.toContain("pi-secret-value");
+  });
+});

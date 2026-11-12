@@ -9,6 +9,8 @@ import { cleanDomain, companyKey } from "@/domain/jobslake/companies";
 import { companiesFrom, companyStore } from "@/server/jobslake/companies";
 import { jobsLakeStore } from "@/server/jobslake/store";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
+import { LIVE_PROVIDERS } from "../../../../data-gateway/src/providers/index.mjs";
+import { platformEnv } from "@/server/jobslake/platformKeys";
 
 function entries(facts: CompanyFacts | null | undefined, source: CompanyFactEntry["source"], observedAt: string | undefined): CompanyFactEntry[] {
   if (!facts) return [];
@@ -87,4 +89,13 @@ export async function hiringSignals(q: { keywords: string[]; places: string[]; c
   return { companies, postingsRead: opps.length };
 }
 
-export const prospectHooks: ProspectHooks = { companyFacts, hiringSignals: (q) => hiringSignals(q) };
+/**
+ * The keys the gateway's live providers need (WJ-822), and no other: each from Admin → Keys (or the deployment's
+ * variable of the same name). The gateway holds no key of its own; one that is not set makes its provider "Needs setup".
+ */
+export async function providerKeys(): Promise<Record<string, string | undefined>> {
+  const env = await platformEnv();
+  return Object.fromEntries(LIVE_PROVIDERS.flatMap((p) => p.keys).map((name) => [name, env[name]?.trim() || undefined]));
+}
+
+export const prospectHooks: ProspectHooks = { companyFacts, hiringSignals: (q) => hiringSignals(q), providerKeys };

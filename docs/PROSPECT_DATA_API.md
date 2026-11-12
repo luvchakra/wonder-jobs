@@ -13,6 +13,27 @@
 - `GET /v1/prospects/sources` also returns `quota.resetAt`. `stored` is the only provider until A3; naming another returns 400.
 - `enrich`, `contacts` and `suppress` are served since WJ-818, `signals` since WJ-819 (both below).
 
+**A3, live providers (WJ-822, 2026-11-12).**
+
+- Built: `google_places` (business, paid, 1 unit a page), `youtube` and `podcast_index` (channel, free). Not built: `data_gov_in` (its documentation could not be read, and its resource page is reported to have no API) and `apollo` (cut order; its API terms forbid passing results on without an agreement). Naming either returns 400, like any unknown provider. None was tried against its real API: no key exists yet. The mappings are tested with answers shaped as each reference documents.
+- `GET /v1/prospects/sources` lists each live provider after `stored`, `active` with its key set and `needs_setup` without, with `termsPending`.
+- A live provider needs a `query` or a category, and serves one kind (naming `youtube` for `kind: "business"` is a 400).
+- Paging: live results follow the stored ones. A provider is first asked on a page where the stored results leave at least half the page free; its share of that page is its page size for the rest of the search, so a search that names a live provider must keep the same `limit` on every page (the cursor is signed to it). A page is never longer than `limit`.
+- `metadata.providers[]` entries for live providers also carry `reason` when `unavailable` (`timeout`, `no_answer`, `malformed`, `too_large`, `http_<status>`), `cached: true` when a kept answer was reused, and `unitsSpent` for paid ones. A paid unit is spent only when the provider was really asked and answered; a kept answer, a failure, `needs_setup` and `quota` spend nothing. `metadata.matched` is the stored matches plus this page's live results.
+- A live business already in the stored results is not repeated; one on the same page is merged by the usual rule, and the field it filled says so in `provenance`.
+- Answers are kept in memory per instance, keyed by the request, for `providerCacheHours[<id>]` hours (admin setting on `POST /v1/admin/settings`, 0 to 720): `google_places` 0, `youtube` and `podcast_index` 24.
+- `filters.minAudience` and `filters.channelTypes` apply to live channels (a channel with no stated audience cannot meet a floor); `filters.languages` is passed to YouTube as its relevance language and filters podcasts by the feed's language.
+- A podcast result has `audience: null` (the index states none) and an extra `episodes` count.
+
+**A6, channels (WJ-823, 2026-11-12).**
+
+- With no keys, `kind: "channel"` returns what is stored: conferences from confs.tech as `channelType: "event"` and the Stack Exchange network's sites as `channelType: "forum"`, once an admin has activated them. With keys, naming `youtube` and `podcast_index` adds channels and podcasts. No source for `community`, `newsletter` or `publication` is built (`docs/EXTERNAL_DATA_SOURCES.md` §14.1 lists what was considered).
+- A channel of type `event` carries one extra field, `event: { startDate, endDate, online }`, as its source states them. Additive; nothing else in the channel shape changed.
+- `audience` is filled only where the source states a size: YouTube subscribers today. Podcasts, events and forums have `audience: null`.
+- Only one Events source feeds `channels`: confs.tech, whose MIT licence allows passing the data on. The other eight are not bound because their own files do not allow outside use.
+- Gathering places are businesses: `kind: "business"` with `filters.categoryGroup: "gathering_places"` (any spelling that reduces to those letters). It covers the `education` and `fitnesscommunity` groups.
+- A source definition bound to `channels` says what its rows are with `channelType`.
+
 **A4, enrich, contacts and suppress (WJ-818, 2026-11-11).**
 
 - `enrich` and `contacts` responses also carry `metadata.providers` (`directory`, `stored`, `site`, and the paid ones as `needs_setup`), like search. A free lookup counts against the tenant's `search` allowance.

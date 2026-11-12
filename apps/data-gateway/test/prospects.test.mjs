@@ -129,7 +129,8 @@ test("a wonderark key reads businesses in the contract's shape, with attribution
 
     const sources = await t.call("/v1/prospects/sources", { token: key, tenant: TENANT });
     assert.equal(sources.status, 200);
-    assert.deepEqual(sources.body.sources, [{ id: "stored", label: "WorksLake business data", kinds: ["business"], status: "active", paid: false, coverage: ["IN"], attribution: "OpenStreetMap contributors (ODbL)" }]);
+    // Live providers are listed after the stored data, each needing its key (WJ-822, test/providers.test.mjs).
+    assert.deepEqual(sources.body.sources.filter((x) => x.status !== "needs_setup"), [{ id: "stored", label: "WorksLake business data", kinds: ["business"], status: "active", paid: false, coverage: ["IN"], attribution: "OpenStreetMap contributors (ODbL)" }]);
     assert.equal(sources.body.quota.period, "month");
     assert.equal(sources.body.quota.search.limit, DEFAULT_QUOTAS.search);
 
@@ -583,7 +584,7 @@ test("hiring signals return companies with counts and matched titles only, never
     assert.equal(r.body.usage.unitsSpent, 0);
 
     const listed = await t.call("/v1/prospects/sources", { token: t.key, tenant: TENANT });
-    assert.deepEqual(listed.body.sources.map((x) => [x.id, x.kinds, x.status]), [["stored", [], "unavailable"], ["hiring", ["signal"], "active"]]);
+    assert.deepEqual(listed.body.sources.filter((x) => x.status !== "needs_setup").map((x) => [x.id, x.kinds, x.status]), [["stored", [], "unavailable"], ["hiring", ["signal"], "active"]]);
 
     assert.equal((await t.call("/v1/prospects/signals", { token: t.key, tenant: TENANT, body: { signal: "funding", keywords: ["x y"] } })).status, 400);
     assert.equal((await t.call("/v1/prospects/signals", { token: t.key, tenant: TENANT, body: { signal: "hiring", keywords: [] } })).status, 400);
@@ -599,7 +600,7 @@ test("a gateway with no job data says the signal needs setup, and a failing read
     const r = await none.call("/v1/prospects/signals", { token: none.key, tenant: TENANT, body: { signal: "hiring", keywords: ["iam"] } });
     assert.equal(r.status, 503);
     assert.equal(r.body.error.code, "PROVIDER_NEEDS_SETUP");
-    assert.deepEqual((await none.call("/v1/prospects/sources", { token: none.key, tenant: TENANT })).body.sources.map((x) => x.id), ["stored"]);
+    assert.deepEqual((await none.call("/v1/prospects/sources", { token: none.key, tenant: TENANT })).body.sources.filter((x) => x.status !== "needs_setup").map((x) => x.id), ["stored"]);
   } finally { await none.done(); }
   const broken = await setupA4({ hiringSignals: async () => { throw new Error("database down: secret detail"); } });
   try {

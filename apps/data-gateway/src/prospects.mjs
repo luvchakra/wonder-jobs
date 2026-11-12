@@ -7,9 +7,10 @@
  * for quotas and usage counts only; it stores no tenant's prospects, approvals or messages.
  */
 import { createHash, createHmac } from "node:crypto";
-import { ApiError, PROSPECT_SCOPES, categoriesOf, categoryTag, domainToken, id, plainText, pushAudit, recordUsage, secureEqual, websiteOf } from "./core.mjs";
+import { ApiError, CHANNEL_TYPES, PROSPECT_SCOPES, categoriesOf, categoryTag, domainToken, id, plainText, pushAudit, recordUsage, secureEqual, websiteOf } from "./core.mjs";
 import { citiesNear, km, placeNames } from "./places.mjs";
 import { cleanDomain, organisationMailbox, readOrganisationSite } from "./site.mjs";
+import { DEFAULT_PROVIDER_CACHE_HOURS, LIVE_PROVIDERS, MAX_PROVIDER_CACHE_HOURS, createProviderRunner, providerById, providerListing, providerReady } from "./providers/index.mjs";
 
 /** Most rows one search reads before it merges duplicates and pages. A wider search says so (`metadata.capped`). */
 export const CANDIDATE_CAP = 1000;
@@ -49,13 +50,15 @@ export function prospectSettings(state) {
     allowExternalConsumers: s.allowExternalConsumers === true,
     quotas: { search: whole(s.quotas?.search, DEFAULT_QUOTAS.search), paid: whole(s.quotas?.paid, DEFAULT_QUOTAS.paid) },
     paidPlatformCap: whole(s.paidPlatformCap, DEFAULT_PAID_PLATFORM_CAP),
+    // How long each live provider's answer to the same request is reused, in hours; 0 keeps nothing (WJ-822).
+    providerCacheHours: Object.fromEntries(Object.entries(DEFAULT_PROVIDER_CACHE_HOURS).map(([id, d]) => { const v = s.providerCacheHours?.[id]; return [id, Number.isInteger(v) && v >= 0 && v <= MAX_PROVIDER_CACHE_HOURS ? v : d]; })),
   };
 }
 
 /** An administrator's change to those settings, checked; returns the names of the fields it changed. */
 export function updateProspectSettings(state, patch) {
   if (!patch || typeof patch !== "object" || Array.isArray(patch)) throw new ApiError(400, "INVALID_REQUEST", "Send the settings to change");
-  const allowed = ["allowExternalConsumers", "quotas", "paidPlatformCap"];
+  const allowed = ["allowExternalConsumers", "quotas", "paidPlatformCap", "providerCacheHours"];
   if (Object.keys(patch).some((k) => !allowed.includes(k))) throw new ApiError(400, "INVALID_REQUEST", "Only " + allowed.join(", ") + " can be changed");
   const whole = (v) => Number.isInteger(v) && v >= 0 && v <= 1_000_000;
   const next = { ...(state.settings ?? {}) };
@@ -71,6 +74,11 @@ export function updateProspectSettings(state, patch) {
   if (patch.paidPlatformCap !== undefined) {
     if (!whole(patch.paidPlatformCap)) throw new ApiError(400, "INVALID_REQUEST", "paidPlatformCap must be a whole number");
     next.paidPlatformCap = patch.paidPlatformCap;
+  }
+  if (patch.providerCacheHours !== undefined) {
+    const h = patch.providerCacheHours;
+    if (!h || typeof h !== "object" || Array.isArray(h) || Object.keys(h).some((k) => !(k in DEFAULT_PROVIDER_CACHE_HOURS)) || Object.values(h).some((v) => !Number.isInteger(v) || v < 0 || v > MAX_PROVIDER_CACHE_HOURS)) throw new ApiError(400, "INVALID_REQUEST", "providerCacheHours: whole hours from 0 to " + MAX_PROVIDER_CACHE_HOURS + " for " + Object.keys(DEFAULT_PROVIDER_CACHE_HOURS).join(", "));
+    next.providerCacheHours = { ...(next.providerCacheHours ?? {}), ...h };
   }
   state.settings = next;
   return Object.keys(patch);
@@ -243,8 +251,11 @@ export function businessItem(listing, source) {
 /** A stored listing as the contract's channel: a named public outlet or gathering, never a person's profile. */
 export function channelItem(listing, source) {
   const a = listing.attributes ?? {};
-  const type = ["youtube_channel", "podcast", "community", "newsletter", "forum", "publication", "event", "organisation"].includes(a.channelType) ? a.channelType : "organisation";
+  const type = CHANNEL_TYPES.includes(a.channelType) ? a.channelType : "organisation";
   const audience = num(a.audience);
+  // An event's own dates, as its source states them (WJ-823); nothing else about an event is added.
+  const day = (v) => (typeof v === "string" && Number.isFinite(Date.parse(v)) ? v.slice(0, 25) : null);
+  const language = text(a.language ?? a.locales, 12);
   return {
     id: listing.id,
     kind: "channel",
@@ -253,10 +264,11 @@ export function channelItem(listing, source) {
     url: listing.canonicalUrl,
     topics: categoriesOf(listing),
     audience: audience !== null ? { value: audience, unit: text(a.audienceUnit, 30) ?? "members", asOf: listing.observedAt.slice(0, 10) } : null,
-    language: text(a.language, 12),
+    language: language && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(language) ? language.toLowerCase() : null,
     location: { text: listing.location || null, country: countryOf(source) },
     contactUrl: null,
     description: listing.description ? listing.description.slice(0, 600) : null,
+    ...(type === "event" ? { event: { startDate: day(a.startDate), endDate: day(a.endDate), online: a.online === true || a.online === "true" ? true : a.online === false || a.online === "false" ? false : null } } : {}),
     source: sourceOf(source, listing),
     observedAt: listing.observedAt,
   };
@@ -270,10 +282,12 @@ const MERGED = ["website", "domain", "phone", "email", "description"];
  * The same organisation from several sources, once: same domain, else same name and postcode. The richest record is
  * kept; a blank on it is filled from another record and says which (`provenance`), and the other sources are listed.
  */
+/** What makes two records the same organisation: its domain, else its name and postcode; else it stands alone. */
+export const businessKey = (b) => (b.domain ? "d:" + b.domain : b.location.postcode ? "n:" + nameKey(b.name) + "|" + b.location.postcode : "i:" + b.id);
 export function dedupeBusinesses(items) {
   const groups = new Map();
   for (const b of items) {
-    const key = b.domain ? "d:" + b.domain : b.location.postcode ? "n:" + nameKey(b.name) + "|" + b.location.postcode : "i:" + b.id;
+    const key = businessKey(b);
     groups.set(key, [...(groups.get(key) ?? []), b]);
   }
   const out = [];
@@ -333,12 +347,20 @@ export function prospectPlan(state, caller, payload, secret) {
   // Text places, each with the listed city it is another name for; a point adds the listed cities it reaches, so the
   // rows read are the ones near it (their distance is checked exactly afterwards).
   const places = [...new Set([...locations.flatMap((l) => (l.text ? placeNames(l.text) : [])), ...points.flatMap((l) => citiesNear(l.lat, l.lon, l.radiusKm + 25).map((c) => c.name.toLowerCase()))])].slice(0, 20);
-  const fingerprint = createHash("sha256").update(JSON.stringify({ dataset, query, categories, channelTypes, hasWebsite, group: groupName, locations, providers })).digest("hex");
+  // What a live provider is asked with (WJ-822): the request's own words and filters, never a stored row.
+  const languages = [...new Set(list(f.languages).map((l) => l.trim().toLowerCase()).filter((l) => /^[a-z]{2,3}(-[a-z0-9]{2,8})?$/.test(l)))].slice(0, 5);
+  const minAudience = num(f.minAudience);
+  const named = providers.filter((p) => p !== "stored");
+  const live = { kind: payload.kind, query: plainText(query).slice(0, 200), categoryWords: list(f.categories).map((c) => plainText(c).slice(0, 60)).filter(Boolean), channelTypes, locations, languages, minAudience: minAudience !== null && minAudience > 0 ? minAudience : null, employeeRanges: list(f.employeeRanges).map((r) => r.trim().slice(0, 30)) };
+  // A search that names a live provider pages in steps of its first page, so the page size is part of what a cursor is signed to.
+  const fingerprint = createHash("sha256").update(JSON.stringify({ dataset, query, categories, channelTypes, hasWebsite, group: groupName, locations, providers, ...(named.length ? { languages, minAudience: live.minAudience, employeeRanges: live.employeeRanges, limit } : {}) })).digest("hex");
   const cursor = readCursor(payload.cursor, secret);
   if (cursor && (cursor.f !== fingerprint || !Number.isInteger(cursor.offset) || cursor.offset < 0 || cursor.offset > CANDIDATE_CAP)) throw new ApiError(400, "INVALID_CURSOR", "Cursor does not match search");
   const sources = readableSources(state, caller, dataset).filter((s) => !countries.length || !s.geography?.length || s.geography.some((g) => g === "global" || countries.includes(g)));
   return {
     kind: payload.kind, dataset, providers, limit, offset: cursor?.offset ?? 0, fingerprint, ignoredFilters, points, textGiven: locations.some((l) => l.text),
+    // Live providers: what each is asked with, and where each one's paging stands (from the signed cursor).
+    live, liveState: cursor?.live && typeof cursor.live === "object" ? cursor.live : null,
     // The listing store's own search: all words, one of the categories, one of the group's tags, every contact mark, one of the places.
     store: { module: dataset, query, locations: places, limit: CANDIDATE_CAP, offset: 0, sourceIds: sources.map((s) => s.id), anyOf: [[...categories.map((c) => "catq" + c + "q"), ...channelTypes.map((c) => "catq" + c + "q")], group.map((c) => "catq" + c + "q")], all: hasWebsite ? ["hasqwebsiteq"] : [], noCount: true },
   };
@@ -380,6 +402,7 @@ export function prospectSources(state, caller, tenant, now = Date.now()) {
 export function createProspects({ store, listings, cursorSecret, reply, readBody, hooks = {} }) {
   // An organisation's own site is read at most once per instance in a while, whoever asks (an hour; the page is public).
   const siteCache = new Map();
+  const providers = createProviderRunner({ keys: hooks.providerKeys, fetch: hooks.fetch, timeoutMs: hooks.providerTimeoutMs });
   async function readSite(domain) {
     const hit = siteCache.get(domain);
     if (hit && Date.now() - hit.at < 3600_000) return hit.value;
@@ -442,6 +465,48 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
     return { fields, providers };
   }
 
+  /**
+   * One page from the live providers a search named (WJ-822), asked together, each with 8 seconds. They are asked once
+   * the stored results leave room on the page: each gets an equal share of it, fixed for the rest of the paging so a
+   * provider's own page token stays valid. A paid provider spends its units per page asked, through the tenant's paid
+   * allowance (and the platform's cap); without enough left it says "quota" and is not asked. A kept answer costs nothing.
+   */
+  async function askLive(plan, live, room, paidLeft, storedOnPage) {
+    const state = { n: plan.liveState?.n ?? null, t: { ...(plan.liveState?.t ?? {}) } };
+    const out = { items: [], providers: [], units: 0, state };
+    const open = live.filter((lp) => state.t[lp.id] !== null);
+    if (!open.length) return out;
+    // A provider's first page waits for a page with at least half its room free, so its share is never a sliver.
+    if (state.n === null && (room < 1 || (storedOnPage && room * 2 < plan.limit))) return out;
+    if (state.n === null) state.n = Math.max(1, Math.floor(room / open.length));
+    const turn = open.slice(0, Math.max(1, Math.floor(room / state.n)));
+    const hours = await store.read((s) => prospectSettings(s).providerCacheHours);
+    const answers = await Promise.all(turn.map(async (lp) => {
+      const size = Math.min(state.n, lp.maxPage), token = typeof state.t[lp.id] === "string" ? state.t[lp.id] : null;
+      const ask = { size, token, hours: hours[lp.id] ?? 0 };
+      if (lp.paid && !providers.kept(lp, plan.live, size, token, ask.hours)) {
+        // Only a provider that can be asked spends: one without its key says so and costs nothing.
+        const ready = providerReady(lp, await providers.keys());
+        if (ready && paidLeft < lp.units) return { lp, answer: { status: "quota", items: [], next: null } };
+        if (ready) paidLeft -= lp.units;
+      }
+      return { lp, answer: await providers.ask(lp, plan.live, ask) };
+    }));
+    for (const { lp, answer } of answers) {
+      let got = answer.items;
+      // An audience floor applies to what a provider states; a channel with no stated audience cannot meet it.
+      if (plan.kind === "channel" && plan.live.minAudience !== null) got = got.filter((c) => c.audience && c.audience.value >= plan.live.minAudience);
+      if (plan.kind === "channel" && plan.live.channelTypes.length) got = got.filter((c) => plan.live.channelTypes.includes(categoryTag(c.channelType)));
+      out.items.push(...got);
+      // A provider that answered and has more keeps its place; anything else ends its part of this search.
+      state.t[lp.id] = answer.status === "ok" && answer.next ? answer.next : null;
+      const spent = answer.status === "ok" && lp.paid && !answer.cached ? lp.units : 0;
+      out.units += spent;
+      out.providers.push({ id: lp.id, status: answer.status, returned: got.length, ...(answer.reason ? { reason: answer.reason } : {}), ...(answer.cached ? { cached: true } : {}), ...(lp.paid ? { unitsSpent: spent } : {}) });
+    }
+    return out;
+  }
+
   async function handle(request, caller, p, method) {
     if (!caller.scopes.some((s) => PROSPECT_SCOPES.includes(s))) throw new ApiError(403, "FORBIDDEN", "This API key has no prospect scope");
     const tenant = tenantOf(request);
@@ -449,6 +514,9 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
 
     if (method === "GET" && route === "sources" && p.length === 3) {
       const listed = await store.read((s) => prospectSources(s, caller, tenant));
+      // Live providers this key's scopes cover, each "active" with its key set and "needs_setup" without (WJ-822).
+      const keys = await providers.keys();
+      for (const lp of LIVE_PROVIDERS) if (lp.kinds.some((k) => caller.scopes.includes("read:" + KIND_DATASET[k]))) listed.sources.push(providerListing(lp, keys));
       // The hiring signal is offered where the host has job data to read and the key may read signals.
       if (hooks.hiringSignals && caller.scopes.includes("read:signals")) listed.sources.push({ id: "hiring", label: "Companies hiring for…", kinds: ["signal"], status: "active", paid: false, coverage: ["global"], attribution: "WorksLake job listings", termsPending: true });
       return reply(200, listed);
@@ -457,27 +525,56 @@ export function createProspects({ store, listings, cursorSecret, reply, readBody
     if (method === "POST" && route === "search" && p.length === 3) {
       const payload = await readBody(request);
       const plan = await store.read((s) => prospectPlan(s, caller, payload, cursorSecret));
-      const unknown = plan.providers.filter((x) => x !== "stored");
-      if (unknown.length) throw new ApiError(400, "INVALID_REQUEST", "Unknown provider: " + unknown[0] + ". GET /v1/prospects/sources lists what this key can use");
+      const named = [...new Set(plan.providers.filter((x) => x !== "stored"))];
+      const live = named.map(providerById);
+      const unknown = named.find((x, i) => !live[i]);
+      if (unknown) throw new ApiError(400, "INVALID_REQUEST", "Unknown provider: " + unknown + ". GET /v1/prospects/sources lists what this key can use");
+      const wrongKind = live.find((lp) => !lp.kinds.includes(plan.kind));
+      if (wrongKind) throw new ApiError(400, "INVALID_REQUEST", wrongKind.id + " does not serve kind " + plan.kind);
+      if (live.length && !plan.live.query && !plan.live.categoryWords.length) throw new ApiError(400, "INVALID_REQUEST", "A live provider needs a query or a category to search for");
       const before = await store.read((s) => tenantQuota(s, caller.consumerId, tenant));
       if (before.search.remaining <= 0) throw new ApiError(429, "QUOTA_EXCEEDED", "This business has used its " + before.search.limit + " searches for the month; the allowance renews on " + before.resetAt.slice(0, 10), { "retry-after": String(secondsToNextMonth()) });
-      const found = plan.store.sourceIds.length ? await listings.search(plan.store) : { rows: [], matched: 0 };
+      const useStored = plan.providers.includes("stored");
+      const found = useStored && plan.store.sourceIds.length ? await listings.search(plan.store) : { rows: [], matched: 0 };
       const sources = await store.read((s) => new Map(s.sources.map((x) => [x.id, x])));
       let items = found.rows.map((l) => (plan.dataset === "businesses" ? businessItem(l, sources.get(l.sourceId)) : channelItem(l, sources.get(l.sourceId))));
       // A point is exact: only rows inside it, unless the request also named a place in words (either may match).
       if (plan.points.length && !plan.textGiven) items = items.filter((x) => insidePoints(x, plan.points));
       if (plan.dataset === "businesses") items = dedupeBusinesses(items);
-      const page = items.slice(plan.offset, plan.offset + plan.limit);
-      const nextCursor = plan.offset + plan.limit < items.length ? signCursor({ f: plan.fingerprint, offset: plan.offset + plan.limit }, cursorSecret) : null;
-      store.lazy((s) => recordUsage(s, caller, ROUTE_SEARCH, plan.dataset, page.length, { tenant, units: 0 }));
+      const offset = Math.min(plan.offset, items.length);
+      const storedPage = items.slice(offset, offset + plan.limit);
+      const asked = await askLive(plan, live, plan.limit - storedPage.length, before.paid.remaining, storedPage.length > 0);
+      // Live results come after the stored ones. One already in the stored results is not repeated; one on this page
+      // is merged with its stored record by the same rule (same domain, else same name and postcode).
+      let page = storedPage, liveReturned = new Map();
+      if (asked.items.length) {
+        if (plan.dataset === "businesses") {
+          const onPage = new Set(storedPage.map(businessKey)), elsewhere = new Set(items.map(businessKey).filter((k) => !onPage.has(k)));
+          page = dedupeBusinesses([...storedPage, ...asked.items.filter((b) => !elsewhere.has(businessKey(b)))]);
+        } else {
+          const seen = new Set(items.map((c) => c.url));
+          page = [...storedPage, ...asked.items.filter((c) => !seen.has(c.url) && seen.add(c.url))];
+        }
+        for (const x of page) if (x.source.provider !== "stored") liveReturned.set(x.source.provider, (liveReturned.get(x.source.provider) ?? 0) + 1);
+      }
+      const moreStored = offset + plan.limit < items.length;
+      const moreLive = live.some((lp) => asked.state.t[lp.id] !== null);
+      const nextCursor = moreStored || moreLive ? signCursor({ f: plan.fingerprint, offset: Math.min(offset + plan.limit, items.length), ...(live.length ? { live: asked.state } : {}) }, cursorSecret) : null;
+      // Paid units are written before the answer leaves, so a spend is never lost; a free search is counted lazily as before.
+      const usage = (s) => recordUsage(s, caller, ROUTE_SEARCH, plan.dataset, page.length, { tenant, units: asked.units });
+      if (asked.units > 0) await store.change(usage); else store.lazy(usage);
       const after = await store.read((s) => tenantQuota(s, caller.consumerId, tenant));
       return reply(200, {
         requestId: id("req"),
         kind: plan.kind,
         results: page,
         nextCursor,
-        metadata: { matched: items.length, providers: [{ id: "stored", status: "ok", returned: page.length }], asOf: iso(), ...(found.rows.length >= CANDIDATE_CAP ? { capped: true } : {}), ...(plan.ignoredFilters.length ? { ignoredFilters: plan.ignoredFilters } : {}) },
-        usage: { unitsSpent: 0, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } },
+        metadata: {
+          matched: items.length + asked.items.length,
+          providers: [...(useStored ? [{ id: "stored", status: "ok", returned: storedPage.length }] : []), ...asked.providers.map((x) => (x.status === "ok" ? { ...x, returned: liveReturned.get(x.id) ?? 0 } : x))],
+          asOf: iso(), ...(found.rows.length >= CANDIDATE_CAP ? { capped: true } : {}), ...(plan.ignoredFilters.length && useStored ? { ignoredFilters: plan.ignoredFilters } : {}),
+        },
+        usage: { unitsSpent: asked.units, tenantRemaining: { search: after.search.remaining, paid: after.paid.remaining } },
       });
     }
 
