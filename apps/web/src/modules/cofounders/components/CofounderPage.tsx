@@ -3,7 +3,7 @@ import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, Clock, ExternalLink, MapPin, Users } from "lucide-react";
+import { Bookmark, Briefcase, Clock, ExternalLink, MapPin, Users } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Fold } from "@/components/common/Fold";
 import { Select } from "@/components/common/Input";
@@ -12,6 +12,7 @@ import { call } from "@/wonderworks/api";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { DECISION_LABEL, isOutside, STAGE_OF, STATUS_LABEL, type CofounderListing, type ConnStatus } from "../domain";
@@ -20,6 +21,7 @@ import { Act } from "./Act";
 import { FIT, connStatus, openOn, useMatch, verbOf } from "./Listing";
 import { Safety } from "./Safety";
 import { shareOf } from "../share";
+import { COFOUNDERS_OUTSIDE } from "../outside";
 
 const noop = () => () => undefined;
 const FIND = { href: "/app/m/cofounders", label: "Co-founders" };
@@ -79,6 +81,7 @@ function Page({ l }: { l: CofounderListing }) {
       share={shareOf(l)}
       back={FIND}
       title={l.title}
+      report={outside ? { module: "cofounders", id: l.id } : undefined}
       actions={
         <Button variant="outline" size="sm" icon={<Bookmark className="size-4" fill={saved ? "currentColor" : "none"} aria-hidden />} aria-pressed={saved} onClick={() => toggle(l.id, l)}>
           {saved ? "Saved" : "Save"}
@@ -165,9 +168,18 @@ function Page({ l }: { l: CofounderListing }) {
       </ListingMain>
       <ListingAside>
         {outside ? (
-          <Button full external href={l.url} icon={<ExternalLink className="size-4" aria-hidden />}>
-            {openOn(l)}
-          </Button>
+          <>
+            <Button full external href={l.url} icon={<ExternalLink className="size-4" aria-hidden />}>
+              {openOn(l)}
+            </Button>
+            {/* A hiring startup's openings are jobs: WonderJobs' Find, with its name in the search box. */}
+            {l.kind === "startup" && t.hiring && (
+              <Button full variant="outline" href={`/app/jobs?q=${encodeURIComponent(l.title)}`} icon={<Briefcase className="size-4" aria-hidden />}>
+                Find their jobs
+              </Button>
+            )}
+            <OutsideTracker useStore={useCofoundersStore} id={l.id} item={l} flow={COFOUNDERS_OUTSIDE} pipelineHref="/app/m/cofounders/pipeline" />
+          </>
         ) : (
           <>
             <Connect l={l} />
