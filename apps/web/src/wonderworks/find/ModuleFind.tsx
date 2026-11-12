@@ -339,7 +339,7 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
               <Item key={l.id} item={l} Card={Card} onOpen={setOpen} />
             ))}
           </ResultsGrid>
-          {visible.length < kept.length && <ShowMore left={kept.length - visible.length} onClick={() => setLimit((n) => n + PAGE)} />}
+          <ShowMore left={kept.length - visible.length} shown={visible.length} onClick={() => setLimit((n) => n + PAGE)} />
         </>
       )}
 
