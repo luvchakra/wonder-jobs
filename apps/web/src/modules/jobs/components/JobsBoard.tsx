@@ -285,7 +285,7 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
               </Button>
             </div>
           )}
-          {visible.length < results.length && <ShowMore left={results.length - visible.length} onClick={() => setLimit((l) => l + PAGE)} />}
+          <ShowMore left={results.length - visible.length} shown={visible.length} onClick={() => setLimit((l) => l + PAGE)} />
         </>
       )}
       {footer}

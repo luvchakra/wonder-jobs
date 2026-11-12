@@ -58,7 +58,7 @@ const MATCH_COLOR: Record<JobMatch["fit"], string> = {
 /** A fact with its small icon in front (place, work mode, type, pay). */
 const FACT = "inline-flex items-center gap-1";
 const FACT_ICON = "size-3.5 shrink-0 text-ink-4";
-const APPLY = cn(APPLY_BTN, "mt-1.5 h-8 px-3 shadow-brand");
+
 
 export function JobCard({ job, match, saved, onToggleSave, onReject, compact = false, className, status, decision, onPrepare, compareSelected, onToggleCompare, brief, statusTone = "info" }: { job: CanonicalJob; brief?: CompanyBrief | null; statusTone?: Tone; match?: JobMatch; quality?: JobQuality; saved?: boolean; onToggleSave?: () => void; onReject?: () => void; compact?: boolean; className?: string; status?: string; decision?: Decision; onPrepare?: () => void; compareSelected?: boolean; onToggleCompare?: () => void }) {
   const salary = formatSalaryRange(job.salaryMin, job.salaryMax, job.currency);
@@ -72,7 +72,6 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
   const summary = useMemo(() => jdSummary(job.description), [job.description]);
   return (
     <ResultCard
-      premium
       share={null}
       className={className}
       aside={
@@ -84,7 +83,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
           {/* Apply straight from the list. The icon says which kind, in the button's own width: the bolt is Easy Apply
               (a job posted on WonderWorks; opens its page), the arrow opens the employer's listing in a new tab. */}
           {job.sourceIds.includes("employers") ? (
-            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderWorks" className={APPLY}>
+            <Link href={`/app/jobs/${job.id}`} aria-label={`Easy Apply to ${job.title} at ${job.company}`} title="Easy Apply — send your application here on WonderWorks" className={APPLY_BTN}>
               <Zap className="size-3.5 shrink-0 fill-current" aria-hidden />
               Apply
             </Link>
@@ -92,7 +91,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
             <a href={job.applyUrl} target="_blank" rel="noreferrer" aria-label={`Apply to ${job.title} at ${job.company} on the employer's site (opens in a new tab)`} title="Apply on the employer's site" onClick={() => {
                 noteApplyOpened(job.id);
                 track("apply_listing_opened", { jobId: job.id, from: "card" });
-              }} className={APPLY}>
+              }} className={APPLY_BTN}>
               Apply
               <ArrowUpRight className="size-3.5 shrink-0" aria-hidden />
             </a>

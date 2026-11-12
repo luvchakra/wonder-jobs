@@ -3,7 +3,7 @@ export { shortSourceNames } from "./sourceName";
 import { shortSourceNames } from "./sourceName";
 import { ListingShare, type ListingShareProps } from "@/wonderworks/listing/ShareButton";
 import { Fragment, useState } from "react";
-import { ArrowLeft, ArrowRight, Bookmark, CheckCircle2, ChevronDown, History, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUp, Bookmark, CheckCircle2, ChevronDown, History, Search, SlidersHorizontal, X } from "lucide-react";
 import { Chip, Input, Select } from "@/components/common/Input";
 import { Button } from "@/components/common/Button";
 import { DictateButton } from "@/components/common/DictateButton";
@@ -378,12 +378,33 @@ export function ResultsGrid({ label, children }: { label: string; children: Reac
   );
 }
 
-export function ShowMore({ left, onClick }: { left: number; onClick: () => void }) {
+/**
+ * The foot of a results list: Show more while there are more, and Back to top once the list is long enough to scroll
+ * (owner, 2026-11-12: "add a go to top button at the bottom").
+ */
+export function ShowMore({ left, shown, onClick }: { left: number; shown: number; onClick: () => void }) {
+  const top = shown > 4;
+  if (!left && !top) return null;
   return (
-    <div className="mt-5 flex justify-center">
-      <Button variant="outline" onClick={onClick}>
-        Show more ({left} left)
-      </Button>
+    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+      {left > 0 && (
+        <Button variant="outline" onClick={onClick}>
+          Show more ({left} left)
+        </Button>
+      )}
+      {top && (
+        <Button
+          variant="ghost"
+          icon={<ArrowUp className="size-4" aria-hidden />}
+          onClick={() => {
+            const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            window.scrollTo({ top: 0, behavior: smooth ? "smooth" : "auto" });
+            document.querySelector<HTMLElement>("main h1, main input[type=search]")?.focus({ preventScroll: true });
+          }}
+        >
+          Back to top
+        </Button>
+      )}
     </div>
   );
 }
@@ -406,7 +427,7 @@ export function SearchingBanner({ aside, children }: { aside: React.ReactNode; c
 /* ------------------------------------------------------------------ Result card */
 
 /** The small Apply button under a card's logo. */
-export const APPLY_BTN = "wj-gradient-bg wj-press relative z-10 mt-1 inline-flex h-7 items-center gap-0.5 rounded-full px-2.5 text-[12px] font-semibold text-white";
+export const APPLY_BTN = "wj-gradient-bg wj-press shadow-brand relative z-10 mt-1.5 inline-flex h-8 items-center gap-0.5 rounded-full px-3 text-[12px] font-semibold text-white";
 
 /** A card title's link or button: the whole card is its tap target. */
 export const CARD_TARGET = "after:absolute after:inset-0 after:content-['']";
@@ -469,7 +490,7 @@ export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle
  * skills, why it fits, a summary where there's room, then a footer line with Save.
  */
 
-export function ResultCard({ className, premium = false, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** The roomier, bolder look (Jobs first, owner 2026-11-12): same parts, restyled. */ premium?: boolean; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {
+export function ResultCard({ className, premium = true, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** The roomier, bolder look (owner, 2026-11-12: Jobs first, then every module); false for the old flat card. */ premium?: boolean; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {
   const shown = facts.filter((f) => f !== null && f !== undefined && f !== false && f !== "");
   return (
     <article className={cn("relative flex flex-col", premium ? "wj-card-premium p-4 sm:p-5" : "wj-card wj-elevate px-4 py-3", className)}>
