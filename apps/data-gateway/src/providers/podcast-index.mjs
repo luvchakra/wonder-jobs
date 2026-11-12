@@ -38,6 +38,7 @@ function podcast(f, at) {
 
 export default {
   id: "podcast_index", label: "Podcast Index", kinds: ["channel"], channelTypes: ["podcast"], paid: false, units: 0, coverage: ["global"], attribution: "Podcast Index (podcastindex.org)", termsPending: true,
+  cost: "free",
   keys: ["PODCAST_INDEX_KEY", "PODCAST_INDEX_SECRET"], maxPage: 50, defaultCacheHours: 24,
   async search(plan, ctx) {
     const u = new URL(SEARCH);

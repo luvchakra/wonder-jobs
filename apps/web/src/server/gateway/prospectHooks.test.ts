@@ -100,14 +100,14 @@ import { providerKeys } from "./prospectHooks";
 import { __resetPlatformKeys } from "@/server/jobslake/platformKeys";
 import { prospectAdminView } from "./prospectsAdmin";
 
-describe("live providers' keys (WJ-822)", () => {
+describe("live providers' keys (WJ-822, WJ-824, WJ-825)", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     __resetPlatformKeys();
   });
 
   it("hands the gateway only the keys its providers name, and nothing when none is set", async () => {
-    expect(Object.keys(await providerKeys()).sort()).toEqual(["GOOGLE_PLACES_API_KEY", "PODCAST_INDEX_KEY", "PODCAST_INDEX_SECRET", "YOUTUBE_API_KEY"]);
+    expect(Object.keys(await providerKeys()).sort()).toEqual(["APOLLO_API_KEY", "DATA_GOV_IN_API_KEY", "GOOGLE_PLACES_API_KEY", "HUNTER_API_KEY", "PODCAST_INDEX_KEY", "PODCAST_INDEX_SECRET", "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "YOUTUBE_API_KEY"]);
     expect(Object.values(await providerKeys()).every((v) => v === undefined)).toBe(true);
     vi.stubEnv("YOUTUBE_API_KEY", " yt-key ");
     vi.stubEnv("SMTP_PASS", "not-a-provider-key");
@@ -118,8 +118,12 @@ describe("live providers' keys (WJ-822)", () => {
 
   it("the admin card shows each provider as Needs setup until its key is set, and never the key", async () => {
     let view = await prospectAdminView();
-    expect(view.providers.map((p) => [p.id, p.ready, p.paid, p.cacheHours])).toEqual([["google_places", false, true, 0], ["youtube", false, false, 24], ["podcast_index", false, false, 24]]);
+    expect(view.providers.map((p) => [p.id, p.ready, p.paid, p.cacheHours])).toEqual([["google_places", false, true, 0], ["apollo", false, true, 24], ["data_gov_in", false, false, 24], ["youtube", false, false, 24], ["podcast_index", false, false, 24], ["reddit", false, false, 24], ["hunter", false, true, 0]]);
+    expect(view.providers.find((p) => p.id === "hunter")?.cost).toMatch(/verification/);
     expect(view.providers.every((p) => p.termsPending)).toBe(true);
+    // Every provider's key is on Admin → Keys with its signup link.
+    const { PLATFORM_KEYS } = await import("@/server/jobslake/platformKeys");
+    for (const k of view.providers.flatMap((p) => p.keys)) expect(PLATFORM_KEYS.find((x) => x.name === k)?.signup, k).toMatch(/^https:/);
     vi.stubEnv("PODCAST_INDEX_KEY", "pi-key");
     expect((await prospectAdminView()).providers.find((p) => p.id === "podcast_index")?.ready).toBe(false);
     vi.stubEnv("PODCAST_INDEX_SECRET", "pi-secret-value");

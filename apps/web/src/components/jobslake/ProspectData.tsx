@@ -153,12 +153,12 @@ function Body({ d, reload }: { d: ProspectAdminView; reload: () => void }) {
       <section className="flex flex-col gap-1.5" aria-label="Live providers">
         <h3 className="text-[13px] font-medium text-ink-2">Live providers</h3>
         <span className="text-[12px] text-ink-3">
-          Asked only when a search names one; nothing they return is stored. <Link href="/platform/jobs-lake/platform-keys" className="text-brand-600 hover:underline">Keys</Link>
+          Asked only when a search names one or a contacts lookup needs one; nothing they return is stored. <Link href="/platform/jobs-lake/platform-keys" className="text-brand-600 hover:underline">Keys</Link>
         </span>
         {d.providers.map((p) => (
           <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
             <span className="min-w-0 text-ink-2">
-              {p.label} · {p.kinds.join(", ")} · {p.paid ? "1 paid unit a page" : "free"} · {p.cacheHours ? `answers kept ${num(p.cacheHours)} h` : "answers not kept"}
+              {p.label} · {p.kinds.join(", ")} · {p.cost} · {p.cacheHours ? `answers kept ${num(p.cacheHours)} h` : "answers not kept"}
             </span>
             <span className="flex items-center gap-1.5">
               {p.termsPending && <Badge tone="warning">Terms pending</Badge>}

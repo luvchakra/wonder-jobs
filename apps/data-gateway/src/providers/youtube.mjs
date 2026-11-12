@@ -36,6 +36,7 @@ function channel(c, at) {
 
 export default {
   id: "youtube", label: "YouTube channels", kinds: ["channel"], channelTypes: ["youtube_channel"], paid: false, units: 0, coverage: ["global"], attribution: "YouTube", termsPending: true,
+  cost: "free",
   keys: ["YOUTUBE_API_KEY"], maxPage: 50, defaultCacheHours: 24,
   async search(plan, ctx) {
     const headers = { accept: "application/json", "x-goog-api-key": ctx.keys.YOUTUBE_API_KEY };

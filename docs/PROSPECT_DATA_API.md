@@ -15,7 +15,10 @@
 
 **A3, live providers (WJ-822, 2026-11-12).**
 
-- Built: `google_places` (business, paid, 1 unit a page), `youtube` and `podcast_index` (channel, free). Not built: `data_gov_in` (its documentation could not be read, and its resource page is reported to have no API) and `apollo` (cut order; its API terms forbid passing results on without an agreement). Naming either returns 400, like any unknown provider. None was tried against its real API: no key exists yet. The mappings are tested with answers shaped as each reference documents.
+- Built: `google_places` (business, paid, 1 unit a page), `youtube` and `podcast_index` (channel, free). None was tried against its real API: no key exists yet. The mappings are tested with answers shaped as each reference documents.
+- Added in WJ-824 (2026-11-12): `apollo` (business, paid, 1 unit a page; keyword tags from the query and categories, the place and country as an Apollo location, `filters.employeeRanges` like `"11-50"` as head-count ranges) and `data_gov_in` (business, free, India only: active companies whose registered name is exactly the query, or a NIC code given in `filters.industries`; the register states no website, phone or email). Apollo's terms need Apollo's approval before its results go to WonderArk (owner decision `prospects-apollo`); data.gov.in's resource was read second-hand (its site refused the build network).
+- Added in WJ-826: `reddit` (channel, free, `channelType: "community"`, `audience.unit: "members"`), with the Reddit app keys already on Admin → Keys. Terms pending.
+- Every provider in `GET /v1/prospects/sources` also carries `cost`, in words.
 - `GET /v1/prospects/sources` lists each live provider after `stored`, `active` with its key set and `needs_setup` without, with `termsPending`.
 - A live provider needs a `query` or a category, and serves one kind (naming `youtube` for `kind: "business"` is a 400).
 - Paging: live results follow the stored ones. A provider is first asked on a page where the stored results leave at least half the page free; its share of that page is its page size for the rest of the search, so a search that names a live provider must keep the same `limit` on every page (the cursor is signed to it). A page is never longer than `limit`.
@@ -27,7 +30,7 @@
 
 **A6, channels (WJ-823, 2026-11-12).**
 
-- With no keys, `kind: "channel"` returns what is stored: conferences from confs.tech as `channelType: "event"` and the Stack Exchange network's sites as `channelType: "forum"`, once an admin has activated them. With keys, naming `youtube` and `podcast_index` adds channels and podcasts. No source for `community`, `newsletter` or `publication` is built (`docs/EXTERNAL_DATA_SOURCES.md` §14.1 lists what was considered).
+- With no keys, `kind: "channel"` returns what is stored: conferences from confs.tech as `channelType: "event"` and the Stack Exchange network's sites as `channelType: "forum"`, once an admin has activated them. With keys, naming `youtube` and `podcast_index` adds channels and podcasts, and `reddit` (WJ-826) adds public communities with member counts. No source for `newsletter` or `publication` is built (`docs/EXTERNAL_DATA_SOURCES.md` §14.1 lists what was considered).
 - A channel of type `event` carries one extra field, `event: { startDate, endDate, online }`, as its source states them. Additive; nothing else in the channel shape changed.
 - `audience` is filled only where the source states a size: YouTube subscribers today. Podcasts, events and forums have `audience: null`.
 - Only one Events source feeds `channels`: confs.tech, whose MIT licence allows passing the data on. The other eight are not bound because their own files do not allow outside use.
@@ -36,10 +39,12 @@
 
 **A4, enrich, contacts and suppress (WJ-818, 2026-11-11).**
 
-- `enrich` and `contacts` responses also carry `metadata.providers` (`directory`, `stored`, `site`, and the paid ones as `needs_setup`), like search. A free lookup counts against the tenant's `search` allowance.
+- `enrich` and `contacts` responses also carry `metadata.providers` (`directory`, `stored`, `site`, and the paid ones, `needs_setup` until their keys are set), like search. A free lookup counts against the tenant's `search` allowance.
 - `enrich` returns `domain: null` when only a name was given. Each filled field's `source` is `{ provider, name, url }`, with `termsPending` where it applies; `provider` is `workslake`, `wikidata`, `stored` or `site`.
 - The organisation's own site is read over HTTPS only. A site that serves plain HTTP only, disallows the gateway in robots.txt, or whose robots.txt cannot be read, is not read (`site` shows `unavailable`).
-- `contacts` returns `contacts: []` until a contact provider is connected (A3). `generic` holds only mailboxes that read as the organisation's own; a person-named mailbox on the site is not returned.
+- `contacts` returns `contacts: []` until a contact provider's key is set. `generic` holds only mailboxes that read as the organisation's own; a person-named mailbox on the site is not returned.
+- Since WJ-825 (2026-11-12): `contacts` asks Hunter's domain search (one call, people whose address is at the domain and whose position matches a role: every word of a role, with CEO, CTO, CISO and the like read out), then Apollo's people search by title for the rest, revealing each person's work email (1 unit each), then with `verify` Hunter's verifier on each address. `metadata.providers` holds `site`, `hunter`, `apollo` and, with `verify`, `hunter_verifier`, each with `unitsSpent`; `quota` when the tenant or platform has no paid unit left for it. `limit` is 1 to 10; more than 10 roles is a 400. A contact's `source` is `{ provider, name, retrievedAt, termsPending: true }`. Removed addresses and domains are dropped from every provider's results, silently. People are never cached, written to the state or logged; the ledger holds the tenant, route, units and a count.
+- Since WJ-825: `enrich` with `allowPaid: true` and a domain asks Apollo's organisation enrichment last, only when a field it can fill (`industry`, `description`, `phone`, `linkedinUrl`, `hq`) is still blank: 1 paid unit, kept for Apollo's `providerCacheHours` (24 by default) so a repeat is free. Apollo's head count is not turned into `employeeRange`.
 - `suppress` needs the `lookup:contacts` scope, takes up to 100 emails and 100 domains a call, and answers 507 `SUPPRESSION_LIST_FULL` when the list (2,000 entries) is full.
 
 **A7, hiring signals (WJ-819, 2026-11-11).**
@@ -57,7 +62,7 @@
 - The row budget is 30,000 for India, not 300,000: the database is on the 500 MB free plan. Groups and their shares are in the config; trades and field services take 60%.
 - `filters.categoryGroup` is served: `trades`, `retail_wholesale`, `manufacturing`, `professional`, `clinics`, `education`, `fitness_community`, and `gathering_places` (education and fitness_community together). An unknown group is a 400.
 - Category names are folded to one tag per trade (`plumbing` and `plumber`), on stored rows and on a request alike.
-- Foursquare Open Source Places is not built.
+- Foursquare Open Source Places is not built: since its October 2025 release its files need a Foursquare account (Places portal token or gated Hugging Face access), so it was refused on 2026-11-12 (`docs/EXTERNAL_DATA_SOURCES.md` §14, owner decision `prospects-foursquare`). Overture already carries Foursquare's rows where it uses them.
 - A tenant id is 6 to 80 letters, digits, `-`, `_`, `.` or `:`.
 - Radius search works on rows that have coordinates; a place given in words also matches the nearest listed city of a row whose address names none.
 
