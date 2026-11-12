@@ -26,3 +26,12 @@ describe("the listing head", () => {
     expect(html).toContain("size-10");
   });
 });
+
+describe("a listing's own words", () => {
+  it("drops text-art divider lines, which would run off a phone's screen, and keeps bullets", async () => {
+    const { readableText } = await import("./ListingPage");
+    const text = "The Grace of Almighty God\n" + "-".repeat(60) + "\n\nWelcome\n\n\n- SEO\n* Ads\n____\nEnd";
+    expect(readableText(text)).toBe("The Grace of Almighty God\n\nWelcome\n\n• SEO\n• Ads\n\nEnd");
+    expect(readableText("A -- B — C")).toBe("A -- B — C");
+  });
+});

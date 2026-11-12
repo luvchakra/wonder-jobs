@@ -66,13 +66,24 @@ export function ListingHead({ company, domain, website, name, hideName, icon, fa
 /** A description long enough to fold: more than about six lines. */
 export const isLongText = (text: string) => text.length > 280 || text.split("\n").length > 6;
 
+/**
+ * A listing's own words as the page shows them: "- " list lines (their sources' bullets) as bullets, like the source page,
+ * and a line of only dashes, underscores, equals signs or stars (a text-art divider, 2026-11-12: one ran off the side of
+ * a phone and scrolled the whole page sideways) dropped, with the blank lines around it closed up.
+ */
+export const readableText = (text: string) =>
+  text
+    .replace(/^[ \t]*[-_=*~—–•·.]{4,}[ \t]*$/gm, "")
+    .replace(/^[-*] /gm, "• ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
 /** The description, six lines until More opens the rest (and the folds under it). */
 export function ClampedText({ text, long = isLongText(text), expanded, onToggle, lang, dir, className }: { text: string; /** Whether it folds; from the text shown when not given. */ long?: boolean; expanded: boolean; onToggle: () => void; lang?: string; dir?: string; className?: string }) {
   return (
     <>
-      <p lang={lang} dir={dir} className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2", !expanded && "line-clamp-6", className)}>
-        {/* List items arrive as "- " lines (their sources' bullets): shown as bullets, like the source page. */}
-        {text.replace(/^[-*] /gm, "• ")}
+      <p lang={lang} dir={dir} className={cn("mt-2 whitespace-pre-line text-[14px] leading-relaxed text-ink-2 [overflow-wrap:anywhere]", !expanded && "line-clamp-6", className)}>
+        {readableText(text)}
       </p>
       {long && (
         <button type="button" aria-expanded={expanded} onClick={onToggle} className="mt-1 inline-flex min-h-10 items-center text-[13px] font-medium text-brand-600 hover:underline">
