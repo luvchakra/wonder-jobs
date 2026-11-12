@@ -422,6 +422,29 @@ export function FitPill({ tone, top, bottom, title, srText }: { tone: string; to
   );
 }
 
+/**
+ * The fit as a ring (the premium card): the score fills the ring in the fit's colour, the number sits inside and a small
+ * word under it. `color` is a CSS colour (a token).
+ */
+export function FitRing({ score, color, bottom, title, srText }: { score: number; color: string; bottom: string; title: string; srText: string }) {
+  const r = 18;
+  const c = 2 * Math.PI * r;
+  const filled = (Math.max(0, Math.min(100, score)) / 100) * c;
+  return (
+    <span className="flex flex-col items-center leading-none" title={title}>
+      <span className="relative grid size-11 place-items-center">
+        <svg viewBox="0 0 44 44" className="absolute inset-0 -rotate-90" aria-hidden>
+          <circle cx="22" cy="22" r={r} fill="none" stroke="var(--wj-bg-soft)" strokeWidth="4" />
+          <circle cx="22" cy="22" r={r} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round" strokeDasharray={`${filled} ${c}`} />
+        </svg>
+        <span className="text-[12.5px] font-bold tabular-nums text-ink">{score}</span>
+      </span>
+      <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-3">{bottom}</span>
+      <span className="wj-sr-only">%, {srText}</span>
+    </span>
+  );
+}
+
 /** Save at a card's corner. */
 export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle: () => void; noun: string }) {
   return (
@@ -446,10 +469,10 @@ export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle
  * skills, why it fits, a summary where there's room, then a footer line with Save.
  */
 
-export function ResultCard({ className, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {
+export function ResultCard({ className, premium = false, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** The roomier, bolder look (Jobs first, owner 2026-11-12): same parts, restyled. */ premium?: boolean; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {
   const shown = facts.filter((f) => f !== null && f !== undefined && f !== false && f !== "");
   return (
-    <article className={cn("wj-card wj-elevate relative flex flex-col px-4 py-3", className)}>
+    <article className={cn("relative flex flex-col", premium ? "wj-card-premium p-4 sm:p-5" : "wj-card wj-elevate px-4 py-3", className)}>
       {cover}
       {/* Cards in a row share its height: the body takes the spare room, so every footer sits on the same line. */}
       <div className="flex flex-1 items-stretch gap-3">
@@ -457,27 +480,27 @@ export function ResultCard({ className, cover, aside, title, facts, tags = [], r
         <div className="flex shrink-0 flex-col items-center gap-1">{aside}</div>
         <div className="flex min-w-0 flex-1 flex-col">
           {/* The title leads (two lines at most); the facts share the line below it. */}
-          <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-ink">{title}</h3>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-ink-3">
+          <h3 className={cn("line-clamp-2 font-semibold leading-snug text-ink", premium ? "text-[16px] tracking-tight" : "text-[15px]")}>{title}</h3>
+          <p className={cn("flex flex-wrap items-center text-ink-3", premium ? "mt-1 gap-x-3 gap-y-1 text-[13px]" : "mt-0.5 gap-x-1.5 text-[12.5px]")}>
             {shown.map((f, i) => (
               <Fragment key={i}>
-                {i > 0 && <span aria-hidden>·</span>}
+                {i > 0 && !premium && <span aria-hidden>·</span>}
                 {/* A fact never runs past three lines (owner, 2026-11-09: a posting listing 150 countries). */}
                 <span className="line-clamp-3 min-w-0 break-words">{f}</span>
               </Fragment>
             ))}
           </p>
           {tags.length > 0 && (
-            <ul className="mt-1.5 flex flex-wrap gap-1" aria-label="Skills">
+            <ul className={cn("flex flex-wrap", premium ? "mt-2.5 gap-1.5" : "mt-1.5 gap-1")} aria-label="Skills">
               {tags.map((t) => (
-                <li key={t} className="rounded-full bg-bg-soft px-2.5 py-0.5 text-[12px] text-ink">
+                <li key={t} className={premium ? "rounded-[8px] border border-line bg-surface-2 px-2 py-0.5 text-[12px] font-medium text-ink-2" : "rounded-full bg-bg-soft px-2.5 py-0.5 text-[12px] text-ink"}>
                   {t}
                 </li>
               ))}
             </ul>
           )}
           {reasons.length > 0 && (
-            <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5" aria-label="Why it fits">
+            <ul className={cn("flex flex-wrap gap-x-3 gap-y-0.5", premium ? "mt-2.5" : "mt-1.5")} aria-label="Why it fits">
               {reasons.map((r) => (
                 <li key={r} className="flex items-center gap-1 text-[12.5px] text-ink-2">
                   <CheckCircle2 className="size-3.5 shrink-0 fill-success-600 text-white" aria-hidden />
@@ -495,7 +518,7 @@ export function ResultCard({ className, cover, aside, title, facts, tags = [], r
         </div>
         {trailing}
       </div>
-      <div className="mt-1 flex items-center gap-2">
+      <div className={cn("flex items-center gap-2", premium ? "mt-3 border-t border-line pt-2.5" : "mt-1")}>
         {status}
         <span className="min-w-0 flex-1 truncate text-[12px] text-ink-4" title={typeof footnote === "string" && footnote !== shortSourceNames(footnote) ? footnote : undefined}>
           {typeof footnote === "string" ? shortSourceNames(footnote) : footnote}
