@@ -298,6 +298,22 @@
     box-shadow: var(--wj-shadow-xs);
     transition: border-color var(--wj-dur) var(--wj-ease), box-shadow var(--wj-dur) var(--wj-ease), transform var(--wj-dur) var(--wj-ease);
   }
+  /* The premium result card (Jobs first, owner 2026-11-12): roomier, a larger radius, and a border that turns into
+     the brand gradient on hover, with a brand-tinted lift. The border is drawn as a second background layer. */
+  .wj-card-premium {
+    border: 1px solid transparent;
+    border-radius: 22px;
+    background: linear-gradient(var(--wj-surface), var(--wj-surface)) padding-box, linear-gradient(135deg, var(--wj-line), var(--wj-line)) border-box;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(31, 22, 84, 0.1);
+    transition: box-shadow var(--wj-dur) var(--wj-ease), transform var(--wj-dur) var(--wj-ease);
+  }
+  @media (hover: hover) {
+    .wj-card-premium:hover {
+      background: linear-gradient(var(--wj-surface), var(--wj-surface)) padding-box, linear-gradient(135deg, #b9a5fc 0%, #818cf8 50%, #93c5fd 100%) border-box;
+      box-shadow: 0 2px 4px -1px rgba(15, 23, 42, 0.05), 0 18px 40px -14px rgba(91, 33, 182, 0.28);
+      transform: translateY(-3px);
+    }
+  }
   .wj-glass {
     background: var(--wj-glass);
     backdrop-filter: blur(14px) saturate(140%);
