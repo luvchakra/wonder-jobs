@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { loadPlatformKeys, platformKey, PLATFORM_KEYS } from "./platformKeys";
 
 /**
@@ -41,6 +42,16 @@ const PROBES: Record<string, Probe> = {
   reddit: { needs: ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"], request: (k) => ({ url: "https://www.reddit.com/api/v1/access_token", init: { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", authorization: `Basic ${Buffer.from(`${k("REDDIT_CLIENT_ID")}:${k("REDDIT_CLIENT_SECRET")}`).toString("base64")}`, "user-agent": "WonderWorks/1.0 (key test)" }, body: "grant_type=client_credentials" } }) },
   // Product Hunt: one product's id, to check the developer token; never a maker or a user.
   producthunt: { needs: ["PRODUCTHUNT_TOKEN"], request: (k) => ({ url: "https://api.producthunt.com/v2/api/graphql", init: { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${k("PRODUCTHUNT_TOKEN")}`, "user-agent": "WonderWorks/1.0 (key test)" }, body: JSON.stringify({ query: "query { posts(first: 1) { nodes { id } } }" }) } }) },
+  // Prospect data's live providers (WJ-822). Google: one id-only place (its cheapest request). YouTube: one channel's id (1 quota unit).
+  googleplaces: { needs: ["GOOGLE_PLACES_API_KEY"], request: (k) => ({ url: "https://places.googleapis.com/v1/places:searchText", init: { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": k("GOOGLE_PLACES_API_KEY"), "x-goog-fieldmask": "places.id" }, body: JSON.stringify({ textQuery: "post office", pageSize: 1 }) } }) },
+  youtube: { needs: ["YOUTUBE_API_KEY"], request: (k) => ({ url: "https://www.googleapis.com/youtube/v3/channels?part=id&id=UC_x5XG1OV2P6uZZ5FSM9Ttw", init: { headers: { "x-goog-api-key": k("YOUTUBE_API_KEY") } } }) },
+  podcastindex: {
+    needs: ["PODCAST_INDEX_KEY", "PODCAST_INDEX_SECRET"],
+    request: (k) => {
+      const date = String(Math.floor(Date.now() / 1000));
+      return { url: "https://api.podcastindex.org/api/1.0/search/byterm?q=news&max=1", init: { headers: { "user-agent": "WorksLakeGateway/1.0", "x-auth-key": k("PODCAST_INDEX_KEY"), "x-auth-date": date, authorization: createHash("sha1").update(k("PODCAST_INDEX_KEY") + k("PODCAST_INDEX_SECRET") + date).digest("hex") } } };
+    },
+  },
 };
 
 /** The probe a key belongs to, if any. */

@@ -1,6 +1,7 @@
 "use client";
 import { ChevronDown, Copy } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 import type { ProspectAdminView } from "@/server/gateway/prospectsAdmin";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -139,6 +140,24 @@ function Body({ d, reload }: { d: ProspectAdminView; reload: () => void }) {
                   Pause
                 </Button>
               )}
+            </span>
+          </div>
+        ))}
+      </section>
+
+      <section className="flex flex-col gap-1.5" aria-label="Live providers">
+        <h3 className="text-[13px] font-medium text-ink-2">Live providers</h3>
+        <span className="text-[12px] text-ink-3">
+          Asked only when a search names one; nothing they return is stored. <Link href="/platform/jobs-lake/platform-keys" className="text-brand-600 hover:underline">Keys</Link>
+        </span>
+        {d.providers.map((p) => (
+          <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+            <span className="min-w-0 text-ink-2">
+              {p.label} · {p.kinds.join(", ")} · {p.paid ? "1 paid unit a page" : "free"} · {p.cacheHours ? `answers kept ${num(p.cacheHours)} h` : "answers not kept"}
+            </span>
+            <span className="flex items-center gap-1.5">
+              {p.termsPending && <Badge tone="warning">Terms pending</Badge>}
+              <Badge tone={p.ready ? "success" : "neutral"}>{p.ready ? "Active" : "Needs setup"}</Badge>
             </span>
           </div>
         ))}

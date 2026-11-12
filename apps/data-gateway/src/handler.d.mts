@@ -28,6 +28,11 @@ export interface ProspectHooks {
   companyFacts?(q: { domain: string; name: string }): Promise<CompanyFactEntry[]>;
   /** Companies whose recent job postings mention any keyword: counts and matched titles only, never a posting. */
   hiringSignals?(q: { keywords: string[]; places: string[]; countries: string[]; sinceDays: number }): Promise<{ companies: HiringCompany[]; postingsRead: number }>;
+  /** The keys live providers need (WJ-822), by name; a provider without its key says "needs_setup". Never logged or returned. */
+  providerKeys?(): Promise<Record<string, string | undefined>>;
+  /** Tests only: a stand-in for the network live providers call, and a shorter time limit. */
+  fetch?(url: string, init?: RequestInit): Promise<Response>;
+  providerTimeoutMs?: number;
   /** Tests only: a stand-in for reading the organisation's own site. */
   readSite?(domain: string): Promise<{ status: string; fields: Record<string, { value: string; url: string }>; mailboxes: { email: string; url: string }[]; pages: string[] }>;
 }
