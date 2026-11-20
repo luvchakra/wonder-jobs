@@ -6,7 +6,9 @@
  * or tenant it is scoped to (RLS has no policies — CLAUDE.md).
  *
  * Two reads cross tenants by design and only these: open job listings (they're public postings), and talent
- * profiles, which exist only while a job seeker chose to be open to recruiters and hold only what they saw.
+ * profiles, which exist only while a job seeker chose to be open to recruiters and hold only what they saw. A talent
+ * profile may also open the seeker's photo and one résumé file, only when they turned each on (`talentPhoto`,
+ * `talentResume`), and only for a workspace member who may search talent.
  */
 import { platformEnv } from "@/server/jobslake/platformKeys";
 import { cleanQuestions, type ScreeningQuestion } from "@/domain/org/screening";
@@ -16,6 +18,8 @@ import { jobProblem, normalizeApplyUrl } from "@/domain/org/jobs";
 import type { Session } from "./auth";
 import { table } from "./db/table";
 import { touchTenant } from "./supabase";
+import { stateStore } from "./state";
+import { resumeFileStore } from "./resume/files";
 import { parseEmailList, sendMail } from "./notify";
 import { EMAIL_COLORS, escapeHtml, renderEmailLayout } from "./email/layout";
 import { siteUrl } from "@/lib/siteUrl";
@@ -40,7 +44,7 @@ type OrgRow = { id: string; name: string; website: string | null; verified: bool
 type MemberRow = { org_id: string; tenant_id: string; role: OrgRole; email: string | null; name: string | null; joined_at: string };
 type InviteRow = { id: string; org_id: string; email: string; role: OrgRole; invited_by: string; created_at: string };
 type JobRow = { id: string; org_id: string; title: string; location: string; work_mode: EmployerJob["workMode"]; job_type: string | null; salary_min: number | null; salary_max: number | null; currency: string; description: string; skills: string[]; apply_url: string; screening?: ScreeningQuestion[] | null; status: EmployerJobStatus; created_by: string; created_at: string; updated_at: string };
-type TalentRow = { tenant_id: string; display_name: string; headline: string; seniority: string; years_experience: number; skills: string[]; locations: string[]; work_modes: string[]; summary: string; updated_at: string };
+type TalentRow = { tenant_id: string; display_name: string; headline: string; seniority: string; years_experience: number; skills: string[]; locations: string[]; work_modes: string[]; summary: string; show_photo?: boolean | null; resume_file_id?: string | null; updated_at: string };
 type ShortlistRow = { id: string; org_id: string; candidate_tenant: string; job_id: string | null; note: string; status: ShortlistStatus; added_by: string; created_at: string; updated_at: string };
 type ConversationRow = { id: string; org_id: string; candidate_tenant: string; job_id: string | null; status: ConversationStatus; started_by: string; created_at: string; updated_at: string };
 type MessageRow = { id: string; conversation_id: string; sender_tenant: string; side: "org" | "candidate"; body: string; created_at: string };
@@ -62,7 +66,7 @@ const toOrg = (r: OrgRow): Organization => ({ id: r.id, name: r.name, website: r
 const toMember = (r: MemberRow): Membership => ({ orgId: r.org_id, tenantId: r.tenant_id, role: r.role, email: r.email ?? undefined, name: r.name ?? undefined, joinedAt: r.joined_at });
 const toInvite = (r: InviteRow): OrgInvite => ({ id: r.id, orgId: r.org_id, email: r.email, role: r.role, invitedBy: r.invited_by, createdAt: r.created_at });
 const toJob = (r: JobRow): EmployerJob => ({ id: r.id, orgId: r.org_id, title: r.title, location: r.location, workMode: r.work_mode, jobType: (r.job_type ?? undefined) as EmployerJob["jobType"], salaryMin: r.salary_min ?? undefined, salaryMax: r.salary_max ?? undefined, currency: r.currency, description: r.description, skills: r.skills ?? [], applyUrl: r.apply_url, screening: r.screening ?? [], status: r.status, createdBy: r.created_by, createdAt: r.created_at, updatedAt: r.updated_at });
-const toTalent = (r: TalentRow): TalentProfile => ({ tenantId: r.tenant_id, displayName: r.display_name, headline: r.headline, seniority: r.seniority, yearsExperience: r.years_experience, skills: r.skills ?? [], locations: r.locations ?? [], workModes: r.work_modes ?? [], summary: r.summary, updatedAt: r.updated_at });
+const toTalent = (r: TalentRow): TalentProfile => ({ tenantId: r.tenant_id, displayName: r.display_name, headline: r.headline, seniority: r.seniority, yearsExperience: r.years_experience, skills: r.skills ?? [], locations: r.locations ?? [], workModes: r.work_modes ?? [], summary: r.summary, showPhoto: !!r.show_photo, hasResume: !!r.resume_file_id, updatedAt: r.updated_at });
 const toShortlist = (r: ShortlistRow): ShortlistEntry => ({ id: r.id, orgId: r.org_id, candidateTenant: r.candidate_tenant, jobId: r.job_id ?? undefined, note: r.note, status: r.status, addedBy: r.added_by, createdAt: r.created_at, updatedAt: r.updated_at });
 const toConversation = (r: ConversationRow): Conversation => ({ id: r.id, orgId: r.org_id, candidateTenant: r.candidate_tenant, jobId: r.job_id ?? undefined, status: r.status, startedBy: r.started_by, createdAt: r.created_at, updatedAt: r.updated_at });
 const toMessage = (r: MessageRow): Message => ({ id: r.id, conversationId: r.conversation_id, senderTenant: r.sender_tenant, side: r.side, body: r.body, createdAt: r.created_at });
@@ -421,11 +425,14 @@ export async function openJobs(limit = 300): Promise<{ job: EmployerJob; org: Or
 // ---- talent --------------------------------------------------------------------------------------------------
 export async function myTalentProfile(s: Session): Promise<TalentProfile | null> {
   const r = await talent().one({ tenant_id: s.tenantId });
-  return r ? toTalent(r) : null;
+  return r ? { ...toTalent(r), resumeFileId: r.resume_file_id ?? undefined } : null;
 }
 
-export async function saveMyTalentProfile(s: Session, p: Omit<TalentProfile, "tenantId" | "updatedAt">): Promise<TalentProfile> {
+export async function saveMyTalentProfile(s: Session, p: Omit<TalentProfile, "tenantId" | "updatedAt" | "hasResume">): Promise<TalentProfile> {
   await touchTenant(s.tenantId);
+  // A shared résumé must be one of the caller's own files.
+  const resumeFileId = p.resumeFileId && (await resumeFileStore().list(s.tenantId)).some((f) => f.id === p.resumeFileId) ? p.resumeFileId : null;
+  if (p.resumeFileId && !resumeFileId) throw new HiringError("That résumé file isn't in your account any more.", 404);
   const row: TalentRow = {
     tenant_id: s.tenantId,
     display_name: p.displayName.slice(0, 60) || "Candidate",
@@ -436,11 +443,24 @@ export async function saveMyTalentProfile(s: Session, p: Omit<TalentProfile, "te
     locations: p.locations.slice(0, 10).map((x) => x.slice(0, 80)),
     work_modes: p.workModes.filter((m) => ["remote", "hybrid", "onsite"].includes(m)),
     summary: p.summary.slice(0, 600),
+    show_photo: !!p.showPhoto,
+    resume_file_id: resumeFileId,
     updated_at: now(),
   };
   // One write, so recruiters never see the profile missing between a delete and an insert.
-  await talent().upsert(row, ["tenant_id"]);
-  return toTalent(row);
+  try {
+    await talent().upsert(row, ["tenant_id"]);
+  } catch (e) {
+    // Until migration 0050 is applied the photo and résumé columns don't exist: save the rest, and say so only when
+    // the job seeker asked to share either.
+    if (!/show_photo|resume_file_id/.test(e instanceof Error ? e.message : "")) throw e;
+    if (row.show_photo || row.resume_file_id) throw new HiringError("Sharing a photo or résumé isn't available yet. Turn both off to save the rest.", 409);
+    const rest: TalentRow = { ...row };
+    delete rest.show_photo;
+    delete rest.resume_file_id;
+    await talent().upsert(rest, ["tenant_id"]);
+  }
+  return { ...toTalent(row), resumeFileId: resumeFileId ?? undefined };
 }
 
 /** Turning "Open to recruiters" off removes the profile; workspaces can no longer find or newly message them. */
@@ -461,6 +481,31 @@ export async function suggestTalentForJob(s: Session, orgId: string, jobId: stri
   if (!job) throw new HiringError("That job isn't in this workspace.", 404);
   const all = (await talent().all({ order: "updated_at", desc: true, limit: 1000 })).map(toTalent);
   return suggestTalent(all, { skills: job.skills ?? [], location: job.location, workMode: job.work_mode }).slice(0, 50);
+}
+
+/** The open profile a workspace member may look at, or a 404 (not open to recruiters, or never was). */
+async function openTalent(s: Session, orgId: string, tenantId: string): Promise<TalentRow> {
+  await requirePermission(s, orgId, "talent.search");
+  const r = /^[A-Za-z0-9_-]{1,80}$/.test(tenantId) ? await talent().one({ tenant_id: tenantId }) : null;
+  if (!r) throw new HiringError("This person isn't open to recruiters any more.", 404);
+  return r;
+}
+
+/** A job seeker's photo, only while they're open to recruiters and chose to show it. */
+export async function talentPhoto(s: Session, orgId: string, tenantId: string): Promise<{ type: string; bytes: Buffer }> {
+  const r = await openTalent(s, orgId, tenantId);
+  if (!r.show_photo) throw new HiringError("No photo shown.", 404);
+  const photo = (await stateStore.get(r.tenant_id, "wj.avatar").catch(() => undefined))?.state as { data?: string; type?: string } | undefined;
+  if (!photo?.data || !photo.type) throw new HiringError("No photo shown.", 404);
+  return { type: photo.type, bytes: Buffer.from(photo.data, "base64") };
+}
+
+/** The résumé file a job seeker chose to share, only while they're open to recruiters. */
+export async function talentResume(s: Session, orgId: string, tenantId: string): Promise<{ filename: string; mime: string; bytes: Buffer }> {
+  const r = await openTalent(s, orgId, tenantId);
+  const file = r.resume_file_id ? await resumeFileStore().read(r.tenant_id, r.resume_file_id) : undefined;
+  if (!file) throw new HiringError("They haven't shared a résumé.", 404);
+  return { filename: file.meta.filename, mime: file.meta.mime, bytes: file.bytes };
 }
 
 async function visibleTalent(tenantIds: string[]) {

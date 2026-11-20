@@ -19,6 +19,8 @@ const Profile = z.object({
   locations: z.array(z.string().max(80)).max(10),
   workModes: z.array(z.string().max(10)).max(3),
   summary: z.string().max(600),
+  showPhoto: z.boolean().optional(),
+  resumeFileId: z.string().max(80).optional(),
 });
 
 /** Turn on (or update) being open to recruiters, with exactly these fields. */

@@ -130,7 +130,7 @@ Never show a candidate anything WonderWorks didn't actually find, compute or rec
   - Screening questions' must-haves only mark an application ("Doesn't meet"); nothing is declined automatically. Scorecards and notes (`job_application_reviews`, `applications.review`) are the team's own and never reach the applicant.
 - **Only two reads cross tenants:**
   - Open job listings, shown as the "WonderWorks employers" source.
-  - `talent_profiles`, which exist only while a job seeker is Open to recruiters. They hold only what the seeker saw on You → Recruiters, never contact details or work history.
+  - `talent_profiles`, which exist only while a job seeker is Open to recruiters. They hold only what the seeker saw on You → Recruiters, never contact details or work history. Two more reads hang off them, each only when the seeker turned it on there and only for a member with `talent.search`: their photo (`show_photo`, `hiring.ts::talentPhoto`) and one of their résumé files (`resume_file_id`, `talentResume`; it opens with everything in it).
   - A company may message a job seeker only while they're open to recruiters and haven't declined or blocked it.
 - **Sign-in connections are retired** (WJ-347). `portal_connections` is unused and kept until a migration drops it. Wonder never signs in to a portal, and the helper never reads a password field.
 

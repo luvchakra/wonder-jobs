@@ -33,6 +33,8 @@ import * as orgConvs from "./[org]/conversations/route";
 import * as myConvs from "../conversations/route";
 import * as thread from "../conversations/[id]/route";
 import * as me from "../talent/me/route";
+import * as talentPhoto from "./[org]/talent/[tenant]/photo/route";
+import * as talentResume from "./[org]/talent/[tenant]/resume/route";
 
 /* ---- helpers ------------------------------------------------------------------------------------------------ */
 let n = 0;
@@ -103,7 +105,7 @@ beforeEach(() => {
 describe("signed out", () => {
   it("every hiring and messaging route refuses with 401", async () => {
     const p = { org: "org_x", id: "x" };
-    const routes: Handler[] = [hiring.GET, hiring.POST, invite.POST, team.GET, team.POST, team.PATCH, team.DELETE, jobs.GET, jobs.POST, jobs.PATCH, talent.GET, shortlist.GET, shortlist.POST, shortlist.PATCH, shortlist.DELETE, orgConvs.GET, orgConvs.POST, myConvs.GET, thread.GET, thread.POST, thread.PATCH, me.GET, me.PUT, me.DELETE];
+    const routes: Handler[] = [hiring.GET, hiring.POST, invite.POST, team.GET, team.POST, team.PATCH, team.DELETE, jobs.GET, jobs.POST, jobs.PATCH, talent.GET, shortlist.GET, shortlist.POST, shortlist.PATCH, shortlist.DELETE, orgConvs.GET, orgConvs.POST, myConvs.GET, thread.GET, thread.POST, thread.PATCH, me.GET, me.PUT, me.DELETE, talentPhoto.GET, talentResume.GET];
     for (const r of routes) expect((await call(null, r, { method: "POST", body: {}, params: p })).status).toBe(401);
   });
 });
@@ -118,9 +120,11 @@ describe("job seeker", () => {
 
     const { profile } = await ok(optIn(seeker));
     const [match] = (await ok(search(recruiter, orgId, "Kubernetes"))).matches;
-    // The preview the seeker saw is the record recruiters get: same fields, nothing more.
+    // The preview the seeker saw is the record recruiters get: same fields, nothing more. The photo and résumé are only
+    // flags here (both off until the seeker turns them on); the files themselves are separate, gated reads.
     expect(match.profile).toEqual(profile);
-    expect(Object.keys(match.profile).sort()).toEqual(["displayName", "headline", "locations", "seniority", "skills", "summary", "tenantId", "updatedAt", "workModes", "yearsExperience"]);
+    expect(Object.keys(match.profile).sort()).toEqual(["displayName", "hasResume", "headline", "locations", "seniority", "showPhoto", "skills", "summary", "tenantId", "updatedAt", "workModes", "yearsExperience"]);
+    expect(match.profile).toMatchObject({ showPhoto: false, hasResume: false });
     expect(JSON.stringify(match)).not.toContain(seeker.email!);
   });
 

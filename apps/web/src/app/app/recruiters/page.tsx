@@ -14,6 +14,9 @@ import { Card } from "@/components/common/Card";
 import { PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { Thread } from "@/components/hiring/Thread";
+import { Avatar } from "@/components/common/Avatar";
+import { Select } from "@/components/common/Input";
+import { useResumeFilesStore } from "@/store/resumeFiles";
 
 /**
  * Recruiters (owner, 2026-10-20): whether companies on WonderJobs can find the job seeker and write to them —
@@ -25,6 +28,11 @@ function RecruitersPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<TalentProfile | null | undefined>(undefined);
   const [summary, setSummary] = useState("");
+  // Off unless turned on (owner, 2026-11-20): the photo, and one of their résumé files, for companies who find them.
+  const [showPhoto, setShowPhoto] = useState(false);
+  const [resumeFileId, setResumeFileId] = useState("");
+  const files = useResumeFilesStore((s) => s.files);
+  const loadFiles = useResumeFilesStore((s) => s.load);
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState<ConversationView[] | null>(null);
   const open = params.get("c");
@@ -41,16 +49,19 @@ function RecruitersPage() {
       .then((d) => {
         setProfile(d.profile);
         setSummary(d.profile?.summary ?? "");
+        setShowPhoto(!!d.profile?.showPhoto);
+        setResumeFileId(d.profile?.resumeFileId ?? "");
       })
       .catch(() => setProfile(null));
     loadList();
-  }, [loadList]);
+    void loadFiles();
+  }, [loadList, loadFiles]);
 
   const preview = useMemo(() => talentProfileFrom(dna, summary), [dna, summary]);
   const save = async () => {
     setBusy(true);
     try {
-      const { profile: p } = await hiringApi.saveProfile(preview);
+      const { profile: p } = await hiringApi.saveProfile({ ...preview, showPhoto, resumeFileId: resumeFileId || undefined });
       setProfile(p);
       toast.success(profile ? "Recruiters see your update" : "You're open to recruiters", "Companies on WonderWorks can now find you and write to you here.");
     } catch (e) {
@@ -87,10 +98,13 @@ function RecruitersPage() {
           </div>
         </div>
 
-        {/* Exactly what recruiters see — nothing else from the account (no email, phone or work history). */}
+        {/* Exactly what recruiters see — nothing else from the account (no email or phone); the photo and a résumé only when chosen below. */}
         <div className="mt-4 rounded-[14px] border border-line bg-surface-2 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-4">What recruiters see</p>
-          <p className="mt-1 text-[15px] font-semibold text-ink">{preview.displayName}</p>
+          <div className="mt-1 flex items-center gap-3">
+            {showPhoto ? <Avatar name={preview.displayName} size={44} self /> : <Avatar name={preview.displayName} size={44} />}
+            <p className="text-[15px] font-semibold text-ink">{preview.displayName}</p>
+          </div>
           <p className="text-[13px] text-ink-2">{preview.headline || "No headline yet"}</p>
           <p className="mt-1 text-[12px] text-ink-3">{[preview.seniority, preview.yearsExperience ? `${preview.yearsExperience} years` : "", preview.locations.join(", "), preview.workModes.join(" / ")].filter(Boolean).join(" · ")}</p>
           {preview.skills.length > 0 && (
@@ -106,6 +120,22 @@ function RecruitersPage() {
             A line for recruiters (optional)
           </label>
           <textarea id="pitch" value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={600} rows={2} placeholder="What you're looking for next" className="mt-1 w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[13px] text-ink outline-none focus:border-brand-500" />
+          <label className="mt-3 flex items-center gap-2 text-[13px] text-ink-2">
+            <input type="checkbox" checked={showPhoto} onChange={(e) => setShowPhoto(e.target.checked)} className="size-4 accent-brand-600" />
+            Show my profile photo
+          </label>
+          <label className="mt-2 block text-[12px] font-medium text-ink-2" htmlFor="share-resume">
+            Résumé recruiters can open
+          </label>
+          <Select id="share-resume" value={resumeFileId} onChange={(e) => setResumeFileId(e.target.value)} className="mt-1 h-9">
+            <option value="">Don&apos;t share a résumé</option>
+            {files.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.filename}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-[11px] text-ink-4">{files.length === 0 ? "Upload one on You → My Resume to share it." : "Companies that find you can open this file, with everything in it."}</p>
           <p className="mt-1 text-[11px] text-ink-4">From your Career Profile; change it there. Recruiters see an update only when you press {on ? "Update" : "Turn on"}.</p>
         </div>
 

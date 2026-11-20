@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { MessageSquare, Search, UserPlus } from "lucide-react";
+import { Search } from "lucide-react";
 import type { EmployerJob, TalentProfile } from "@/domain/org/types";
 import { hiringApi, type TalentMatch } from "@/services/hiring/client";
-import { cn } from "@/lib/cn";
 import { Button } from "@/components/common/Button";
 import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
+import { TalentCard, TalentProfileView } from "./TalentCard";
 
 /**
  * Find candidates: only job seekers who turned on "Open to recruiters", showing only what they chose to show.
@@ -20,6 +20,7 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
   const [busy, setBusy] = useState(false);
   const [jobs, setJobs] = useState<EmployerJob[]>([]);
   const [acting, setActing] = useState<{ kind: "shortlist" | "message"; who: TalentProfile } | null>(null);
+  const [viewing, setViewing] = useState<{ p: TalentProfile; matched: string[] } | null>(null);
   // Suggested for one of the workspace's jobs (its skills, and its city unless it's remote), picked instead of typing.
   const [forJob, setForJob] = useState("");
   const suggest = async (jobId: string) => {
@@ -87,31 +88,12 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {matches.map(({ profile: p, matchedSkills }) => (
-            <li key={p.tenantId} className="rounded-[16px] border border-line bg-surface p-4">
-              <p className="text-[15px] font-semibold text-ink">{p.displayName}</p>
-              <p className="text-[13px] text-ink-2">{p.headline || "No headline"}</p>
-              <p className="mt-1 text-[12px] text-ink-3">{[p.seniority, p.yearsExperience ? `${p.yearsExperience} years` : "", p.locations.join(", "), p.workModes.join(" / ")].filter(Boolean).join(" · ")}</p>
-              {p.skills.length > 0 && (
-                <ul className="mt-2 flex flex-wrap gap-1">
-                  {p.skills.slice(0, 12).map((s) => (
-                    <li key={s} className={cn("rounded-full px-2 py-0.5 text-[11px]", matchedSkills.some((m) => m.toLowerCase() === s.toLowerCase()) ? "bg-brand-50 font-medium text-brand-700" : "bg-surface-2 text-ink-2")}>
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {p.summary && <p className="mt-2 line-clamp-3 text-[12px] text-ink-3">“{p.summary}”</p>}
-              <div className="mt-3 flex flex-wrap gap-x-4">
-                <button type="button" onClick={() => setActing({ kind: "shortlist", who: p })} className="inline-flex min-h-10 items-center gap-1 text-[13px] font-semibold text-brand-600 hover:underline">
-                  <UserPlus className="size-4" aria-hidden /> Shortlist
-                </button>
-                <button type="button" onClick={() => setActing({ kind: "message", who: p })} className="inline-flex min-h-10 items-center gap-1 text-[13px] font-semibold text-brand-600 hover:underline">
-                  <MessageSquare className="size-4" aria-hidden /> Message
-                </button>
-              </div>
-            </li>
+            <TalentCard key={p.tenantId} orgId={orgId} p={p} matched={matchedSkills} onOpen={() => setViewing({ p, matched: matchedSkills })} onShortlist={() => setActing({ kind: "shortlist", who: p })} onMessage={() => setActing({ kind: "message", who: p })} />
           ))}
         </ul>
+      )}
+      {viewing && !acting && (
+        <TalentProfileView orgId={orgId} p={viewing.p} matched={viewing.matched} onClose={() => setViewing(null)} onShortlist={() => setActing({ kind: "shortlist", who: viewing.p })} onMessage={() => setActing({ kind: "message", who: viewing.p })} />
       )}
       {acting && (
         <ActDialog
@@ -130,6 +112,7 @@ export function TalentTab({ orgId, onShortlisted, onMessaged }: { orgId: string;
               toast.success(`Message sent to ${acting.who.displayName}`, "They get a notification and can reply, decline or block.");
               onMessaged(id);
             }
+            setViewing(null);
           }}
         />
       )}

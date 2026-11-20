@@ -80,6 +80,8 @@ export const hiringApi = {
   reviews: (org: string, id: string) => call<{ reviews: ApplicationReview[] }>(`${o(org)}/applications?reviews=${encodeURIComponent(id)}`),
   addReview: (org: string, id: string, recommendation: Recommendation | undefined, note: string) => call<{ review: ApplicationReview }>(`${o(org)}/applications`, { method: "POST", json: { id, recommendation, note: note || undefined } }),
   suggestTalent: (org: string, jobId: string) => call<{ matches: TalentMatch[] }>(`${o(org)}/talent?job=${encodeURIComponent(jobId)}`),
+  talentPhotoUrl: (org: string, tenantId: string) => `${o(org)}/talent/${encodeURIComponent(tenantId)}/photo`,
+  talentResumeUrl: (org: string, tenantId: string) => `${o(org)}/talent/${encodeURIComponent(tenantId)}/resume`,
   talent: (org: string, q: string, place: string) => call<{ matches: TalentMatch[] }>(`${o(org)}/talent?q=${encodeURIComponent(q)}&place=${encodeURIComponent(place)}`),
   shortlist: (org: string) => call<{ entries: ShortlistView[] }>(`${o(org)}/shortlist`),
   addToShortlist: (org: string, candidate: string, note: string, jobId?: string) => call(`${o(org)}/shortlist`, { method: "POST", json: { candidate, note, jobId } }),
@@ -93,6 +95,6 @@ export const hiringApi = {
   send: (id: string, body: string, as: "org" | "candidate" = "candidate") => call<Message>(`/api/conversations/${encodeURIComponent(id)}?as=${as}`, { method: "POST", json: { body } }),
   setConversationStatus: (id: string, status: Conversation["status"]) => call(`/api/conversations/${encodeURIComponent(id)}`, { method: "PATCH", json: { status } }),
   myProfile: () => call<{ profile: TalentProfile | null }>("/api/talent/me"),
-  saveProfile: (p: Omit<TalentProfile, "tenantId" | "updatedAt">) => call<{ profile: TalentProfile }>("/api/talent/me", { method: "PUT", json: p }),
+  saveProfile: (p: Omit<TalentProfile, "tenantId" | "updatedAt" | "hasResume">) => call<{ profile: TalentProfile }>("/api/talent/me", { method: "PUT", json: p }),
   removeProfile: () => call("/api/talent/me", { method: "DELETE" }),
 };
