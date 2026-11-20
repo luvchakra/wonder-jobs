@@ -9,6 +9,7 @@ import Link from "next/link";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type { HealthState } from "@/domain/jobslake/health";
 import type { SourceStatus } from "@/domain/jobslake/protocol";
+import { FETCH_MODE, type FetchMode } from "@/domain/jobslake/fetchMode";
 import { Badge, StatusPill, type Tone } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
@@ -82,6 +83,38 @@ export function OutcomeChip({ outcome }: { outcome: string }) {
 
 export function AccessBadge({ label }: { label: string }) {
   return <Badge className="rounded-md px-1.5 py-0.5 text-[11px]">{label}</Badge>;
+}
+
+/** When a source's data is fetched: live on a worded search, or collected on a schedule (domain/jobslake/fetchMode.ts). */
+export function FetchModeBadge({ mode }: { mode: FetchMode }) {
+  const m = FETCH_MODE[mode];
+  return (
+    <Badge tone={m.tone} className="rounded-md px-1.5 py-0.5 text-[11px]" title={m.info}>
+      {m.label}
+    </Badge>
+  );
+}
+
+/** A source's "what you need to do" line: plain when nothing is needed, stronger when something is. */
+export function TodoLine({ todo, className = "" }: { todo: string; className?: string }) {
+  const nothing = todo.startsWith("Nothing");
+  return <span className={`${nothing ? "text-ink-4" : "font-medium text-warning-600"} ${className}`}>{nothing ? todo : `You: ${todo}`}</span>;
+}
+
+/** The two ways data reaches WorksLake, and what each asks of an admin, in two lines (owner, 2026-11-05). */
+export function FetchModeLegend() {
+  return (
+    <dl className="mb-3 grid gap-2 rounded-[10px] bg-bg-soft px-3 py-2.5 text-[12.5px] md:grid-cols-2">
+      <div>
+        <dt><FetchModeBadge mode="on_search" /></dt>
+        <dd className="mt-1 text-ink-3">{FETCH_MODE.on_search.info} <span className="text-ink-2">You: set its key on Admin → Keys if it needs one; nothing else.</span></dd>
+      </div>
+      <div>
+        <dt><FetchModeBadge mode="scheduled" /></dt>
+        <dd className="mt-1 text-ink-3">{FETCH_MODE.scheduled.info} <span className="text-ink-2">You: Test &amp; activate it once on Sources → Import; then nothing.</span></dd>
+      </div>
+    </dl>
+  );
 }
 
 /* ------------------------------------------------------------- layout */

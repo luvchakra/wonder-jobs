@@ -13,6 +13,8 @@ import { corePhrase, titleMatches, type RawPosting } from "@/services/jobs/norma
 import { fetchJooble } from "@/server/jobslake/jooble";
 import { fetchUsaJobs } from "@/server/jobslake/usajobs";
 import { platformKey } from "@/server/jobslake/platformKeys";
+import { fetchPersonio } from "@/server/jobslake/personio";
+import { fetchRecruitee, type RecruiteeOffer } from "@/server/jobslake/recruitee";
 
 /** A student's words, asked of a general job source as an internship search ("marketing" → "marketing intern"). */
 export const asIntern = (c: SearchCriteria): SearchCriteria => ({ ...c, query: /\b(intern|internship|trainee)\b/i.test(c.query) ? c.query : `${c.query} intern`.trim() });
@@ -262,3 +264,93 @@ export async function fetchReliefWebInternships(c: SearchCriteria): Promise<Job[
   const data = await getJson<{ data?: ReliefWebJob[] }>(`https://api.reliefweb.int/v2/jobs?appname=${encodeURIComponent(platformKey("RELIEFWEB_APPNAME") ?? "")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   return finish("intern_reliefweb", (data.data ?? []).map(rawFromReliefWeb), c);
 }
+
+/* ---------- UK apprenticeships (DfE Find an apprenticeship, Display Advert API v2) ---------- */
+/**
+ * England's live apprenticeship vacancies from the Department for Education's Display Advert API v2 (Open Government
+ * Licence v3). Needs a free subscription key from the apprenticeship service developer hub: FIND_APPRENTICESHIP_API_KEY,
+ * "Needs setup" without it. The API has no keyword search, so the newest vacancies are asked and the student's words and
+ * places decide (finish). The employer contact's name, phone and email are never read.
+ */
+export const ukApprenticeshipsAvailable = () => !!platformKey("FIND_APPRENTICESHIP_API_KEY");
+
+export interface UkApprenticeship {
+  title: string;
+  description?: string;
+  postedDate?: string;
+  closingDate?: string;
+  startDate?: string;
+  wage?: { wageType?: string; wageAmount?: number | null; wageUnit?: string; wageAdditionalInformation?: string };
+  hoursPerWeek?: number;
+  expectedDuration?: string;
+  addresses?: { addressLine1?: string; addressLine2?: string; addressLine3?: string; addressLine4?: string; postcode?: string }[];
+  employerName?: string;
+  employerWebsiteUrl?: string;
+  course?: { title?: string; level?: number; route?: string };
+  apprenticeshipLevel?: string;
+  vacancyUrl?: string;
+  vacancyReference?: string;
+  isNationalVacancy?: boolean;
+}
+
+const PER_YEAR: Record<string, number> = { Weekly: 52, Monthly: 12, Annually: 1 };
+
+/** A vacancy's place: the town and county lines of its first address, and its postcode's outward code. */
+function ukPlace(v: UkApprenticeship): string {
+  if (v.isNationalVacancy) return "England (recruiting nationally)";
+  const a = v.addresses?.[0];
+  if (!a) return "England";
+  const lines = [a.addressLine1, a.addressLine2, a.addressLine3, a.addressLine4].filter((x): x is string => !!x?.trim());
+  const outward = a.postcode?.trim().split(/\s+/)[0];
+  return [...lines.slice(-2), outward].filter(Boolean).join(", ");
+}
+
+export function rawFromUkApprenticeship(v: UkApprenticeship): RawPosting {
+  // Pay only when the employer stated an amount (Custom); a minimum-wage band or "competitive" is not an amount.
+  const per = v.wage?.wageType === "Custom" ? PER_YEAR[v.wage.wageUnit ?? ""] ?? 0 : 0;
+  const pay = per && v.wage?.wageAmount ? Math.round(v.wage.wageAmount * per) : null;
+  let domain: string | undefined;
+  try {
+    domain = v.employerWebsiteUrl ? new URL(v.employerWebsiteUrl).hostname.replace(/^www\./, "") : undefined;
+  } catch {
+    domain = undefined;
+  }
+  return {
+    externalId: `ukapprenticeship:${v.vacancyReference ?? v.vacancyUrl ?? v.title}`,
+    title: v.title,
+    company: v.employerName ?? "",
+    ...(domain ? { companyDomain: domain } : {}),
+    location: ukPlace(v),
+    remote: false,
+    description: [v.description, v.expectedDuration ? `Duration: ${v.expectedDuration}` : "", v.course?.title ? `Training: ${v.course.title}` : ""].filter(Boolean).join("\n\n"),
+    tags: [v.course?.route ?? "", v.apprenticeshipLevel ?? ""].filter(Boolean),
+    postedAt: v.postedDate,
+    applyUrl: v.vacancyUrl ?? "",
+    salaryMin: pay,
+    salaryMax: pay,
+    currency: pay ? "GBP" : null,
+    employerSite: false,
+    applyPath: "platform" as const,
+    // Find an apprenticeship lists only apprenticeships: the source itself says what these are.
+    jobType: "Apprenticeship",
+  };
+}
+
+export async function fetchUkApprenticeships(c: SearchCriteria): Promise<Job[]> {
+  const headers = { "Ocp-Apim-Subscription-Key": platformKey("FIND_APPRENTICESHIP_API_KEY") ?? "", "X-Version": "2" };
+  const pages = await Promise.all([1, 2, 3].map((p, i) => getJson<{ vacancies?: UkApprenticeship[] }>(`https://api.apprenticeships.education.gov.uk/vacancies/vacancy?Sort=AgeDesc&PageSize=100&PageNumber=${p}`, { headers }).catch((e) => (i === 0 ? Promise.reject(e) : { vacancies: [] }))));
+  return finish("intern_uk_apprenticeships", pages.flatMap((p) => p.vacancies ?? []).map(rawFromUkApprenticeship), c);
+}
+
+/* ---------- Recruitee and Personio career sites (shared WorksLake connectors), intern roles only ---------- */
+/** Personio's own types that are internships for a student: an internship, a working-student role, a traineeship. */
+export const PERSONIO_INTERN_TYPES = new Set(["intern", "working_student", "trainee"]);
+/** Recruitee's own employment-type codes for internships and traineeships. */
+export const isRecruiteeIntern = (o: Pick<RecruiteeOffer, "employment_type_code">) => /intern|trainee/i.test(o.employment_type_code ?? "");
+
+// Kept by the source's own employment type, so each is an internship as the source says (Personio's "working_student"
+// isn't a phrase the shared job-type reader knows, so it is said here).
+const asInternship = (jobs: Job[]): Job[] => jobs.map((j) => ({ ...j, jobType: "internship" as const, jobTypeFrom: "source" as const }));
+
+export const fetchPersonioInternships = async (c: SearchCriteria): Promise<Job[]> => asInternship(await fetchPersonio("intern_personio", c, (p) => PERSONIO_INTERN_TYPES.has(p.employmentType)));
+export const fetchRecruiteeInternships = async (c: SearchCriteria): Promise<Job[]> => asInternship(await fetchRecruitee("intern_recruitee", c, isRecruiteeIntern));

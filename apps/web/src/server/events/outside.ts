@@ -72,9 +72,12 @@ export function toOutsideEvent(o: CanonicalOpportunity, today = todayIst()): Eve
   const endDate = end && end >= startDate ? end : undefined;
   // Only events that haven't ended (the source may keep one a day past its end).
   if ((endDate ?? startDate) < today) return null;
-  const online = a.online === true;
-  // The place as the source gives it (a venue, city and country where it does), else just its city.
-  const city = text(o.locations[0], 120) || text(a.city, 120);
+  // The place as the source gives it (a venue, city and country where it does), else just its city. A source that states
+  // an online event's place as the word "Online" (Devpost does) has no place: the event is online only, not "also online".
+  const stated = text(o.locations[0], 120) || text(a.city, 120);
+  const onlineWord = /^(online|virtual|remote|online event|virtual event)$/i.test(stated);
+  const online = a.online === true || onlineWord;
+  const city = onlineWord ? "" : stated;
   const cfpUrl = isWeb(a.cfpUrl) ? a.cfpUrl : undefined;
   const cfpEndDate = cfpUrl ? dayOf(a.cfpEndDate) : undefined;
   return {

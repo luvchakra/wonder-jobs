@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { MarketingNav } from "@/components/landing/MarketingNav";
 import { MarketingFooter } from "@/components/landing/Sections";
-import { SHARE_PITCH, shareFacts } from "@/domain/jobs/share";
+import { shareFacts } from "@/domain/jobs/share";
 import { authConfigured } from "@/lib/auth/config";
 import { getSession } from "@/server/auth";
 import { applyLink, sharedJob } from "./data";
@@ -47,10 +47,10 @@ export default async function SharedJobPage({ params }: Props) {
           <p className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-[#c4b5fd]">
             <Sparkles className="size-3.5" aria-hidden /> Found with WonderWorks
           </p>
-          <h2 id="wonder" className="mt-2 text-[20px] font-semibold leading-snug">Find jobs that fit you, not just jobs.</h2>
-          <p className="mt-1 text-[14px] text-white/75">{SHARE_PITCH}</p>
+          <h2 id="wonder" className="mt-2 text-[20px] font-semibold leading-snug">Your next job, found for you.</h2>
+          <p className="mt-1 text-[14px] text-white/75">Tell WonderWorks what you&apos;re after. It searches real job sources, puts the roles that fit you first, and helps you apply.</p>
           <Link href="/sign-up" className="mt-4 inline-flex rounded-full bg-white px-5 py-2.5 text-[14px] font-semibold text-[#1E1B4B] hover:bg-white/90">
-            Start free
+            Find my next job, free
           </Link>
         </section>
       </main>

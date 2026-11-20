@@ -43,7 +43,7 @@ export const TherapistCard = memo(function TherapistCard({ item: l, onOpen }: { 
       share={shareOf(l)}
       aside={
         <>
-          <CompanyLogo name={l.company} logo size={44} />
+          <CompanyLogo name={l.company} website={l.applyUrl} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.top} bottom={fit.bottom} srText={fit.title} />}
           {outside && l.applyUrl && (
             <a href={l.applyUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${l.company}'s page on ${l.sourceName} (opens in a new tab)`} title={`Open their page on ${l.sourceName}`} className={APPLY_BTN}>

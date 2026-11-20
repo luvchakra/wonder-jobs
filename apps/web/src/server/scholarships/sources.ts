@@ -15,6 +15,9 @@
  * - HackerEarth: its public challenge list (ongoing and upcoming hackathons).
  * - Devfolio: hackathons open for applications in India (the public search its site uses).
  * - Kaggle: its API's open competitions — needs KAGGLE_API_TOKEN, or the older KAGGLE_USERNAME + KAGGLE_KEY ("Needs setup" without).
+ * - Simpler.Grants.gov: the newer Grants.gov search API (needs SIMPLER_GRANTS_API_KEY), opportunities open to individuals
+ *   that read as being for students, with their summaries.
+ * - clist.by: upcoming programming contests on about 200 platforms (needs CLIST_USERNAME + CLIST_API_KEY; terms pending).
  * Devpost, Unstop and EU Funding & Tenders are live with "terms pending" (CLAUDE.md, "Finding data sources"): the
  * owner confirms their terms later; `statusReason` says what to confirm.
  * - Partner uploads arrive through the WorksLake gateway's own source (`works_gateway_scholarships`,
@@ -29,7 +32,7 @@ import type { RawPosting } from "@/services/jobs/normalize";
 import { fixtureJobsOn } from "@/server/jobslake/e2eFixture";
 import { DEFAULT_LIMITS, type SourceRecord } from "@/server/jobslake/types";
 import { siteUrl } from "@/lib/siteUrl";
-import { kaggleAuthorization } from "@/server/jobslake/platformKeys";
+import { kaggleAuthorization, platformKey } from "@/server/jobslake/platformKeys";
 
 const EPOCH = "2026-11-01T00:00:00.000Z";
 const FEED_CAPS = ["Search", "Freshness", "Apply URL"];
@@ -50,6 +53,8 @@ export const SCHOLARS4DEV = "schol_scholars4dev";
 export const OPPORTUNITIES_FOR_AFRICANS = "schol_opportunities_for_africans";
 export const MLADIINFO = "schol_mladiinfo";
 export const HACKEREARTH = "schol_hackerearth";
+export const SIMPLER_GRANTS = "schol_simpler_grants";
+export const CLIST = "schol_clist";
 
 /** Scholarship blogs' public WordPress RSS feeds: each post names one opportunity and states its deadline. */
 const FEEDS: Record<string, { url: string; name: string }> = {
@@ -61,6 +66,10 @@ const FEEDS: Record<string, { url: string; name: string }> = {
 
 /** Kaggle's token (or the older username + key), from the deployment or Admin → Keys (`kaggleAuthorization`). */
 const kaggleAvailable = () => !!kaggleAuthorization();
+const simplerGrantsAvailable = () => !!platformKey("SIMPLER_GRANTS_API_KEY");
+const clistAvailable = () => !!(platformKey("CLIST_USERNAME") && platformKey("CLIST_API_KEY"));
+const SIMPLER_GRANTS_SETUP = "SIMPLER_GRANTS_API_KEY (free, self-serve via Login.gov at simpler.grants.gov/developers; it stops working after 30 days unused), set in Admin → Keys";
+const CLIST_SETUP = "CLIST_USERNAME and CLIST_API_KEY (free: log in at clist.by, then API → your key), set in Admin → Keys";
 
 /** Required by Grants.gov's API terms next to its data. */
 export const GRANTS_GOV_NOTICE = "This product uses the Grants.gov API but is not endorsed or certified by the U.S. Department of Health and Human Services.";
@@ -78,11 +87,15 @@ export const SCHOLARSHIP_SOURCES: SourceRecord[] = [
   source({ id: MLADIINFO, name: "Mladiinfo scholarships and opportunities", provider: "Mladiinfo", category: "aggregator", geography: ["global", "EU"], statusReason: "terms pending: Mladiinfo's public RSS feed; reuse of post summaries not stated, confirm with the site", description: "Scholarships, competitions and youth opportunities from Mladiinfo's public RSS feed, each with the deadline its post states." }),
   source({ id: HACKEREARTH, name: "HackerEarth hackathons", provider: "HackerEarth", category: "aggregator", geography: ["global", "IN"], statusReason: "terms pending: HackerEarth's public challenge list (the one its browser extension reads) has no published reuse terms; confirm with HackerEarth", description: "Hackathons and challenges open or starting soon on HackerEarth, each closing when its submissions end." }),
   source({ id: KAGGLE, name: "Kaggle competitions", provider: "Kaggle", category: "aggregator", geography: ["global", "remote"], secretRef: "env:KAGGLE", description: "Open Kaggle competitions (data-science projects with prizes) from Kaggle's public API. Needs KAGGLE_API_TOKEN (free: kaggle.com → Settings → API → Generate New Token), or the older KAGGLE_USERNAME + KAGGLE_KEY, set in Admin → Keys." }),
+  source({ id: SIMPLER_GRANTS, name: "Simpler.Grants.gov (open to individuals)", provider: "Simpler.Grants.gov", category: "portal", geography: ["global"], secretRef: "env:SIMPLER_GRANTS_API_KEY", description: `US federal funding opportunities open to individuals, with their summaries, from the Simpler.Grants.gov API. Needs ${SIMPLER_GRANTS_SETUP}.` }),
+  source({ id: CLIST, name: "clist.by programming contests", provider: "clist.by", category: "aggregator", geography: ["global", "remote", "IN"], secretRef: "env:CLIST", statusReason: "terms pending: clist.by's API terms of service (clist.by/api/v4/terms/) for showing its contest list; confirm with clist.by", description: `Upcoming programming contests on about 200 platforms (Codeforces, CodeChef, LeetCode, AtCoder and more) from the clist.by API. Needs ${CLIST_SETUP}.` }),
 ];
 
 export function scholarshipSourceAvailable(s: SourceRecord): boolean {
   if (fixtureJobsOn()) return true;
   if (s.id === KAGGLE) return kaggleAvailable();
+  if (s.id === SIMPLER_GRANTS) return simplerGrantsAvailable();
+  if (s.id === CLIST) return clistAvailable();
   return SCHOLARSHIP_SOURCES.some((x) => x.id === s.id);
 }
 
@@ -498,6 +511,112 @@ export async function fetchKaggle(c: SearchCriteria): Promise<Job[]> {
   return finish(KAGGLE, (Array.isArray(list) ? list : []).flatMap((k) => rawFromKaggle(k) ?? []), c);
 }
 
+// ---- Simpler.Grants.gov (needs a key) ---------------------------------------------------------------------------
+
+interface SimplerGrant {
+  opportunity_id: string;
+  opportunity_number?: string | null;
+  opportunity_title?: string | null;
+  opportunity_status?: string;
+  agency_name?: string | null;
+  top_level_agency_name?: string | null;
+  summary?: {
+    summary_description?: string | null;
+    applicant_eligibility_description?: string | null;
+    close_date?: string | null;
+    forecasted_close_date?: string | null;
+    post_date?: string | null;
+    award_ceiling?: number | null;
+    is_forecast?: boolean;
+  } | null;
+}
+
+/** HTML in a grant summary as plain text, for the listing's description. */
+const grantText = (s: string | null | undefined) => (s ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+
+/** A Simpler.Grants.gov opportunity as a posting: what it states (agency, summary, eligibility, close date), linking to its page. */
+export function rawFromSimplerGrant(g: SimplerGrant): RawPosting | null {
+  const title = (g.opportunity_title ?? "").replace(/\s+/g, " ").trim();
+  const summary = grantText(g.summary?.summary_description);
+  if (!title || !FOR_STUDENTS.test(`${title} ${summary.slice(0, 400)}`)) return null;
+  const forecast = g.opportunity_status === "forecasted" || g.summary?.is_forecast === true;
+  const deadline = day(g.summary?.close_date ?? (forecast ? g.summary?.forecasted_close_date : undefined));
+  const url = `https://simpler.grants.gov/opportunity/${encodeURIComponent(g.opportunity_id)}`;
+  const agency = g.agency_name || g.top_level_agency_name || "";
+  const eligibility = grantText(g.summary?.applicant_eligibility_description);
+  const ceiling = g.summary?.award_ceiling;
+  return {
+    externalId: g.opportunity_id,
+    title,
+    company: agency || NO_PROVIDER,
+    location: "United States",
+    remote: false,
+    description: [summary.slice(0, 1500), eligibility ? `Eligibility: ${eligibility.slice(0, 500)}` : "", ceiling ? `Award ceiling: US$${ceiling.toLocaleString("en-US")}.` : "", forecast ? "Forecasted: not open for applications yet." : "", g.opportunity_number ? `Opportunity ${g.opportunity_number}.` : ""].filter(Boolean).join("\n\n"),
+    tags: [],
+    ...(day(g.summary?.post_date) ? { postedAt: `${day(g.summary?.post_date)}T00:00:00.000Z` } : {}),
+    applyUrl: url,
+    employerSite: true,
+    attributes: { kind: "scholarship", ...(deadline ? { deadline } : {}), currency: "USD", officialUrl: url },
+  };
+}
+
+export async function fetchSimplerGrants(c: SearchCriteria): Promise<Job[]> {
+  const res = await fetch("https://api.simpler.grants.gov/v1/opportunities/search", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json", "X-API-Key": platformKey("SIMPLER_GRANTS_API_KEY") ?? "" },
+    body: JSON.stringify({
+      ...(c.query.trim() ? { query: c.query.trim().slice(0, 100) } : {}),
+      filters: { applicant_type: { one_of: ["individuals"] }, opportunity_status: { one_of: ["posted", "forecasted"] } },
+      pagination: { page_offset: 1, page_size: 100, sort_order: [{ order_by: "close_date", sort_direction: "ascending" }] },
+    }),
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!res.ok) throw new Error(`api.simpler.grants.gov responded ${res.status}`);
+  const body = (await res.json()) as { data?: SimplerGrant[] };
+  return finish(SIMPLER_GRANTS, (body.data ?? []).flatMap((g) => rawFromSimplerGrant(g) ?? []), c);
+}
+
+// ---- clist.by (needs a key) --------------------------------------------------------------------------------------
+
+interface ClistContest {
+  id: number;
+  event: string;
+  host?: string;
+  resource?: string;
+  start?: string;
+  end?: string;
+  duration?: number;
+  href?: string;
+}
+
+/** A clist.by contest as an online project: its platform, start (registration closes then) and the contest's own page. */
+export function rawFromClist(k: ClistContest, today = new Date().toISOString().slice(0, 10)): RawPosting | null {
+  const deadline = day(k.start);
+  let url: URL;
+  try { url = new URL(k.href ?? ""); } catch { return null; }
+  if (url.protocol !== "https:" || !k.event || !deadline || deadline < today) return null;
+  const host = k.host || k.resource || url.hostname;
+  const hours = k.duration ? Math.round(k.duration / 360) / 10 : 0;
+  return {
+    externalId: String(k.id),
+    title: k.event.replace(/\s+/g, " ").trim(),
+    company: host,
+    location: "Online",
+    remote: true,
+    description: [`Programming contest on ${host}.`, k.start ? `Starts ${k.start.replace("T", " ").slice(0, 16)} UTC` + (hours ? `, runs ${hours} h.` : ".") : "", "Listed by clist.by."].filter(Boolean).join(" "),
+    tags: ["Programming contest"],
+    applyUrl: url.toString(),
+    employerSite: true,
+    attributes: { kind: "project", deadline, officialUrl: url.toString(), fields: "Competitive programming" },
+  };
+}
+
+export async function fetchClist(c: SearchCriteria): Promise<Job[]> {
+  const now = new Date().toISOString().slice(0, 19);
+  const list = await getJson<{ objects?: ClistContest[] }>(`https://clist.by/api/v4/contest/?format=json&upcoming=true&start__gt=${now}&order_by=start&limit=100`, { headers: { authorization: `ApiKey ${platformKey("CLIST_USERNAME")}:${platformKey("CLIST_API_KEY")}` } });
+  return finish(CLIST, (list.objects ?? []).flatMap((k) => rawFromClist(k) ?? []), c);
+}
+
 /** Fetch one Scholarships source. Under the E2E fixture only the WonderWorks source is real; outside sources answer nothing. */
 export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria, needsSetup: (m: string) => Error = (m) => new Error(m)): Promise<{ jobs: Job[]; warnings: string[] }> {
   if (fixtureJobsOn() && s.id !== WONDERSTAR_SCHOLARSHIPS) return { jobs: [], warnings: [] };
@@ -540,6 +659,12 @@ export async function runScholarshipSource(s: SourceRecord, c: SearchCriteria, n
     case KAGGLE:
       if (!kaggleAvailable()) throw needsSetup(`${s.name} needs KAGGLE_API_TOKEN (free: kaggle.com → Settings → API → Generate New Token), or the older KAGGLE_USERNAME + KAGGLE_KEY, set in Admin → Keys.`);
       return { jobs: await fetchKaggle(c), warnings: [] };
+    case SIMPLER_GRANTS:
+      if (!simplerGrantsAvailable()) throw needsSetup(`${s.name} needs ${SIMPLER_GRANTS_SETUP}.`);
+      return { jobs: await fetchSimplerGrants(c), warnings: [] };
+    case CLIST:
+      if (!clistAvailable()) throw needsSetup(`${s.name} needs ${CLIST_SETUP}.`);
+      return { jobs: await fetchClist(c), warnings: [] };
     default:
       throw new Error("No connector");
   }

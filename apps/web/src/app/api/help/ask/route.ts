@@ -4,7 +4,7 @@ import { z } from "zod";
 import { HELP_FAQ, HELP_SECTIONS, bestFaq, searchHelp } from "@/content/help";
 import { rateLimit } from "@/server/rateLimit";
 import { requireSession } from "@/server/auth";
-import { platformAI } from "@/server/providers/platform";
+import { loadPlatformAI, platformAI } from "@/server/providers/platform";
 import { getServerProvider } from "@/server/providers";
 
 export const runtime = "nodejs";
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
   const faq = bestFaq(question, best.id);
   const fallback = { answer: faq ? faq.a : best.summary + " " + best.body[0], sectionId: best.id, sectionTitle: best.title, source: "guide" as const };
 
+  await loadPlatformAI();
   const platform = platformAI();
   if (!platform) return NextResponse.json(fallback, { headers: NO_STORE });
   try {

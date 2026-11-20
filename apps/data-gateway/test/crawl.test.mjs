@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { crawlRecords, crawlTargets, pageLinks, parseSitemap } from "../src/crawl.mjs";
-import { parseRobots } from "../src/collect.mjs";
+import { PAGE_ACCEPT, parseRobots } from "../src/collect.mjs";
 import { validateSource } from "../src/core.mjs";
 
 const job = (n) => `<html><script type="application/ld+json">{"@type":"JobPosting","title":"Teacher ${n}","hiringOrganization":{"name":"School ${n}"},"datePosted":"2026-10-30","jobLocation":{"address":{"addressLocality":"Pune"}}}</script></html>`;
@@ -204,10 +204,57 @@ test("sitemapOrder newest reads the last children of a sitemap index (dated site
   assert.deepEqual(read.filter((u) => u.includes("sitemap-")), dated.slice(-5).reverse());
 });
 
+test("newestPages reads only a page sitemap's last N pages, newest first, and carries on from its cursor", async () => {
+  // Listed oldest first, as Buddy4Study's sitemap is: z, y, x, ... a; only the last three (c, b, a) are current.
+  const pages = ["z", "y", "x", "w", "c", "b", "a"].map((p) => "/jobs/" + p);
+  assert.throws(() => validateSource({ ...base, newestPages: 0 }), /newestPages/);
+  assert.throws(() => validateSource({ ...base, discover: "links", url: "https://jobs.example.org/", newestPages: 3 }), /newestPages/);
+  const src = validateSource({ ...base, newestPages: 3, maxPagesPerRun: 2 });
+  assert.equal(src.newestPages, 3);
+  const { calls, deps } = site(pages);
+  const first = await crawlRecords(src, deps);
+  assert.deepEqual(calls.filter((c) => c.includes("/jobs/")), ["https://jobs.example.org/jobs/a", "https://jobs.example.org/jobs/b"]);
+  assert.equal(first.crawl.pages, 3);
+  const again = site(pages);
+  await crawlRecords({ ...src, crawlCursor: first.crawl.cursor }, again.deps);
+  assert.deepEqual(again.calls.filter((c) => c.includes("/jobs/")), ["https://jobs.example.org/jobs/c", "https://jobs.example.org/jobs/a"]);
+  // Without it, pages keep their stable sorted order.
+  const plain = site(pages);
+  await crawlRecords(validateSource({ ...base, maxPagesPerRun: 2 }), plain.deps);
+  assert.deepEqual(plain.calls.filter((c) => c.includes("/jobs/")), ["https://jobs.example.org/jobs/a", "https://jobs.example.org/jobs/b"]);
+  assert.deepEqual(crawlTargets(["https://jobs.example.org/jobs/b", "https://jobs.example.org/jobs/a"], base, [], { keepOrder: true }), ["https://jobs.example.org/jobs/b", "https://jobs.example.org/jobs/a"]);
+});
+
 test("a crawl source may read a Next.js listing from its page data: a dot path, and a mapping that names its title", () => {
   const nd = { ...base, nextDataPath: "props.pageProps.scholarship.scholarship", mapping: { title: "scholarshipMultilinguals.0.title" } };
   assert.equal(validateSource(nd).nextDataPath, "props.pageProps.scholarship.scholarship");
   assert.throws(() => validateSource({ ...nd, nextDataPath: "props..x" }), /nextDataPath/);
   assert.throws(() => validateSource({ ...nd, nextDataPath: "constructor; drop" }), /nextDataPath/);
   assert.throws(() => validateSource({ ...nd, mapping: {} }), /mapping.title/);
+});
+
+test("a crawl asks for pages as HTML, never preferring JSON (Hasgeek answers a JSON-first request with a JSON page that has no JSON-LD); a sitemap is asked for as before", async () => {
+  const asked = [];
+  const src = validateSource({ ...base, discover: "links", url: "https://jobs.example.org/", extraUrls: ["https://jobs.example.org/more/"] });
+  await crawlRecords(src, {
+    robots: async () => parseRobots(""),
+    get: async (url, opts) => { asked.push([url, opts?.accept]); return url.endsWith("/jobs/1") ? job(1) : '<a href="/jobs/1">x</a>'; },
+    sleep: async () => {},
+    now: () => 0,
+  });
+  assert.ok(asked.length >= 3, "the start page, the extra index page and a job page");
+  for (const [url, accept] of asked) assert.equal(accept, PAGE_ACCEPT, url);
+  assert.match(PAGE_ACCEPT, /^text\/html/);
+  assert.doesNotMatch(PAGE_ACCEPT, /json/i);
+  // A sitemap crawl's sitemap is not a page: it keeps the default request, and only its pages ask for HTML.
+  const seen = [];
+  const sm = validateSource({ ...base });
+  await crawlRecords(sm, {
+    robots: async () => parseRobots(""),
+    get: async (url, opts) => { seen.push([url, opts?.accept]); return url.endsWith("sitemap.xml") ? '<urlset><url><loc>https://jobs.example.org/jobs/1</loc></url></urlset>' : job(1); },
+    sleep: async () => {},
+    now: () => 0,
+  });
+  assert.equal(seen.find(([u]) => u.endsWith("sitemap.xml"))[1], undefined);
+  assert.equal(seen.find(([u]) => u.endsWith("/jobs/1"))[1], PAGE_ACCEPT);
 });

@@ -32,18 +32,18 @@ describe("the careers API client", () => {
     const r = await C.listCareerJobs();
     expect(r).toEqual({ state: "ok", data: { site: { name: "WonderWorks careers", retentionMonths: 12 }, jobs: [job] } });
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://jobs.wonderapps.biz/api/careers/v1/jobs");
+    expect(url).toBe("https://works.wonderapps.biz/api/careers/v1/jobs");
     expect(init.headers.authorization).toBe(`Bearer ${KEY}`);
     expect(init.cache).toBe("no-store");
   });
 
   it("accepts an override only on an https *.wonderapps.biz host", () => {
-    expect(C.careersBase(undefined)).toBe("https://jobs.wonderapps.biz");
+    expect(C.careersBase(undefined)).toBe("https://works.wonderapps.biz");
     expect(C.careersBase("https://staging.wonderapps.biz/")).toBe("https://staging.wonderapps.biz");
     expect(C.careersBase("http://staging.wonderapps.biz")).toBeNull();
     expect(C.careersBase("https://evil.example.com")).toBeNull();
     expect(C.careersBase("https://wonderapps.biz.evil.com")).toBeNull();
-    expect(C.careersBase("https://user:pw@jobs.wonderapps.biz")).toBeNull();
+    expect(C.careersBase("https://user:pw@works.wonderapps.biz")).toBeNull();
   });
 
   it("refuses to call anywhere when the override isn't allowed", async () => {
@@ -138,7 +138,7 @@ describe("the careers API client", () => {
     fetchMock.mockResolvedValue(reply(200, { application: { status: "reviewing", statusLabel: "In review", jobTitle: "Engineer", company: "WonderWorks", appliedAt: "x", updatedAt: "x", canWithdraw: true } }));
     await C.careerApplicationStatus(token, "withdraw");
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://jobs.wonderapps.biz/api/careers/v1/applications/status");
+    expect(url).toBe("https://works.wonderapps.biz/api/careers/v1/applications/status");
     expect(url).not.toContain(token);
     expect(JSON.parse(init.body)).toEqual({ token, action: "withdraw" });
     expect(logs.join("\n")).not.toContain(token);

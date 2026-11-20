@@ -48,7 +48,9 @@ describe("Co-founders Find", () => {
     await createTeam(ravi, { name: "Fintech Chaser", idea: "Invoices that chase themselves", stage: "Idea", openRoles: [{ role: "Tech", skills: ["Engineering"] }], open: true });
     const first = await searchCofounders(meera, { query: "fintech", places: [] });
     expect(first.results.map((r) => r.title).sort()).toEqual(["Fintech Chaser", "Fintech backend engineer", "Fintech designer"].sort());
-    expect(first.sources).toEqual([expect.objectContaining({ id: "cof_wonderworks", state: "ok", count: 3 })]);
+    expect(first.sources.find((x) => x.id === "cof_wonderworks")).toMatchObject({ state: "ok", count: 3 });
+    // The outside sources are asked too, and say so: the gateway isn't set up in a test, Reddit and Product Hunt have no key.
+    expect(first.sources.map((x) => x.id).sort()).toEqual(["cof_outside", "cof_producthunt", "cof_reddit", "cof_wonderworks"]);
     expect(JSON.stringify(first)).not.toMatch(/Private Name|private story|u-/);
     // Ravi closes his listing: the cached WorksLake answer can't bring it back.
     await setOpen(ravi, false);

@@ -33,6 +33,8 @@ export interface Job {
   title: string;
   company: string;
   companyDomain?: string;
+  /** The organisation's logo image as the source gave it (an https URL), a hint for the company directory; never shown directly. */
+  companyLogo?: string;
   location: string;
   country: string;
   workMode: WorkMode;

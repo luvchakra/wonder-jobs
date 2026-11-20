@@ -2,6 +2,7 @@ import { ApiError, MODULES, RateLimiter, normalizeAll, logRun, pushAudit, search
 import { fetchRecords } from "./collect.mjs";
 import { uploadListings } from "./upload.mjs";
 import { OPENAPI } from "./openapi.mjs";
+import { createProspects, prospectSettings, updateProspectSettings } from "./prospects.mjs";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" };
 const MAX_BODY = 65536;
@@ -54,18 +55,22 @@ function sourcePublic(s) {
  * The gateway's whole API as one function from a web `Request` to a `Response`, so the standalone Node service and the
  * Next app serve the very same code. `store` has read(fn), change(fn), lazy(fn) and flush(); `env` is the settings
  * (GATEWAY_ADMIN_TOKEN, GATEWAY_CURSOR_SECRET, GATEWAY_ALLOW_EXTERNAL_CONSUMERS, GATEWAY_RATE_LIMIT_PER_MINUTE,
- * GATEWAY_COLLECTORS_ENABLED); `storage` names where state lives, for /v1/health.
+ * GATEWAY_COLLECTORS_ENABLED); `storage` names where state lives, for /v1/health; `prospectHooks` are what the host
+ * adds to the prospect routes (its company directory; tests pass a site reader).
  */
-export function createGateway({ store, env = {}, storage = "local_durable_file", limiter }) {
+export function createGateway({ store, env = {}, storage = "local_durable_file", limiter, prospectHooks = {} }) {
   const adminToken = env.GATEWAY_ADMIN_TOKEN;
   const cursorSecret = env.GATEWAY_CURSOR_SECRET;
   if (!adminToken || adminToken.length < 32 || !cursorSecret || cursorSecret.length < 32 || adminToken === cursorSecret) throw Error("Set GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET to separate 32+ character random secrets");
   const perMinute = Number.isInteger(Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE)) && Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE) > 0 ? Number(env.GATEWAY_RATE_LIMIT_PER_MINUTE) : 120;
   const rate = limiter ?? new RateLimiter(perMinute);
-  const allowExternal = env.GATEWAY_ALLOW_EXTERNAL_CONSUMERS === "1";
+  // Outside consumers (WJ-815): an administrator's setting, off until turned on. A deployment that set the old
+  // variable keeps what it had.
+  const allowExternal = (s) => env.GATEWAY_ALLOW_EXTERNAL_CONSUMERS === "1" || prospectSettings(s).allowExternalConsumers;
   const activeCrawls = new Set();
   // Where listings live: the store's own table when it has one, else the state document.
   const listings = store.listings ?? stateListings(store);
+  const prospects = createProspects({ store, listings, cursorSecret, reply, readBody, hooks: prospectHooks });
 
   async function collectOne(sourceId, testOnly = false, budgetMs = undefined) {
     if (activeCrawls.has(sourceId)) throw new ApiError(409, "CRAWL_IN_PROGRESS", "Collection already running");
@@ -107,7 +112,7 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       await store.change((s) => {
         const src = s.sources.find((x) => x.id === sourceId);
         if (!src) return;
-        if (report.crawl) { src.crawlCursor = report.crawl.cursor; src.lastCrawl = { at: now, pages: report.crawl.pages, read: report.crawl.read, failed: report.crawl.failed }; }
+        if (report.crawl) { src.crawlCursor = report.crawl.cursor; if (report.crawl.watermark) src.crawlWatermark = report.crawl.watermark; src.lastCrawl = { at: now, pages: report.crawl.pages, read: report.crawl.read, failed: report.crawl.failed }; }
         src.lastSuccessAt = now;
         src.lastError = null;
         src.nextRunAt = new Date(Date.now() + src.minIntervalMinutes * 60000).toISOString();
@@ -125,8 +130,13 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     } finally { activeCrawls.delete(sourceId); }
   }
 
+  /** How many sources a long run collects at once (on different sites). */
+  const PARALLEL = 4;
+
   /** Collects every active source that is due. Returns what happened to each, never a secret or a payload. */
-  async function collectDue(budgetMs = 35000, skipModules = [], floorMinutes = 0) {
+  /** `onProgress` (optional, never awaited by the crawl's own pace): `{ type: "due", ids }` once, then `start` and `done` per source. */
+  async function collectDue(budgetMs = 35000, skipModules = [], floorMinutes = 0, onProgress = null) {
+    const tell = (e) => { try { onProgress?.(e); } catch { /* progress never fails a collection */ } };
     // A source feeding only paused modules (Data → Import) waits; one that also feeds a live module runs.
     const paused = new Set(skipModules);
     // `floorMinutes`: the scheduled run collects no source more often than this, whatever its own interval (a plan's budget).
@@ -134,14 +144,35 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
     const due = await store.read((s) => s.sources.filter((x) => x.enabled && x.kind !== "upload" && !x.externalCollection && (!x.nextRunAt || Date.parse(x.nextRunAt) < Date.now()) && rested(x) && !(paused.size && x.modules.every((m) => paused.has(m)))).map((x) => x.id));
     const outcomes = [];
     const started = Date.now();
-    for (const sourceId of due) {
+    tell({ type: "due", ids: due });
+    const push = (o) => { outcomes.push(o); tell({ type: "done", ...o }); };
+    const one = async (sourceId) => {
       // One pass fits one serverless call: a source not started with at least 8 s left waits for the next pass (still
       // due), and the one that starts gets only the time that's left (a crawl's own 45 s cap otherwise).
       const left = budgetMs - (Date.now() - started);
-      if (left < 8000) { outcomes.push({ sourceId, ok: true, code: "DEFERRED" }); continue; }
-      try { outcomes.push({ sourceId, ...(await collectOne(sourceId, false, left)) }); }
-      catch (e) { outcomes.push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
-    }
+      if (left < 8000) { push({ sourceId, ok: true, code: "DEFERRED" }); return; }
+      tell({ type: "start", sourceId });
+      try { const r = await collectOne(sourceId, false, left); push({ sourceId, ...r }); }
+      catch (e) { push({ sourceId, ok: false, code: e.code || "SOURCE_UNAVAILABLE" }); }
+    };
+    // A long run (the GitHub Actions runner's minutes; 2026-11-07, crawl speed) collects up to PARALLEL sources at once,
+    // never two on the same site, so each site still sees one request at a time at its own pace while the waits overlap.
+    // A short (serverless) pass stays one at a time.
+    const parallel = budgetMs > 60000 ? PARALLEL : 1;
+    const hostOf = await store.read((s) => Object.fromEntries(s.sources.map((x) => { try { return [x.id, new URL(x.url).hostname.replace(/^www\./, "")]; } catch { return [x.id, x.id]; } })));
+    const queue = [...due];
+    const busy = new Set();
+    const worker = async () => {
+      for (;;) {
+        const i = queue.findIndex((id) => !busy.has(hostOf[id] ?? id));
+        if (i < 0) { if (!queue.length) return; await new Promise((r) => setTimeout(r, 250)); continue; }
+        const [sourceId] = queue.splice(i, 1);
+        const host = hostOf[sourceId] ?? sourceId;
+        busy.add(host);
+        try { await one(sourceId); } finally { busy.delete(host); }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(parallel, Math.max(1, due.length)) }, worker));
     return outcomes;
   }
 
@@ -161,16 +192,25 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
         if (method === "GET" && is("consumers")) return reply(200, { consumers: await store.read((s) => s.consumers) });
         if (method === "POST" && is("keys")) {
           const input = await readBody(request);
-          return reply(201, await store.change((s) => issueKey(s, input, allowExternal)));
+          return reply(201, await store.change((s) => issueKey(s, input, allowExternal(s))));
         }
         if (method === "POST" && p[2] === "keys" && p.length === 5 && p[4] === "revoke") return reply(200, await store.change((s) => revokeKey(s, p[3])));
         if (method === "POST" && p[2] === "keys" && p.length === 5 && p[4] === "rotate") return reply(201, await store.change((s) => {
           const old = s.keys.find((x) => x.id === p[3] && !x.revokedAt);
           if (!old) throw new ApiError(404, "NOT_FOUND", "Active key not found");
-          const issued = issueKey(s, { consumerId: old.consumerId, scopes: old.scopes, expiresAt: old.expiresAt }, allowExternal);
+          const issued = issueKey(s, { consumerId: old.consumerId, scopes: old.scopes, expiresAt: old.expiresAt }, allowExternal(s));
           revokeKey(s, old.id);
           return issued;
         }));
+        if (method === "GET" && is("settings")) return reply(200, { settings: await store.read((s) => ({ ...prospectSettings(s), allowExternalConsumers: allowExternal(s) })) });
+        if (method === "POST" && is("settings")) {
+          const patch = await readBody(request);
+          return reply(200, { settings: await store.change((s) => {
+            const fields = updateProspectSettings(s, patch);
+            pushAudit(s, { at: new Date().toISOString(), action: "settings.updated", fields });
+            return { ...prospectSettings(s), allowExternalConsumers: allowExternal(s) };
+          }) });
+        }
         if (method === "GET" && is("sources")) return reply(200, { sources: await store.read((s) => s.sources) });
         if (method === "POST" && is("sources")) {
           const created = validateSource(await readBody(request));
@@ -214,15 +254,22 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
           if (action === "ingest") {
             // Records collected outside the app (the weekly GitHub job), checked and mapped like the source's own
             // fetch, then they replace its listings. Counts as the source's test, as a partner upload does.
-            const { items } = await readBody(request, 4_000_000) ?? {};
+            // A bulk collection (WJ-817, Overture Maps) arrives in batches: every batch carries the run's start as
+            // `observedAt`, the ones before the last say `merge: true` (add to what the source holds), and the last
+            // one replaces: whatever this run did not bring goes.
+            const { items, merge, observedAt } = await readBody(request, 4_000_000) ?? {};
             const source = await store.read((s) => s.sources.find((x) => x.id === id));
             if (!source) throw new ApiError(404, "NOT_FOUND", "Unknown source");
             if (source.kind !== "json_api") throw new ApiError(409, "NOT_INGESTIBLE", "Only a JSON source takes delivered records");
             if (!Array.isArray(items) || items.length > 10000) throw new ApiError(400, "INVALID_REQUEST", "items: an array of up to 10,000 records");
-            const startedAt = Date.now(), at = new Date().toISOString();
+            const startedAt = Date.now();
+            if (merge !== undefined && typeof merge !== "boolean") throw new ApiError(400, "INVALID_REQUEST", "merge must be true or false");
+            const given = observedAt === undefined ? null : Date.parse(String(observedAt));
+            if (given !== null && (!Number.isFinite(given) || given > startedAt + 300_000 || given < startedAt - 48 * 3600_000)) throw new ApiError(400, "INVALID_REQUEST", "observedAt must be the run's start, within the last 48 hours");
+            const at = given !== null ? new Date(given).toISOString() : new Date().toISOString();
             const report = normalizeAll(source, items, at, Date.now());
             const ok = report.discovered > 0 && report.valid / report.discovered >= .9;
-            const kept = ok ? await listings.replace(id, report.results, false) : null;
+            const kept = ok ? await listings.replace(id, report.results, merge === true) : null;
             await store.change((s) => {
               const src = s.sources.find((x) => x.id === id);
               if (!src) return;
@@ -267,6 +314,8 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       const caller = await requireConsumer(store, auth);
       const wait = rate.take(caller.id);
       if (wait) throw new ApiError(429, "RATE_LIMITED", "Too many requests; retry in " + wait + "s", { "retry-after": String(wait) });
+      // Prospect data (docs/PROSPECT_DATA_API.md): its own scopes, its own datasets, a tenant on every request.
+      if (p[1] === "prospects") return await prospects.handle(request, caller, p, method);
       const module = p[2];
       if (method === "GET" && p[1] === "modules" && p.length === 2) return reply(200, { modules: MODULES.filter((m) => caller.scopes.includes("read:" + m)) });
       if (method === "GET" && p[1] === "sources" && p.length === 2) {
@@ -287,19 +336,22 @@ export function createGateway({ store, env = {}, storage = "local_durable_file",
       }
       if (method === "GET" && p[1] === "workslake" && p[3] === "listings" && p.length === 4) {
         checkScope(caller, module);
-        const plan = await store.read((s) => searchPlan(s, caller, { module, query: url.searchParams.get("q") || "", locations: url.searchParams.has("location") ? [url.searchParams.get("location")] : [], limit: Math.min(100, Number(url.searchParams.get("limit")) || 100) }, cursorSecret));
-        const result = { results: (await listings.search(plan)).rows };
+        const plan = await store.read((s) => searchPlan(s, caller, { module, query: url.searchParams.get("q") || "", locations: url.searchParams.has("location") ? [url.searchParams.get("location")] : [], limit: Math.min(100, Number(url.searchParams.get("limit")) || 100), ...(url.searchParams.get("cursor") ? { cursor: url.searchParams.get("cursor") } : {}) }, cursorSecret));
+        // Paged (owner, 2026-11-05: Find held at most 100 per module because this answered one page and no more).
+        const found = await listings.search(plan);
+        const result = { results: found.rows, nextCursor: searchResponse(plan, [], found.matched, cursorSecret).nextCursor };
         // Undated items go too: WorksLake records when it first saw them and says so (postedAtFrom "first_seen"), never
         // presenting that as a posting date.
         const countries = await store.read((s) => new Map(s.sources.map((x) => [x.id, sourceCountry(x)])));
         const items = result.results.map((x) => workslakeItem(x, countries.get(x.sourceId) ?? null));
         store.lazy((s) => recordUsage(s, caller, "/v1/workslake", module, items.length));
-        return reply(200, { items });
+        return reply(200, { items, nextCursor: result.nextCursor });
       }
       if (method === "GET" && p[1] === "listings" && p.length === 3) {
         const found = await listings.get(p[2]);
         const entry = found && found.status === "active" && Date.parse(found.expiresAt) > Date.now() ? found : null;
-        if (!entry) throw new ApiError(404, "NOT_FOUND", "Listing unavailable");
+        // A prospect dataset's row is not a module listing: this route never serves it.
+        if (!entry || !MODULES.includes(entry.module)) throw new ApiError(404, "NOT_FOUND", "Listing unavailable");
         checkScope(caller, entry.module);
         const allowed = await store.read((s) => s.sources.some((x) => x.id === entry.sourceId && x.enabled && x.redistributionAllowed && (caller.consumerId === "workslake" || x.externalRedistributionAllowed)));
         if (!allowed) throw new ApiError(404, "NOT_FOUND", "Listing unavailable");

@@ -1,15 +1,29 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { nearestCity } from "./places.mjs";
 
 export const MODULES = Object.freeze(["jobs", "internships", "teaching", "services", "therapists", "cofounders", "events", "marketplace", "scholarships"]);
+/**
+ * Prospect datasets (WJ-815, docs/PROSPECT_DATA_API.md): organisations and public outlets served only by the
+ * /v1/prospects/ routes. They are not modules: no WonderWorks module list, admin module card, /v1/search or the
+ * compatibility route can read them, and a prospect route never reads a module.
+ */
+export const PROSPECT_DATASETS = Object.freeze(["businesses", "channels"]);
+/** What a channel can be (docs/PROSPECT_DATA_API.md): a named public outlet or gathering, never a person's profile. */
+export const CHANNEL_TYPES = Object.freeze(["youtube_channel", "podcast", "community", "newsletter", "forum", "publication", "event", "organisation"]);
+export const PROSPECT_SCOPES = Object.freeze(["read:businesses", "read:channels", "read:signals", "lookup:enrich", "lookup:contacts"]);
 const SENSITIVE = new Set(["therapists", "cofounders", "services", "marketplace"]);
 /** Modules that may take public business listings from open data (OpenStreetMap…) without per-person opt-in. Marketplace: a shop's or dealer's own catalogue (never a private seller). */
 const PUBLIC_BUSINESS_MODULES = new Set(["services", "therapists", "marketplace"]);
+// Co-founders (owner, 2026-11-07): public posts people wrote for others to see (their public handle only, contact details removed)
+// and company-level listings (a startup, never its founders). Never a person's profile.
+const PUBLIC_POST_MODULES = new Set(["cofounders"]);
+const PUBLIC_COMPANY_MODULES = new Set(["cofounders"]);
 const VALID_KINDS = new Set(["json_api", "rss", "structured", "crawl", "upload"]);
 const VALID_PERMISSION = new Set(["terms_permit", "granted_in_writing"]);
 const MAX_PAGE = 100;
-export const initial = () => ({ version: 1, sources: [], listings: [], consumers: [{ id: "workslake", name: "WorksLake", createdAt: new Date().toISOString() }], keys: [], usage: [], audits: [], runs: [] });
+export const initial = () => ({ version: 1, sources: [], listings: [], consumers: [{ id: "workslake", name: "WorksLake", createdAt: new Date().toISOString() }], keys: [], usage: [], audits: [], runs: [], settings: {} });
 
 export class ApiError extends Error {
   constructor(status, code, message, headers = {}) { super(message); this.status = status; this.code = code; this.headers = headers; }
@@ -86,7 +100,10 @@ export function checkScope(key, module) {
 export function issueKey(state, { consumerId = "workslake", scopes, expiresAt }, allowExternal = false) {
   if (consumerId !== "workslake" && !allowExternal) throw new ApiError(403, "FORBIDDEN", "External consumers are disabled");
   if (!/^[a-z][a-z0-9_-]{1,63}$/.test(consumerId)) throw new ApiError(400, "INVALID_REQUEST", "Invalid consumer ID");
-  if (!Array.isArray(scopes) || !scopes.length || scopes.some((s) => !MODULES.some((m) => s === "read:" + m))) throw new ApiError(400, "INVALID_REQUEST", "Invalid scopes");
+  const moduleScope = (s) => MODULES.some((m) => s === "read:" + m);
+  if (!Array.isArray(scopes) || !scopes.length || scopes.some((s) => !moduleScope(s) && !PROSPECT_SCOPES.includes(s))) throw new ApiError(400, "INVALID_REQUEST", "Invalid scopes");
+  // A key reads WorksLake's modules or the prospect data, never both, so neither side can reach the other's rows.
+  if (scopes.some(moduleScope) && scopes.some((s) => PROSPECT_SCOPES.includes(s))) throw new ApiError(400, "INVALID_REQUEST", "A key holds module scopes or prospect scopes, not both");
   if (expiresAt && (!Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.now())) throw new ApiError(400, "INVALID_REQUEST", "Invalid expiration");
   if (!state.consumers.find((c) => c.id === consumerId)) state.consumers.push({ id: consumerId, name: consumerId, createdAt: iso() });
   const raw = "wlg_" + randomBytes(32).toString("hex");
@@ -109,13 +126,27 @@ export function validateSource(source) {
   try { url = new URL(source.url); } catch { throw new ApiError(400, "INVALID_REQUEST", "Valid HTTPS source URL required"); }
   if (url.protocol !== "https:" || url.port || url.username || url.password || !/^[a-z0-9.-]+$/i.test(url.hostname)) throw new ApiError(400, "INVALID_REQUEST", "Public HTTPS source URL required");
   if (!VALID_KINDS.has(source.kind)) throw new ApiError(400, "INVALID_REQUEST", "Invalid source method");
-  if (!Array.isArray(source.modules) || !source.modules.length || source.modules.some((m) => !MODULES.includes(m))) throw new ApiError(400, "INVALID_REQUEST", "Invalid module assignment");
+  // A source may also feed a prospect dataset (each binding stated in its definition), or feed only a dataset.
+  const datasets = source.datasets === undefined ? [] : source.datasets;
+  if (!Array.isArray(datasets) || datasets.some((d) => !PROSPECT_DATASETS.includes(d))) throw new ApiError(400, "INVALID_REQUEST", "datasets: businesses or channels");
+  if (!Array.isArray(source.modules) || (!source.modules.length && !datasets.length) || source.modules.some((m) => !MODULES.includes(m))) throw new ApiError(400, "INVALID_REQUEST", "Invalid module assignment");
+  // Organisations only: a businesses binding needs a source of public business or company listings, never people's profiles.
+  if (datasets.includes("businesses") && source.publicBusinesses !== true && source.publicCompanies !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "The businesses dataset takes only public business or company listings");
+  // What a source's rows are in the channels dataset (WJ-823): an events source feeds it as "event", a forum list as "forum".
+  if (source.channelType !== undefined && (!datasets.includes("channels") || !CHANNEL_TYPES.includes(source.channelType))) throw new ApiError(400, "INVALID_REQUEST", "channelType: one of " + CHANNEL_TYPES.join(", ") + ", on a source bound to channels");
+  if (source.datasetMapping !== undefined) {
+    const dm = source.datasetMapping;
+    if (!dm || typeof dm !== "object" || Array.isArray(dm) || !datasets.length || source.kind !== "json_api" || Object.keys(dm).some((k) => !/^attr\.\w{1,40}$/.test(k))) throw new ApiError(400, "INVALID_REQUEST", "datasetMapping: attr.<field> paths, on a JSON source bound to a dataset");
+    if (Object.values(dm).some((v) => !(typeof v === "string" && v.length <= 100) && !(Array.isArray(v) && v.length >= 1 && v.length <= 5 && v.every((x) => typeof x === "string" && x.length <= 100)))) throw new ApiError(400, "INVALID_REQUEST", "Mapping paths must be short strings, or a list of up to 5");
+  }
   if (!VALID_PERMISSION.has(source.permission) || source.termsReviewed !== true || source.redistributionAllowed !== true || typeof source.permissionEvidence !== "string" || source.permissionEvidence.trim().length < 8) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Documented permission and display rights required");
   if ((source.kind === "structured" || source.kind === "crawl") && source.robotsReviewed !== true) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Robots review required");
   if (source.kind === "crawl") {
     if (!["sitemap", "links"].includes(source.discover)) throw new ApiError(400, "INVALID_REQUEST", "A crawl needs discover: sitemap or links");
     if (source.pathPrefix !== undefined && (typeof source.pathPrefix !== "string" || !source.pathPrefix.startsWith("/") || source.pathPrefix.length > 200)) throw new ApiError(400, "INVALID_REQUEST", "pathPrefix must be a path starting with /");
     if (source.sitemapOrder !== undefined && !["first", "newest"].includes(source.sitemapOrder)) throw new ApiError(400, "INVALID_REQUEST", "sitemapOrder must be first or newest");
+    // A page sitemap that lists its newest pages last (Buddy4Study's): only its last N pages are read, newest first.
+    if (source.newestPages !== undefined && (!Number.isInteger(source.newestPages) || source.newestPages < 1 || source.newestPages > 5000 || source.discover !== "sitemap")) throw new ApiError(400, "INVALID_REQUEST", "newestPages must be 1-5000, on a sitemap crawl");
     if (source.pathPattern !== undefined && (typeof source.pathPattern !== "string" || !source.pathPattern.startsWith("/") || source.pathPattern.length > 200)) throw new ApiError(400, "INVALID_REQUEST", "pathPattern must be a path pattern starting with /");
     // A Next.js site's listing inside its page data: a dot path, read through the source's mapping (which must name a title).
     if (source.nextDataPath !== undefined && (typeof source.nextDataPath !== "string" || !/^[A-Za-z_$][\w$]*(\.[A-Za-z_$\d][\w$]*){0,9}$/.test(source.nextDataPath))) throw new ApiError(400, "INVALID_REQUEST", "nextDataPath must be a dot path like props.pageProps.item");
@@ -135,7 +166,13 @@ export function validateSource(source) {
   // source — Talent & Services and Therapists only, never people's profiles (Co-founders) or private sellers.
   const publicBusinesses = source.publicBusinesses === true && source.modules.every((m) => PUBLIC_BUSINESS_MODULES.has(m));
   if (source.publicBusinesses === true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Public business listings are allowed only for services, therapists and marketplace");
-  if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true && !publicBusinesses) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights, or public business listings from open data (services, therapists, marketplace)");
+  const publicPosts = source.publicPosts === true && source.modules.every((m) => PUBLIC_POST_MODULES.has(m));
+  if (source.publicPosts === true && !publicPosts) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Public posts are allowed only for co-founders");
+  if (publicPosts && source.scrubContacts !== true) throw new ApiError(400, "INVALID_REQUEST", "A public-posts source needs scrubContacts: true, so no email address or phone number is kept");
+  const publicCompanies = source.publicCompanies === true && source.modules.every((m) => PUBLIC_COMPANY_MODULES.has(m));
+  if (source.publicCompanies === true && !publicCompanies) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Company listings are allowed only for co-founders");
+  if (source.scrubContacts !== undefined && typeof source.scrubContacts !== "boolean") throw new ApiError(400, "INVALID_REQUEST", "scrubContacts must be true or false");
+  if (source.modules.some((m) => SENSITIVE.has(m)) && source.consentVerified !== true && !publicBusinesses && !publicPosts && !publicCompanies) throw new ApiError(403, "SOURCE_NOT_PERMITTED", "Sensitive modules require verified opt-in and rights, or public business listings from open data (services, therapists, marketplace)");
   if (source.kind === "json_api" && (!source.mapping || typeof source.mapping !== "object" || typeof source.itemsPath !== "string")) throw new ApiError(400, "INVALID_REQUEST", "API requires itemsPath and mapping");
   if (source.kind === "json_api" && source.nextPath !== undefined) {
     if (typeof source.nextPath !== "string" || !/^[\w.]{1,100}$/.test(source.nextPath)) throw new ApiError(400, "INVALID_REQUEST", "nextPath must be a dot path like links.next");
@@ -158,6 +195,19 @@ export function validateSource(source) {
       if (x.protocol !== "https:" || x.hostname !== url.hostname || x.username || x.password || x.port) throw new ApiError(400, "INVALID_REQUEST", "extraUrls must be HTTPS on the source's own host");
     }
   }
+  // Per-module filter (owner, 2026-11-05: Buddy4Study's internships belong in Internships, its scholarships in
+  // Scholarships): each listed module keeps only the items whose field matches (or, negated, doesn't match).
+  if (source.moduleFilter !== undefined) {
+    const mf = source.moduleFilter;
+    if (!mf || typeof mf !== "object" || Array.isArray(mf)) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter must be an object keyed by module");
+    for (const [m, f] of Object.entries(mf)) {
+      if (!(source.modules ?? []).includes(m) && !datasets.includes(m)) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter names a module the source isn't in");
+      if (!f || typeof f.field !== "string" || !/^(title|organization|attr\.\w{1,40})$/.test(f.field) || (f.field.startsWith("attr.") && !source.mapping?.[f.field])) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.field must be title, organization or a mapped attr.<field>");
+      if (typeof f.match !== "string" || !f.match || f.match.length > 200) throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.match must be a pattern of 1-200 characters");
+      try { new RegExp(f.match, "i"); } catch { throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.match isn't a valid pattern"); }
+      if (f.negate !== undefined && typeof f.negate !== "boolean") throw new ApiError(400, "INVALID_REQUEST", "moduleFilter.negate must be true or false");
+    }
+  }
   if (source.dropPastAfter !== undefined && (typeof source.dropPastAfter !== "string" || !/^\w{1,40}$/.test(source.dropPastAfter) || !(source.mapping?.["attr." + source.dropPastAfter] || ((source.kind === "crawl" || source.kind === "structured") && ["startDate", "endDate"].includes(source.dropPastAfter))))) throw new ApiError(400, "INVALID_REQUEST", "dropPastAfter must name a mapped attr.<field>");
   if (source.mapping && Object.values(source.mapping).some((v) => !(typeof v === "string" && v.length <= 100) && !(Array.isArray(v) && v.length >= 1 && v.length <= 5 && v.every((x) => typeof x === "string" && x.length <= 100)))) throw new ApiError(400, "INVALID_REQUEST", "Mapping paths must be short strings, or a list of up to 5");
   if (source.requestDelayMs !== undefined && (!Number.isInteger(source.requestDelayMs) || source.requestDelayMs < 250 || source.requestDelayMs > 5000)) throw new ApiError(400, "INVALID_REQUEST", "requestDelayMs must be 250-5000");
@@ -167,7 +217,7 @@ export function validateSource(source) {
   if (!Number.isInteger(retentionHours) || retentionHours < 1 || retentionHours > 720) throw new ApiError(400, "INVALID_REQUEST", "Retention must be 1-720 hours");
   const minIntervalMinutes = Number(source.minIntervalMinutes ?? 120);
   if (!Number.isInteger(minIntervalMinutes) || minIntervalMinutes < 15 || minIntervalMinutes > 10080) throw new ApiError(400, "INVALID_REQUEST", "Crawl interval must be 15-10080 minutes");
-  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.timezone ? { timezone: source.timezone } : {}), ...(source.geography?.length ? { geography: [...new Set(source.geography)] } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), ...(source.sitemapOrder ? { sitemapOrder: source.sitemapOrder } : {}), ...(source.nextDataPath ? { nextDataPath: source.nextDataPath } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
+  return { id: id("src"), url: url.toString(), kind: source.kind, modules: [...new Set(source.modules)], ...(datasets.length ? { datasets: [...new Set(datasets)] } : {}), ...(source.datasetMapping ? { datasetMapping: { ...source.datasetMapping } } : {}), ...(source.channelType ? { channelType: source.channelType } : {}), permission: source.permission, permissionEvidence: source.permissionEvidence.trim().slice(0, 500), termsReviewed: true, robotsReviewed: source.robotsReviewed === true, redistributionAllowed: true, externalRedistributionAllowed: source.externalRedistributionAllowed === true, consentVerified: source.consentVerified === true, ...(source.publicBusinesses === true ? { publicBusinesses: true } : {}), attribution: String(source.attribution || url.hostname).slice(0, 180), itemsPath: source.itemsPath || "", mapping: source.mapping || {}, titleCompanyPrefix: source.titleCompanyPrefix === true, allRemote: source.allRemote === true, organizationOptional: source.organizationOptional === true, ...(source.requestDelayMs ? { requestDelayMs: source.requestDelayMs } : {}), ...(source.extraUrls ? { extraUrls: [...new Set(source.extraUrls)] } : {}), ...(source.dropPastAfter ? { dropPastAfter: source.dropPastAfter } : {}), ...(source.moduleFilter ? { moduleFilter: Object.fromEntries(Object.entries(source.moduleFilter).map(([m, f]) => [m, { field: f.field, match: f.match, ...(f.negate ? { negate: true } : {}) }])) } : {}), ...(source.timezone ? { timezone: source.timezone } : {}), ...(source.geography?.length ? { geography: [...new Set(source.geography)] } : {}), ...(source.kind === "json_api" && source.nextPath ? { nextPath: source.nextPath, maxPagesPerRun: Number(source.maxPagesPerRun ?? 5), crawlCursor: null } : {}), ...(source.kind === "crawl" ? { discover: source.discover, pathPrefix: source.pathPrefix || "/", ...(source.pathPattern ? { pathPattern: source.pathPattern } : {}), ...(source.sitemap ? { sitemap: new URL(source.sitemap).toString() } : {}), ...(source.sitemapOrder ? { sitemapOrder: source.sitemapOrder } : {}), ...(source.newestPages ? { newestPages: source.newestPages } : {}), ...(source.nextDataPath ? { nextDataPath: source.nextDataPath } : {}), maxPagesPerRun: Number(source.maxPagesPerRun ?? 20), crawlDelayMs: Number(source.crawlDelayMs ?? 1000), crawlCursor: 0 } : {}), retentionHours, minIntervalMinutes, enabled: false, nextRunAt: null, lastSuccessAt: null, lastError: null, createdAt: iso() };
 }
 /** Source text as plain text: no markup (even markup that arrived escaped), no script/style bodies, single spaces. */
 export function plainText(value) {
@@ -246,6 +296,20 @@ export function countryName(v) {
   if (!/^[A-Z]{2}$/.test(v) || !regionNames) return v;
   try { const n = regionNames.of(v); return n && n !== v ? n : v; } catch { return v; }
 }
+/**
+ * Text with the ways to reach a person taken out: email addresses (also written "name [at] host dot com"), phone numbers,
+ * and handles of messaging apps ("telegram: @x", "whatsapp +91..."). For sources of people's public posts, where the post
+ * may carry the author's own contact details; those are never kept (owner, 2026-11-07).
+ */
+export function scrubContacts(text) {
+  return String(text ?? "")
+    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, " ")
+    .replace(/[\w.+-]+\s*[[(]\s*at\s*[\])]\s*[\w-]+(?:\s*(?:\.|[[(]\s*dot\s*[\])])\s*[\w-]+)+/gi, " ")
+    .replace(/(?:whats\s?app|telegram|signal|skype|discord|wechat|dm me|call me|text me)[^\n.]{0,40}/gi, " ")
+    .replace(/\+?\d[\d ().-]{7,}\d/g, (m) => (m.replace(/\D/g, "").length < 9 || /^\d{4}-\d{2}-\d{2}/.test(m) || /^\d{4}\s?[-–]\s?\d{4}$/.test(m) ? m : " "))
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
 export function normalize(source, raw, module, observedAt = iso()) {
   // An unmapped field is absent, never the whole record; and only text, numbers and booleans count as values.
   const one = (path) => {
@@ -274,8 +338,9 @@ export function normalize(source, raw, module, observedAt = iso()) {
     return parts.length ? parts.join(", ") : undefined;
   };
   const field = (name) => source.kind === "json_api" ? value(source.mapping[name]) : raw && ["string", "number", "boolean"].includes(typeof raw[name]) ? raw[name] : undefined;
-  let title = plainText(field("title")).slice(0, 240);
-  let organization = plainText(field("organization") ?? field("employer")).slice(0, 200);
+  const scrub = (t) => (source.scrubContacts === true ? scrubContacts(t) : t);
+  let title = scrub(plainText(field("title"))).slice(0, 240);
+  let organization = scrub(plainText(field("organization") ?? field("employer"))).slice(0, 200);
   // A feed that names the company only as "Company: Title" says so in its own format; the source opts in to reading it.
   if (!organization && source.titleCompanyPrefix) {
     const at = title.indexOf(": ");
@@ -294,7 +359,7 @@ export function normalize(source, raw, module, observedAt = iso()) {
   const orgUrl = String(field("organizationUrl") ?? "").trim();
   const domainOf = (u) => { try { const h = new URL(/^https?:\/\//i.test(u) ? u : "https://" + u).hostname.toLowerCase().replace(/^www\./, ""); return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(h) ? h : ""; } catch { return ""; } };
   const organizationDomain = domainOf(orgUrl) || (source.organizationOptional ? domainOf(parsed.toString()) : "");
-  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: richText(field("description")).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: withZone(source, attributesOf(source, value, raw)), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
+  return { id: module + "_" + unique, module, sourceId: source.id, sourceName: source.attribution, sourceMethod: source.kind, title, organization, location: plainText(field("location")).slice(0, 180), description: scrub(richText(field("description"))).slice(0, 12000), canonicalUrl: parsed.toString(), publishedAt, observedAt, expiresAt: new Date(Date.parse(observedAt) + source.retentionHours * 3600000).toISOString(), remote: source.allRemote === true || field("remote") === true || field("remote") === "true", externalRedistributionAllowed: source.externalRedistributionAllowed, attributes: withZone(source, attributesOf(source, value, raw)), ...(organizationDomain ? { organizationDomain } : {}), status: "active" };
 }
 function signCursor(payload, secret) {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -333,10 +398,17 @@ export function matchesWords(text, query) {
   const t = String(text ?? "").toLowerCase();
   return queryWords(query).every((w) => t.includes(w));
 }
+/** What a listing is searched by: its words, and for a prospect dataset row its tokens (category and contact marks). */
+export const listingText = (x) => x.title + " " + x.description + " " + x.organization + " " + (x.attributes?.breadcrumb ?? "") + (x.tokens ? " " + x.tokens : "");
+/** A prospect search's token filters: every `all` token present, and one token of each `anyOf` group. Other searches have neither. */
+export function matchesTokens(text, plan) {
+  const t = String(text ?? "").toLowerCase();
+  return (plan.all ?? []).every((k) => t.includes(k)) && (plan.anyOf ?? []).every((group) => !group.length || group.some((k) => t.includes(k)));
+}
 /** The search as an in-memory filter (a file store; tests). A database store runs the same filter in SQL. */
 export function filterListings(listings, plan, now = Date.now()) {
   const allowed = new Set(plan.sourceIds);
-  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && matchesWords(x.title + " " + x.description + " " + x.organization + " " + (x.attributes?.breadcrumb ?? ""), plan.query) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
+  const all = listings.filter((x) => x.module === plan.module && allowed.has(x.sourceId) && x.status === "active" && Date.parse(x.expiresAt) > now && matchesWords(listingText(x), plan.query) && matchesTokens(listingText(x), plan) && (!plan.locations.length || plan.locations.some((l) => x.location.toLowerCase().includes(l)))).sort((a, b) => (b.publishedAt || b.observedAt).localeCompare(a.publishedAt || a.observedAt) || a.id.localeCompare(b.id));
   return { rows: all.slice(plan.offset, plan.offset + plan.limit), matched: all.length };
 }
 export function search(state, consumer, payload, secret) {
@@ -354,8 +426,11 @@ export function stateListings(store) {
     async get(id) { return store.read((s) => s.listings.find((x) => x.id === id)); },
     async replace(sourceId, results, merge) {
       const fresh = new Set(results.map((x) => x.id));
+      // As the database store does: a run that replaces removes what is older than the run, so the earlier batches of
+      // one bulk run (delivered with merge, the same observedAt) stay when its last batch replaces (WJ-817).
+      const runAt = results.reduce((m, l) => (l.observedAt < m ? l.observedAt : m), new Date().toISOString());
       return store.change((s) => {
-        s.listings = s.listings.filter((x) => x.sourceId !== sourceId || (merge && !fresh.has(x.id))).concat(results).filter((x) => Date.parse(x.expiresAt) > Date.now());
+        s.listings = s.listings.filter((x) => x.sourceId !== sourceId || (!fresh.has(x.id) && (merge || x.observedAt >= runAt))).concat(results).filter((x) => Date.parse(x.expiresAt) > Date.now());
         return s.listings.filter((x) => x.sourceId === sourceId).length;
       });
     },
@@ -369,11 +444,14 @@ export function stateListings(store) {
     },
   };
 }
-export function recordUsage(state, consumer, route, module, results = 0) {
+export function recordUsage(state, consumer, route, module, results = 0, extra = undefined) {
   const day = iso().slice(0, 10);
-  let item = state.usage.find((u) => u.day === day && u.consumerId === consumer.consumerId && u.keyId === consumer.id && u.route === route && u.module === module);
-  if (!item) state.usage.push(item = { day, consumerId: consumer.consumerId, keyId: consumer.id, route, module, count: 0, results: 0 });
+  // A prospect route also records whose request it was (an opaque tenant id) and the paid units spent: counts only.
+  const tenant = extra?.tenant ?? undefined;
+  let item = state.usage.find((u) => u.day === day && u.consumerId === consumer.consumerId && u.keyId === consumer.id && u.route === route && u.module === module && u.tenant === tenant);
+  if (!item) state.usage.push(item = { day, consumerId: consumer.consumerId, keyId: consumer.id, route, module, ...(tenant ? { tenant, units: 0 } : {}), count: 0, results: 0 });
   item.count++; item.results += results;
+  if (tenant) item.units = (item.units ?? 0) + (extra?.units ?? 0);
   state.usage = state.usage.filter((u) => Date.parse(u.day) > Date.now() - 93 * 86400000);
 }
 
@@ -411,18 +489,41 @@ export function logRun(state, run) {
  */
 export function normalizeAll(source, items, observedAt, now = Date.now()) {
   const out = [], seen = new Set();
-  let repeats = 0, past = 0;
+  let repeats = 0, past = 0, filtered = 0;
   const today = new Date(now); today.setUTCHours(0, 0, 0, 0);
-  for (const module of source.modules) for (const item of items) {
-    const n = normalize(source, item, module, observedAt);
+  const one = (from, item, module) => {
+    const n = normalize(from, item, module, observedAt);
+    if (n && !keepForModule(source, module, n)) { filtered++; return; }
     if (n && source.dropPastAfter) {
       const when = Date.parse(String(n.attributes?.[source.dropPastAfter] ?? ""));
-      if (Number.isFinite(when) && when < today.getTime()) { past++; continue; }
+      if (Number.isFinite(when) && when < today.getTime()) { past++; return; }
     }
     if (n && seen.has(n.id)) repeats++;
-    else if (n) { seen.add(n.id); out.push(n); }
-  }
-  return { results: out, valid: out.length, repeats, past, discovered: items.length * source.modules.length - repeats - past };
+    else if (n) {
+      seen.add(n.id);
+      // A channels row says what kind of outlet it is, from its source's definition; a module's row is untouched.
+      if (module === "channels" && source.channelType) n.attributes = { ...n.attributes, channelType: source.channelType };
+      out.push(PROSPECT_DATASETS.includes(module) ? datasetRow(n) : n);
+    }
+  };
+  for (const module of source.modules) for (const item of items) one(source, item, module);
+  // What the source's own modules gave is what its quality is judged by, exactly as before it fed a dataset.
+  const judged = source.modules.length ? { valid: out.length, repeats, past, filtered, discovered: items.length * source.modules.length - repeats - past - filtered } : null;
+  // A dataset binding reads the same records again with the dataset's extra fields, as rows of the dataset.
+  const datasets = source.datasets ?? [];
+  const forDataset = datasets.length && source.datasetMapping ? { ...source, mapping: { ...source.mapping, ...source.datasetMapping } } : source;
+  for (const dataset of datasets) for (const item of items) one(forDataset, item, dataset);
+  if (judged) return { results: out, ...judged, ...(datasets.length ? { datasetRows: out.length - judged.valid } : {}) };
+  return { results: out, valid: out.length, repeats, past, filtered, discovered: items.length * datasets.length - repeats - past - filtered };
+}
+
+/** A source's per-module filter (validateSource): whether this listing belongs in this module. No filter keeps it. */
+export function keepForModule(source, module, n) {
+  const f = source.moduleFilter?.[module];
+  if (!f) return true;
+  const value = f.field === "title" ? n.title : f.field === "organization" ? n.organization : n.attributes?.[f.field.slice(5)];
+  const hit = new RegExp(f.match, "i").test(String(value ?? ""));
+  return f.negate ? !hit : hit;
 }
 
 /** Keeps the audit trail to its newest entries, so the state document stays small. */
@@ -430,4 +531,79 @@ export const MAX_AUDITS = 1000;
 export function pushAudit(state, entry) {
   state.audits.push(entry);
   if (state.audits.length > MAX_AUDITS) state.audits.splice(0, state.audits.length - MAX_AUDITS);
+}
+
+const CATEGORY_ALIASES = Object.freeze({
+  plumbing: "plumber", plumbers: "plumber", electricians: "electrician", electrical: "electrician", hvacservice: "hvac", airconditioning: "hvac", acrepair: "hvac", acservice: "hvac",
+  painting: "painter", painters: "painter", carpentry: "carpenter", carpenters: "carpenter", roofing: "roofer", tiling: "tiler",
+  appliancerepairservice: "appliancerepair", pestcontrolservice: "pestcontrol", homecleaning: "cleaning", cleaningservice: "cleaning", janitorialservice: "cleaning",
+  electronicsrepairshop: "electronicsrepair", solarinstallation: "solar", itserviceandcomputerrepair: "itservices", computerrepair: "itservices", mobilephonerepair: "mobilerepair",
+  interiordesign: "interiordesigner", keyandlocksmith: "locksmith", waterpurificationservice: "waterpurifier", homesecurity: "securitysystems", elevatorservice: "elevator",
+  fitnesscommunity: "fitnesscommunity", retailwholesale: "retailwholesale",
+});
+/**
+ * A category as a tag: lower case, letters and digits only ("electronics_repair" and "Electronics repair" are one), and
+ * one tag for the names sources use for the same trade ("plumbing" and "plumber"; WJ-817).
+ */
+export const categoryTag = (v) => { const t = String(v ?? "").toLowerCase().replace(/[^a-z0-9]+/g, ""); return CATEGORY_ALIASES[t] ?? t; };
+/** A listing's stated categories (OpenStreetMap's craft, a source's own category), as tags. */
+export function categoriesOf(listing) {
+  const a = listing.attributes ?? {};
+  const raw = [a.craft, a.category, a.shop, a.office, a.amenity].filter((v) => typeof v === "string").flatMap((v) => v.split(/[;,|]/));
+  return [...new Set(raw.map(categoryTag).filter((t) => t.length >= 2 && t.length <= 40))].slice(0, 8);
+}
+/** A website a source states, as an https/http URL; "" when it isn't one. */
+export function websiteOf(listing) {
+  const a = listing.attributes ?? {};
+  for (const v of [a.website, a.contactWebsite]) {
+    if (typeof v !== "string" || !v.trim()) continue;
+    try {
+      const u = new URL(/^https?:\/\//i.test(v.trim()) ? v.trim() : "https://" + v.trim());
+      if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(u.hostname) && !u.username && !u.password) return u.toString();
+    } catch { /* not a URL: left out */ }
+  }
+  return "";
+}
+/** A website's host as a search token ("domq<host, letters and digits>q"), so a row is found by its organisation's domain. */
+export function domainToken(urlOrDomain) {
+  let host = String(urlOrDomain ?? "").trim().toLowerCase();
+  try { host = new URL(/^https?:\/\//.test(host) ? host : "https://" + host).hostname; } catch { return ""; }
+  const key = host.replace(/^www\./, "").replace(/[^a-z0-9]/g, "");
+  return key.length >= 4 && key.length <= 60 ? "domq" + key + "q" : "";
+}
+/**
+ * A prospect dataset's row: the listing as normalised, plus the nearest listed city when its address names none (the
+ * map point decides, as the app does for Talent & Services; marked `cityDerived`), and the tokens a prospect search
+ * filters by: `catq<tag>q` per category, `hasqwebsiteq`, `hasqphoneq`, `hasqemailq`, `domq<host>q`. Nothing else is derived.
+ */
+export function datasetRow(n) {
+  const a = { ...(n.attributes ?? {}) };
+  const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() && Number.isFinite(Number(v)) ? Number(v) : undefined);
+  const lat = num(a.lat) ?? num(a.clat), lon = num(a.lon) ?? num(a.clon);
+  let location = n.location;
+  if (!(typeof a.city === "string" && a.city.trim())) {
+    const near = lat !== undefined && lon !== undefined ? nearestCity(lat, lon) : undefined;
+    if (near) {
+      a.city = near.name; a.cityDerived = true;
+      if (!location.toLowerCase().includes(near.name.toLowerCase())) location = [location, near.name].filter(Boolean).join(", ").slice(0, 180);
+    }
+  }
+  const site = websiteOf({ attributes: a });
+  const tokens = [...categoriesOf({ attributes: a }).map((t) => "catq" + t + "q"), typeof a.channelType === "string" && CHANNEL_TYPES.includes(a.channelType) ? "catq" + categoryTag(a.channelType) + "q" : "", site ? "hasqwebsiteq" : "", site ? domainToken(site) : "", [a.phone, a.contactPhone].some((v) => typeof v === "string" && v.replace(/\D/g, "").length >= 7) ? "hasqphoneq" : "", [a.email, a.contactEmail].some((v) => typeof v === "string" && /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim())) ? "hasqemailq" : ""].filter(Boolean).join(" ");
+  return { ...n, location, attributes: a, ...(tokens ? { tokens } : {}) };
+}
+
+/**
+ * The parts of a reviewed definition that a registered source takes when its file changes (WJ-815): whether outside
+ * consumers may see it, its dataset bindings, the dataset's extra fields and the permission evidence. Everything else a
+ * registered source keeps as it was added. Returns the fields that changed; the source is checked again as a whole.
+ */
+export const RECONCILED_FIELDS = Object.freeze(["externalRedistributionAllowed", "datasets", "datasetMapping", "channelType", "permissionEvidence"]);
+export function reconcileSource(stored, definition) {
+  const next = { ...stored };
+  for (const f of RECONCILED_FIELDS) { if (definition[f] === undefined) delete next[f]; else next[f] = definition[f]; }
+  const checked = validateSource(next);
+  const changed = RECONCILED_FIELDS.filter((f) => JSON.stringify(checked[f] ?? null) !== JSON.stringify(stored[f] ?? null));
+  for (const f of changed) { if (checked[f] === undefined) delete stored[f]; else stored[f] = checked[f]; }
+  return changed;
 }

@@ -1,3 +1,4 @@
+import { loadPlatformKeys } from "@/server/jobslake/platformKeys";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/server/auth";
@@ -16,6 +17,7 @@ const Body = z.object({
 export async function GET() {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
+  await loadPlatformKeys();
   const publicKey = pushPublicKey();
   const subscriptions = publicKey && getSupabaseAdmin() ? await countSubscriptions(session.tenantId).catch(() => 0) : 0;
   return NextResponse.json({ publicKey, configured: Boolean(publicKey && getSupabaseAdmin()), subscriptions }, { headers: { "cache-control": "no-store" } });

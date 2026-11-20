@@ -2,7 +2,7 @@ import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 import { publicPath } from "@/wonderworks/listing/share";
 import { shortPlace } from "@/wonderworks/find/place";
 import { shortSourceNames } from "@/wonderworks/find/sourceName";
-import { ageLabel, dateRangeLabel, seatsLabel, whenLabel, type EventListing } from "./domain";
+import { ageLabel, dateRangeLabel, seatsLabel, sharePlace, whenLabel, type EventListing } from "./domain";
 
 /**
  * A place short enough for a chip or the sheet's line (the share image clips a chip at about 34 characters): whole comma-separated parts while they fit, never a word cut in half
@@ -36,7 +36,7 @@ export const shareOf = (l: EventListing): ListingShareProps => {
   // source lists it, with the event's own page as the original: nothing is said that its source didn't.
   if (out) {
     // The place as its source gives it (a venue's full address can be long), or Online; none when the source names none.
-    const place = out.online ? (l.location ? `${l.location} · also online` : "Online") : l.location;
+    const place = sharePlace(l);
     return {
       module: "events",
       noun: "event",

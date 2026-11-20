@@ -11,3 +11,11 @@ describe("a job card's place line", () => {
     expect(shortPlace("Bengaluru, India")).toBe("Bengaluru, India");
   });
 });
+
+describe("shortPlace with a long list in brackets", () => {
+  it("keeps the first two and counts the rest", async () => {
+    const { shortPlace } = await import("./place");
+    expect(shortPlace("Remote (Afghanistan, Albania, Algeria, Andorra, Angola)")).toBe("Remote (Afghanistan, Albania +3)");
+    expect(shortPlace("Remote (India, Nepal)")).toBe("Remote (India, Nepal)");
+  });
+});

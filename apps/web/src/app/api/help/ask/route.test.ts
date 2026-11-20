@@ -7,7 +7,7 @@ vi.mock("@/server/auth", () => ({
   requireSession: async () => (signedIn ? { userId: "u1", tenantId: "u1" } : NextResponse.json({ error: "Sign in required" }, { status: 401, headers: { "cache-control": "no-store" } })),
 }));
 // No platform model: answers come straight from the guide.
-vi.mock("@/server/providers/platform", () => ({ platformAI: () => null }));
+vi.mock("@/server/providers/platform", () => ({ loadPlatformAI: async () => {}, platformAI: () => null }));
 
 import { POST } from "./route";
 

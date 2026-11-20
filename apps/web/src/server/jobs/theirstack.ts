@@ -11,6 +11,7 @@ import { recordCompanyFacts } from "@/server/jobslake/companies";
 import { locationScope } from "@/domain/jobslake/planner";
 import { corePhrase, normalizePosting, type RawPosting } from "@/services/jobs/normalize";
 import type { SearchCriteria, SourceFetcher } from "./providers";
+import { adminKeyList } from "@/server/jobslake/platformKeys";
 
 const API = "https://api.theirstack.com";
 /** Jobs asked for per search — each one is a credit. */
@@ -18,11 +19,13 @@ export const PER_SEARCH = 25;
 const MAX_AGE_DAYS = 21;
 
 /**
- * Every configured key: THEIRSTACK_API_KEYS (comma-separated) and/or THEIRSTACK_API_KEY. Several keys
+ * Every configured key: the admin's on Admin → Keys, then THEIRSTACK_API_KEYS (comma-separated) and/or THEIRSTACK_API_KEY. Several keys
  * are used with TheirStack's agreement (owner confirmed with TheirStack, 2026-10-09). Never logged.
  */
 export function theirStackKeys(env: Record<string, string | undefined> = process.env): string[] {
-  const all = [...(env.THEIRSTACK_API_KEYS ?? "").split(","), env.THEIRSTACK_API_KEY ?? ""].map((k) => k.trim()).filter(Boolean);
+  // The keys an admin added on Admin → Keys come first (owner, 2026-11-05: "configure multiple key setup in admin"), then
+  // any the deployment sets.
+  const all = [...adminKeyList("THEIRSTACK_API_KEYS"), ...(env.THEIRSTACK_API_KEYS ?? "").split(","), env.THEIRSTACK_API_KEY ?? ""].map((k) => k.trim()).filter(Boolean);
   return [...new Set(all)];
 }
 
@@ -78,7 +81,7 @@ export interface TheirStackJob {
   salary_currency?: string | null;
   company?: string | null;
   company_domain?: string | null;
-  company_object?: { name?: string; domain?: string; industry?: string | null; is_recruiting_agency?: boolean; employee_count?: number | null; employee_count_range?: string | null; country?: string | null; founded_year?: number | null; funding_stage?: string | null; publicly_traded_symbol?: string | null; has_blurred_data?: boolean } | null;
+  company_object?: { name?: string; domain?: string; logo?: string | null; industry?: string | null; is_recruiting_agency?: boolean; employee_count?: number | null; employee_count_range?: string | null; country?: string | null; founded_year?: number | null; funding_stage?: string | null; publicly_traded_symbol?: string | null; has_blurred_data?: boolean } | null;
   technology_slugs?: string[] | null;
   employment_statuses?: string[] | null;
 }
@@ -114,6 +117,7 @@ export function rawFromTheirStack(j: TheirStackJob): RawPosting | null {
     title: j.job_title,
     company: j.company_object?.name || j.company || "",
     companyDomain: j.company_domain || j.company_object?.domain || undefined,
+    companyLogo: j.company_object?.logo || undefined,
     location: j.location || j.locations?.[0]?.display_name || j.short_location || j.country || (j.remote ? "Remote" : ""),
     remote: j.remote ?? undefined,
     description: j.description ?? "",

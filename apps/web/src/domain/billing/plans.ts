@@ -126,6 +126,9 @@ export function mergePlansConfig(stored: unknown): PlansConfig {
  * the top one. A price the plan was sold under before a price change still buys it — subscribers keep their price.
  */
 export function planForRef(ref: string | undefined, cfg: PlansConfig): PaidPlanId {
+  // A paid month names its plan in the reference (`order:max`, domain/billing/prepaid.ts).
+  if (ref === "order:max") return "max";
+  if (ref === "order:pro") return "pro";
   const max = cfg.priceRefs.max;
   if (ref && (ref === max.stripe || ref === max.razorpay || max.previous?.includes(ref))) return "max";
   return "pro";

@@ -1,3 +1,4 @@
+import { addMonth, prepaidRef } from "./prepaid";
 import type { BillingEvent, SubscriptionStatus } from "./types";
 
 /**
@@ -167,6 +168,7 @@ export function fromRazorpayEvent(event: unknown, eventId: string): BillingEvent
   const sub = obj(obj(payload.subscription).entity);
   const pay = obj(obj(payload.payment).entity);
   const base = { provider: "razorpay" as const, eventId, providerType: type, occurredAt: iso(e.created_at) ?? new Date(0).toISOString() };
+  if (type === "order.paid") return fromRazorpayOrderPaid(payload, base);
   if (!type.startsWith("subscription.")) return { ...base, kind: "ignored" };
   const status = normalizeRazorpayStatus(sub.status);
   const common = {
@@ -197,4 +199,33 @@ export function fromRazorpayEvent(event: unknown, eventId: string): BillingEvent
     default:
       return { ...base, kind: "ignored", ...common };
   }
+}
+
+/**
+ * `order.paid`: a paid month (domain/billing/prepaid.ts). The order carries who paid (`notes.tenant_id`), the plan and
+ * when the month starts; its event id is the order's own (`order:<id>:paid`), the same one the checkout confirmation
+ * records, so the payment is ledgered once whichever arrives first. Only orders WonderWorks created (with a plan in
+ * their notes) count; any other order is ledgered and ignored.
+ */
+function fromRazorpayOrderPaid(payload: Record<string, unknown>, base: Pick<BillingEvent, "provider" | "eventId" | "providerType" | "occurredAt">): BillingEvent {
+  const order = obj(obj(payload.order).entity);
+  const pay = obj(obj(payload.payment).entity);
+  const notes = obj(order.notes);
+  const plan = str(notes.plan);
+  const id = str(order.id);
+  if (!id || (plan !== "pro" && plan !== "max")) return { ...base, kind: "ignored" };
+  const start = str(notes.period_start);
+  const from = start && /^\d{4}-\d{2}-\d{2}T/.test(start) ? start : base.occurredAt;
+  return {
+    ...base,
+    eventId: `order:${id}:paid`,
+    kind: "payment_succeeded",
+    tenantId: str(notes.tenant_id),
+    subscriptionId: id,
+    planRef: prepaidRef(plan),
+    currentPeriodEnd: addMonth(from),
+    cancelAtPeriodEnd: true,
+    amount: num(pay.amount) ?? num(order.amount_paid),
+    currency: (str(pay.currency) ?? str(order.currency))?.toUpperCase(),
+  };
 }

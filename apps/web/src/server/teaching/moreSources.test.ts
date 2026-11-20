@@ -84,6 +84,40 @@ describe("Adzuna, English-speaking countries", () => {
   });
 });
 
+describe("Adzuna's rate limit", () => {
+  const ok = (title: string) => ({ results: [{ id: title, title, company: { display_name: "A School" }, location: { display_name: "Somewhere" }, description: "Teach.", redirect_url: `https://www.adzuna.com/jobs/details/${title.replace(/\W/g, "")}`, created: ago(1) }] });
+
+  it("asks one country at a time and, on a 429, stops the search keeping what it has, with a warning", async () => {
+    vi.stubEnv("ADZUNA_APP_ID", "id");
+    vi.stubEnv("ADZUNA_APP_KEY", "key");
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      calls.push(/jobs\/(\w+)\//.exec(url)![1]);
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      return url.includes("/jobs/ca/") ? new Response("slow down", { status: 429 }) : new Response(JSON.stringify(ok(`Chemistry Teacher ${calls.length}`)), { status: 200 });
+    }));
+    const r = await runTeachingSource(src("teach_adzuna_world"), { query: "chemistry", locations: [] }, needsSetup);
+    expect(maxInFlight).toBe(1);
+    expect(calls).toEqual(["gb", "us", "ca"]);
+    expect(r.jobs.map((j) => j.title)).toEqual(["Chemistry Teacher 1", "Chemistry Teacher 2"]);
+    expect(r.warnings.join(" ")).toMatch(/429.*after 2 of 7 countries/);
+  });
+
+  it("a 429 on the first country throws, so the run says Unavailable rather than an empty result", async () => {
+    vi.stubEnv("ADZUNA_APP_ID", "id");
+    vi.stubEnv("ADZUNA_APP_KEY", "key");
+    const fetchMock = vi.fn(async () => new Response("slow down", { status: 429 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(runTeachingSource(src("teach_adzuna_world"), { query: "maths", locations: [] }, needsSetup)).rejects.toThrow(/429/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("USAJOBS teaching and education jobs", () => {
   it("sends the key and the registered email, asks for the words as a teaching search, keeps only teaching posts", async () => {
     vi.stubEnv("USAJOBS_API_KEY", "k");

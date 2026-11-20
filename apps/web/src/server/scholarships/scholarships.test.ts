@@ -12,7 +12,7 @@ import { __MemoryStore, __setJobsLakeStore } from "@/server/jobslake/store";
 import * as H from "@/server/hiring";
 import { applyToScholarship, decideScholarship, myScholarshipApplication, myScholarshipApplications, orgScholarshipApplications, saveScholarship, setScholarshipStatus, withdrawScholarship } from "./applications";
 import { outside, searchScholarships, termsFromAttributes } from "./search";
-import { NO_PROVIDER, rawFromHackerEarth, rawFromDevfolio, providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, fetchKaggle, rawFromKaggle, rawFromSedia, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
+import { NO_PROVIDER, rawFromHackerEarth, rawFromDevfolio, providerFromTitle, rawFromFeedItem, statedDeadline, devpostEnd, GRANTS_GOV_NOTICE, rawFromDevpost, rawFromGrants, fetchKaggle, rawFromClist, rawFromKaggle, rawFromSedia, rawFromSimplerGrant, rawFromUnstop, SCHOLARSHIP_SOURCES, scholarshipSourceAvailable, unstopLevels, usDate, WONDERSTAR_SCHOLARSHIPS } from "./sources";
 
 const owner: Session = { userId: "u-org", tenantId: "u-org", email: "team@foundation.test" };
 const student: Session = { userId: "u-stu", tenantId: "u-stu", email: "asha@student.test" };
@@ -54,7 +54,7 @@ afterEach(() => __setJobsLakeStore(undefined));
 describe("its own WorksLake dataset", () => {
   it("every built-in source is the Scholarships module's, never Jobs'", () => {
     expect(new Set(SCHOLARSHIP_SOURCES.map((s) => s.module))).toEqual(new Set(["scholarships"]));
-    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_devfolio", "schol_opportunities_for_africans", "schol_mladiinfo", "schol_hackerearth", "schol_kaggle"]);
+    expect(SCHOLARSHIP_SOURCES.map((s) => s.id)).toEqual([WONDERSTAR_SCHOLARSHIPS, "schol_grants_gov", "schol_devpost", "schol_unstop", "schol_eu_msca", "schol_opportunity_desk", "schol_scholars4dev", "schol_devfolio", "schol_opportunities_for_africans", "schol_mladiinfo", "schol_hackerearth", "schol_kaggle", "schol_simpler_grants", "schol_clist"]);
   });
 
   it("sources whose terms aren't confirmed say what's pending; Kaggle needs its key", () => {
@@ -179,6 +179,41 @@ describe("Devpost, Unstop, EU fellowships and Kaggle map only what they state", 
       vi.unstubAllEnvs();
       vi.unstubAllGlobals();
     }
+  });
+
+  it("Simpler.Grants.gov and clist.by need their keys; clist's terms are pending", () => {
+    const of = (id: string) => SCHOLARSHIP_SOURCES.find((s) => s.id === id)!;
+    expect(scholarshipSourceAvailable(of("schol_simpler_grants"))).toBe(false);
+    expect(scholarshipSourceAvailable(of("schol_clist"))).toBe(false);
+    expect(of("schol_clist").statusReason).toMatch(/^terms pending: /);
+    try {
+      vi.stubEnv("SIMPLER_GRANTS_API_KEY", "sg");
+      vi.stubEnv("CLIST_USERNAME", "u");
+      expect(scholarshipSourceAvailable(of("schol_simpler_grants"))).toBe(true);
+      expect(scholarshipSourceAvailable(of("schol_clist"))).toBe(false);
+      vi.stubEnv("CLIST_API_KEY", "k");
+      expect(scholarshipSourceAvailable(of("schol_clist"))).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("Simpler.Grants.gov: a grant for students keeps its agency, summary and close date; others are left out", () => {
+    const g = { opportunity_id: "3f2c-uuid", opportunity_number: "NSF-27-501", opportunity_title: "Graduate Research Fellowship Program", opportunity_status: "posted", agency_name: "U.S. National Science Foundation", summary: { summary_description: "<p>Supports outstanding graduate&nbsp;students.</p>", applicant_eligibility_description: "US citizens", close_date: "2030-10-15", post_date: "2026-08-01", award_ceiling: 37000 } };
+    const r = rawFromSimplerGrant(g)!;
+    expect(r).toMatchObject({ company: "U.S. National Science Foundation", applyUrl: "https://simpler.grants.gov/opportunity/3f2c-uuid", postedAt: "2026-08-01T00:00:00.000Z", attributes: { kind: "scholarship", deadline: "2030-10-15", currency: "USD", officialUrl: "https://simpler.grants.gov/opportunity/3f2c-uuid" } });
+    expect(r.description).toContain("Supports outstanding graduate students.");
+    expect(r.description).toContain("Award ceiling: US$37,000.");
+    expect(rawFromSimplerGrant({ ...g, opportunity_title: "Highway bridge repair", summary: { summary_description: "Road works" } })).toBeNull();
+    expect(rawFromSimplerGrant({ ...g, opportunity_status: "forecasted", summary: { forecasted_close_date: "2031-01-01" } })!.attributes).toMatchObject({ deadline: "2031-01-01" });
+  });
+
+  it("clist.by: an upcoming contest is an online project closing at its start, on its own page; past or non-https ones are left out", () => {
+    const k = { id: 7, event: "Codeforces Round 999 (Div. 2)", host: "codeforces.com", start: "2030-03-01T14:35:00", end: "2030-03-01T16:35:00", duration: 7200, href: "https://codeforces.com/contests/2099" };
+    expect(rawFromClist(k, "2030-02-01")).toMatchObject({ company: "codeforces.com", remote: true, applyUrl: "https://codeforces.com/contests/2099", attributes: { kind: "project", deadline: "2030-03-01", officialUrl: "https://codeforces.com/contests/2099" } });
+    expect(rawFromClist(k, "2030-02-01")!.description).toContain("runs 2 h");
+    expect(rawFromClist(k, "2030-03-02")).toBeNull();
+    expect(rawFromClist({ ...k, href: "http://codeforces.com/contests/2099" }, "2030-02-01")).toBeNull();
   });
 
   it("Kaggle: a competition is an online project with its deadline", () => {

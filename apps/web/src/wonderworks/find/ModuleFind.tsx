@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { moduleStore } from "@/wonderworks/store";
 import type { ModuleId } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
-import { ChoiceChips, DictationNotes, PillButton, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
+import { ChoiceChips, DictationNotes, FIND_AREA, FIND_FORM, FIND_PILL_WIDE, FIND_REFINE, FIND_ROW, FIND_SUBMIT, FIND_TOP_BOX, PillButton, closeKeyboard, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
 
 /**
  * A WonderWorks module's Find (docs/WONDERWORKS_PLATFORM.md §4.1), with the jobs portal's structure and parts: the
@@ -81,6 +81,8 @@ function SearchClock() {
 const forWhat = (query: string, start = false) => (query ? `${start ? "For" : "for"} “${query}”` : start ? "Latest listings" : "· latest");
 const noop = () => () => undefined;
 const STATE_LABEL: Record<SourceState, string> = { ok: "", empty: "none found", needs_setup: "Needs setup", unavailable: "Unavailable", skipped: "not asked" };
+const NONE: string[] = [];
+const NO_VALUES: FacetValues = {};
 const set = (v: FacetValues) => Object.values(v).filter((x) => x !== undefined && x !== "").length;
 
 export function ModuleFind<L extends { id: string }>({ module, noun, placeholder, startWords, facets, sorts, search, refine, Card, Sheet, idle, dictateHint, global = false, ownFilter = true, isOwn = postedOnWonderWorks }: ModuleFindProps<L>) {
@@ -98,11 +100,18 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   const draft = typed ?? (mounted ? (run ? run.searched.query : (recent[0] ?? startWords ?? "")) : "");
   const [boxFocused, setBoxFocused] = useState(false);
   const dictation = useDictation({ textAtStart: () => draft, onText: setTyped });
-  const [places, setPlaces] = useState<string[]>([]);
+  // Refine's saved choices, places and sort live in the module's synced store, so a reload keeps them
+  // (owner, 2026-11-07: "ensure all saved refine items are persisted in all modules"). Read after mount, like the run.
+  const savedRefine = useStore(store, (s) => s.refine);
+  const keptRefine = mounted ? savedRefine : null;
+  const places = keptRefine?.places ?? NONE;
+  const setPlaces = (p: string[]) => store.getState().setRefine({ places: p });
   // What Refine shows while open (saved with Save), and what the list uses.
-  const [values, setValues] = useState<FacetValues>({});
+  const values: FacetValues = keptRefine?.values ?? NO_VALUES;
+  const setValues = (v: FacetValues) => store.getState().setRefine({ values: Object.fromEntries(Object.entries(v).filter((e): e is [string, string] => typeof e[1] === "string")) });
   const [editing, setEditing] = useState<FacetValues>({});
-  const [sort, setSort] = useState(Object.keys(sorts)[0]);
+  const sort = keptRefine?.sort && keptRefine.sort in sorts ? keptRefine.sort : Object.keys(sorts)[0];
+  const setSort = (v: string) => store.getState().setRefine({ sort: v });
   const [busy, setBusy] = useState<{ query: string; places: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [limit, setLimit] = useState(PAGE);
@@ -138,6 +147,9 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
     setBusy(null);
   };
   const go = async (text = draft) => {
+    // Every way a search starts (Enter, the arrow, a recent search, Search again) brings the keyboard down first.
+    closeKeyboard();
+    setBoxFocused(false);
     // No words: the module's latest listings (owner, 2026-11-01), not an error.
     const q = text.trim();
     inFlight.current?.abort();
@@ -179,9 +191,8 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   const answered = run?.sources.filter((s) => s.state === "ok" || s.state === "empty").length ?? 0;
   const clear = () => {
     setEditing({});
-    setValues({});
-    setPlaces([]);
-    setSort(Object.keys(sorts)[0]);
+    // One write: every choice, place and the sort back to the start.
+    store.getState().setRefine({ values: {}, places: [], sort: undefined });
   };
 
   const field = (f: FacetSpec) => {
@@ -232,9 +243,9 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
           </div>
         </SearchingBanner>
       )}
-      <div className="mb-3 flex flex-col gap-2">
+      <div className={cn(FIND_AREA, "mb-3 flex flex-col gap-2")}>
         <form
-          className="flex flex-col gap-2"
+          className={FIND_FORM}
           onSubmit={(e) => {
             e.preventDefault();
             setBoxFocused(false);
@@ -254,19 +265,18 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
             history={historyFor(recent, draft)}
             onPick={(t) => {
               setTyped(t);
-              setBoxFocused(false);
-              (document.activeElement as HTMLElement | null)?.blur();
               void go(t);
             }}
             onForget={(t) => forget(t)}
+            className={FIND_TOP_BOX}
           />
-          {/* Refine, the module's own two facets and the search — one row, as on Jobs' Find. */}
-          <div className="flex items-center gap-2">
-            <RefineToggle open={more} count={count} onToggle={() => (more ? setMore(false) : openRefine())} />
+          {/* Refine, the module's own two facets and the search — one row, as on Jobs' Find; from 1024px Refine sits just before Search. */}
+          <div className={FIND_ROW}>
+            <RefineToggle open={more} count={count} onToggle={() => (more ? setMore(false) : openRefine())} className={FIND_REFINE} />
             {pills.map((p, i) => (
-              <PillButton key={p.key} label={p.label} shown={p.pill!(shownValues[p.key])} open={more} onClick={() => openRefine(p.key)} className={i === 0 ? "min-w-0 flex-auto" : "shrink-0"} />
+              <PillButton key={p.key} label={p.label} shown={p.pill!(shownValues[p.key])} open={more} onClick={() => openRefine(p.key)} className={i === 0 ? FIND_PILL_WIDE : "shrink-0"} />
             ))}
-            <SearchSubmit label="Search" />
+            <SearchSubmit label="Search" className={FIND_SUBMIT} />
           </div>
         </form>
         <DictationNotes dictation={dictation} hint={dictateHint} />
@@ -329,7 +339,7 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
               <Item key={l.id} item={l} Card={Card} onOpen={setOpen} />
             ))}
           </ResultsGrid>
-          {visible.length < kept.length && <ShowMore left={kept.length - visible.length} onClick={() => setLimit((n) => n + PAGE)} />}
+          <ShowMore left={kept.length - visible.length} shown={visible.length} onClick={() => setLimit((n) => n + PAGE)} />
         </>
       )}
 

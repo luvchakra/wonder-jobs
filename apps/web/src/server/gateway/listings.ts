@@ -1,3 +1,4 @@
+import { gatewayCursorSecret } from "./secrets";
 import { MODULES, searchPlan, type GatewayListing } from "../../../../data-gateway/src/core.mjs";
 import { sourceCountry, withCountry } from "../../../../data-gateway/src/handler.mjs";
 import { hostedGateway } from "./index";
@@ -9,7 +10,7 @@ import { hostedGateway } from "./index";
  */
 export async function gatewayListings(module: string, input: { query?: string; places?: string[]; limit?: number; /** Rows to skip, to read the next page of a search. */ offset?: number } = {}): Promise<{ configured: boolean; results: GatewayListing[]; sources: { id: string; name: string; count: number }[] }> {
   const hosted = hostedGateway();
-  const secret = process.env.GATEWAY_CURSOR_SECRET;
+  const secret = gatewayCursorSecret();
   if (!hosted || !secret || !MODULES.includes(module)) return { configured: !!hosted, results: [], sources: [] };
   const internal = { id: "in-app", consumerId: "workslake", scopes: [`read:${module}`] };
   const plan = await hosted.store.read((s) => searchPlan(s, internal, { module, query: input.query ?? "", locations: input.places ?? [], limit: Math.min(100, input.limit ?? 50) }, secret));

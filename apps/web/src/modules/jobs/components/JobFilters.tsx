@@ -11,7 +11,7 @@ import { useUIStore } from "@/store/ui";
 import { useJobsStore } from "@/store/jobs";
 import { cn } from "@/lib/cn";
 import { useDictation } from "@/lib/dictation";
-import { ChoiceChips, DictationNotes, FilterBox, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
+import { ChoiceChips, DictationNotes, FIND_AREA, FIND_FORM, FIND_PIN, FIND_PILL_WIDE, FIND_REFINE, FIND_ROW, FIND_SUBMIT, FIND_TOP_BOX, FilterBox, closeKeyboard, PillButton, REFINE_CHIP, RefineCheck, RefineField, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, SearchBox, SearchSubmit, SortSelect, TogglePill, historyFor, refineSectionClass } from "@/wonderworks/find/parts";
 
 export type JobsView = "for_you" | "strong" | "all" | "saved";
 // Saved is its own tab, not a view here.
@@ -108,7 +108,7 @@ export const easyApplyOnly = (sourceIds: string[]) => sourceIds.length === 1 && 
  * types, level, work mode, freshness, compare — is in Refine; sort sits beside the job count (SortMenu).
  * The mode is the slider above the page (domain/jobs/findMode.ts).
  */
-export function JobFiltersBar({ filters, onChange, views = true, compare, onCompare, sourceSearch, refineTop, searchAs, shortlist, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sources?: JobSource[]; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** A "Search as" role other than My profile is picked: one more setting, and Clear puts My profile back. */ searchAs?: { set: boolean; clear: () => void }; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; className?: string }) {
+export function JobFiltersBar({ filters, onChange, views = true, compare, onCompare, sourceSearch, refineTop, searchAs, shortlist, lead, className }: { filters: Filters; onChange: (patch: Partial<Filters>) => void; sources?: JobSource[]; views?: boolean; compare: boolean; onCompare: (on: boolean) => void; sourceSearch?: SourceSearch; /** What was searched and "Search as" — first thing in Refine. */ refineTop?: React.ReactNode; /** A "Search as" role other than My profile is picked: one more setting, and Clear puts My profile back. */ searchAs?: { set: boolean; clear: () => void }; /** Saved: the box only filters the jobs already saved, as you type — no source search, no Refine. */ shortlist?: { text: string; onText: (text: string) => void }; /** Full Time: the role line, in the search box's place at the start of the row (FIND_BOX), so from 1024px everything sits on one line (owner, 2026-11-06). */ lead?: React.ReactNode; className?: string }) {
   const more = useUIStore((s) => s.refineOpen);
   const setMore = useUIStore((s) => s.setRefineOpen);
   // Refine is Find's own panel: leaving Find closes it.
@@ -202,15 +202,17 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
   };
   if (shortlist) return <ShortlistFilters text={shortlist.text} onText={shortlist.onText} filters={filters} onChange={onChange} className={className} />;
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div className={cn(FIND_AREA, "flex flex-col gap-2", className)}>
       <form
-        className="flex flex-col gap-2"
+        className={FIND_FORM}
         onSubmit={(e) => {
           e.preventDefault();
           setBoxFocused(false);
+          closeKeyboard();
           submit();
         }}
       >
+        {!partTime && lead && <div className={FIND_TOP_BOX}>{lead}</div>}
         {partTime && (
           <SearchBox
             value={draft}
@@ -229,18 +231,20 @@ export function JobFiltersBar({ filters, onChange, views = true, compare, onComp
             onPick={(t) => {
               setDraft(t);
               setBoxFocused(false);
-              (document.activeElement as HTMLElement | null)?.blur();
+              closeKeyboard();
               submit(t);
             }}
             onForget={(t) => forgetSearch(t)}
+            className={FIND_TOP_BOX}
           />
         )}
         {/* Refine, location, pay and the search — one row, the same in both modes. */}
-        <div className="flex items-center gap-2">
-          <RefineButton count={activeCount} />
-          <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className="min-w-0 flex-auto" />
+        {/* From 1024px it sits beside Part Time's box or Full Time's role line on one row, Refine just before Search. */}
+        <div className={FIND_ROW}>
+          <RefineButton count={activeCount} className={FIND_REFINE} />
+          <PillButton label="Location" shown={placesShown} open={more} onClick={() => openAt("location")} className={FIND_PILL_WIDE} />
           <PillButton label="Salary" shown={salaryShown} open={more} onClick={() => openAt("salary")} className="shrink-0" />
-          <SearchSubmit label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} />
+          <SearchSubmit label={partTime || !sourceSearch ? "Search" : "Search based on Career Profile"} className={FIND_SUBMIT} />
         </div>
       </form>
       {partTime && needWordsFor !== null && needWordsFor === draft.trim() && <p role="alert" className="-mt-1 text-[12px] text-danger-600">Type the work you&apos;re looking for — Part Time searches only your words.</p>}
@@ -339,8 +343,10 @@ function ShortlistFilters({ text, onText, filters, onChange, className }: { text
   const dictation = useDictation({ textAtStart: () => text, onText });
   const recent = useJobsStore((s) => s.recentSavedSearches);
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
-      <FilterBox text={text} onText={onText} label="Filter saved jobs" dictation={dictation} dictateLabel="what to look for in your saved jobs" history={recent} onEnter={(t) => useJobsStore.getState().rememberSearch(t, "saved")} onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")} />
+    // From 1024px the box, type chips and toggles share one row (a narrower box so they fit), kept at the top of the
+    // window while the saved jobs scroll (FIND_PIN; owner, 2026-11-06: "improve the layout" of the other tabs). Phones keep the column.
+    <div className={cn("flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center", FIND_PIN, className)}>
+      <FilterBox className="lg:w-72 lg:flex-none xl:w-80" text={text} onText={onText} label="Filter saved jobs" dictation={dictation} dictateLabel="what to look for in your saved jobs" history={recent} onEnter={(t) => useJobsStore.getState().rememberSearch(t, "saved")} onForget={(t) => useJobsStore.getState().forgetSearch(t, "saved")} />
       <JobTypeChips filters={filters} onChange={onChange} />
       <div className="flex flex-wrap gap-2">
         <TogglePill label="Hide Pipeline" checked={!!filters.hideInPipeline} onChange={(on) => onChange({ hideInPipeline: on })} />

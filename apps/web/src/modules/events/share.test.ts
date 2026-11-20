@@ -43,6 +43,15 @@ describe("what Share sends about an event", () => {
     expect(JSON.stringify(s)).not.toMatch(/going|attendee/i);
   });
 
+  it("an online-only event is shared as Online once, not 'also online'", () => {
+    const online = { ...outside, location: "Online", workMode: "remote", outside: { ...outside.outside!, online: true } } as EventListing;
+    const s = shareOf(online);
+    expect(s.facts?.[1]).toBe("Online");
+    expect(JSON.stringify(s)).not.toMatch(/also online/);
+    // In person and also streamed keeps "also online".
+    expect(shareOf({ ...outside, location: "Pune", outside: { ...outside.outside!, online: true } } as EventListing).facts?.[1]).toBe("Pune · also online");
+  });
+
   it("the Where line appears only when it adds to the place chip", () => {
     // "Baner, Pune" is already the chip: no second "Where".
     expect(shareOf({ ...own, location: "Baner, Pune" } as EventListing).lines?.some((x) => typeof x === "string" && x.startsWith("Where:"))).toBe(false);

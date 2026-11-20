@@ -28,7 +28,19 @@ const SEVERITY = {
   low: "Consider",
 } as const;
 
+/**
+ * The page that fixes a suggestion, as a button (owner, 2026-11-05: "add action button to take to the right page"):
+ * a missing credential is set on Keys, where every key and credential lives; anything else about one source is fixed
+ * on that source's page (test, settings, pause).
+ */
+function fixFor(s: Suggestion): { label: string; href: string } | null {
+  if (s.id.startsWith("needs_setup:")) return { label: "Set key", href: "/platform/jobs-lake/keys" };
+  if (s.sourceId) return { label: s.id.startsWith("failing:") ? "Fix source" : "Open source", href: `/platform/jobs-lake/sources/${encodeURIComponent(s.sourceId)}` };
+  return null;
+}
+
 function SuggestionItem({ s }: { s: Suggestion }) {
+  const fix = fixFor(s);
   return (
     <li className="rounded-[14px] border border-line bg-surface px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -54,18 +66,12 @@ function SuggestionItem({ s }: { s: Suggestion }) {
       {s.detail && <p className="mt-0.5 text-[12px] text-ink-2">{s.detail}</p>}
       <p className="mt-1 text-[11px] text-ink-3">
         {s.facts.map((f) => `${f.label}: ${f.value}`).join(" · ")}
-        {s.sourceId && (
-          <>
-            {" · "}
-            <Link
-              href={`/platform/jobs-lake/sources/${s.sourceId}`}
-              className="underline"
-            >
-              Open source
-            </Link>
-          </>
-        )}
       </p>
+      {fix && (
+        <Link href={fix.href} className="mt-2 inline-flex rounded-full border border-line px-3 py-1 text-[12px] font-medium text-ink hover:bg-bg-soft">
+          {fix.label}
+        </Link>
+      )}
     </li>
   );
 }

@@ -8,6 +8,10 @@ export interface GatewayState {
   usage: Record<string, unknown>[];
   audits: Record<string, unknown>[];
   runs: Record<string, unknown>[];
+  /** Prospect data settings (outside consumers, tenant quotas, the paid cap); absent ones take their defaults. */
+  settings?: Record<string, unknown>;
+  /** Removal requests, each a keyed hash of an address or "@domain" (never the address). */
+  suppressions?: string[];
 }
 export function initial(): GatewayState;
 
@@ -29,6 +33,8 @@ export interface GatewayListing {
   remote: boolean;
   attributes: Record<string, string | number | boolean>;
   status: string;
+  /** A prospect dataset row's search tokens (category and contact marks); module listings have none. */
+  tokens?: string;
 }
 export interface GatewaySearchResult {
   requestId: string;
@@ -44,9 +50,32 @@ export function search(
   secret: string,
 ): GatewaySearchResult;
 export const MODULES: readonly string[];
+/** Prospect datasets (organisations, public outlets): served only by /v1/prospects/, never a module. */
+export const PROSPECT_DATASETS: readonly string[];
+export const CHANNEL_TYPES: readonly string[];
+export const PROSPECT_SCOPES: readonly string[];
+/** What a listing is searched by: its words, plus a dataset row's tokens. */
+export function listingText(listing: GatewayListing): string;
+/** A prospect search's token filters: every `all` token, and one token of each `anyOf` group. */
+export function matchesTokens(text: string, plan: { anyOf?: string[][]; all?: string[] }): boolean;
+/** Copies a reviewed definition's outside-use flag, dataset bindings and evidence onto a registered source; returns the changed fields. */
+export function reconcileSource(stored: Record<string, unknown>, definition: Record<string, unknown>): string[];
+export const RECONCILED_FIELDS: readonly string[];
+/** SHA-256 hex of an API key: how the gateway stores and finds keys. */
+export function digestKey(key: string): string;
 
 export interface SearchPlan { module: string; query: string; locations: string[]; limit: number; offset: number; fingerprint: string; sourceIds: string[] }
 export function searchPlan(state: GatewayState, consumer: { id: string; consumerId: string; scopes: string[] }, payload: { module: string; query?: string; locations?: string[]; limit?: number; cursor?: string }, secret: string): SearchPlan;
 
 export function queryWords(query: string): string[];
 export function matchesWords(text: string, query: string): boolean;
+/** Throws a 401 unless the header carries the admin token. */
+export function requireAdmin(header: string | null | undefined, adminToken: string | undefined): void;
+/** The API key record a request's Bearer key belongs to (live, not expired); throws a 401 otherwise. */
+export function requireConsumer(store: { read<T>(fn: (state: any) => T): Promise<T> }, header: string | null | undefined): Promise<{ id: string; consumerId: string; scopes: string[] }>;
+/** Throws unless the key may read the module. */
+export function checkScope(key: { scopes: string[] }, module: string): void;
+/** Text with email addresses, phone numbers and messaging handles removed (sources of people's public posts). */
+export function scrubContacts(text: string): string;
+/** Adds an entry to the audit trail, kept to its newest entries. */
+export function pushAudit(state: GatewayState, entry: Record<string, unknown>): void;

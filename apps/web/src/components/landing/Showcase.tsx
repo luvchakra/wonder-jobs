@@ -373,7 +373,7 @@ export function ShowcaseSection() {
                   <span className="size-2.5 rounded-full bg-[#ff5f57]" />
                   <span className="size-2.5 rounded-full bg-[#febc2e]" />
                   <span className="size-2.5 rounded-full bg-[#28c840]" />
-                  <span className="ml-3 flex-1 rounded-[6px] bg-white px-2 py-0.5 text-[10px] text-ink-4">jobs.wonderapps.biz/app</span>
+                  <span className="ml-3 flex-1 rounded-[6px] bg-white px-2 py-0.5 text-[10px] text-ink-4">works.wonderapps.biz/app</span>
                 </div>
                 <div className="min-h-[300px]">{screen.desktop}</div>
               </div>

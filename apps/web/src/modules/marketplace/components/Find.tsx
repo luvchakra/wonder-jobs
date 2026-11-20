@@ -2,18 +2,21 @@
 import { useMemo } from "react";
 import { ModuleFind, type FacetSpec, type FacetValues, type FindRun } from "@/wonderworks/find/ModuleFind";
 import { call } from "@/wonderworks/api";
-import { applyFacets, CATEGORIES, CONDITIONS, priceLabel, type Condition, type Facets, type MarketListing } from "../domain";
+import { applyFacets, CATEGORIES, CONDITIONS, inRupees, priceLabel, type Condition, type Facets, type MarketListing } from "../domain";
 import { MarketCard } from "./Listing";
 
 const SORTS = { relevance: "Newest", low: "Price: low to high", high: "Price: high to low" };
 const CAPS = [1000, 5000, 10000, 50000];
 
 /** Refine's values as the Marketplace facets (domain.ts::applyFacets), then the order picked (newest first is the default). */
+/** Price order in rupees; a price in another currency can't be placed among them, so it goes last. */
+const byRupees = (a: MarketListing, b: MarketListing, dir: 1 | -1) => (inRupees(a) === inRupees(b) ? dir * (a.terms.price - b.terms.price) : inRupees(a) ? -1 : 1);
+
 export function refineListings(list: MarketListing[], v: FacetValues, sort: string) {
   const cap = Number(v.maxPrice);
   const f: Facets = { category: (CATEGORIES as readonly string[]).includes(v.category ?? "") ? (v.category as Facets["category"]) : "", condition: (CONDITIONS as readonly string[]).includes(v.condition ?? "") ? (v.condition as Condition) : "", maxPrice: CAPS.includes(cap) ? cap : undefined };
   const { kept, hidden } = applyFacets(list, f);
-  const sorted = sort === "low" ? [...kept].sort((a, b) => a.terms.price - b.terms.price) : sort === "high" ? [...kept].sort((a, b) => b.terms.price - a.terms.price) : [...kept].sort((a, b) => (b.postedAt ?? "").localeCompare(a.postedAt ?? ""));
+  const sorted = sort === "low" ? [...kept].sort((a, b) => byRupees(a, b, 1)) : sort === "high" ? [...kept].sort((a, b) => byRupees(a, b, -1)) : [...kept].sort((a, b) => (b.postedAt ?? "").localeCompare(a.postedAt ?? ""));
   return { kept: sorted, hidden };
 }
 

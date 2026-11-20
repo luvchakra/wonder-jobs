@@ -121,7 +121,7 @@ export default function SecurityPage() {
           title: "Reporting a vulnerability",
           body: (
             <p>
-              Use the <Link href="/#contact" className="font-medium text-brand-600 underline">contact form</Link> with the topic &ldquo;Report a security issue&rdquo; and describe what you found. We acknowledge within two working days and keep you informed while we fix it. Please don&apos;t access other people&apos;s data, degrade the service or run automated scans while testing. Our <a href="/.well-known/security.txt" className="font-medium text-brand-600 underline">security.txt</a> lists the same contact.
+              Use the <Link href="/contact" className="font-medium text-brand-600 underline">contact form</Link> with the topic &ldquo;Report a security issue&rdquo; and describe what you found. We acknowledge within two working days and keep you informed while we fix it. Please don&apos;t access other people&apos;s data, degrade the service or run automated scans while testing. Our <a href="/.well-known/security.txt" className="font-medium text-brand-600 underline">security.txt</a> lists the same contact.
             </p>
           ),
         },

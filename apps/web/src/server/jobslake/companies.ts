@@ -3,6 +3,7 @@
  * them, and its logo, fetched once and cached here. Platform-wide public data — no tenant, no user. A logo
  * is only ever fetched for a company recorded from a real posting, never for an arbitrary domain.
  */
+import { checkDestination } from "@/domain/jobslake/ssrf";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
 import type { CompanyRatings } from "@/domain/jobslake/ratings";
 import { cleanDomain, companyDomain, companyKey, employerDomainOf, briefKey, companyBrief, type CompanyBan, type CompanyBrief, type CompanyFacts, type CompanyProfile, type CompanyRecord, type H1bRecord } from "@/domain/jobslake/companies";
@@ -397,7 +398,7 @@ export const logoUrls = (domain: string) => [
 /** The site's own icon files, on the bare host and on www (many sites answer only on one of them). */
 export const siteIconUrls = (domain: string) => [`https://${domain}`, `https://www.${domain}`].flatMap((h) => [`${h}/apple-touch-icon.png`, `${h}/favicon.ico`]);
 
-const UA = "WorksLake/1.0 (+https://jobs.wonderapps.biz)";
+const UA = "WorksLake/1.0 (+https://works.wonderapps.biz)";
 
 /**
  * The company's logo on Wikimedia Commons, from its Wikidata item's logo (P154), as a 128-px-wide PNG Commons renders
@@ -414,6 +415,131 @@ export async function wikidataLogo(qid: string, fetcher: typeof fetch): Promise<
   } catch {
     return undefined;
   }
+}
+
+/**
+ * A company the directory doesn't know yet, found by its name alone (owner, 2026-11-06: "PayPal is a famous company but
+ * there is no logo"; Devpost names an organiser without its website). Wikidata's first match counts only when its label
+ * is exactly the name (normalized), it is not a person, and it states an official website (P856) that can be an
+ * organisation's own; that website's domain identifies the company from then on, so it is kept once. Asked only when
+ * a card asks for the logo, never during a search; a name that finds nothing isn't asked again for a day.
+ */
+const NAME_MISS = new Map<string, number>();
+const NAME_MISS_MS = 86_400_000;
+/**
+ * Other ways to write an organisation's name that Wikidata knows it by (owner, 2026-11-07: "iit madras has a well defined
+ * logo, why can't you get and show it"). A listing often writes the acronym inside the name ("Indian Institute of
+ * Technology (IIT), Madras" → key "indian institute of technology iit madras"), which matches nothing; without it
+ * ("indian institute of technology madras") or as acronym + the rest ("iit madras") it does. The key itself comes first.
+ */
+export function nameVariants(nameKey: string): string[] {
+  const words = nameKey.split(" ").filter(Boolean);
+  const out = [nameKey];
+  const small = new Set(["of", "and", "the", "for", "in", "de"]);
+  for (let i = 1; i < words.length; i++) {
+    const t = words[i];
+    if (t.length < 2 || t.length > 6) continue;
+    const initials = words.slice(0, i).filter((w) => !small.has(w)).map((w) => w[0]).join("");
+    if (initials.length < 2 || !initials.endsWith(t) || initials.length - t.length > 1) continue;
+    const before = words.slice(0, i), after = words.slice(i + 1);
+    out.push([...before, ...after].join(" "));
+    if (after.length) out.push([t, ...after].join(" "));
+    break;
+  }
+  // A government body written with its government ("ministry of tribal affairs government of india"): Wikidata names
+  // the body alone.
+  const gov = nameKey.replace(/ (?:government|govt) of [a-z ]+$/, "");
+  if (gov !== nameKey && gov.split(" ").length >= 2) out.push(gov);
+  return [...new Set(out)].filter((v) => v.length >= 2);
+}
+
+/**
+ * An organisation known only by name, found on Wikidata: its official website (P856) gives the domain its logo is
+ * fetched from. The search tries the name and its variants (nameVariants), and accepts a hit only when its label or the
+ * alias it matched is that exact name, never a person, and only with an official website.
+ */
+export async function resolveCompanyByName(nameKey: string, fetcher: typeof fetch, now = Date.now()): Promise<{ domain: string; name: string; wikidataId: string } | undefined> {
+  if (!nameKey || nameKey.length < 2 || nameKey.length > 80) return undefined;
+  const missed = NAME_MISS.get(nameKey);
+  if (missed && now - missed < NAME_MISS_MS) return undefined;
+  const miss = () => {
+    if (NAME_MISS.size > 5000) NAME_MISS.clear();
+    NAME_MISS.set(nameKey, now);
+    return undefined;
+  };
+  try {
+    const opts = { signal: AbortSignal.timeout(4000), headers: { "user-agent": UA, accept: "application/json" } };
+    type Hit = { id?: string; label?: string; match?: { type?: string; text?: string } };
+    for (const variant of nameVariants(nameKey).slice(0, 3)) {
+      const res = await fetcher(`https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(variant)}&language=en&type=item&limit=3&format=json`, opts);
+      if (!res.ok) return undefined;
+      const hits = ((await res.json()) as { search?: Hit[] }).search ?? [];
+      const hit = hits.find((h) => h.id && /^Q\d{1,12}$/.test(h.id) && (companyKey(h.label ?? "") === variant || companyKey(h.match?.text ?? "") === variant));
+      if (!hit?.id) continue;
+      const ent = await fetcher(`https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${hit.id}&props=claims&format=json`, opts);
+      if (!ent.ok) return undefined;
+      type Claim = { mainsnak?: { datavalue?: { value?: unknown } } };
+      const claims = ((await ent.json()) as { entities?: Record<string, { claims?: Record<string, Claim[]> }> }).entities?.[hit.id]?.claims ?? {};
+      const isPerson = (claims.P31 ?? []).some((c) => (c.mainsnak?.datavalue?.value as { id?: string } | undefined)?.id === "Q5");
+      const site = (claims.P856 ?? []).map((c) => c.mainsnak?.datavalue?.value).find((v): v is string => typeof v === "string");
+      const domain = !isPerson && site ? companyDomain(site) : undefined;
+      if (domain) return { domain, name: hit.label ?? nameKey, wikidataId: hit.id };
+    }
+    return miss();
+  } catch {
+    return undefined;
+  }
+}
+
+/** How many new organisations one search warms at most, after its answer is sent. */
+export const PREWARM_MAX = 8;
+
+/**
+ * Warms the logos of a search's organisations the directory doesn't have yet, after the answer is sent (owner,
+ * 2026-11-06: "get the logo on the fly without compromising on performance"), so their cards find them ready:
+ *  - known only by name: found by name (`resolveCompanyByName`) and kept under its domain;
+ *  - a logo the source sent (`employer.logoUrl`, https, a public host): stored once for that domain, the first time;
+ *  - otherwise the domain's own icon (`fetchLogo`).
+ * One directory read per organisation, at most PREWARM_MAX a search, and none for a company that already has its logo.
+ */
+export async function prewarmLogos(opps: CanonicalOpportunity[], now = Date.now(), fetcher: typeof fetch = fetch, store: CompanyStore = companyStore()): Promise<number> {
+  const seen = new Set<string>();
+  const asks: { domain?: string; nameKey: string; name: string; logoUrl?: string }[] = [];
+  for (const o of opps) {
+    const name = o.employer.name?.trim() ?? "";
+    const nameKey = companyKey(name);
+    const domain = companyDomain(o.employer.domain);
+    const k = domain ?? `n:${nameKey}`;
+    if (!nameKey || seen.has(k)) continue;
+    seen.add(k);
+    // Already served lately on this server: nothing to warm.
+    if (LOGO_CACHE.has(domain ? `d:${domain}` : `n:${nameKey}`)) continue;
+    asks.push({ ...(domain ? { domain } : {}), nameKey, name, ...(o.employer.logoUrl ? { logoUrl: o.employer.logoUrl } : {}) });
+    if (asks.length >= PREWARM_MAX) break;
+  }
+  let warmed = 0;
+  for (const a of asks) {
+    let row = a.domain ? await store.logoFor({ domain: a.domain }) : await store.logoFor({ nameKey: a.nameKey });
+    let wikidataId: string | undefined;
+    if (!row && !a.domain) {
+      const found = await resolveCompanyByName(a.nameKey, fetcher, now);
+      if (!found) continue;
+      wikidataId = found.wikidataId;
+      row = await store.logoFor({ domain: found.domain });
+      if (!row) {
+        const at = new Date(now).toISOString();
+        await store.upsert([{ domain: found.domain, name: found.name, nameKey: a.nameKey, sources: ["wikidata-name"], firstSeenAt: at, lastSeenAt: at }]);
+        row = { domain: found.domain, logo: undefined, logoCheckedAt: undefined };
+      }
+    }
+    // Recorded with no logo yet (or never checked): the source's own image first, else the site's icon.
+    if (!row || row.logo || (row.logo === null && row.logoCheckedAt && now - Date.parse(row.logoCheckedAt) < LOGO_TTL_MS)) continue;
+    const fromSource = a.logoUrl && checkDestination(a.logoUrl).ok ? await imageFrom(a.logoUrl, fetcher, undefined, false) : undefined;
+    const logo = fromSource ?? (await fetchLogo(row.domain, fetcher, wikidataId ? { wikidataId } : {}));
+    await store.setLogo(row.domain, logo, new Date(now).toISOString());
+    if (logo) warmed++;
+  }
+  return warmed;
 }
 
 /** The icon links a home page declares (apple-touch-icon and icon), on the company's own domain only, largest declared first. */
@@ -436,11 +562,11 @@ export function iconLinks(html: string, pageUrl: string, domain: string): string
   return out.sort((a, b) => Number(b.touch) - Number(a.touch) || b.size - a.size).map((x) => x.url);
 }
 
-async function imageFrom(url: string, fetcher: typeof fetch, dead?: Set<string>): Promise<CompanyRecord["logo"] | undefined> {
+async function imageFrom(url: string, fetcher: typeof fetch, dead?: Set<string>, follow = true): Promise<CompanyRecord["logo"] | undefined> {
   const host = new URL(url).hostname;
   if (dead?.has(host)) return undefined;
   try {
-    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: "follow", headers: { accept: "image/png,image/*;q=0.8", "user-agent": UA } });
+    const res = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: follow ? "follow" : "error", headers: { accept: "image/png,image/*;q=0.8", "user-agent": UA } });
     if (!res.ok) return undefined;
     const bytes = new Uint8Array(await res.arrayBuffer());
     // Tiny files are placeholders; huge ones aren't icons.
@@ -523,11 +649,25 @@ export async function companyLogo(q: { domain?: string; name?: string }, now = D
     if (hit && now - hit.at < LOGO_CACHE_MS) return hit.logo;
   }
   const store = companyStore();
-  const company = (domain ? await store.logoFor({ domain }) : undefined) ?? (nameKey ? await store.logoFor({ nameKey }) : undefined);
+  let company = (domain ? await store.logoFor({ domain }) : undefined) ?? (nameKey ? await store.logoFor({ nameKey }) : undefined);
+  let wikidataId: string | undefined;
+  if (!company && !q.domain && nameKey) {
+    // Known only by name (an event's organiser, a seller): found once by name, then kept under its own domain.
+    const found = await resolveCompanyByName(nameKey, fetcher, now);
+    if (found) {
+      wikidataId = found.wikidataId;
+      company = await store.logoFor({ domain: found.domain });
+      if (!company) {
+        const at = new Date(now).toISOString();
+        await store.upsert([{ domain: found.domain, name: found.name, nameKey, sources: ["wikidata-name"], firstSeenAt: at, lastSeenAt: at }]);
+        company = { domain: found.domain, logo: undefined, logoCheckedAt: undefined };
+      }
+    }
+  }
   if (!company) return undefined;
   let logo = company.logo;
   if (!logo && (logo === undefined || !company.logoCheckedAt || now - Date.parse(company.logoCheckedAt) > LOGO_TTL_MS)) {
-    logo = await fetchLogo(company.domain, fetcher);
+    logo = await fetchLogo(company.domain, fetcher, wikidataId ? { wikidataId } : {});
     await store.setLogo(company.domain, logo, new Date(now).toISOString());
   }
   if (!logo) return null;

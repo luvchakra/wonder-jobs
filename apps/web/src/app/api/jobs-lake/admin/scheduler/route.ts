@@ -57,19 +57,19 @@ export async function PUT(req: Request) {
   if (a instanceof NextResponse) return a;
   const body = await readJson(req);
   if (!body) return badJson();
-  // The gateway's one option is set on Data → Import; a save from here keeps it.
+  // The gateway's one option is set on Sources → Import; a save from here keeps it.
   const current = await loadScheduler();
   const saved = await saveScheduler({ ...(body as Record<string, unknown>), gateway: current.gateway }, a.actor);
   await audit(a.actor, "scheduler.update", undefined, { scheduledRuns: saved.scheduledRuns, companyRefresh: saved.companyRefresh, gateway: saved.gateway });
   return json({ settings: saved });
 }
 
-/** Run now: the company refresh, with the saved limits (the daily run stays with the cron; the gateway's import is on Data → Import). */
+/** Run now: the company refresh, with the saved limits (the daily run stays with the cron; the gateway's import is on Sources → Import). */
 export async function POST(req: Request) {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
   const body = (await readJson(req)) as { job?: string } | null;
-  if (body?.job !== "jobslake-companies") return jlError("INVALID_REQUEST", "Only the company refresh can be run from here; the gateway's import is on Data → Import.", 400);
+  if (body?.job !== "jobslake-companies") return jlError("INVALID_REQUEST", "Only the company refresh can be run from here; the gateway's import is on Sources → Import.", 400);
   await audit(a.actor, "scheduler.run", undefined, { job: body.job });
   const r = await runCompanyRefresh("admin");
   return json(r, r.outcome === "failed" ? 500 : 200);

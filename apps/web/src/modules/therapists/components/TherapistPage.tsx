@@ -84,6 +84,7 @@ function Page({ l }: { l: TherapistListing }) {
       <ListingMain>
         <ListingHead
           company={l.company}
+          website={l.applyUrl}
           name={l.company === l.title && l.practiceKind ? <span className="font-normal text-ink-3">{l.practiceKind}</span> : l.company}
           facts={[
             t.modes?.includes("in_person") && (

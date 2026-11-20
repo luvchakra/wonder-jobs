@@ -42,7 +42,7 @@ export function Toaster() {
   return (
     <div aria-live="polite" aria-atomic="false" className="pointer-events-none fixed inset-x-4 bottom-[calc(var(--wj-mobile-nav-h)+1rem)] z-[60] flex flex-col items-center gap-2 md:inset-x-auto md:bottom-6 md:right-6 md:items-end">
       {toasts.map((t) => (
-        <div key={t.id} role="status" className={cn("pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[16px] border border-line bg-surface p-4 shadow-lg wj-animate-fade-up")}>
+        <div key={t.id} role="status" className={cn("pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[16px] border border-line bg-surface/95 p-4 shadow-lg backdrop-blur wj-animate-fade-up")}>
           {icons[t.tone]}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-ink">{t.title}</p>

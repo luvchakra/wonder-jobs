@@ -39,7 +39,7 @@ For a site that publishes listings as pages with schema.org data (JobPosting, Ev
 
 ## Reviewed sources
 
-`sources/*.json` hold source definitions that have been checked (permission evidence included). Register one with `GATEWAY_ADMIN_TOKEN=… node src/register.mjs sources/we-work-remotely.json`; it starts paused, and still needs `/test` and `/activate`. Two per-source options read a feed's own format: `titleCompanyPrefix` (company named as "Company: Title") and `allRemote` (a remote-only board). Source text is stored as plain text; markup, even escaped, is removed.
+`sources/*.json` hold source definitions that have been checked (permission evidence included). Register one with `GATEWAY_ADMIN_TOKEN=… node src/register.mjs sources/we-work-remotely-design.json`; it starts paused, and still needs `/test` and `/activate`. Two per-source options read a feed's own format: `titleCompanyPrefix` (company named as "Company: Title") and `allRemote` (a remote-only board). Source text is stored as plain text; markup, even escaped, is removed.
 
 ## Behaviour worth knowing
 
@@ -52,3 +52,17 @@ For a site that publishes listings as pages with schema.org data (JobPosting, Ev
 ## Production limitations
 
 This is an isolated **single-instance MVP**, not a publicly scalable service. Its JSON file store persists across process restarts on one mounted persistent disk only; multi-replica operation can corrupt state. Before production, migrate to PostgreSQL transactions, distributed job queue/locks and a shared rate limiter (today's is per process), run source licensing/privacy reviews, add monitoring and verify production deployment behind TLS. No external API consumers should be provisioned before those controls are in place.
+
+### One outside consumer: WonderArk (2026-11-11, WJ-815)
+
+One outside consumer, `wonderark`, is provisioned for the prospect data API (`/v1/prospects/`, `docs/PROSPECT_DATA_API.md`). What was hardened for it:
+
+- Outside consumers are an administrator's setting (`POST /v1/admin/settings`, Sources → Import → Prospect data), off by default. The old `GATEWAY_ALLOW_EXTERNAL_CONSUMERS=1` still turns it on for a deployment that set it.
+- Its key holds the five prospect scopes and no module scope; a key never holds both kinds. It gets 403 on every module route, and no module route can read the `businesses` or `channels` datasets.
+- Every prospect request names its tenant (`X-Tenant-Id`), and each tenant has a monthly allowance of searches and paid units, with a platform-wide paid cap.
+- It sees only sources whose reviewed definition sets `externalRedistributionAllowed: true`.
+
+Live providers (WJ-822): `src/providers/` holds one adapter per official API (`google_places`, `apollo`, `data_gov_in`, `youtube`, `podcast_index`, `reddit`), asked only when a prospect search names it, each with 8 seconds. Contact providers (WJ-825): `hunter` and `apollo` answer `contacts` (people looked up live, never cached, stored or logged), and `apollo` answers `enrich` with `allowPaid`. This package holds no provider key: the host passes them in per request (`prospectHooks.providerKeys`), and a provider without its key answers `needs_setup`. Answers are never written to the listings table; they may be kept in memory for the provider's `providerCacheHours` setting (Google Places: 0).
+
+Still true: the per-key rate limit is per process, so a shared limiter is needed before a second outside consumer (owner decision `prospects-gateway-hardening`).
+

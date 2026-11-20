@@ -15,10 +15,18 @@ import { jobsLakeStore } from "./store";
 export interface PlatformKeySpec {
   name: string;
   label: string;
+  /** Admin → Keys' section: a source's key, or one of the platform's own settings (owner, 2026-11-06: "decommission vercel environment variables as much as possible"). */
+  group?: "sources" | "email" | "ai" | "push" | "runner";
+  /** Not a secret (a host, a port, an address list, a model name): shown in full, never masked. */
+  plain?: boolean;
+  /** Shortest accepted value (default 4; a port is shorter). */
+  minLength?: number;
   /** What it unlocks, in words. */
   usedBy: string;
   signup: string;
   free: boolean;
+  /** Holds several keys (one per line), used in turn; each is shown masked and can be removed on its own. */
+  multi?: boolean;
 }
 
 export const PLATFORM_KEYS: PlatformKeySpec[] = [
@@ -27,15 +35,56 @@ export const PLATFORM_KEYS: PlatformKeySpec[] = [
   { name: "USAJOBS_API_KEY", label: "USAJOBS API key", usedBy: "Jobs, Teaching and Internships: US government roles", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "USAJOBS_EMAIL", label: "USAJOBS email", usedBy: "The email the USAJOBS key was registered to", signup: "https://developer.usajobs.gov/APIRequest/Index", free: true },
   { name: "TICKETMASTER_API_KEY", label: "Ticketmaster API key", usedBy: "Events: concerts, sport, theatre and family events", signup: "https://developer.ticketmaster.com/", free: true },
+  { name: "OPENAGENDA_API_KEY", label: "OpenAgenda API key", usedBy: "Events: the public agendas of French and European towns, museums and associations (a public key, oa_pk_…)", signup: "https://developers.openagenda.com/authentification/", free: true },
+  { name: "THESPORTSDB_API_KEY", minLength: 3, label: "TheSportsDB API key (optional)", usedBy: "Events: cricket and Indian Super League fixtures. Without one, its free key 123 is used already (about three results a call); a paid key lifts that", signup: "https://www.thesportsdb.com/pricing", free: false },
+  { name: "REDDIT_CLIENT_ID", label: "Reddit app client ID", usedBy: "Co-founders: recent co-founder requests in r/cofounder, r/startups, r/Entrepreneur, r/SideProject and r/StartUpIndia (terms pending: Reddit's Data API terms limit commercial use)", signup: "https://www.reddit.com/prefs/apps", free: true },
+  { name: "REDDIT_CLIENT_SECRET", label: "Reddit app client secret", usedBy: "With the Reddit app client ID", signup: "https://www.reddit.com/prefs/apps", free: true },
+  { name: "PRODUCTHUNT_TOKEN", label: "Product Hunt developer token", usedBy: "Co-founders: the newest Product Hunt products, as startups (terms pending: its API terms limit commercial use)", signup: "https://www.producthunt.com/v2/oauth/applications", free: true },
+  { name: "JSEARCH_API_KEY", label: "JSearch API key (RapidAPI)", usedBy: "Jobs: Google for Jobs results (LinkedIn, Indeed, Naukri, foundit, TimesJobs, career sites) through JSearch, at most JSEARCH_DAILY_MAX requests a day (default 150). The small free tier needs a RapidAPI account", signup: "https://rapidapi.com/letscrunch/api/jsearch", free: true },
+  { name: "THEIRSTACK_API_KEYS", label: "TheirStack API keys", usedBy: "Jobs: licensed jobs from LinkedIn, Indeed, ATS boards and career sites. Add one or several keys; Wonder takes them in turn and skips one that is out of credits. Keys set in the deployment are used too.", signup: "https://app.theirstack.com/settings/api-key", free: true, multi: true },
   { name: "JOOBLE_API_KEY", label: "Jooble API key", usedBy: "Jobs, Teaching and Internships searches through Jooble", signup: "https://jooble.org/api/about", free: true },
   { name: "KAGGLE_API_TOKEN", label: "Kaggle API token", usedBy: "Scholarships & Projects: Kaggle competitions (Settings → API → Generate New Token, starts KGAT_; replaces the older username + key)", signup: "https://www.kaggle.com/settings/account", free: true },
   { name: "THEMUSE_API_KEY", label: "The Muse API key", usedBy: "Internships from The Muse (higher rate limit)", signup: "https://www.themuse.com/developers/api/v2", free: true },
+  { name: "NAV_PAM_STILLING_FEED_TOKEN", label: "NAV job feed token (Norway)", usedBy: "Jobs: every Norwegian vacancy from NAV's pam-stilling-feed, once its connector is built (WJ-550)", signup: "https://navikt.github.io/pam-stilling-feed/", free: true },
+  { name: "FIND_APPRENTICESHIP_API_KEY", label: "Find an apprenticeship API key (UK)", usedBy: "Internships: live apprenticeship vacancies in England (DfE Display Advert API v2)", signup: "https://developer.apprenticeships.education.gov.uk/third-party-accounts/register", free: true },
+  { name: "SIMPLER_GRANTS_API_KEY", label: "Simpler.Grants.gov API key", usedBy: "Scholarships & Projects: US federal funding open to individuals, with summaries, from Simpler.Grants.gov (self-serve key via Login.gov; disabled after 30 days unused)", signup: "https://simpler.grants.gov/developers", free: true },
+  { name: "CLIST_USERNAME", label: "clist.by username", usedBy: "Scholarships & Projects: upcoming programming contests on about 200 platforms (with the clist.by API key)", signup: "https://clist.by/api/v4/doc/", free: true },
+  { name: "CLIST_API_KEY", label: "clist.by API key", usedBy: "Scholarships & Projects: upcoming programming contests from clist.by (log in, then API → your key; 10 requests a minute)", signup: "https://clist.by/api/v4/doc/", free: true },
   { name: "RELIEFWEB_APPNAME", label: "ReliefWeb app name", usedBy: "Internships: humanitarian and development internships worldwide from ReliefWeb", signup: "https://apidoc.reliefweb.int/parameters#appname", free: true },
   { name: "CQC_API_KEY", label: "CQC Syndication API key", usedBy: "Therapists: England's registered mental-health and therapy services (practices only). Not built yet: its fetcher waits for the portal's API documentation (see Setup to-do)", signup: "https://api-portal.service.cqc.org.uk", free: true },
   { name: "NHS_SERVICE_SEARCH_KEY", label: "NHS Service Search (v3) key", usedBy: "Therapists: NHS talking-therapies services in England (practices only). Not built yet: access is by onboarding and its cost isn't stated (see Setup to-do)", signup: "https://digital.nhs.uk/developer/api-catalogue/directory-of-healthcare-services", free: false },
+  { name: "FLIPKART_AFFILIATE_ID", label: "Flipkart affiliate tracking ID", usedBy: "Buy, Sell & Rent (India): items from Flipkart. Terms pending: Flipkart's affiliate API terms of use", signup: "https://affiliate.flipkart.com/", free: true },
+  { name: "FLIPKART_AFFILIATE_TOKEN", label: "Flipkart affiliate API token", usedBy: "With the Flipkart tracking ID (generated on the affiliate dashboard)", signup: "https://affiliate.flipkart.com/", free: true },
+  { name: "EBAY_CLIENT_ID", label: "eBay Client ID (App ID)", usedBy: "Buy, Sell & Rent: fixed-price eBay items in the US, UK, Australia, Canada and larger EU marketplaces (5,000 calls a day). Terms pending: the eBay API licence and EPN attribution", signup: "https://developer.ebay.com/my/keys", free: true },
+  { name: "EBAY_CLIENT_SECRET", label: "eBay Client Secret (Cert ID)", usedBy: "With the eBay Client ID (the Production keyset's Cert ID)", signup: "https://developer.ebay.com/my/keys", free: true },
+  // Prospect data's live providers (WJ-822, docs/PROSPECT_DATA_API.md): asked only when a WonderArk search names them.
+  { name: "GOOGLE_PLACES_API_KEY", label: "Google Places API key", usedBy: "Prospect data: businesses from Google Places (Places API (New) Text Search), 1 paid unit a page; website and phone are billed at Google's Enterprise rate. Terms pending: Google's policies allow storing only the place id and restrict use outside Google's services, so nothing is kept. Test makes one id-only request", signup: "https://console.cloud.google.com/google/maps-apis/credentials", free: false },
+  { name: "YOUTUBE_API_KEY", label: "YouTube Data API key", usedBy: "Prospect data: YouTube channels by topic, with subscriber counts (YouTube Data API v3, free daily quota). Terms pending: YouTube's developer policies on keeping statistics (30 days at most) and passing data on", signup: "https://console.cloud.google.com/apis/library/youtube.googleapis.com", free: true },
+  { name: "PODCAST_INDEX_KEY", label: "Podcast Index API key", usedBy: "Prospect data: podcasts by topic from the Podcast Index (free). Terms pending: its API terms for storing and passing results on", signup: "https://api.podcastindex.org/signup", free: true },
+  { name: "PODCAST_INDEX_SECRET", label: "Podcast Index API secret", usedBy: "With the Podcast Index API key", signup: "https://api.podcastindex.org/signup", free: true },
+  // WJ-824/825: Apollo (businesses, contacts, enrich), data.gov.in (India's company register) and Hunter (contacts).
+  { name: "APOLLO_API_KEY", label: "Apollo API key", usedBy: "Prospect data: organisations by keyword, place and size (1 paid unit a page), a contact's work email (1 a person) and enrichment (1 an organisation). Terms pending: Apollo's API terms allow internal use only and ask for Apollo's approval before results go to another product (WonderArk). Test checks the key without spending a credit", signup: "https://developer.apollo.io/keys/", free: false },
+  { name: "DATA_GOV_IN_API_KEY", label: "data.gov.in API key", usedBy: "Prospect data: active Indian companies from the Ministry of Corporate Affairs' company master data (free; GODL – India). Terms pending: the platform's API terms and attribution wording. Test reads one record", signup: "https://www.data.gov.in/user/register", free: true },
+  { name: "HUNTER_API_KEY", label: "Hunter API key", usedBy: "Prospect data: named people at an organisation in the roles WonderArk asks for, and email verification (1 paid unit a search that finds someone, 1 a verification; the free plan has 50 credits a month). Nothing is stored. Terms pending: Hunter's terms on passing results to another product. Test reads the account (free)", signup: "https://hunter.io/users/sign_up", free: false },
+  // The platform's own settings, moved here from the deployment (owner, 2026-11-06). A deployment variable of the same
+  // name still wins; the GitHub collection runner reads these from the same encrypted store.
+  { group: "email", name: "SMTP_HOST", plain: true, label: "Mail server (SMTP host)", usedBy: "Every email WonderWorks sends: import reports, notifications, Contact us copies, hiring emails. GoDaddy: smtpout.secureserver.net", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "SMTP_PORT", plain: true, minLength: 2, label: "Mail server port", usedBy: "465 (implicit TLS, the default) or 587 (STARTTLS)", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "SMTP_USER", plain: true, label: "Mailbox (SMTP user)", usedBy: "The full address WonderWorks sends from, e.g. connect@wonderapps.biz", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "SMTP_PASS", label: "Mailbox password", usedBy: "The mailbox's password (or an app password)", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "CONTACT_FROM_EMAIL", plain: true, label: "From (optional)", usedBy: "Defaults to \"WonderWorks <mailbox>\"; most providers only send as the signed-in mailbox", signup: "https://www.godaddy.com/help/server-and-port-settings-for-workspace-email-6949", free: true },
+  { group: "email", name: "CONTACT_NOTIFY_EMAILS", plain: true, label: "Team addresses", usedBy: "Comma-separated: who gets Contact us copies, verification requests and admin reports", signup: "/platform/jobs-lake/import", free: true },
+  { group: "ai", name: "WONDERJOBS_AI_KEY", label: "WonderWorks AI key", usedBy: "The platform-billed model behind \"WonderWorks AI\" drafts and Ask Wonder. Without it, drafts use templates and the AI page says so", signup: "https://console.anthropic.com/settings/keys", free: false },
+  { group: "ai", name: "WONDERJOBS_AI_PROVIDER", plain: true, label: "WonderWorks AI provider (optional)", usedBy: "anthropic (default), openai or gemini: whose key the one above is", signup: "https://console.anthropic.com/settings/keys", free: true },
+  { group: "ai", name: "WONDERJOBS_AI_MODEL", plain: true, label: "WonderWorks AI model (optional)", usedBy: "Defaults per provider: claude-sonnet-5, gpt-5-mini, gemini-3.6-flash", signup: "https://docs.anthropic.com/en/docs/about-claude/models", free: true },
+  { group: "push", name: "VAPID_PUBLIC_KEY", plain: true, label: "Push public key", usedBy: "Browser push notifications. Generate a pair below; keep it, or every device must turn notifications on again", signup: "/platform/jobs-lake/platform-keys", free: true },
+  { group: "push", name: "VAPID_PRIVATE_KEY", label: "Push private key", usedBy: "With the push public key", signup: "/platform/jobs-lake/platform-keys", free: true },
+  { group: "push", name: "VAPID_SUBJECT", plain: true, label: "Push contact (optional)", usedBy: "mailto: address push services can reach; defaults to support@wonderjobs.app", signup: "https://datatracker.ietf.org/doc/html/rfc8292", free: true },
+  { group: "runner", name: "GITHUB_DISPATCH_TOKEN", label: "GitHub token for the collection runner", usedBy: "Lets Import now and Import this module start the collection on GitHub Actions. A fine-grained token with Actions: read and write on this repository, nothing else", signup: "https://github.com/settings/personal-access-tokens/new", free: true },
 ];
 
 const NAMES = new Set(PLATFORM_KEYS.map((k) => k.name));
+const SPEC = new Map(PLATFORM_KEYS.map((k) => [k.name, k]));
 const ref = (name: string) => `platform:${name}`;
 const TTL = 60_000;
 let cache: { at: number; values: Record<string, string> } | null = null;
@@ -72,6 +121,22 @@ async function readKeys(now: number): Promise<void> {
   }
 }
 
+/**
+ * The environment as the app should read it: the deployment's variables, with every key above that the deployment
+ * leaves unset (or empty) filled from the admin's store. Call `loadPlatformKeys()` first; tests pass their own env.
+ */
+export function withPlatformKeys(env: Record<string, string | undefined> = process.env): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = { ...env };
+  for (const k of PLATFORM_KEYS) if (!out[k.name]?.trim() && cache?.values[k.name]?.trim()) out[k.name] = cache.values[k.name].trim();
+  return out;
+}
+
+/** `withPlatformKeys()` once the admin's values are read (at most once a minute). */
+export async function platformEnv(): Promise<Record<string, string | undefined>> {
+  await loadPlatformKeys();
+  return withPlatformKeys();
+}
+
 /** A source's key: the deployment's environment variable if set, else the one the admin set on the platform. */
 export function platformKey(name: string): string | undefined {
   const env = process.env[name]?.trim();
@@ -79,8 +144,17 @@ export function platformKey(name: string): string | undefined {
   return cache?.values[name]?.trim() || undefined;
 }
 
+/** The keys the admin set for a multi-key entry, in order (the deployment's own variable is not included). */
+export function adminKeyList(name: string): string[] {
+  return splitKeys(cache?.values[name]);
+}
+const splitKeys = (v: string | undefined) => [...new Set((v ?? "").split(/[\s,]+/).map((k) => k.trim()).filter(Boolean))];
+
 export interface PlatformKeyStatus extends PlatformKeySpec {
   set: boolean;
+  /** A multi-key entry: each admin key, masked, and how many more the deployment sets. */
+  keys?: string[];
+  envCount?: number;
   /** Admin → Keys shows a Test for it (keyTest.ts). */
   testable?: boolean;
   from: "platform" | "environment" | null;
@@ -90,10 +164,19 @@ export interface PlatformKeyStatus extends PlatformKeySpec {
 /** Every key, whether it's set and where from, masked — never a value. */
 export async function platformKeyStatus(): Promise<PlatformKeyStatus[]> {
   await loadPlatformKeys(Date.now(), true);
-  return PLATFORM_KEYS.map((k) => {
+  return PLATFORM_KEYS.map((raw) => {
+    const k = { ...raw, group: raw.group ?? ("sources" as const) };
     const env = process.env[k.name]?.trim();
     const mine = cache?.values[k.name];
-    return { ...k, set: !!(env || mine), from: env ? "environment" : mine ? "platform" : null, masked: env ? "Set in the deployment" : mine ? maskCredential(mine) : "Not set" };
+    if (k.multi) {
+      // Several keys: the admin's are listed (masked) and editable even when the deployment also sets some.
+      const keys = splitKeys(mine).map(maskCredential);
+      const envCount = splitKeys(env).length;
+      const masked = keys.length ? `${keys.length} key${keys.length === 1 ? "" : "s"}${envCount ? ` + ${envCount} in the deployment` : ""}` : envCount ? `${envCount} in the deployment` : "Not set";
+      return { ...k, set: keys.length + envCount > 0, from: keys.length ? ("platform" as const) : envCount ? ("environment" as const) : null, masked, keys, envCount };
+    }
+    const shown = (v: string) => (k.plain ? v : maskCredential(v));
+    return { ...k, set: !!(env || mine), from: env ? "environment" : mine ? "platform" : null, masked: env ? (k.plain ? `${env} (in the deployment)` : "Set in the deployment") : mine ? shown(mine) : "Not set" };
   });
 }
 
@@ -103,15 +186,65 @@ export async function setPlatformKey(name: string, value: string | null, now = n
   const store = jobsLakeStore();
   if (value === null) {
     await store.deleteCredential(ref(name));
+  } else if (SPEC.get(name)?.multi) {
+    // A multi-key entry adds the pasted keys (one per line or comma-separated) to the ones already saved.
+    const existing = await store.getCredential(ref(name));
+    const before = existing ? splitKeys(decrypt(existing.ciphertext)) : [];
+    const added = splitKeys(value).filter((k) => k.length >= 4 && k.length <= 512);
+    if (!added.length) return { ok: false, message: "Paste at least one key (one per line)." };
+    const all = [...new Set([...before, ...added])];
+    if (all.join(",").length > 4096 || all.length > 30) return { ok: false, message: "Too many keys (at most 30)." };
+    await store.putCredential({ ref: ref(name), ciphertext: encrypt(all.join(",")), masked: `${all.length} keys`, createdAt: existing?.createdAt ?? now, replacedAt: existing ? now : undefined });
+    cache = null;
+    await loadPlatformKeys(Date.now(), true);
+    const n = all.length - before.length;
+    return { ok: true, message: `${n} key${n === 1 ? "" : "s"} added (${all.length} saved).` };
   } else {
     const v = value.trim();
-    if (v.length < 4 || v.length > 4096) return { ok: false, message: "That doesn't look like a key (4–4,096 characters)." };
+    const min = SPEC.get(name)?.minLength ?? 4;
+    if (v.length < min || v.length > 4096) return { ok: false, message: `That doesn't look right (${min}–4,096 characters).` };
     const existing = await store.getCredential(ref(name));
     await store.putCredential({ ref: ref(name), ciphertext: encrypt(v), masked: maskCredential(v), createdAt: existing?.createdAt ?? now, replacedAt: existing ? now : undefined });
   }
   cache = null;
   await loadPlatformKeys(Date.now(), true);
   return { ok: true, message: value === null ? `${name} removed.` : `${name} saved. Sources that need it can run now.` };
+}
+
+/**
+ * Copies the keys the deployment sets for a multi-key entry into the admin's list (owner, 2026-11-05: "copy from vercel to
+ * admin"), so they can be seen, tested and removed one by one; the deployment's variable can then be deleted. The values
+ * go from the server's environment to the encrypted store and are never shown.
+ */
+export async function importPlatformKeysFromEnv(name: string, now = new Date().toISOString()): Promise<{ ok: boolean; message: string }> {
+  const spec = SPEC.get(name);
+  if (!spec) return { ok: false, message: "Unknown key." };
+  if (!spec.multi) {
+    // One value: copied as is, so the deployment's variable can be deleted (owner, 2026-11-06).
+    const v = process.env[name]?.trim();
+    if (!v) return { ok: false, message: "The deployment doesn't set this." };
+    const r = await setPlatformKey(name, v, now);
+    return r.ok ? { ok: true, message: `Copied from the deployment. You can now delete ${name} in Vercel.` } : r;
+  }
+  const fromEnv = splitKeys(process.env[name]);
+  if (!fromEnv.length) return { ok: false, message: "The deployment sets no keys for this." };
+  const r = await setPlatformKey(name, fromEnv.join("\n"), now);
+  return r.ok ? { ok: true, message: `Copied from the deployment: ${r.message} You can now delete ${name} in Vercel.` } : r;
+}
+
+/** Removes one key of a multi-key entry, by its place in the masked list. */
+export async function removePlatformKeyAt(name: string, index: number, now = new Date().toISOString()): Promise<{ ok: boolean; message: string }> {
+  if (!SPEC.get(name)?.multi) return { ok: false, message: "Unknown key." };
+  const store = jobsLakeStore();
+  const existing = await store.getCredential(ref(name));
+  const keys = existing ? splitKeys(decrypt(existing.ciphertext)) : [];
+  if (!Number.isInteger(index) || index < 0 || index >= keys.length) return { ok: false, message: "That key isn't there any more." };
+  keys.splice(index, 1);
+  if (keys.length) await store.putCredential({ ref: ref(name), ciphertext: encrypt(keys.join(",")), masked: `${keys.length} keys`, createdAt: existing!.createdAt, replacedAt: now });
+  else await store.deleteCredential(ref(name));
+  cache = null;
+  await loadPlatformKeys(Date.now(), true);
+  return { ok: true, message: `Key removed (${keys.length} left).` };
 }
 
 /**

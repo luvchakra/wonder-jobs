@@ -46,7 +46,7 @@ export function MarketingPage({ eyebrow, title, intro, updated, sections, childr
         {children}
         <p className="mt-14 rounded-[16px] border border-line p-4 text-[13.5px] text-ink-3">
           Questions about any of this?{" "}
-          <Link href="/#contact" className="font-semibold text-brand-600 hover:underline">
+          <Link href="/contact" className="font-semibold text-brand-600 hover:underline">
             Contact us
           </Link>
           .

@@ -1,13 +1,14 @@
 import { DEFAULT_PLANS, mergePlansConfig, monthKey, type PlansConfig, type PlanId } from "@/domain/billing/plans";
 import { stateStore } from "@/server/state";
 import { razorpayConfig, stripeConfig } from "./config";
+import { loadBillingKeys } from "./credentials";
 
 /** The operator's plan configuration lives under a tenant no account can be: it's read by everyone, written only from the operator page. */
 export const PLATFORM_TENANT = "__platform__";
 
 /** The current plans: stored overrides on top of the defaults, with the deployment's price ids filling any gap. */
 export async function getPlansConfig(): Promise<PlansConfig> {
-  const doc = await stateStore.get(PLATFORM_TENANT, "wj.plans").catch(() => undefined);
+  const [doc] = await Promise.all([stateStore.get(PLATFORM_TENANT, "wj.plans").catch(() => undefined), loadBillingKeys()]);
   const cfg = mergePlansConfig(doc?.state ?? DEFAULT_PLANS);
   const s = stripeConfig();
   const r = razorpayConfig();

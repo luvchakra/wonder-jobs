@@ -10,8 +10,8 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function EmptyState({ icon, title, body, action, className }: { icon?: ReactNode; title: string; body?: string; action?: { label: string; href?: string; onClick?: () => void }; className?: string }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong px-6 py-12 text-center", className)}>
-      <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">{icon ?? <Inbox className="size-5" aria-hidden />}</div>
+    <div className={cn("flex flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong bg-gradient-to-b from-surface/70 to-transparent px-6 py-12 text-center", className)}>
+      <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-8 ring-brand-50/50">{icon ?? <Inbox className="size-5" aria-hidden />}</div>
       <h2 className="text-base font-semibold text-ink">{title}</h2>
       {body && <p className="mt-1 max-w-sm text-sm text-ink-3">{body}</p>}
       {action && (

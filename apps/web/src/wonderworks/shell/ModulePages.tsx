@@ -9,7 +9,7 @@ import type { ModuleId, ModuleManifest } from "@/wonderworks/manifest";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { StageTiles } from "@/wonderworks/pipeline/parts";
 import { YouOverview } from "@/wonderworks/you/YouOverview";
-import { FilterBox, REFINE_CHIP, ResultsGrid, TogglePill } from "@/wonderworks/find/parts";
+import { FIND_PIN, FilterBox, REFINE_CHIP, ResultsGrid, TogglePill } from "@/wonderworks/find/parts";
 import { useDictation } from "@/lib/dictation";
 import { cn } from "@/lib/cn";
 import { Chip } from "@/components/common/Input";
@@ -67,9 +67,12 @@ export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /**
   return (
     <div>
       <h1 className="wj-sr-only">Saved</h1>
-      <div className="mb-3 flex flex-col gap-3">
-        <FilterBox text={text} onText={setText} label={`Filter saved ${m.label.toLowerCase()}`} dictation={dictation} dictateLabel="what to look for in your saves" history={history} onEnter={(t) => moduleStore(id).getState().rememberSearch(t, "saved")} onForget={(t) => moduleStore(id).getState().forgetSearch(t, "saved")} />
-        <div role="group" aria-label="Module" className="flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] max-[380px]:gap-0.5">
+      {/* Phones and tablets: the box, the module chips, then Hide Pipeline, stacked. From 1024px (owner, 2026-11-06): the
+          box and Hide Pipeline on the first line, the module chips on one line under them, and the whole row kept at
+          the top of the window while the saves scroll (FIND_PIN). */}
+      <div className={cn("mb-3 flex flex-col gap-3 lg:mb-1 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-3 lg:gap-y-2", FIND_PIN)}>
+        <FilterBox className="lg:w-80 lg:shrink-0" text={text} onText={setText} label={`Filter saved ${m.label.toLowerCase()}`} dictation={dictation} dictateLabel="what to look for in your saves" history={history} onEnter={(t) => moduleStore(id).getState().rememberSearch(t, "saved")} onForget={(t) => moduleStore(id).getState().forgetSearch(t, "saved")} />
+        <div role="group" aria-label="Module" className="flex items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] max-[380px]:gap-0.5 lg:order-last lg:min-w-0 lg:basis-full lg:flex-nowrap">
           {[{ id: "all" as const, label: "All" }, ...live.map((x) => ({ id: x.id, label: x.label }))].map((c) => (
             <Chip key={c.id} active={only === c.id} isDefault={c.id === "all"} onClick={() => setOnly(c.id)} className={cn(REFINE_CHIP, "shrink-0")}>
               {c.label}
@@ -79,7 +82,7 @@ export function ModuleSaved({ m, live, card, cardText }: { m: ShellManifest; /**
             Saved jobs
           </Link>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 lg:shrink-0">
           <TogglePill label="Hide Pipeline" checked={hidePipeline} onChange={setHidePipeline} />
         </div>
       </div>

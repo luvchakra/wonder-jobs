@@ -166,9 +166,9 @@ async function cleanSite(input: SiteInput, siteId?: string): Promise<Pick<SiteRo
   let publicUrl: string;
   if (slug) {
     if (!SLUG_PATTERN.test(slug)) throw new HiringError("The short company name can use lower-case letters, numbers and hyphens (2 to 40), like acme or acme-labs.");
-    if (RESERVED_SLUGS.has(slug)) throw new HiringError(`jobs.wonderapps.biz/careers/${slug} is taken. Try another short name.`, 409);
+    if (RESERVED_SLUGS.has(slug)) throw new HiringError(`works.wonderapps.biz/careers/${slug} is taken. Try another short name.`, 409);
     const taken = await sites().one({ slug });
-    if (taken && !taken.revoked_at && taken.id !== siteId) throw new HiringError(`jobs.wonderapps.biz/careers/${slug} is taken. Try another short name.`, 409);
+    if (taken && !taken.revoked_at && taken.id !== siteId) throw new HiringError(`works.wonderapps.biz/careers/${slug} is taken. Try another short name.`, 409);
     publicUrl = hostedUrl(slug);
   } else {
     publicUrl = input.publicUrl.trim().replace(/\/+$/, "");

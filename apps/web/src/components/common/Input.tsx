@@ -2,7 +2,7 @@
 import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-const field = "w-full rounded-[12px] border border-line bg-surface px-3.5 text-sm text-ink placeholder:text-ink-4 outline-none transition-[border-color,box-shadow] focus:border-brand-400 focus:ring-4 focus:ring-brand-100 disabled:opacity-60";
+const field = "w-full rounded-[12px] border border-line bg-surface px-3.5 text-sm text-ink shadow-xs placeholder:text-ink-4 outline-none transition-[border-color,box-shadow] duration-200 hover:border-line-strong focus:border-brand-400 focus:ring-4 focus:ring-brand-100 disabled:opacity-60";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cn(field, "h-11", className)} {...rest} />;
@@ -66,7 +66,7 @@ export function Switch({ checked, onChange, label, disabled, id }: { checked: bo
       onClick={() => onChange(!checked)}
       className={cn("relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors after:absolute after:-inset-x-1 after:-inset-y-2 after:content-[''] disabled:opacity-50", checked ? "border-brand-500 bg-brand-500" : "border-line-strong bg-bg-soft")}
     >
-      <span className={cn("absolute size-5 rounded-full bg-white shadow-sm transition-transform", checked ? "translate-x-6" : "translate-x-1")} />
+      <span className={cn("absolute size-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-out-soft", checked ? "translate-x-6" : "translate-x-1")} />
     </button>
   );
 }

@@ -1,0 +1,35 @@
+{
+  "url": "https://api.stackexchange.com/2.3/sites?pagesize=1000",
+  "kind": "json_api",
+  "modules": [],
+  "datasets": [
+    "channels"
+  ],
+  "channelType": "forum",
+  "geography": [
+    "global"
+  ],
+  "permission": "terms_permit",
+  "permissionEvidence": "api.stackexchange.com/docs/sites (read 2026-11-12): /sites \"returns all sites in the network\", needs no key, has an unbounded pagesize and asks to be fetched rarely and cached a day or more (read weekly here). Tried once on 2026-11-12: it answered. Kept: each site's name, link and its own audience line; no post, no person. Terms pending: the API terms of use (stackoverflow.com/legal/api-terms-of-use) could not be read from the build environment; the owner confirms commercial use and attribution.",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": true,
+  "attribution": "Stack Exchange network (api.stackexchange.com)",
+  "itemsPath": "items",
+  "organizationOptional": true,
+  "mapping": {
+    "id": "api_site_parameter",
+    "title": "name",
+    "applyUrl": "site_url",
+    "description": "audience",
+    "attr.siteType": "site_type"
+  },
+  "moduleFilter": {
+    "channels": {
+      "field": "attr.siteType",
+      "match": "^main_site$"
+    }
+  },
+  "retentionHours": 720,
+  "minIntervalMinutes": 10080
+}

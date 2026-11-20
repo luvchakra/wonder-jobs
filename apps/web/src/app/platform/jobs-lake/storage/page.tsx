@@ -15,6 +15,7 @@ const FIELDS: { key: Exclude<keyof SafeguardSettings, "enabled">; label: string;
   { key: "alertPercent", label: "Alert at", hint: "Overview warns past this share of the limit.", unit: "%" },
   { key: "staleDays", label: "Remove listings not seen for", hint: "WorksLake listings no source has shown since; saved or applied ones stay.", unit: "days" },
   { key: "gatewayMaxPerSource", label: "Gateway listings per source", hint: "Newest kept; older ones beyond this go.", unit: "max" },
+  { key: "prospectMaxPerSource", label: "Prospect rows per source", hint: "A source's rows in the businesses or channels dataset, counted apart from its listings.", unit: "max" },
   { key: "gatewayMaxAgeDays", label: "Gateway listings kept for", hint: "Not re-seen in this long, a gateway listing goes.", unit: "days" },
   { key: "maxDeletesPerRun", label: "Most removed in one pass", hint: "Keeps a pass short; the rest go next day.", unit: "rows" },
 ];

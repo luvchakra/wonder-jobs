@@ -194,7 +194,7 @@ function merge(group: Observation[], now: number): CanonicalOpportunity {
   const opp: CanonicalOpportunity = {
     id: `opp_${fnv(keysFor(top.job)[0])}`,
     protocolVersion: PROTOCOL_VERSION,
-    employer: { name: employer, domain: ranked.find((o) => o.job.companyDomain)?.job.companyDomain },
+    employer: { name: employer, domain: ranked.find((o) => o.job.companyDomain)?.job.companyDomain, ...(ranked.find((o) => o.job.companyLogo)?.job.companyLogo ? { logoUrl: ranked.find((o) => o.job.companyLogo)!.job.companyLogo } : {}) },
     title,
     normalizedTitle: normalizeTitle(title),
     locations: [location],

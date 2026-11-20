@@ -12,6 +12,7 @@
  * Not here, on purpose: Psychology Today, Practo and other directories that forbid it, and any register that is an
  * individual's profile. A search's source lines say what each source gave rather than implying coverage.
  */
+import { gatewayConfigured } from "@/server/gateway/secrets";
 import type { Job } from "@/domain/jobs/types";
 import { PROTOCOL_VERSION } from "@/domain/jobslake/protocol";
 import { finish, type SearchCriteria } from "@/server/jobs/providers";
@@ -77,7 +78,7 @@ export const THERAPISTS_SOURCES: SourceRecord[] = [
 ];
 
 /** Whether this deployment can ask the source now. WonderWorks' own table needs no credential; OpenStreetMap needs the data gateway. */
-export const therapistsSourceAvailable = (s: SourceRecord) => (s.id === OPENSTREETMAP_THERAPISTS ? !!process.env.GATEWAY_ADMIN_TOKEN && !!process.env.GATEWAY_CURSOR_SECRET : THERAPISTS_SOURCES.some((x) => x.id === s.id));
+export const therapistsSourceAvailable = (s: SourceRecord) => (s.id === OPENSTREETMAP_THERAPISTS ? gatewayConfigured() : THERAPISTS_SOURCES.some((x) => x.id === s.id));
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);

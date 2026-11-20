@@ -63,7 +63,7 @@ export type Result<T> =
   | { state: "busy"; retryAfterSec: number }
   | { state: "unavailable" };
 
-export const CAREERS_BASE = "https://jobs.wonderapps.biz";
+export const CAREERS_BASE = "https://works.wonderapps.biz";
 export const TIMEOUT_MS = 8_000;
 const LIST_TTL_MS = 60_000;
 

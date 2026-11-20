@@ -5,7 +5,7 @@ const job: ShareJob = { id: "adzuna:42", title: "Database Administrator", compan
 
 describe("job sharing", () => {
   it("links to the job's public page", () => {
-    expect(shareUrl("https://jobs.wonderapps.biz/", "adzuna:42")).toBe("https://jobs.wonderapps.biz/j/adzuna%3A42");
+    expect(shareUrl("https://works.wonderapps.biz/", "adzuna:42")).toBe("https://works.wonderapps.biz/j/adzuna%3A42");
   });
 
   it("states only the posting's own facts, leaving out what it doesn't say", () => {

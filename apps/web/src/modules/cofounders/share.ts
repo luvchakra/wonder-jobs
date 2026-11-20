@@ -1,5 +1,5 @@
 import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
-import type { CofounderListing } from "./domain";
+import { isOutside, type CofounderListing } from "./domain";
 
 /**
  * What Share sends about a founder or team (owner, 2026-11-03: "go with b"). A profile's fields are shown to everyone on
@@ -10,6 +10,11 @@ import type { CofounderListing } from "./domain";
  * no public page, so the link opens the module and whoever opens it signs in. Contact details are never part of a listing.
  */
 export const shareOf = (l: CofounderListing): ListingShareProps => {
+  // A post or startup from a public source shares what its source made public, and links back to where it was published.
+  if (isOutside(l)) {
+    const t = l.terms;
+    return { module: "cofounders", noun: l.kind === "post" ? "co-founder post" : "startup", title: l.title, facts: [l.kind === "post" ? `Post on ${l.sourceName}` : "New startup", t.batch, l.location], lines: [], details: l.description, url: l.url ?? "/app/m/cofounders", source: l.sourceName };
+  }
   if (l.shareable !== true) return { module: "cofounders", noun: "place to find a co-founder", title: "Co-founders on WonderWorks", facts: ["Find someone to build with"], lines: [], url: "/app/m/cofounders" };
   const t = l.terms;
   const team = l.kind === "team";

@@ -1,3 +1,4 @@
+import { ensureGatewayKey, gatewayApiKey, gatewayKeyDerived } from "@/server/gateway/secrets";
 import { theirStackKeys } from "@/server/jobs/theirstack";
 import { randomBytes } from "node:crypto";
 import { decrypt, encrypt } from "@/server/secrets";
@@ -24,9 +25,13 @@ export interface CredentialStatus {
 const ENV_REFS: Record<string, { present: (env: Record<string, string | undefined>) => boolean; label: (env: Record<string, string | undefined>) => string }> = {
   "env:ADZUNA": { present: (e) => !!e.ADZUNA_APP_ID && !!e.ADZUNA_APP_KEY, label: () => "ADZUNA_APP_ID + ADZUNA_APP_KEY" },
   "env:USAJOBS": { present: (e) => !!e.USAJOBS_API_KEY && !!e.USAJOBS_EMAIL, label: () => "USAJOBS_API_KEY + USAJOBS_EMAIL" },
+  "env:FLIPKART": { present: (e) => !!e.FLIPKART_AFFILIATE_ID && !!e.FLIPKART_AFFILIATE_TOKEN, label: () => "FLIPKART_AFFILIATE_ID + FLIPKART_AFFILIATE_TOKEN" },
+  "env:EBAY": { present: (e) => !!e.EBAY_CLIENT_ID && !!e.EBAY_CLIENT_SECRET, label: () => "EBAY_CLIENT_ID + EBAY_CLIENT_SECRET" },
   "env:JOOBLE": { present: (e) => !!e.JOOBLE_API_KEY, label: () => "JOOBLE_API_KEY" },
+  "env:FIND_APPRENTICESHIP": { present: (e) => !!e.FIND_APPRENTICESHIP_API_KEY, label: () => "FIND_APPRENTICESHIP_API_KEY" },
   "env:RELIEFWEB": { present: (e) => !!e.RELIEFWEB_APPNAME, label: () => "RELIEFWEB_APPNAME" },
-  "env:WORKSLAKE_GATEWAY_API_KEY": { present: (e) => !!e.WORKSLAKE_GATEWAY_API_KEY, label: () => "WORKSLAKE_GATEWAY_API_KEY" },
+  // Set in the deployment, or derived from SECRET_ENCRYPTION_KEY (server/gateway/secrets.ts).
+  "env:WORKSLAKE_GATEWAY_API_KEY": { present: (e) => !!gatewayApiKey(e), label: (e) => (e.WORKSLAKE_GATEWAY_API_KEY?.trim() ? "WORKSLAKE_GATEWAY_API_KEY" : "derived from SECRET_ENCRYPTION_KEY") },
   // Either variable may hold the keys; only how many are set is ever shown.
   "env:THEIRSTACK": {
     present: (e) => theirStackKeys(e).length > 0,
@@ -55,7 +60,15 @@ export async function saveCredential(secret: string, replaceRef?: string): Promi
 
 /** Plaintext, for a connector call only. */
 export async function readCredential(ref: string | undefined): Promise<string | undefined> {
-  if (ref === "env:WORKSLAKE_GATEWAY_API_KEY") return process.env.WORKSLAKE_GATEWAY_API_KEY || undefined;
+  if (ref === "env:WORKSLAKE_GATEWAY_API_KEY") {
+    // A derived key is registered in the gateway's key table the first time it's read (once per process).
+    if (gatewayKeyDerived()) {
+      const { hostedGateway } = await import("@/server/gateway");
+      const hosted = hostedGateway();
+      if (hosted) await ensureGatewayKey(hosted.store as never);
+    }
+    return gatewayApiKey();
+  }
   if (!ref || ref.startsWith("env:")) return undefined;
   const c = await jobsLakeStore().getCredential(ref);
   return c ? decrypt(c.ciphertext) : undefined;

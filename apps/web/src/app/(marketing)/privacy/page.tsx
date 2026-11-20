@@ -142,11 +142,11 @@ export default function PrivacyPage() {
               <a href={`mailto:${contact.email}`} className="font-medium text-brand-600 underline">
                 {contact.email}
               </a>
-              . You can also use the <Link href="/#contact" className="font-medium text-brand-600 underline">contact form</Link> with the topic &ldquo;Privacy request&rdquo;.
+              . You can also use the <Link href="/contact" className="font-medium text-brand-600 underline">contact form</Link> with the topic &ldquo;Privacy request&rdquo;.
             </p>
           ) : (
             <p>
-              Use the <Link href="/#contact" className="font-medium text-brand-600 underline">contact form</Link> and choose the topic &ldquo;Privacy request&rdquo;. Requests are stored and answered within 30 days.
+              Use the <Link href="/contact" className="font-medium text-brand-600 underline">contact form</Link> and choose the topic &ldquo;Privacy request&rdquo;. Requests are stored and answered within 30 days.
             </p>
           ),
         },

@@ -1,7 +1,7 @@
 import type { ListingShareProps } from "@/wonderworks/listing/ShareButton";
 import { publicPath } from "@/wonderworks/listing/share";
 import { shortPlace } from "@/wonderworks/find/place";
-import { priceLabel, type MarketListing } from "./domain";
+import { listingPrice, type MarketListing } from "./domain";
 import type { ThreadView } from "./threads";
 
 /**
@@ -16,7 +16,7 @@ export const shareOf = (l: MarketListing): ListingShareProps => {
     module: "marketplace",
     noun: "listing",
     title: l.title,
-    facts: [`${priceLabel(t.price)}${t.negotiable ? " · negotiable" : ""}`, t.condition, shortPlace(l.area)],
+    facts: [`${listingPrice(l)}${t.negotiable ? " · negotiable" : ""}`, t.condition, shortPlace(l.area)],
     lines: [`Category: ${t.category}`, l.area && `Area: ${l.area}`],
     details: l.description,
     url: publicPath("marketplace", l.id),

@@ -57,12 +57,18 @@
   "modules": [
     "events"
   ],
-  "geography": ["global"],
+  "datasets": [
+    "channels"
+  ],
+  "channelType": "event",
+  "geography": [
+    "global"
+  ],
   "permission": "terms_permit",
-  "permissionEvidence": "github.com/tech-conferences/conference-data LICENSE.md (read 2026-11-01): MIT — \"Permission is hereby granted, free of charge … to deal in the Software without restriction, including … publish, distribute\"; the permission notice must be kept with copies.",
+  "permissionEvidence": "github.com/tech-conferences/conference-data LICENSE.md (read 2026-11-01 and 2026-11-12): MIT, \"Permission is hereby granted, free of charge … to deal in the Software without restriction, including … publish, distribute, sublicense\"; the permission notice must be kept with copies. Outside consumers (WJ-823): the licence itself allows passing the data on, so its conferences also feed the channels dataset as events. Terms pending: the owner confirms outside use (prospects-event-channels).",
   "termsReviewed": true,
   "redistributionAllowed": true,
-  "externalRedistributionAllowed": false,
+  "externalRedistributionAllowed": true,
   "attribution": "confs.tech conference data (tech-conferences/conference-data, MIT License)",
   "itemsPath": "",
   "organizationOptional": true,

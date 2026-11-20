@@ -25,6 +25,8 @@ export interface DbReport {
   id: "adb" | `ddb:${string}`;
   name: string;
   holds: string;
+  /** The modules whose listings it holds, shown on the card (owner, 2026-11-05: "show the shared modules together"). */
+  modules?: string[];
   /** False for a DDB that isn't set up (its data is in the ADB). */
   configured: boolean;
   sizeBytes: number | null;
@@ -89,20 +91,27 @@ export async function databasesReport(labels: Record<string, string> = {}): Prom
   const main = getSupabaseAdmin();
   // Each module's own data database (owner, 2026-11-03), each on the data databases' plan size.
   const mods = await moduleDataDbs();
-  const adbBase = { id: "adb" as const, name: "Application database (ADB)", holds: `Accounts, saves, applications, settings and the gateway's configuration${mods.length < Object.keys(labels).length ? ", and the listings of every module without its own DDB" : ""}.`, configured: !!main, limitMb: settings.limitMb, guard: dbGuard.state() };
+  const adbBase = { id: "adb" as const, name: "Application database (ADB)", holds: `Accounts, saves, applications, settings and the gateway's configuration${mods.length < Object.keys(labels).length ? `, and the listings of ${Object.keys(labels).filter((k) => !mods.some((m) => m.module === k)).map((k) => labels[k]).join(", ")}` : ""}.`, configured: !!main, limitMb: settings.limitMb, guard: dbGuard.state() };
   const adb = await (main ? measure(main, "tenants").then((m) => shapeReport(adbBase, m.usage, m.raw, m.ms, m.error)).catch((e) => shapeReport(adbBase, null, null, null, e instanceof Error ? e.message : String(e))) : Promise.resolve(shapeReport(adbBase, null, null, null, "No database is configured on this deployment.")));
+  // Modules that share one database (the same project URL) are one card with every module named (owner, 2026-11-05:
+  // "show the shared modules together"); it was a card per module with the same figures repeated.
+  const groups = new Map<string, typeof mods>();
+  for (const m of mods) groups.set(m.url, [...(groups.get(m.url) ?? []), m]);
   const modules = await Promise.all(
-    mods.map((m) => {
-      const name = labels[m.module] ?? m.module;
-      const base = { id: `ddb:${m.module}` as const, name: `${name} DDB`, holds: `${name} only: its ${tablesFor(m.module).map((t) => t.replace(/_/g, " ")).join(", ")} and search cache.`, configured: true, limitMb: settings.dataLimitMb, guard: m.guard };
-      return measure(m.client, "gateway_listings").then((r) => shapeReport(base, r.usage, r.raw, r.ms, r.error)).catch((e) => shapeReport(base, null, null, null, e instanceof Error ? e.message : String(e)));
+    [...groups.values()].map((group) => {
+      const names = group.map((m) => labels[m.module] ?? m.module);
+      const tables = [...new Set(group.flatMap((m) => tablesFor(m.module)))].map((t) => t.replace(/_/g, " ")).join(", ");
+      const id = `ddb:${group.map((m) => m.module).join("+")}` as const;
+      const base = { id, name: `${names.join(" · ")} DDB`, holds: group.length > 1 ? `Shared by ${names.length} modules (${names.join(", ")}): their ${tables} and search cache, each module's kept apart.` : `${names[0]} only: its ${tables} and search cache.`, configured: true, limitMb: settings.dataLimitMb, guard: group[0].guard };
+      return measure(group[0].client, "gateway_listings")
+        .then((r) => shapeReport(base, r.usage, r.raw, r.ms, r.error))
+        .catch((e) => shapeReport(base, null, null, null, e instanceof Error ? e.message : String(e)))
+        .then((rep) => ({ ...rep, modules: names, ...(group.some((m) => m.legacy) ? { legacyKeys: ["secret key"] } : {}) }));
     }),
   );
   // The main project's keys, checked here on the server; only whether each is legacy leaves it.
   const adbLegacy = [isLegacyKey(process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY) ? "SUPABASE_SERVICE_ROLE_KEY" : null, isLegacyKey(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" : null].filter((k): k is string => !!k);
   if (adbLegacy.length) adb.legacyKeys = adbLegacy;
-  mods.forEach((m, i) => {
-    if (m.legacy) modules[i].legacyKeys = ["secret key"];
-  });
+  adb.modules = Object.keys(labels).filter((k) => !mods.some((m) => m.module === k)).map((k) => labels[k]);
   return { adb, modules };
 }

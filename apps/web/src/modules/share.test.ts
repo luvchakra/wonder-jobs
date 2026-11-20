@@ -71,4 +71,14 @@ describe("every module's Share carries the listing's own details", () => {
     expect(text(cofounders({ ...team, shareable: true }))).toContain("Looking for: Business (Sales)");
     expect(JSON.stringify(cofounders(team))).not.toMatch(/Chaser|Invoices|Pune|Sales/);
   });
+
+  it("Co-founders: a post or startup shares what its source made public and links back to where it was published — never the author's handle", () => {
+    const post: CofounderListing = { id: "cofounders_p", kind: "post", title: "Looking for a technical co-founder", company: "Hacker News", location: "", terms: { handle: "raj" }, description: "Payments for small shops.", url: "https://news.ycombinator.com/item?id=1", postedAt: "2026-11-03T00:00:00Z", sourceId: "cof_outside", sourceName: "Hacker News", shareable: true };
+    const p = cofounders(post);
+    expect(p).toMatchObject({ title: "Looking for a technical co-founder", url: "https://news.ycombinator.com/item?id=1", noun: "co-founder post" });
+    expect(JSON.stringify(p)).not.toContain("raj");
+    const startup: CofounderListing = { ...post, id: "cofounders_s", kind: "startup", title: "Ledgerly", terms: { batch: "Summer 2026" }, url: "https://www.ycombinator.com/companies/ledgerly", sourceName: "Y Combinator" };
+    expect(text(cofounders(startup))).toContain("Summer 2026");
+    expect(cofounders(startup).url).toBe("https://www.ycombinator.com/companies/ledgerly");
+  });
 });

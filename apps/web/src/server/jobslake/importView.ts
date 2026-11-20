@@ -1,23 +1,27 @@
 /**
- * Admin → Data → Import (owner, 2026-11-02: "design the entire data import from sources to appearing in find in a way
+ * Sources → Import (owner, 2026-11-02: "design the entire data import from sources to appearing in find in a way
  * so that it can be managed from one page"): the one read model behind that page. Three stages, for every module:
  *   Sources (live, waiting, needs you) → Collected (what the gateway holds) → In Find (what WorksLake stores).
  * Each module lists its sources as rows with one state and at most one action, so an admin sees in one place why a
  * module's listings are where they are. Never a secret.
  */
+import { platformEnv } from "./platformKeys";
 import { explainFailure } from "@/domain/gateway/failure";
 import { MAX_POSTING_AGE_DAYS } from "@/domain/jobs/age";
 import { dataTypeOf } from "@/domain/jobslake/moduleData";
 import type { CronRun } from "@/domain/scheduler/settings";
 import { MODULES, type ModuleId } from "@/modules/registry";
 import { gatewayOverview, type GatewayRunRow, type GatewaySourceRow } from "@/server/gateway/admin";
-import { readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
+import { jobStalled, readSetupJob, type SetupJob } from "@/server/gateway/setupJob";
+import { liveActive, readLiveRun, REQUEST_STALE_MS, RUN_SILENT_MS, type LiveDoc, type LiveRequest, type LiveRun } from "@/server/gateway/liveRun";
 import { listImportRuns, type ImportRun } from "@/server/gateway/importRuns";
 import { failedLately } from "@/server/gateway/collectJob";
+import { ARCHIVE_AFTER, failStreaks } from "@/server/gateway/importRuns";
 import { listCronRuns, loadScheduler } from "@/server/scheduler/store";
 import { parseEmailList, smtpConfig } from "@/server/notify";
 import { isGatewayBridge } from "./gatewaySources";
 import { setupTodo, type SetupItem } from "./setup";
+import { decisionAnswers } from "./decisions";
 import { jobsLakeStore } from "./store";
 import { listAllSourceViews, type SourceView } from "./views";
 import { lastGatewayRefresh } from "./warm";
@@ -49,7 +53,7 @@ export type ImportState = "live" | "waiting" | "needs_you" | "down" | "off";
 export type ImportAction =
   | { kind: "run"; label: string; run: NonNullable<SetupItem["run"]> }
   | { kind: "link"; label: string; href: string }
-  | { kind: "decide"; label: string; decision: string }
+  | { kind: "decide"; label: string; decision: string; hint?: string }
   | { kind: "pause" | "activate" | "collect" | "test"; label: string; sourceId: string }
   | { kind: "upload"; label: string; sourceId: string }
   | { kind: "source_status"; label: string; id: string; status: "paused" | "active" }
@@ -73,6 +77,8 @@ export interface ImportRow {
   /** What it did lately, for the row's Details: never a secret. */
   history: { label: string; value: string }[];
   termsPending?: boolean;
+  /** What the row's buttons do, in a line (decisions). */
+  hint?: string;
 }
 
 export interface ImportModule {
@@ -91,6 +97,8 @@ export interface ImportModule {
   /** Rows that are down or need you, in a line, so a problem is seen without opening the card. */
   problems: string[];
   rows: ImportRow[];
+  /** Sources that failed ARCHIVE_AFTER tries in a row, or that an admin dismissed: shown in Archived at the page's end. */
+  archived: ImportRow[];
 }
 
 export interface ImportView {
@@ -107,6 +115,8 @@ export interface ImportView {
   emails: { imports: boolean; hourly: boolean; to: string[]; admins: number; mailbox: boolean };
   /** The server job started by Import now, a module's import or the hourly run: while it runs, or for a day after. */
   job: ImportJobView | null;
+  /** The collection runner's own progress (liveRun.ts): an Import now sent to GitHub, and the latest run's steps. */
+  live: LiveView | null;
   /** Every run, newest first (importRuns.ts). */
   runs: ImportRun[];
   lastRun: CronRun | null;
@@ -148,14 +158,84 @@ function gatewayHistory(g: GatewaySourceRow): ImportRow["history"] {
   return out;
 }
 
+/**
+ * Pure: splits a module's rows into the ones on its card and the archived ones (owner, 2026-11-05: "the sources which are
+ * failing even after multiple tries and fixes, move them to an archived section at the end of the page"): dismissed, or
+ * failed ARCHIVE_AFTER tries in a row (`streaks`, by row id). Archived rows keep their buttons, so one can still be tried.
+ */
+export function splitArchived(rows: ImportRow[], streaks: Map<string, number>): { rows: ImportRow[]; archived: ImportRow[] } {
+  const out = { rows: [] as ImportRow[], archived: [] as ImportRow[] };
+  for (const r of rows) {
+    const n = streaks.get(r.id) ?? 0;
+    const dismissed = r.action?.kind === "dismiss" && r.action.dismissed === false;
+    const failing = n >= ARCHIVE_AFTER && (r.state === "needs_you" || r.state === "down");
+    if (dismissed) out.archived.push(r);
+    else if (failing) out.archived.push({ ...r, detail: `${r.state === "down" ? `Its last ${n} collections failed; it still retries on its schedule.` : `Failed ${n} tries in a row, so Import no longer tries it on its own.`} ${r.detail.replace(/ Import now leaves it out for a day\.$/, "")}`, more: r.more.filter((a) => a.kind !== "dismiss") });
+    else out.rows.push(r);
+  }
+  return out;
+}
+
+/** Pure: each live gateway source's failed collections in a row, newest first (by "gateway:<id>"). */
+export function collectStreaks(runs: GatewayRunRow[]): Map<string, number> {
+  const out = new Map<string, number>();
+  const settled = new Set<string>();
+  for (const r of [...runs].sort((a, b) => b.at.localeCompare(a.at))) {
+    if (settled.has(r.sourceId)) continue;
+    if (r.ok) settled.add(r.sourceId);
+    else out.set(`gateway:${r.sourceId}`, (out.get(`gateway:${r.sourceId}`) ?? 0) + 1);
+  }
+  return out;
+}
+
 /** Pure: a module's rows from its WorksLake sources, its gateway sources and its Setup items (exported for tests). */
+const human = (seg: string) => {
+  const t = decodeURIComponent(seg).replace(/\.(json|xml|html?)$/i, "").replace(/[-_]+/g, " ").trim();
+  return t ? t[0].toUpperCase() + t.slice(1) : "";
+};
+
+/**
+ * Pure: rows of one module that share a name (one site, several sources: Houzz's one per trade, owner 2026-11-07:
+ * "why so many duplicate entries") get what sets each apart after the name: the first part of its URL path, or of its
+ * catalogue file, that differs from the others ("Houzz (houzz.in) · Architects").
+ */
+export function distinctNames(rows: ImportRow[], pathOf: (id: string) => string | undefined): ImportRow[] {
+  const groups = new Map<string, ImportRow[]>();
+  for (const r of rows) groups.set(r.name, [...(groups.get(r.name) ?? []), r]);
+  const label = new Map<ImportRow, string>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const parts = group.map((r) => {
+      const p = pathOf(r.id) ?? (r.id.startsWith("catalogue:") ? r.id.slice("catalogue:".length) : "");
+      return p.split(/[/~]/).filter(Boolean);
+    });
+    // The first segment where they differ, per row; the catalogue file's own words when the path says nothing.
+    const at = Math.max(0, Array.from({ length: Math.max(...parts.map((x) => x.length)) }, (_, i) => i).find((i) => new Set(parts.map((x) => x[i] ?? "")).size > 1) ?? 0);
+    // Words every one of them starts with ("houzz" in houzz-architects.json, houzz-construction.json) say nothing.
+    const words = parts.map((x) => (x[at] ? human(x[at]).toLowerCase().split(" ") : []));
+    let common = 0;
+    while (words.every((w) => w.length > common + 1 && w[common] === words[0][common])) common++;
+    group.forEach((r, n) => {
+      const rest = words[n].slice(common).join(" ");
+      if (rest) label.set(r, rest[0].toUpperCase() + rest.slice(1));
+    });
+  }
+  return rows.map((r) => (label.has(r) ? { ...r, name: `${r.name} · ${label.get(r)}` } : r));
+}
+
 export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewaySourceRow[], items: SetupItem[], failed: Map<string, { at: string; step?: string; message?: string }> = new Map(), dismissed: Set<string> = new Set()): ImportRow[] {
   const rows: ImportRow[] = [];
   const byItem = new Map(items.map((i) => [i.id, i]));
   // Owner decisions and catalogue sources not yet added: only the Setup list knows them.
   for (const i of items) {
     if (i.module !== mod && !(i.module === "all" && mod === "jobs")) continue;
-    if (i.decision) rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: { kind: "decide", label: "Mark decided", decision: i.id.replace(/^decision:/, "") }, more: i.action.href.startsWith("/") && i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link", label: i.action.label, href: i.action.href }] : [], history: [] });
+    if (i.decision) {
+      // One button per answer, each saying what it means (decisions.ts::DECISION_ANSWERS), then where to act.
+      const decision = i.id.replace(/^decision:/, "");
+      const answers = decisionAnswers(decision).map((a): ImportAction => ({ kind: "decide", label: a.label, decision, hint: a.hint }));
+      const open = i.action.href !== "/platform/jobs-lake/import" ? [{ kind: "link" as const, label: openLabel(i.action.href), href: i.action.href }] : [];
+      rows.push({ id: i.id, name: i.name, kind: "Decision", state: "needs_you", detail: i.detail, action: answers[0], more: [...answers.slice(1), ...open], history: [], hint: decisionAnswers(decision).map((a) => `${a.label}: ${a.hint}`).join(" · ") });
+    }
     else if (i.run?.kind === "add") {
       const f = failed.get(i.id);
       if (dismissed.has(i.id)) rows.push({ id: i.id, name: i.name, kind: "Catalogue", state: "off", detail: "Dismissed: Import never tries it.", action: { kind: "dismiss", label: "Restore", id: i.id, dismissed: false }, more: [], history: [] });
@@ -171,7 +251,10 @@ export function moduleRows(mod: ModuleId, views: SourceView[], gateway: GatewayS
     const open: ImportAction = { kind: "link", label: "Open source", href };
     if (item) {
       const state: ImportState = item.need === "activate" ? "waiting" : "needs_you";
-      rows.push({ id: v.id, name: v.name, kind: "WorksLake", state, detail: item.detail, termsPending: item.need === "terms", action: { kind: "link", label: item.action.label, href: item.action.href }, more: item.action.href === href ? [] : [open], history: sourceHistory(v) });
+      // Terms pending on a live source: confirm them here, or pause it (owner, 2026-11-05: "give direct action buttons").
+      const terms = item.need === "terms";
+      const termsActions: ImportAction[] = terms ? [{ kind: "decide", label: "Terms confirmed", decision: `terms:${v.id}` }, ...(v.status === "paused" ? [] : [{ kind: "source_status" as const, label: "Pause", id: v.id, status: "paused" as const }])] : [];
+      rows.push({ id: v.id, name: v.name, kind: "WorksLake", state, detail: item.detail, termsPending: terms, action: terms ? termsActions[0] : { kind: "link", label: item.action.label, href: item.action.href }, more: [...termsActions.slice(1), ...(item.action.href === href ? [] : [open]), ...(terms ? [open] : [])].filter((a, n, all) => all.findIndex((b) => b.label === a.label) === n), history: sourceHistory(v) });
       continue;
     }
     if (liveStatus(v)) rows.push({ id: v.id, name: v.name, kind: "WorksLake", state: v.health?.state === "down" ? "down" : "live", detail: v.health?.state === "down" ? "Down: its last runs failed" : v.statusLabel, action: v.health?.state === "down" ? open : undefined, more: [{ kind: "source_status", label: "Pause", id: v.id, status: "paused" }, ...(v.health?.state === "down" ? [] : [open])], history: sourceHistory(v) });
@@ -213,7 +296,7 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
   return {
     id: job.id,
     running: !job.finishedAt,
-    ...(!job.finishedAt && (!job.leaseUntil || Date.now() - Date.parse(job.leaseUntil) > 120_000) ? { stalled: true as const } : {}),
+    ...(jobStalled(job) ? { stalled: true as const } : {}),
     phase: job.finishedAt ? "done" : job.phase === "refreshing" ? "refreshing" : "setup",
     kind: job.kind ?? "import",
     ...(job.module ? { module: job.module } : {}),
@@ -231,10 +314,42 @@ function jobSummary(job: SetupJob | null): ImportJobView | null {
   };
 }
 
+/** Where a decision's link goes, named (not just "Open"). */
+export function openLabel(href: string): string {
+  if (/^https?:/.test(href)) {
+    try {
+      return `Open ${new URL(href).hostname.replace(/^www\./, "")} ↗`;
+    } catch {
+      return "Open ↗";
+    }
+  }
+  const page: Record<string, string> = { "/platform/jobs-lake/keys": "Open Keys", "/platform/jobs-lake/scheduler": "Open Scheduler", "/platform/jobs-lake": "Open Sources", "/platform/jobs-lake/platform-keys": "Open Platform keys" };
+  return page[href] ?? "Open";
+}
+
+export interface LiveView {
+  /** A press sent to GitHub that no run has picked up; `stale` once it waited past REQUEST_STALE_MS. */
+  request?: LiveRequest & { stale: boolean };
+  /** The latest run, while it runs or for a day after; `silent` when a running one went quiet past RUN_SILENT_MS. */
+  run?: LiveRun & { silent: boolean };
+  /** A press waiting or a run under way: Import now stays off. */
+  active: boolean;
+}
+
+/** Pure: what the page shows of the runner's progress, at `now`. */
+export function liveSummary(doc: LiveDoc | null, now = Date.now()): LiveView | null {
+  if (!doc) return null;
+  const request = doc.request && now - Date.parse(doc.request.at) < DAY ? { ...doc.request, stale: now - Date.parse(doc.request.at) >= REQUEST_STALE_MS } : undefined;
+  const r = doc.run;
+  const run = r && now - Date.parse(r.finishedAt ?? r.updatedAt) < DAY ? { ...r, silent: r.state === "running" && now - Date.parse(r.updatedAt) >= RUN_SILENT_MS } : undefined;
+  if (!request && !run) return null;
+  return { ...(request ? { request } : {}), ...(run ? { run } : {}), active: liveActive(doc, now) };
+}
+
 export async function importView(): Promise<ImportView> {
   const store = jobsLakeStore();
   const fortnight = new Date(Date.now() - MAX_POSTING_AGE_DAYS * DAY).toISOString();
-  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed] = await Promise.all([
+  const [views, gw, todo, job, refresh, settings, cronRuns, inFind, runs, failed, tried, live] = await Promise.all([
     listAllSourceViews(),
     gatewayOverview().catch(() => null),
     setupTodo(),
@@ -245,12 +360,16 @@ export async function importView(): Promise<ImportView> {
     Promise.all(MODULES.map(async (m) => [m.id, await store.countOpportunities({ sinceIso: fortnight, module: m.id }).catch(() => null)] as const)),
     listImportRuns().catch(() => [] as ImportRun[]),
     failedLately().catch(() => new Map<string, { at: string; step?: string; message?: string }>()),
+    failStreaks().catch(() => new Map<string, number>()),
+    readLiveRun().catch(() => null),
   ]);
+  const streaks = new Map([...tried, ...collectStreaks(gw?.runs ?? [])]);
   const held = new Map((gw?.byModule ?? []).map((b) => [b.module, b.listings]));
   const found = new Map(inFind);
   const paused = new Set(settings.gateway.pausedModules);
   const modules: ImportModule[] = MODULES.map((m) => {
-    const rows = moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed));
+    const paths = new Map((gw?.sources ?? []).map((g) => [`gateway:${g.id}`, g.path ?? ""]));
+    const { rows, archived } = splitArchived(distinctNames(moduleRows(m.id, views, gw?.sources ?? [], todo.items, failed, new Set(settings.gateway.dismissed)), (id) => paths.get(id)), streaks);
     return {
       id: m.id,
       label: m.label,
@@ -263,6 +382,7 @@ export async function importView(): Promise<ImportView> {
       paused: paused.has(m.id),
       problems: rows.filter((r) => r.state === "down" || r.state === "needs_you").map((r) => `${r.name}: ${r.detail}`),
       rows,
+      archived,
     };
   });
   const enabled = (gw?.sources ?? []).filter((s) => s.enabled);
@@ -278,8 +398,9 @@ export async function importView(): Promise<ImportView> {
       find: { listings: counted.length ? counted.reduce((n, m) => n + (m.inFind ?? 0), 0) : null, refreshedAt: refresh?.at ?? null, stored: refresh?.stored ?? {} },
     },
     schedule: { activateWaiting: settings.gateway.activateWaiting, cronSet: !!process.env.CRON_SECRET, pausedModules: settings.gateway.pausedModules },
-    emails: { ...settings.importEmail, admins: parseEmailList(process.env.JOBSLAKE_ADMIN_EMAILS).length, mailbox: !!smtpConfig() },
+    emails: { ...settings.importEmail, admins: parseEmailList(process.env.JOBSLAKE_ADMIN_EMAILS).length, mailbox: !!smtpConfig(await platformEnv()) },
     job: jobSummary(job),
+    live: liveSummary(live),
     runs,
     lastRun: cronRuns.find((r) => r.job === "gateway-collect") ?? null,
     modules,

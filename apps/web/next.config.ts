@@ -7,8 +7,8 @@ import type { NextConfig } from "next";
  * allows inline scripts: Next.js inlines its hydration data and the app layout inlines its early
  * state fetch, and nonces would force every page to render dynamically. What it does stop is
  * loading or exfiltrating to any origin not listed here, framing by other sites, plugins, and
- * `<base>` / form hijacking. Payments open Razorpay's / Stripe's own pages by navigation, so their
- * domains need no allowance here.
+ * `<base>` / form hijacking. Stripe's checkout opens its own page by navigation. Razorpay's checkout window opens over
+ * the page (its script and frames), so Razorpay's checkout hosts are allowed, as Razorpay documents.
  */
 function contentSecurityPolicy(): string {
   const dev = process.env.NODE_ENV !== "production";
@@ -25,12 +25,12 @@ function contentSecurityPolicy(): string {
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
     // Vercel's preview toolbar (vercel.live) only appears on preview deployments.
-    "script-src": ["'self'", "'unsafe-inline'", "https://vercel.live", ...(dev ? ["'unsafe-eval'"] : [])],
+    "script-src": ["'self'", "'unsafe-inline'", "https://vercel.live", "https://checkout.razorpay.com", ...(dev ? ["'unsafe-eval'"] : [])],
     "style-src": ["'self'", "'unsafe-inline'", "https://vercel.live"],
-    "img-src": ["'self'", "data:", "blob:", "https://vercel.live", "https://vercel.com"],
+    "img-src": ["'self'", "data:", "blob:", "https://vercel.live", "https://vercel.com", "https://cdn.razorpay.com"],
     "font-src": ["'self'", "data:", "https://vercel.live", "https://assets.vercel.com"],
-    "connect-src": ["'self'", ...supabaseOrigins, "https://vercel.live", "wss://ws-us3.pusher.com", ...(dev ? ["ws:", "http://localhost:*"] : [])],
-    "frame-src": ["https://vercel.live"],
+    "connect-src": ["'self'", ...supabaseOrigins, "https://vercel.live", "wss://ws-us3.pusher.com", "https://api.razorpay.com", "https://lumberjack.razorpay.com", ...(dev ? ["ws:", "http://localhost:*"] : [])],
+    "frame-src": ["https://vercel.live", "https://api.razorpay.com", "https://checkout.razorpay.com"],
     "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],
     "media-src": ["'self'", "blob:"],

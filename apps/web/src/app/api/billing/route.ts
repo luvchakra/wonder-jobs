@@ -7,6 +7,7 @@ import { getPlansConfig } from "@/server/billing/plansConfig";
 import { limitsFor } from "@/domain/billing/plans";
 import { billingStore } from "@/server/billing/store";
 import { planDiscounts } from "@/server/billing/live";
+import { isPrepaid } from "@/domain/billing/prepaid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export async function GET() {
   const rl = rateLimit(`billing:${session.tenantId}`, { capacity: 30, refillPerSec: 0.5 });
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rl.retryAfterSec) } });
   const [providers, ent, ledger, config] = await Promise.all([providerAvailability(), entitlement(session.tenantId), billingStore().ledgerForTenant(session.tenantId, 50).catch(() => []), getPlansConfig()]);
+  const live = await paymentsLive(config);
   const payments = ledger
     .filter((r) => r.kind === "payment_succeeded" || r.kind === "payment_failed")
     .map((r) => ({ at: r.occurredAt, provider: r.provider, kind: r.kind, amount: r.amount ?? null, currency: r.currency ?? null }))
@@ -38,10 +40,10 @@ export async function GET() {
       discounts,
       reason: ent.reason,
       until: ent.until ?? null,
-      subscription: sub ? { provider: sub.provider, status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null, canManage: sub.provider === "stripe" ? !!sub.customerId : sub.status !== "canceled" } : null,
+      subscription: sub ? { provider: sub.provider, status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null, canManage: sub.provider === "stripe" ? !!sub.customerId : sub.status !== "canceled", prepaid: isPrepaid(sub) } : null,
       payments,
       // Pre-launch: switch plans without paying, to try each plan's limits.
-      testing: { allowed: isAdminSession(session) || !paymentsLive(), active: ent.reason.startsWith("Testing ") },
+      testing: { allowed: isAdminSession(session) || !live, active: ent.reason.startsWith("Testing "), paymentsLive: live },
     },
     { headers: { "cache-control": "no-store" } },
   );

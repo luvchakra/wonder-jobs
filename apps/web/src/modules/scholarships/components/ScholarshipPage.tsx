@@ -119,6 +119,7 @@ function Page({ l }: { l: ScholarshipListing }) {
       <ListingMain>
         <ListingHead
           company={l.company}
+          domain={l.companyDomain}
           name={
             <>
               {l.company || <span className="font-normal text-ink-3">{PROVIDER_NOT_STATED}</span>}
@@ -183,7 +184,7 @@ function Page({ l }: { l: ScholarshipListing }) {
             </p>
           )}
         </Fold>
-        <TranslatedText id={l.id} title={l.title} heading={"About the {noun}"} text={l.description || "The listing shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
+        <TranslatedText id={l.id} title={l.title} heading={`About the ${noun}`} text={l.description || "The listing shares no description."} long={long} expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
         {(expanded || !long) && (
           <>
             <div className="mt-3 flex min-w-0 flex-col gap-3">
@@ -212,7 +213,7 @@ function Page({ l }: { l: ScholarshipListing }) {
                     : `Press Apply. ${l.company} gets your details${(l.questions ?? []).length ? ` and your answers to its ${(l.questions ?? []).length === 1 ? "question" : `${(l.questions ?? []).length} questions`}` : ""}.`}
                 </p>
               </Fold>
-              {l.company && <CompanyFold job={{ company: l.company }} />}
+              {l.company && <CompanyFold job={{ company: l.company, companyDomain: l.companyDomain }} />}
               <Fold title="Source" hint={`Via ${l.sourceName}`}>
                 <p className="text-[13px] text-ink-2">
                   {l.origin === "wonderstar" ? `Posted on WonderWorks by ${l.company}${l.companyVerified ? "" : ", not verified yet"}.` : `Found on ${l.sourceName}.`}

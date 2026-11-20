@@ -14,7 +14,8 @@ import { CheckList, CredentialForm, MappingEditor, TestReportView } from "@/comp
 import { PartnerActivate, PartnerConnectionEditor } from "@/components/jobslake/PartnerParts";
 import type { PartnerConnection } from "@/domain/jobslake/partners";
 import { AuditList, RunsTable } from "@/components/jobslake/Tables";
-import { AccessBadge, adminFetch, ConfirmAction, HealthChip, LoadError, Loading, Note, PageTitle, Panel, SourceStatusChip, Stat, ms, num, pct, useAdmin } from "@/components/jobslake/ui";
+import { FETCH_MODE } from "@/domain/jobslake/fetchMode";
+import { AccessBadge, FetchModeBadge, TodoLine, adminFetch, ConfirmAction, HealthChip, LoadError, Loading, Note, PageTitle, Panel, SourceStatusChip, Stat, ms, num, pct, useAdmin } from "@/components/jobslake/ui";
 
 type Detail = { source: SourceView; runs: (SourceRun & { relevant?: number; strong?: number })[]; alerts: Alert[]; audit: AuditEvent[] };
 type Tab = "overview" | "configuration" | "mapping" | "test" | "limits" | "health" | "runs" | "audit" | "advanced";
@@ -90,8 +91,12 @@ export default function SourceDetailPage({ params }: { params: Promise<{ id: str
         subtitle={
           <span className="inline-flex flex-wrap items-center gap-2">
             <SourceStatusChip status={s.status} label={s.statusLabel} />
+            <FetchModeBadge mode={s.fetchMode} />
             <AccessBadge label={s.accessLabel} />
             <span>{[s.categoryLabel, s.provider, s.builtin ? "Built in" : null].filter(Boolean).join(" · ")}</span>
+            <span className="block w-full text-[12.5px]">
+              {FETCH_MODE[s.fetchMode].info} <TodoLine todo={s.todo} />
+            </span>
           </span>
         }
         actions={

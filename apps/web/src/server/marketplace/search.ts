@@ -6,7 +6,7 @@
 import { search } from "@/server/jobslake/core";
 import type { Session } from "@/server/auth";
 import type { CanonicalOpportunity } from "@/domain/jobslake/protocol";
-import { categoryOfProductType, MARKETPLACE, MAX_PRICE, type MarketListing } from "@/modules/marketplace/domain";
+import { categoryOfProductType, CONDITIONS, MARKETPLACE, MAX_PRICE, type MarketListing } from "@/modules/marketplace/domain";
 import { openMarketListings, toListing } from "./listings";
 import { WONDERWORKS_MARKETPLACE } from "./sources";
 import { proxiedImage } from "@/server/imageProxy";
@@ -21,13 +21,18 @@ const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0
 /**
  * A shop's or dealer's own item, read from a WorksLake outside source (the gateway's business catalogues), as a link-out
  * listing. Null when it can't be shown honestly: no https link back to the shop, no business name, no price, or the shop
- * says it is out of stock. The price is the one the shop states, in rupees (the sources are Indian, INR); the condition is
- * New (a shop's own stock); the seller is the business, never a person. Nothing is messaged or paid for here.
+ * says it is out of stock. The price is the one the shop states: rupees for the Indian shops, or its own currency (eBay),
+ * shown as stated and never converted; the condition is the shop's own words (New when it names none, being its own
+ * stock); the seller is the business, never a person. Nothing is messaged or paid for here.
  */
 export function outsideListing(o: CanonicalOpportunity): MarketListing | null {
   const a = (o.attributes ?? {}) as Record<string, unknown>;
   const rec = o.sourceRecords.find((r) => r.canonical) ?? o.sourceRecords[0];
-  const price = Math.round(Number(str(a.price, 20).replace(/[, ]/g, "")));
+  const amount = typeof a.price === "number" ? a.price : Number(str(a.price, 20).replace(/[, ]/g, ""));
+  const price = Math.round(amount);
+  // A price in another currency (eBay) is kept as the shop states it; a missing or odd code means rupees, as the shops' own are.
+  const code = str(a.currency, 3).toUpperCase();
+  const currency = /^[A-Z]{3}$/.test(code) && code !== "INR" ? code : undefined;
   const business = str(o.employer?.name, 120);
   let url: URL;
   try {
@@ -36,22 +41,42 @@ export function outsideListing(o: CanonicalOpportunity): MarketListing | null {
     return null;
   }
   if (url.protocol !== "https:" || url.username || url.password) return null;
-  if (!business || !o.title.trim() || !Number.isFinite(price) || price < 1 || price > MAX_PRICE) return null;
+  if (!business || !o.title.trim() || !Number.isFinite(amount) || price < 1 || price > MAX_PRICE) return null;
   if (a.available === false || a.available === "false") return null;
+  const priceText = currency ? statedPrice(amount, currency) : undefined;
+  if (currency && !priceText) return null;
+  const image = proxiedImage(a.image);
   return {
     id: `mk_out_${o.id}`,
     listingId: o.id,
-    outside: { url: url.toString(), business, ...(proxiedImage(a.image) ? { image: proxiedImage(a.image) } : {}) },
+    outside: { url: url.toString(), business, ...(image ? { image } : {}), ...(currency && priceText ? { currency, priceText } : {}) },
     title: o.title.trim().slice(0, 160),
     description: o.description.slice(0, 1200),
-    area: o.locations?.[0] || "India · online shop",
-    terms: { category: categoryOfProductType(`${str(a.category, 80)} ${o.title}`), price, negotiable: false, condition: "New", photos: [] },
+    area: o.locations?.[0] || (currency ? "Online shop" : "India · online shop"),
+    terms: { category: categoryOfProductType(`${str(a.category, 80)} ${o.title}`), price, negotiable: false, condition: conditionOf(str(a.condition, 40)), photos: [] },
     sellerVerified: false,
     seller: business,
     ...(o.postedAt ? { postedAt: o.postedAt } : {}),
     sourceId: rec?.sourceId ?? "",
     sourceName: rec?.sourceName ?? "",
   };
+}
+
+/** A price exactly as its currency writes it ("$12.50"), or undefined when the currency code isn't one Intl knows. */
+function statedPrice(amount: number, currency: string): string | undefined {
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency }).format(amount);
+  } catch {
+    return undefined;
+  }
+}
+
+/** A shop's own condition words as ours: only an explicit New is New, Like new/open box are Like new, anything else Used. A shop that names none sells new stock. */
+function conditionOf(text: string): (typeof CONDITIONS)[number] {
+  if (!text) return "New";
+  if (/^(brand )?new\b/i.test(text)) return "New";
+  if (/like new|open box/i.test(text)) return "Like new";
+  return "Used";
 }
 
 /** Search listings for these words and places. They are the person's own; there is no default. */

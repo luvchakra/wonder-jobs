@@ -27,11 +27,19 @@ export interface GatewayRefresh {
   at: string;
   /** Listings stored per module. */
   stored: Record<string, number>;
+  /** Modules left for the next call when a deadline was given and ran out. */
+  remaining?: string[];
   /** Sources that couldn't be read, with why. */
   failed: { sourceId: string; error: string }[];
 }
 
 const KEY = "wj.gatewayrefresh" as const;
+/**
+ * How many of a module's gateway listings one refresh stores (owner, 2026-11-05: "even after so many new sources, don't
+ * see many additions"). The gateway answered one page of 100, so Find held at most 100 per module however much was
+ * collected; it now reads page after page up to this many (the warm pool reads up to 3,000 per module).
+ */
+export const REFRESH_MAX = 1000;
 
 /** A source whose listings are the data gateway's: read in process (`liveRead`) or through its API (WWDG). */
 export const isGatewayFed = (s: Pick<SourceRecord, "id" | "liveRead">) => !!s.liveRead || !!gatewayModuleForSource(s.id);
@@ -54,12 +62,26 @@ export async function lastGatewayRefresh(): Promise<GatewayRefresh | null> {
  * Refreshes these modules (every module when none are named): stores their gateway listings and retires the cached
  * answers. One source's failure doesn't stop the rest; it's reported.
  */
-export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date()): Promise<GatewayRefresh> {
+/** Time a module's refresh is given at least: a module isn't started with less than this left before `deadline`. */
+export const REFRESH_MODULE_MS = 12_000;
+
+/**
+ * `deadline` (ms since epoch): modules not started by then are left in `remaining` for the next call (owner, 2026-11-05:
+ * refreshing every module's 1,000 listings in one call ran past Vercel's 60 s, a 504, so nothing was recorded).
+ */
+/** `onModule`: told as each module starts (stored null) and finishes (its count), for the runner's live progress. */
+export async function refreshGatewayListings(modules?: Iterable<string>, now = new Date(), deadline?: number, onModule?: (module: string, stored: number | null, next?: string) => void): Promise<GatewayRefresh> {
   const result: GatewayRefresh = { at: now.toISOString(), stored: {}, failed: [] };
-  // A module whose import is paused (Data → Import) keeps what Find has; nothing new is stored for it.
+  // A module whose import is paused (Sources → Import) keeps what Find has; nothing new is stored for it.
   const paused = new Set((await loadScheduler()).gateway.pausedModules);
-  for (const mod of new Set(modules ?? MODULES.map((m) => m.id))) {
+  const wanted = [...new Set(modules ?? MODULES.map((m) => m.id))];
+  for (const [i, mod] of wanted.entries()) {
+    if (deadline && Date.now() > deadline - REFRESH_MODULE_MS) {
+      result.remaining = wanted.slice(i).filter((m) => !paused.has(m));
+      break;
+    }
     if (paused.has(mod)) continue;
+    onModule?.(mod, null, mod);
     const sources = (await listSources(mod as ModuleId)).filter((s) => isGatewayFed(s) && (s.status === "active" || s.status === "degraded"));
     const observations: Observation[] = [];
     // Each source's read is recorded as a "refresh" run, so Overview and Runs count what the job fetched.
@@ -69,7 +91,7 @@ export async function refreshGatewayListings(modules?: Iterable<string>, now = n
       const base = { id: `run_${randomBytes(9).toString("base64url")}`, sourceId: s.id, trigger: "refresh" as const, startedAt: new Date(started).toISOString(), duplicates: 0 };
       try {
         if (!(await isAvailable(s))) continue;
-        const r = await runConnector(s, { query: "", locations: [] }, "shallow");
+        const r = await runConnector(s, { query: "", locations: [], maxResults: REFRESH_MAX }, "shallow");
         const jobs = placeWithCountry(r.jobs, s.geography);
         for (const job of jobs) observations.push({ source: s, job });
         runs.push({ ...base, durationMs: Date.now() - started, outcome: jobs.length ? "ok" : "empty", retrieved: jobs.length, valid: jobs.length });
@@ -80,10 +102,14 @@ export async function refreshGatewayListings(modules?: Iterable<string>, now = n
       }
     }
     if (runs.length) await jobsLakeStore().recordRuns(runs).catch(() => undefined);
-    if (!sources.length) continue;
+    if (!sources.length) {
+      onModule?.(mod, null);
+      continue;
+    }
     const opps = canonicalize(observations).opportunities.filter((o) => validateOpportunity(o).length === 0);
     if (opps.length) await jobsLakeStore().upsertOpportunities(opps, mod as ModuleId);
     result.stored[mod] = opps.length;
+    onModule?.(mod, opps.length);
   }
   // The new stamp retires every gateway-fed source's cached answers (core.ts keys them with it).
   await stateStore.put(PLATFORM_TENANT, KEY, result);

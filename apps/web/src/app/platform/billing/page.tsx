@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function BillingAdminHome() {
-  redirect("/platform/billing/plans");
+  redirect("/platform/billing/payments");
 }

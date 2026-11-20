@@ -203,7 +203,7 @@ export function AuthForm({ mode, jobTeaser }: { mode: "sign-in" | "sign-up"; job
               Reset your password
             </Link>{" "}
             or{" "}
-            <Link href="/#contact" className="font-semibold text-brand-600 hover:underline">
+            <Link href="/contact" className="font-semibold text-brand-600 hover:underline">
               contact us
             </Link>
           </p>

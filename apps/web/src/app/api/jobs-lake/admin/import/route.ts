@@ -1,10 +1,15 @@
+import { explainFailure } from "@/domain/gateway/failure";
 import { after, NextResponse } from "next/server";
 import { siteUrl } from "@/lib/siteUrl";
 import { startImport, startModuleImport } from "@/server/gateway/collectJob";
+import { liveActive, readLiveRun, recordLiveRequest } from "@/server/gateway/liveRun";
+import { dispatchCollection, runnerDispatchConfigured } from "@/server/gateway/dispatch";
+import { loadPlatformKeys } from "@/server/jobslake/platformKeys";
 import { collectGatewaySource, registerFromCatalogue, registerPartner, setGatewaySource, testGatewaySource, uploadPartnerList } from "@/server/gateway/admin";
 import { updateSource } from "@/server/jobslake/admin";
 import { MODULE_IDS } from "@/wonderworks/manifest";
-import { continueSetupJob, handOnSetupJob, runSetupItem } from "@/server/gateway/setupJob";
+import { continueSetupJob, handOnSetupJob, jobRunning, jobStalled, readSetupJob, runSetupItem } from "@/server/gateway/setupJob";
+import { recordTry } from "@/server/gateway/importRuns";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { setDecision } from "@/server/jobslake/decisions";
@@ -18,7 +23,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Admin → Data → Import: every module's sources, what the gateway holds and what Find shows, in one read. */
+/** Sources → Import: every module's sources, what the gateway holds and what Find shows, in one read. */
 export async function GET() {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
@@ -42,6 +47,19 @@ export async function POST(req: Request) {
   const action = typeof body?.action === "string" ? body.action : "";
   const origin = siteUrl().origin;
 
+  // Import now and Import this module run on the GitHub collection runner when it's set up (dispatch.ts), so the heavy
+  // work (tests, collection, every module's Find refresh) never runs on the site; here otherwise.
+  if (action === "import" || action === "module_import") await loadPlatformKeys();
+  if ((action === "import" || action === "module_import") && runnerDispatchConfigured()) {
+    const m = typeof body?.module === "string" && (MODULE_IDS as readonly string[]).includes(body.module) ? body.module : null;
+    if (action === "module_import" && !m) return jlError("INVALID_REQUEST", "Name the module.", 400);
+    if (jobRunning(await readSetupJob()) || liveActive(await readLiveRun())) return jlError("INVALID_REQUEST", "An import is already running on the collection runner.", 409);
+    const d = await dispatchCollection(action === "import" ? { mode: "all", by: a.actor } : { mode: "module", module: m!, by: a.actor });
+    if (!d.ok) return jlError("INVALID_REQUEST", d.message, 502);
+    await recordLiveRequest({ mode: action === "import" ? "all" : "module", ...(m ? { module: m } : {}), by: a.actor, at: new Date().toISOString() });
+    await audit(a.actor, action === "import" ? "import.dispatched" : "import.module_dispatched", undefined, { ...(m ? { module: m } : {}) });
+    return json({ ok: true, queued: 0, skipped: 0, dispatched: true });
+  }
   if (action === "import") {
     const r = await startImport(a.actor, origin);
     if (!r.ok) return jlError("INVALID_REQUEST", r.message, 409);
@@ -49,15 +67,26 @@ export async function POST(req: Request) {
     if (r.queued)
       after(async () => {
         const c = await continueSetupJob();
-        if (c.left && c.ran) await handOnSetupJob(origin);
+        if (c.more) await handOnSetupJob(origin);
       });
     return json({ ok: true, queued: r.queued, skipped: r.skipped });
   }
   if (action === "continue") {
-    // A running import whose hand-on was lost (2026-11-02: stuck at 13 of 16 for two hours): carry it on now.
+    // A running import whose hand-on was lost (2026-11-02: stuck at 13 of 16 for two hours), or whose runner stopped:
+    // carry it on now, on the collection runner when it's set up (the page asks for this on its own, 2026-11-07).
+    await loadPlatformKeys();
+    if (!jobStalled(await readSetupJob())) return json({ ok: true, already: true });
+    if (runnerDispatchConfigured()) {
+      if (liveActive(await readLiveRun())) return json({ ok: true, already: true });
+      const d = await dispatchCollection({ mode: "resume", by: a.actor });
+      if (!d.ok) return jlError("INVALID_REQUEST", d.message, 502);
+      await recordLiveRequest({ mode: "resume", by: a.actor, at: new Date().toISOString() });
+      await audit(a.actor, "import.continued", undefined, { runner: true });
+      return json({ ok: true, dispatched: true });
+    }
     after(async () => {
       const c = await continueSetupJob();
-      if (c.left && c.ran) await handOnSetupJob(origin);
+      if (c.more) await handOnSetupJob(origin);
     });
     await audit(a.actor, "import.continued", undefined, {});
     return json({ ok: true });
@@ -68,11 +97,18 @@ export async function POST(req: Request) {
     const item = (await setupTodo()).items.find((i) => i.id === id && i.run);
     if (!item?.run) return jlError("NOT_FOUND", "That source isn't waiting any more.", 404);
     const r = await runSetupItem(item.run);
+    // Counted towards archiving: a source that fails ARCHIVE_AFTER tries in a row moves to Archived.
+    await recordTry(id, r.ok);
     await audit(a.actor, "import.item", r.ok ? r.sourceId : undefined, { id, ok: r.ok, ...(r.ok ? { valid: r.valid } : { step: r.step }) });
-    return json(r, r.ok ? 200 : 422);
+    // A failure says why in words (domain/gateway/failure.ts), not a bare "Request failed (422)" (owner, 2026-11-05).
+    if (!r.ok) {
+      const why = explainFailure(r.step, r.message);
+      return json({ ...r, error: { code: "ITEM_FAILED", message: `${why.label}. ${why.detail}` } }, 422);
+    }
+    return json(r);
   }
   if (action === "emails") {
-    // The "import finished" email's settings (Data → Import → Emails); every field checked by cleanScheduler.
+    // The "import finished" email's settings (Sources → Import → Emails); every field checked by cleanScheduler.
     const current = await loadScheduler();
     const next = { ...current.importEmail, ...(typeof body?.imports === "boolean" ? { imports: body.imports } : {}), ...(typeof body?.hourly === "boolean" ? { hourly: body.hourly } : {}), ...(body?.to !== undefined ? { to: cleanEmailList(body.to) } : {}) };
     const saved = await saveScheduler({ ...current, importEmail: next }, a.actor);
@@ -104,7 +140,7 @@ export async function POST(req: Request) {
     await audit(a.actor, "import.module_started", undefined, { module: mod, queued: r.queued });
     after(async () => {
       const c = await continueSetupJob();
-      if (c.left && c.ran) await handOnSetupJob(origin);
+      if (c.more) await handOnSetupJob(origin);
     });
     return json({ ok: true, queued: r.queued });
   }
@@ -162,7 +198,12 @@ export async function POST(req: Request) {
   if (action === "collect") {
     const r = await collectGatewaySource(sourceId);
     await audit(a.actor, "gateway.collect", sourceId, { ok: r.ok, ...(r.ok ? { valid: r.valid } : { code: r.code }) });
-    return json(r, r.ok ? 200 : 422);
+    // A failure says why in words (domain/gateway/failure.ts), not a bare "Request failed (422)" (owner, 2026-11-05).
+    if (!r.ok) {
+      const why = explainFailure("Collect", r.code);
+      return json({ ...r, error: { code: r.code, message: `${why.label}. ${why.detail}` } }, 422);
+    }
+    return json(r);
   }
   if (action === "test") {
     const r = await testGatewaySource(sourceId);

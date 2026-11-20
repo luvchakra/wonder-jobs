@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearRazorpaySubscriptionsCache } from "./razorpay";
 
 /* Auth: a signed-in session the test controls. */
 const session = vi.fn();
@@ -76,6 +77,7 @@ beforeEach(async () => {
   for (const d of ["wj.plans", "wj.billingadmin", "wj.apiplan"] as const) await stateStore.remove("__platform__", d);
   clearLiveBillingCaches();
   clearPriceCacheForTests();
+  clearRazorpaySubscriptionsCache();
   __resetApiPlanCache();
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
   vi.stubEnv("JOBSLAKE_ADMIN_EMAILS", ADMIN);
@@ -185,6 +187,8 @@ describe("prices", () => {
       { match: is("GET", "/prices/price_pro"), json: PRICE_PRO },
       { match: (c) => is("POST", "/prices")(c) && c.url.includes("stripe"), json: { id: "price_new" } },
       { match: (c) => is("POST", "/plans")(c) && c.url.includes("razorpay"), json: { id: "plan_new" } },
+      // The account has Razorpay's Subscriptions product (its Plans API answers).
+      { match: (c) => is("GET", "/plans")(c) && c.url.includes("razorpay"), json: { count: 0, items: [] } },
     ]);
     asAdmin();
     const input = { plan: "pro", amountMinor: 59_900, currency: "inr", requestId: "req-12345678" };
@@ -232,6 +236,7 @@ describe("prices", () => {
     providers([
       { match: is("GET", "/prices/price_pro"), json: PRICE_PRO },
       { match: (c) => is("POST", "/prices")(c) && c.url.includes("stripe"), json: { id: "price_new" } },
+      { match: (c) => is("GET", "/plans")(c) && c.url.includes("razorpay"), json: { count: 0, items: [] } },
       { match: (c) => c.url.includes("razorpay"), json: { error: { description: "bad key rzp_secret" } }, status: 401 },
     ]);
     asAdmin();
@@ -242,6 +247,19 @@ describe("prices", () => {
     expect(cfg.priceRefs.pro.stripe).toBe("price_pro");
     expect(cfg.plans.pro.priceMinor).toBe(49_900);
     expect((await audit())[0].action).toBe("billing.price.change_failed");
+  });
+
+  it("without Razorpay's Subscriptions product, a price change creates no Razorpay plan: a paid month charges the new price", async () => {
+    razorpayOn();
+    vi.stubEnv("RAZORPAY_PLAN_ID", "");
+    providers([{ match: (c) => c.url.includes("razorpay"), json: { error: "Unauthorized" }, status: 401 }]);
+    asAdmin();
+    const res = await pricesRoute.POST(req("POST", { plan: "pro", amountMinor: 59_900, currency: "INR", requestId: "req-12345611" }));
+    expect(res.status).toBe(201);
+    expect(posts("/v1/plans")).toHaveLength(0);
+    const cfg = await getPlansConfig();
+    expect(cfg.plans.pro).toMatchObject({ priceMinor: 59_900, currency: "INR" });
+    expect(cfg.priceRefs.pro.razorpay).toBeUndefined();
   });
 
   it("with no provider connected, there's nothing to change", async () => {

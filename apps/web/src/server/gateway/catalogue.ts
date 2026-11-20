@@ -44,7 +44,21 @@ import osmTherapistsSouth from "../../../../data-gateway/sources/osm-therapists-
 import osmTherapistsWest from "../../../../data-gateway/sources/osm-therapists-west.json";
 import teachaway from "../../../../data-gateway/sources/teachaway-international.json";
 import ukTeachingVacancies from "../../../../data-gateway/sources/uk-teaching-vacancies.json";
-import weWorkRemotely from "../../../../data-gateway/sources/we-work-remotely.json";
+import weWorkRemotelyProgramming from "../../../../data-gateway/sources/we-work-remotely-programming.json";
+import weWorkRemotelyFullStack from "../../../../data-gateway/sources/we-work-remotely-full-stack.json";
+import weWorkRemotelyBackEnd from "../../../../data-gateway/sources/we-work-remotely-back-end.json";
+import weWorkRemotelyFrontEnd from "../../../../data-gateway/sources/we-work-remotely-front-end.json";
+import weWorkRemotelyDevops from "../../../../data-gateway/sources/we-work-remotely-devops.json";
+import weWorkRemotelyDesign from "../../../../data-gateway/sources/we-work-remotely-design.json";
+import weWorkRemotelyProduct from "../../../../data-gateway/sources/we-work-remotely-product.json";
+import weWorkRemotelyCustomerSupport from "../../../../data-gateway/sources/we-work-remotely-customer-support.json";
+import weWorkRemotelySalesMarketing from "../../../../data-gateway/sources/we-work-remotely-sales-marketing.json";
+import weWorkRemotelyManagementFinance from "../../../../data-gateway/sources/we-work-remotely-management-finance.json";
+import weWorkRemotelyOther from "../../../../data-gateway/sources/we-work-remotely-other.json";
+import hnCofounderPosts from "../../../../data-gateway/sources/hn-cofounder-posts.json";
+import ycStartups from "../../../../data-gateway/sources/yc-startups.json";
+import overturePlacesIn from "../../../../data-gateway/sources/overture-places-in.json";
+import stackExchangeSites from "../../../../data-gateway/sources/stack-exchange-sites.json";
 
 /**
  * The reviewed source definitions that ship with the gateway (`apps/data-gateway/sources/*.json`), so an admin can add
@@ -98,7 +112,23 @@ export const CATALOGUE: Record<string, Record<string, unknown>> = {
   "osm-therapists-west.json": osmTherapistsWest as Record<string, unknown>,
   "teachaway-international.json": teachaway as Record<string, unknown>,
   "uk-teaching-vacancies.json": ukTeachingVacancies as Record<string, unknown>,
-  "we-work-remotely.json": weWorkRemotely as Record<string, unknown>,
+  "we-work-remotely-programming.json": weWorkRemotelyProgramming as Record<string, unknown>,
+  "we-work-remotely-full-stack.json": weWorkRemotelyFullStack as Record<string, unknown>,
+  "we-work-remotely-back-end.json": weWorkRemotelyBackEnd as Record<string, unknown>,
+  "we-work-remotely-front-end.json": weWorkRemotelyFrontEnd as Record<string, unknown>,
+  "we-work-remotely-devops.json": weWorkRemotelyDevops as Record<string, unknown>,
+  "we-work-remotely-design.json": weWorkRemotelyDesign as Record<string, unknown>,
+  "we-work-remotely-product.json": weWorkRemotelyProduct as Record<string, unknown>,
+  "we-work-remotely-customer-support.json": weWorkRemotelyCustomerSupport as Record<string, unknown>,
+  "we-work-remotely-sales-marketing.json": weWorkRemotelySalesMarketing as Record<string, unknown>,
+  "we-work-remotely-management-finance.json": weWorkRemotelyManagementFinance as Record<string, unknown>,
+  "we-work-remotely-other.json": weWorkRemotelyOther as Record<string, unknown>,
+  "hn-cofounder-posts.json": hnCofounderPosts as Record<string, unknown>,
+  "yc-startups.json": ycStartups as Record<string, unknown>,
+  // Prospect data only (WJ-817): no module reads it; it is added and activated from the Prospect data card.
+  "overture-places-in.json": overturePlacesIn as Record<string, unknown>,
+  // Channels for WonderArk (WJ-823): the Stack Exchange network's sites, as forums.
+  "stack-exchange-sites.json": stackExchangeSites as Record<string, unknown>,
 };
 
 export interface CatalogueEntry {

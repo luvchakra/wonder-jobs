@@ -34,7 +34,7 @@ describe("refreshGatewayListings — the one step that brings gateway listings i
     expect(await gatewayRefreshStamp()).toBe(r.at);
   });
 
-  it("a module whose import is paused (Data → Import) keeps what Find has; nothing new is stored for it", async () => {
+  it("a module whose import is paused (Sources → Import) keeps what Find has; nothing new is stored for it", async () => {
     connector.mockImplementation(async (src: { id: string }) => ({ jobs: src.id === "thp_osm" ? [practice(1)] : [], warnings: [] }));
     await saveScheduler({ ...SCHEDULER_DEFAULTS, gateway: { activateWaiting: false, pausedModules: ["therapists"], dismissed: [] } }, "test");
     try {

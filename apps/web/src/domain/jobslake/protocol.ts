@@ -128,7 +128,8 @@ export interface FreshnessMetadata {
 export interface CanonicalOpportunity {
   id: string;
   protocolVersion: ProtocolVersion;
-  employer: { name: string; domain?: string };
+  /** `logoUrl`: the organisation's logo image a source gave, a hint the company directory may store once; never shown directly. */
+  employer: { name: string; domain?: string; logoUrl?: string };
   title: string;
   normalizedTitle: string;
   locations: string[];

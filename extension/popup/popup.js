@@ -6,7 +6,7 @@ document.body.classList.toggle("popup", IS_POPUP);
 const done = () => {
   if (IS_POPUP) window.close();
 };
-let appOrigin = "https://jobs.wonderapps.biz";
+let appOrigin = "https://works.wonderapps.biz";
 let connectedNow = false;
 
 function show(connected, profile, origin) {
@@ -25,7 +25,7 @@ function show(connected, profile, origin) {
 async function refresh() {
   $("status").textContent = "Checking…";
   const reply = await chrome.runtime.sendMessage({ type: "status" });
-  show(!!reply?.connected, reply?.profile, reply?.origin ?? "https://jobs.wonderapps.biz");
+  show(!!reply?.connected, reply?.profile, reply?.origin ?? "https://works.wonderapps.biz");
   // An Apply with Wonder destination the helper hasn't been allowed on yet (an employer's own careers site).
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const site = tab?.url ? await chrome.runtime.sendMessage({ type: "tabStatus", payload: { url: tab.url } }) : null;

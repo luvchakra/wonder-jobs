@@ -294,10 +294,10 @@ describe("JobsApply server", () => {
   });
 
   it("SEC-012 CSRF: a cross-site or non-JSON write is refused", () => {
-    const mk = (headers: Record<string, string>) => new Request("https://jobs.wonderapps.biz/api/jobs-apply/sessions", { method: "POST", headers: { host: "jobs.wonderapps.biz", ...headers } });
-    expect(http.sameOrigin(mk({ origin: "https://jobs.wonderapps.biz", "content-type": "application/json" }))).toBe(true);
+    const mk = (headers: Record<string, string>) => new Request("https://works.wonderapps.biz/api/jobs-apply/sessions", { method: "POST", headers: { host: "works.wonderapps.biz", ...headers } });
+    expect(http.sameOrigin(mk({ origin: "https://works.wonderapps.biz", "content-type": "application/json" }))).toBe(true);
     expect(http.sameOrigin(mk({ origin: "https://evil.example", "content-type": "application/json" }))).toBe(false);
-    expect(http.sameOrigin(mk({ origin: "https://jobs.wonderapps.biz", "content-type": "application/x-www-form-urlencoded" }))).toBe(false);
+    expect(http.sameOrigin(mk({ origin: "https://works.wonderapps.biz", "content-type": "application/x-www-form-urlencoded" }))).toBe(false);
   });
 
   it("pack snapshot validation: only a real PDF and safe file names are accepted", () => {

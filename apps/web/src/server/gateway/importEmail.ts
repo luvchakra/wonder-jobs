@@ -39,7 +39,7 @@ export function renderImportEmail(run: ImportRun, counts: ModuleCount[], origin:
   const C = EMAIL_COLORS;
   const link = `${origin}/platform/jobs-lake/import`;
   const added = counts.reduce((n, c) => n + Math.max(0, c.added ?? 0), 0);
-  const what = run.kind === "hourly" ? (run.trigger === "cron" ? "The hourly collection" : "The collection (Run now)") : run.kind === "module" ? `Import of ${MODULE_LABELS[run.module ?? ""] ?? run.module ?? "a module"}` : run.trigger === "scheduler" ? "The scheduled import" : "Import now";
+  const what = run.kind === "hourly" ? (run.trigger === "cron" ? "The scheduled collection" : "The collection (Run now)") : run.kind === "module" ? `Import of ${MODULE_LABELS[run.module ?? ""] ?? run.module ?? "a module"}` : run.trigger === "scheduler" ? "The scheduled import" : "Import now";
   const head = counts.length ? `${added.toLocaleString("en")} new ${added === 1 ? "entry" : "entries"} in Find` : "Find wasn't refreshed";
   const rows = counts
     .map((c) => `<tr><td style="padding:4px 12px 4px 0">${escapeHtml(c.label)}</td><td style="padding:4px 12px 4px 0;text-align:right;font-weight:600">${escapeHtml(signed(c.added))}</td><td style="padding:4px 0;text-align:right;color:${C.ink}">${c.inFind.toLocaleString("en")} in Find</td></tr>`)
@@ -53,7 +53,7 @@ ${rows ? `<table style="font-size:14px;border-collapse:collapse;margin:0 0 12px"
   return { subject: `WonderWorks: ${what} finished · ${head}`, ...mail };
 }
 
-/** Who gets it: the addresses set on Data → Import, else the platform admins, else the scheduler's notify address. */
+/** Who gets it: the addresses set on Sources → Import, else the platform admins, else the scheduler's notify address. */
 export async function importEmailRecipients(env: NodeJS.ProcessEnv = process.env, set: string[] = []): Promise<string[]> {
   if (set.length) return set;
   const admins = parseEmailList(env.JOBSLAKE_ADMIN_EMAILS);
@@ -68,7 +68,7 @@ export const worthEmailing = (run: ImportRun) => run.kind !== "hourly" || run.it
 export async function sendImportEmail(run: ImportRun, earlier: ImportRun[], deps: { send?: Mailer; recipients?: string[]; settings?: SchedulerSettings["importEmail"] } = {}): Promise<{ sent: number; reason?: string }> {
   try {
     if (!worthEmailing(run)) return { sent: 0, reason: "nothing collected" };
-    // Admin → Data → Import → Emails: each kind of run can be switched off; a failed lookup keeps the default (on).
+    // Sources → Import → Emails: each kind of run can be switched off; a failed lookup keeps the default (on).
     const settings = deps.settings ?? (await loadScheduler().catch(() => SCHEDULER_DEFAULTS)).importEmail;
     if (!(run.kind === "hourly" ? settings.hourly : settings.imports)) return { sent: 0, reason: "turned off" };
     const to = deps.recipients ?? (await importEmailRecipients(process.env, settings.to));

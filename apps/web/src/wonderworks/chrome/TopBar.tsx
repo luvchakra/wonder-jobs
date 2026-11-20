@@ -16,9 +16,10 @@ import { toast } from "@/components/feedback/Toast";
 import dynamic from "next/dynamic";
 // Ask Wonder's palette (and the intent parser behind it) loads the first time it's opened, not with every page.
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
-import { notificationsFor, visibleNotifications } from "@/domain/career/notifications";
 import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { NotificationBell } from "./NotificationBell";
+import { useMediaQuery } from "@/lib/motion";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
 
@@ -34,7 +35,14 @@ function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void)
   }, [ref, onOut]);
 }
 
-export function TopBar() {
+/**
+ * The account controls: the avatar (the account menu) and, on phones and tablets, the bell (NotificationBell), plus ⌘K. Phones and tablets: a
+ * bar across the top, with the module menu. From 1024px there is no top bar (owner, 2026-11-06: "remove the concept of
+ * top navbar completely, bring the avatar and notifications in sidebar bottom left"): the sidebar lists the modules,
+ * its foot holds the avatar and the name (`place="side"`), and the bell sits beside the logo at its top. Only one of the two renders at a time.
+ */
+export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
+  const wide = useMediaQuery("(min-width: 1024px)");
   const cmd = useUIStore((s) => s.commandOpen);
   const setCmd = useUIStore((s) => s.setCommandOpen);
   const slots = useChromeSlots();
@@ -48,13 +56,9 @@ export function TopBar() {
   const userId = useAuthStore((s) => s.userId);
   const email = useAuthStore((s) => s.email);
   const displayName = dna.name || email?.split("@")[0] || "You";
-  const notifications = useCareerStore((s) => s.notifications);
-  // The bell follows the module selected: its own notifications (and the account's), and its own Needs attention.
   const selected = useSelectedModule();
-  const shown = hydrated ? visibleNotifications(notificationsFor(notifications, selected)) : [];
-  const unread = shown.filter((n) => !n.read).length;
   // The bell's Needs attention count and the career status come from the modules (WonderJobs: its applications), through the chrome's slots.
-  const { tasks, careerStatus } = slots.useStatus(hydrated, selected);
+  const { careerStatus } = slots.useStatus(hydrated, selected);
   const { available: canInstall, promptInstall } = useInstallPrompt();
   const profileRef = useRef<HTMLDivElement>(null);
   useOutside(profileRef, () => setProfileOpen(false));
@@ -87,7 +91,7 @@ export function TopBar() {
 
   // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
   const accountMenu = (
-    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : "absolute left-0 top-12")}>
+    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : place === "side" ? "fixed bottom-20 left-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
       {/* Who's signed in, and their career status (from their applications). */}
       <div className="px-3 pb-2 pt-1.5">
         <p className="truncate text-[13px] font-semibold leading-tight text-ink">{displayName}</p>
@@ -160,26 +164,41 @@ export function TopBar() {
     </div>
   );
 
+  // Pinned to the sidebar's bottom left (owner, 2026-11-06: "fix the avatar to bottom left, so rest of menus can go
+  // behind it and scroll"): the sidebar's lists scroll under it.
+  if (place === "side") {
+    if (!wide) return null;
+    return (
+      <div className="sticky bottom-0 z-10 -mx-4 mt-auto flex shrink-0 items-center gap-1 border-t border-line bg-surface px-4 py-2" ref={profileRef}>
+        <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-[12px] p-1.5 text-left hover:bg-bg-soft">
+          <FlipAvatar name={displayName} />
+          <span className="min-w-0">
+            <span className="block truncate text-[13.5px] font-semibold leading-tight text-ink">{displayName}</span>
+            <span className="block truncate text-[11.5px] leading-tight text-ink-3">{careerStatus}</span>
+          </span>
+        </button>
+        {/* Over the page, not inside the sidebar (whose scroll would clip it); data-menu-trigger keeps clicks in it from closing it first. */}
+        {profileOpen && createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body)}
+        {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
+      </div>
+    );
+  }
+  if (wide) return null;
   return (
-    <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
-      {/* Every screen (owner, 2026-10-29): the avatar on the left (it turns over to the WonderWorks mark now and then;
-          there's no separate logo), the kind menu in the centre, the bell on the right. */}
-      <div className="order-[-1] flex min-w-0 flex-1 justify-center">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
+    <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 lg:hidden items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
+      {/* Phones (owner, 2026-10-29): the avatar on the left (it turns over to the WonderWorks mark now and then; there's no
+          separate logo), the kind menu in the centre, the bell on the right. Tablet and desktop (owner, 2026-11-06: "design
+          the tablet and desktop ui"): the sidebar already carries the logo, so the kind menu starts at the content's left
+          edge and the bell and avatar sit together on the right, as desktop apps do. */}
+      {/* From 1024px the sidebar lists the modules, so the menu leaves the top bar (its space stays, keeping the bell and
+          avatar on the right). */}
+      <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start lg:hidden">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
           on the badge). Ask Wonder is under You, and ⌘K on a computer. */}
-      <Link href="/app/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}${tasks ? `, ${tasks} need attention` : ""}`} title="Notifications" className="relative flex size-10 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft">
-        <Bell className="size-5" aria-hidden />
-        {tasks > 0 ? (
-          <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white" aria-hidden>
-            {tasks > 9 ? "9+" : tasks}
-          </span>
-        ) : (
-          unread > 0 && <span className="absolute right-2 top-2 size-2 rounded-full bg-danger-600 ring-2 ring-surface" aria-hidden />
-        )}
-      </Link>
+      <NotificationBell />
 
-      <div className="relative order-[-3]" ref={profileRef}>
+      <div className="relative order-[-3] md:order-none" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">
           <FlipAvatar name={displayName} />
         </button>

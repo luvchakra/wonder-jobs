@@ -1,8 +1,13 @@
 /**
- * The one branded frame every WonderJobs email goes through: logo header, brand accent bar, the
- * email's own content on a white card, and a footer saying why the person got it. Table layout with
- * inline styles only (Gmail, Outlook and Apple Mail drop stylesheets, flexbox, SVG and data: images),
- * max 600px wide, a hidden preheader, and a plain-text twin of everything.
+ * The one frame every WonderWorks email goes through, as quiet as the landing page (owner, 2026-11-07: "make it simple
+ * like landing page"): the mark and the WonderWorks name at the top, the email's own content in one plain column, and
+ * a small footer saying why the person got it. No coloured bar, no card. Table layout with inline styles only (Gmail,
+ * Outlook and Apple Mail drop stylesheets, flexbox, SVG and data: images), max 560px wide, a hidden preheader, and a
+ * plain-text twin of everything.
+ *
+ * The name is live text, not part of an image (owner, 2026-11-07: "can't see the text"): a mail app in dark mode
+ * recolours text but not pictures, and the old wordmark PNG's dark "Wonder" vanished on a dark background. The mark
+ * is a colour icon that reads on both.
  */
 
 /** The app's own tokens (globals.css `--wj-*`), copied because mail clients can't read CSS variables. */
@@ -22,10 +27,9 @@ export const EMAIL_COLORS = {
 export const EMAIL_GRADIENT = "linear-gradient(135deg,#6d4cf5 0%,#7c5cff 55%,#a66bff 100%)";
 export const EMAIL_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
-/** The wordmark PNG the app header uses (`components/brand/WonderLogo.tsx`), 527×96 — shown at 32px tall. */
-export const EMAIL_LOGO_PATH = "/brand/wonderstar-logo.png";
-const LOGO_HEIGHT = 32;
-const LOGO_WIDTH = Math.round((731 / 100) * LOGO_HEIGHT);
+/** The WonderWorks mark (transparent PNG, 512×512), shown at 28px beside the name. */
+export const EMAIL_LOGO_PATH = "/brand/wonderstar-mark-square.png";
+const MARK = 28;
 
 export const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
@@ -74,30 +78,29 @@ export function renderEmailLayout(input: EmailLayoutInput): { html: string; text
   const sender = input.brand ? `${input.brand.name} · applications handled by WonderWorks` : "WonderWorks";
   const header = input.brand
     ? `<a href="${escapeHtml(home)}" style="text-decoration:none;font-size:20px;font-weight:700;color:${C.ink}">${escapeHtml(input.brand.name)}</a>`
-    : `<a href="${escapeHtml(home)}" style="text-decoration:none"><img src="${escapeHtml(emailLogoUrl(input.origin))}" width="${LOGO_WIDTH}" height="${LOGO_HEIGHT}" alt="WonderWorks" style="display:block;border:0;outline:none;text-decoration:none;height:${LOGO_HEIGHT}px;width:${LOGO_WIDTH}px;font-size:20px;font-weight:700;color:${C.brand600}"></a>`;
+    : `<a href="${escapeHtml(home)}" style="text-decoration:none"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="vertical-align:middle;padding-right:8px"><img src="${escapeHtml(emailLogoUrl(input.origin))}" width="${MARK}" height="${MARK}" alt="" style="display:block;border:0;outline:none;height:${MARK}px;width:${MARK}px"></td><td style="vertical-align:middle;font-size:20px;font-weight:700;letter-spacing:-0.2px;color:${C.ink}">Wonder<span style="color:${C.brand500}">Works</span></td></tr></table></a>`;
 
   const linkHtml = links.map((l) => `<a href="${escapeHtml(l.href)}" style="color:${C.muted};text-decoration:underline">${escapeHtml(l.label)}</a>`).join(` &nbsp;·&nbsp; `);
   // Pads the preview so mail apps don't pull body text in after the preheader.
   const previewPad = "&#8203;&nbsp;".repeat(60);
 
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(input.brand?.name ?? "WonderWorks")}</title></head>
-<body style="margin:0;padding:0;background:${C.bg};font-family:${EMAIL_FONT};color:${C.ink};-webkit-text-size-adjust:100%">
-<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:${C.bg}">${escapeHtml(input.preheader)}${previewPad}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.bg}" style="background:${C.bg}"><tr><td align="center" style="padding:24px 12px">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px">
-<tr><td bgcolor="${C.brand500}" style="background:${C.brand500};background-image:${EMAIL_GRADIENT};height:6px;line-height:6px;font-size:0;border-radius:16px 16px 0 0">&nbsp;</td></tr>
-<tr><td bgcolor="${C.surface}" style="background:${C.surface};padding:22px 24px 18px;border-left:1px solid ${C.line};border-right:1px solid ${C.line};border-bottom:1px solid ${C.line}">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${escapeHtml(input.brand?.name ?? "WonderWorks")}</title></head>
+<body style="margin:0;padding:0;background:${C.surface};font-family:${EMAIL_FONT};color:${C.ink};-webkit-text-size-adjust:100%">
+<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;font-size:1px;line-height:1px;color:${C.surface}">${escapeHtml(input.preheader)}${previewPad}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.surface}" style="background:${C.surface}"><tr><td align="center" style="padding:32px 20px">
+<table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px">
+<tr><td style="padding:0 0 28px">
 ${header}
 </td></tr>
-<tr><td bgcolor="${C.surface}" style="background:${C.surface};padding:20px 20px 24px;border-left:1px solid ${C.line};border-right:1px solid ${C.line};border-bottom:1px solid ${C.line};border-radius:0 0 16px 16px;font-size:14px;line-height:1.5;color:${C.ink}">
+<tr><td style="font-size:15px;line-height:1.6;color:${C.ink}">
 ${input.bodyHtml}
 </td></tr>
-<tr><td align="center" style="padding:20px 16px 8px;font-size:12px;line-height:1.6;color:${C.muted}">
-<div style="font-size:13px;font-weight:700;color:${C.ink2};margin:0 0 4px">${escapeHtml(sender)}</div>
-<div style="margin:0 0 8px">${escapeHtml(input.reason)}</div>
+<tr><td style="padding:32px 0 0"><div style="border-top:1px solid ${C.line};padding-top:16px;font-size:12px;line-height:1.6;color:${C.muted}">
+<div style="margin:0 0 6px">${escapeHtml(input.reason)}</div>
 <div>${linkHtml}</div>
-</td></tr>
+${input.brand ? `<div style="margin-top:6px">${escapeHtml(sender)}</div>` : ""}
+</div></td></tr>
 </table>
 </td></tr></table>
 </body></html>`;

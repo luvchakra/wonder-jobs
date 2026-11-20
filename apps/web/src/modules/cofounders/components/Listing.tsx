@@ -5,7 +5,7 @@ import { APPLY_BTN, CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonde
 import { Badge } from "@/components/common/Badge";
 import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { relativeTime } from "@/lib/format";
-import { matchListing, STATUS_LABEL, type CofounderListing, type ConnStatus, type Fit } from "../domain";
+import { isOutside, matchListing, STATUS_LABEL, type CofounderListing, type ConnStatus, type Fit } from "../domain";
 import { listingHref } from "../manifest";
 import { selectPersona, useCofoundersStore } from "../store";
 import { shareOf } from "../share";
@@ -21,6 +21,9 @@ export const FIT: Record<Exclude<Fit["fit"], "unknown">, { top: string; bottom: 
 
 /** The verb on the card and page: people are connected with; teams are asked to join. */
 export const verbOf = (l: Pick<CofounderListing, "kind">) => (l.kind === "team" ? "Ask to join" : "Connect");
+
+/** The words for opening an outside listing where it was published. */
+export const openOn = (l: Pick<CofounderListing, "kind" | "sourceName">) => (l.kind === "post" ? `Read the post on ${l.sourceName}` : `See it on ${l.sourceName}`);
 
 const LIVE: ConnStatus[] = ["interested", "mutual", "talking", "building"];
 /** The status of the person's connection with this listing (their own record; Connections brings it up to date). */
@@ -49,7 +52,7 @@ export const CofounderCard = memo(function CofounderCard({ item: l, onOpen }: { 
         <>
           <CompanyLogo name={l.title} logo size={44} />
           {fit && <FitPill tone={fit.tone} title={fit.title} top={fit.top} bottom={fit.bottom} srText={fit.title} />}
-          {!status && (
+          {!status && !isOutside(l) && (
             <Link href={`${listingHref(l.id)}?connect=1`} onClick={() => onOpen(l.id)} aria-label={`${verbOf(l)}: ${l.title}`} className={APPLY_BTN}>
               {l.kind === "team" ? "Join" : "Connect"}
             </Link>
@@ -63,19 +66,22 @@ export const CofounderCard = memo(function CofounderCard({ item: l, onOpen }: { 
       }
       facts={[
         <span key="k" className="font-medium text-ink-2">
-          {l.kind === "team" ? `Team · ${t.stage ?? ""}`.replace(/ · $/, "") : t.role ? `${t.role} founder` : "Founder"}
+          {l.kind === "post" ? "Post" : l.kind === "startup" ? "New startup" : l.kind === "team" ? `Team · ${t.stage ?? ""}`.replace(/ · $/, "") : t.role ? `${t.role} founder` : "Founder"}
         </span>,
+        t.handle && <span key="h">@{t.handle}</span>,
+        t.batch && <span key="b">{t.batch}</span>,
+        t.teamSize && <span key="n">{t.teamSize === 1 ? "1 person" : `${t.teamSize} people`}</span>,
         t.commitment && <span key="c">{t.commitment}</span>,
         l.location && <span key="p">{l.location}</span>,
         l.kind === "team" && t.founders && <span key="f">{t.founders === 1 ? "1 founder" : `${t.founders} founders`}</span>,
       ]}
-      tags={l.kind === "team" ? roles.slice(0, 3) : (t.skills ?? []).slice(0, 4)}
+      tags={l.kind === "team" ? roles.slice(0, 3) : t.hiring ? ["Hiring"] : (t.skills ?? []).slice(0, 4)}
       reasons={m.signals.filter((x) => x.tone === "good").map((x) => x.text).slice(0, 2)}
-      summary={(l.kind === "team" ? l.company : l.description).slice(0, 240)}
-      summaryTitle={l.kind === "team" ? "What they're building" : "In their words"}
+      summary={(l.kind === "team" || l.kind === "startup" ? [l.company, l.kind === "startup" ? l.description : ""].filter(Boolean).join(" — ") : l.description).slice(0, 240)}
+      summaryTitle={l.kind === "team" || l.kind === "startup" ? "What they're building" : l.kind === "post" ? "From the post" : "In their words"}
       status={status && <Badge tone="brand">{STATUS_LABEL[status]}</Badge>}
       footnote={`via ${l.sourceName}${l.postedAt ? ` · ${relativeTime(l.postedAt)}` : ""}`}
-      actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun={l.kind === "team" ? "team" : "person"} />}
+      actions={<SaveButton saved={saved} onToggle={() => toggle(l.id, l)} noun={l.kind === "team" ? "team" : l.kind === "person" ? "person" : l.kind} />}
     />
   );
 });

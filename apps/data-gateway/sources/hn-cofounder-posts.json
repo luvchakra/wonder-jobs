@@ -1,0 +1,41 @@
+{
+  "url": "https://hn.algolia.com/api/v1/search_by_date?query=%22looking%20for%20a%20co-founder%22&tags=story&numericFilters=created_at_i%3E1730000000&hitsPerPage=100",
+  "extraUrls": [
+    "https://hn.algolia.com/api/v1/search_by_date?query=%22looking%20for%20a%20cofounder%22&tags=story&numericFilters=created_at_i%3E1730000000&hitsPerPage=100",
+    "https://hn.algolia.com/api/v1/search_by_date?query=%22technical%20co-founder%22&tags=story&numericFilters=created_at_i%3E1730000000&hitsPerPage=100",
+    "https://hn.algolia.com/api/v1/search_by_date?query=%22business%20co-founder%22&tags=story&numericFilters=created_at_i%3E1730000000&hitsPerPage=100"
+  ],
+  "kind": "json_api",
+  "modules": [
+    "cofounders"
+  ],
+  "geography": [
+    "global"
+  ],
+  "publicPosts": true,
+  "scrubContacts": true,
+  "organizationOptional": true,
+  "itemsPath": "hits",
+  "mapping": {
+    "id": "objectID",
+    "title": "title",
+    "description": "story_text",
+    "applyUrl": "https://news.ycombinator.com/item?id={objectID}",
+    "postedAt": "created_at",
+    "attr.handle": "author"
+  },
+  "permission": "terms_permit",
+  "permissionEvidence": "terms pending: confirm Hacker News's terms allow reusing a post's title and excerpt with a link back. Checked 2026-11-07: hn.algolia.com is HN's own public search API (no key); each hit is a story someone posted for others to read, kept as its title, the first lines of its text (email addresses and phone numbers removed), its date and the author's public handle only, linking to the post on news.ycombinator.com. Four phrase searches, stories from the last year, kept 30 days.",
+  "termsReviewed": true,
+  "redistributionAllowed": true,
+  "externalRedistributionAllowed": false,
+  "attribution": "Hacker News",
+  "retentionHours": 720,
+  "minIntervalMinutes": 360,
+  "moduleFilter": {
+    "cofounders": {
+      "field": "title",
+      "match": "(look|seek|search|need|want|find|hiring).{0,30}(co-?founder|cto|founding (engineer|team))|co-?founder (wanted|needed|search)|(technical|business|sales) co-?founder"
+    }
+  }
+}

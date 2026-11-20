@@ -186,6 +186,17 @@ describe("activation needs a real passing test (WJ-JL-008..012)", () => {
     expect(refused.status).toBe(400);
   });
 
+  it("a test the source refuses with no words (400) tries once with the module's word (2026-11-05: Jooble)", async () => {
+    asAdmin();
+    const { source } = await (await createSource(post("/admin/sources", board))).json();
+    connector.mockReset();
+    connector.mockRejectedValueOnce(new Error("jooble.org responded 400"));
+    connector.mockResolvedValueOnce({ jobs: [job({ company: "Spotify", applyUrl: "https://jobs.lever.co/spotify/2" })], warnings: [] });
+    const r = await (await testSource(post(`/admin/sources/${source.id}/test`), ctx(source.id))).json();
+    expect(r.ok).toBe(true);
+    expect(connector.mock.calls.map((c) => (c[1] as { query: string }).query)).toEqual(["", "engineer"]);
+  });
+
   it("a failing test blocks activation, a passing one allows it", async () => {
     asAdmin();
     const { source } = await (await createSource(post("/admin/sources", board))).json();

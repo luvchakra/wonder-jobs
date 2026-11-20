@@ -49,3 +49,15 @@ test("a record repeated across pages is one record, not a failed one", async () 
   assert.equal(r.discovered, 2, "the repeat isn't counted against the source's quality");
   assert.ok(r.valid / r.discovered >= 0.9);
 });
+
+test("a saved page that no longer exists starts again from page one (2026-11-05: Helsinki)", async () => {
+  const calls = [];
+  const gone = { ...deps(calls), get: async (u) => { calls.push(u); if (u.includes("page=9")) throw Object.assign(new Error("Source responded 404"), { code: "SOURCE_UNAVAILABLE" }); return files[u]; } };
+  const r = await pagedRecords({ ...src, crawlCursor: "https://api.example.org/jobs.json?page=9" }, gone);
+  assert.deepEqual(r.results.map((x) => x.title), ["Teacher 1", "Teacher 2"]);
+  assert.equal(calls.filter((c) => String(c).includes("page=9")).length, 1, "tried once");
+});
+
+test("the first page failing still fails the run", async () => {
+  await assert.rejects(pagedRecords(src, { get: async () => "not json", sleep: async () => {}, now: () => 0 }), (e) => e.code === "INVALID_SOURCE");
+});

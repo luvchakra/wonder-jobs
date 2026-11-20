@@ -92,6 +92,15 @@ function DbCard({ r }: { r: DbReport }) {
         </span>
         {share != null && <Meter label={`${mb(r.sizeBytes)} of ${num(r.limitMb)} MB used`} value={share} judged={false} />}
         {key && <span className="text-[12px] text-ink-3">{key}</span>}
+        {r.modules?.length ? (
+          <span className="flex flex-wrap gap-1.5">
+            {r.modules.map((m) => (
+              <Badge key={m} tone="neutral">
+                {m}
+              </Badge>
+            ))}
+          </span>
+        ) : null}
       </button>
       {open && (
         <div className="mt-3 border-t border-line pt-3">

@@ -12,6 +12,9 @@ import { COFOUNDERS, type CofounderListing } from "@/modules/cofounders/domain";
 import { openProfiles } from "./profiles";
 import { openTeams } from "./teams";
 import { WONDERWORKS_COFOUNDERS } from "./profiles";
+import { COF_OUTSIDE, gatewayOutside } from "./outside";
+import { productHuntStartups, redditPosts } from "./keyed";
+import { COF_PRODUCT_HUNT, COF_REDDIT } from "./sources";
 import { founderIds, hiddenFor, members } from "./store";
 
 export type SourceState = "ok" | "empty" | "needs_setup" | "unavailable" | "skipped";
@@ -42,7 +45,8 @@ export async function searchCofounders(s: Session, input: { query: string; place
     hiddenFor(s.tenantId),
     members().find({ tenant_id: s.tenantId }),
   ]);
-  const matched = new Set(response.results.flatMap((o) => o.sourceRecords.filter((r) => r.sourceId === WONDERWORKS_COFOUNDERS).map((r) => r.sourceJobId)));
+  const OURS = [WONDERWORKS_COFOUNDERS, COF_OUTSIDE, COF_REDDIT, COF_PRODUCT_HUNT];
+  const matched = new Set(response.results.flatMap((o) => o.sourceRecords.filter((r) => OURS.includes(r.sourceId)).map((r) => r.sourceJobId)));
   const results: CofounderListing[] = [];
   for (const p of people) if (matched.has(p.listing.id) && p.tenant !== s.tenantId && !hidden.people.has(p.tenant)) results.push(p.listing);
   const myTeamIds = new Set(mine.map((m) => m.team_id));
@@ -51,6 +55,15 @@ export async function searchCofounders(s: Session, input: { query: string; place
     // A team is hidden from someone who blocked, or was blocked by, any of its founders.
     if ((await founderIds(t.id)).some((f) => hidden.people.has(f))) continue;
     results.push(t.listing);
+  }
+  // Posts and startups from outside: read again from their own source (the gateway's stored copy, or Reddit and Product Hunt's
+  // kept answers), never from WorksLake's cache, and only those this search matched.
+  const known = new Set(results.map((r) => r.id));
+  const [gw, reddit, ph] = await Promise.all([gatewayOutside().catch(() => null), redditPosts().catch(() => []), productHuntStartups().catch(() => [])]);
+  for (const l of [...(gw?.listings ?? []), ...reddit, ...ph]) {
+    if (!matched.has(l.id) || known.has(l.id)) continue;
+    known.add(l.id);
+    results.push(l);
   }
   const lines: CofoundersSourceLine[] = response.sources.map((src) => ({
     id: src.sourceId,

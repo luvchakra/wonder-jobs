@@ -6,7 +6,7 @@ import { shortPlace } from "@/wonderworks/find/place";
 import { CARD_TARGET, FitPill, ResultCard, SaveButton } from "@/wonderworks/find/parts";
 import { Badge } from "@/components/common/Badge";
 import { relativeTime } from "@/lib/format";
-import { matchListing, priceLabel, type MarketListing } from "../domain";
+import { listingPrice, matchListing, type MarketListing } from "../domain";
 import { listingHref, photoSrc } from "../manifest";
 import { selectPersona, useMarketplaceStore } from "../store";
 import { shareOf } from "../share";
@@ -50,7 +50,7 @@ export const MarketCard = memo(function MarketCard({ item: l, onOpen }: { item: 
       }
       facts={[
         <span key="p" className="font-semibold text-ink">
-          {priceLabel(t.price)}
+          {listingPrice(l)}
           {t.negotiable ? " · negotiable" : ""}
         </span>,
         <span key="c">{t.condition}</span>,

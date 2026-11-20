@@ -7,10 +7,13 @@
 import type { Job } from "@/domain/jobs/types";
 import { hashKey } from "@/lib/ids";
 import { theirstack } from "./theirstack";
+import { jsearch } from "./jsearch";
 import { corePhrase, htmlToText, matchesLocations, matchesQuery, normalizePosting, remotiveCategory, titleMatches, type RawPosting } from "@/services/jobs/normalize";
 import { platformKey } from "@/server/jobslake/platformKeys";
 import { fetchJooble, joobleAvailable } from "@/server/jobslake/jooble";
 import { fetchUsaJobs, usaJobsAvailable } from "@/server/jobslake/usajobs";
+import { fetchRecruitee } from "@/server/jobslake/recruitee";
+import { fetchPersonio } from "@/server/jobslake/personio";
 
 export interface SearchCriteria {
   query: string;
@@ -82,7 +85,7 @@ function titleHasCoreTerm(title: string, query: string) {
 }
 
 /* ---------- Remotive ---------- */
-interface RemotiveJob { id: number; url: string; title: string; company_name: string; category: string; tags: string[]; job_type: string; publication_date: string; candidate_required_location: string; salary: string; description: string }
+interface RemotiveJob { id: number; url: string; title: string; company_name: string; company_logo_url?: string | null; company_logo?: string | null; category: string; tags: string[]; job_type: string; publication_date: string; candidate_required_location: string; salary: string; description: string }
 const remotive: SourceFetcher = {
   id: "remotive",
   available: () => true,
@@ -92,14 +95,14 @@ const remotive: SourceFetcher = {
     const data = await getJson<{ jobs: RemotiveJob[] }>(category ? `https://remotive.com/api/remote-jobs?category=${category}&limit=300` : `https://remotive.com/api/remote-jobs?search=${encodeURIComponent(corePhrase(c.query))}&limit=100`);
     return finish(
       "remotive",
-      data.jobs.map((j) => ({ externalId: String(j.id), title: j.title, company: j.company_name, location: `Remote (${j.candidate_required_location || "Worldwide"})`, remote: true, description: j.description, tags: [j.category, ...(j.tags ?? [])].filter(Boolean), postedAt: j.publication_date, applyUrl: j.url, salaryText: j.salary, industryHint: j.category, employerSite: false, applyPath: "platform" as const, jobType: j.job_type })),
+      data.jobs.map((j) => ({ externalId: String(j.id), title: j.title, company: j.company_name, companyLogo: j.company_logo_url || j.company_logo || undefined, location: `Remote (${j.candidate_required_location || "Worldwide"})`, remote: true, description: j.description, tags: [j.category, ...(j.tags ?? [])].filter(Boolean), postedAt: j.publication_date, applyUrl: j.url, salaryText: j.salary, industryHint: j.category, employerSite: false, applyPath: "platform" as const, jobType: j.job_type })),
       c,
     );
   },
 };
 
 /* ---------- Jobicy ---------- */
-interface JobicyJob { id: number; url: string; jobTitle: string; companyName: string; jobIndustry: string[]; jobType: string[]; jobGeo: string; jobLevel: string; jobDescription: string; pubDate: string; annualSalaryMin?: number; annualSalaryMax?: number; salaryCurrency?: string }
+interface JobicyJob { id: number; url: string; jobTitle: string; companyName: string; companyLogo?: string | null; jobIndustry: string[]; jobType: string[]; jobGeo: string; jobLevel: string; jobDescription: string; pubDate: string; annualSalaryMin?: number; annualSalaryMax?: number; salaryCurrency?: string }
 const jobicy: SourceFetcher = {
   id: "jobicy",
   available: () => true,
@@ -108,7 +111,7 @@ const jobicy: SourceFetcher = {
     const data = await getJson<{ jobs?: JobicyJob[] }>(`https://jobicy.com/api/v2/remote-jobs?count=100${tag ? `&tag=${encodeURIComponent(tag)}` : ""}`);
     return finish(
       "jobicy",
-      (data.jobs ?? []).map((j) => ({ externalId: String(j.id), title: j.jobTitle, company: j.companyName, location: `Remote (${j.jobGeo || "Anywhere"})`, remote: true, description: j.jobDescription, tags: [...(j.jobIndustry ?? []), ...(j.jobType ?? [])], postedAt: j.pubDate, applyUrl: j.url, salaryMin: j.annualSalaryMin || null, salaryMax: j.annualSalaryMax || null, currency: j.salaryCurrency || null, seniorityHint: j.jobLevel, industryHint: (j.jobIndustry ?? []).join(" "), employerSite: false, applyPath: "platform" as const, jobType: j.jobType })),
+      (data.jobs ?? []).map((j) => ({ externalId: String(j.id), title: j.jobTitle, company: j.companyName, companyLogo: j.companyLogo || undefined, location: `Remote (${j.jobGeo || "Anywhere"})`, remote: true, description: j.jobDescription, tags: [...(j.jobIndustry ?? []), ...(j.jobType ?? [])], postedAt: j.pubDate, applyUrl: j.url, salaryMin: j.annualSalaryMin || null, salaryMax: j.annualSalaryMax || null, currency: j.salaryCurrency || null, seniorityHint: j.jobLevel, industryHint: (j.jobIndustry ?? []).join(" "), employerSite: false, applyPath: "platform" as const, jobType: j.jobType })),
       c,
     );
   },
@@ -117,7 +120,7 @@ const jobicy: SourceFetcher = {
 /* ---------- Remote OK ---------- */
 // Remote OK has no employment-type field; some postings carry it as a tag ("full time", "part time").
 const REMOTEOK_TYPE_TAG = /^(full[\s-]?time|part[\s-]?time|contract|contractor|freelance|internship|temporary)$/i;
-interface RemoteOkJob { id: string; slug: string; date: string; company: string; position: string; tags: string[]; description: string; location: string; url: string; apply_url?: string; salary_min?: number | string; salary_max?: number | string }
+interface RemoteOkJob { id: string; slug: string; date: string; company: string; company_logo?: string | null; logo?: string | null; position: string; tags: string[]; description: string; location: string; url: string; apply_url?: string; salary_min?: number | string; salary_max?: number | string }
 const remoteok: SourceFetcher = {
   id: "remoteok",
   available: () => true,
@@ -127,16 +130,16 @@ const remoteok: SourceFetcher = {
     const jobs = data.filter((j): j is RemoteOkJob => "position" in j);
     return finish(
       "remoteok",
-      jobs.map((j) => ({ externalId: String(j.id), title: j.position, company: j.company, location: `Remote (${j.location || "Worldwide"})`, remote: true, description: j.description, tags: j.tags ?? [], postedAt: j.date, applyUrl: j.url, salaryMin: Number(j.salary_min) || null, salaryMax: Number(j.salary_max) || null, currency: Number(j.salary_max) ? "USD" : null, employerSite: false, applyPath: "platform" as const, jobType: (j.tags ?? []).filter((t) => REMOTEOK_TYPE_TAG.test(t)) })),
+      jobs.map((j) => ({ externalId: String(j.id), title: j.position, company: j.company, companyLogo: j.company_logo || j.logo || undefined, location: `Remote (${j.location || "Worldwide"})`, remote: true, description: j.description, tags: j.tags ?? [], postedAt: j.date, applyUrl: j.url, salaryMin: Number(j.salary_min) || null, salaryMax: Number(j.salary_max) || null, currency: Number(j.salary_max) ? "USD" : null, employerSite: false, applyPath: "platform" as const, jobType: (j.tags ?? []).filter((t) => REMOTEOK_TYPE_TAG.test(t)) })),
       c,
     );
   },
 };
 
 /* ---------- Himalayas ---------- */
-export interface HimalayasJob { employmentType?: string | null; title: string; companyName: string; description: string; excerpt: string; seniority?: string[]; categories?: string[]; minSalary?: number | null; maxSalary?: number | null; currency?: string | null; locationRestrictions?: string[]; pubDate: number; applicationLink: string; guid: string }
+export interface HimalayasJob { employmentType?: string | null; title: string; companyName: string; companyLogo?: string | null; description: string; excerpt: string; seniority?: string[]; categories?: string[]; minSalary?: number | null; maxSalary?: number | null; currency?: string | null; locationRestrictions?: string[]; pubDate: number; applicationLink: string; guid: string }
 export function rawFromHimalayas(j: HimalayasJob): RawPosting {
-  return { externalId: j.guid || j.applicationLink, title: j.title, company: j.companyName, location: `Remote (${(j.locationRestrictions ?? []).join(", ") || "Worldwide"})`, remote: true, description: j.description || j.excerpt, tags: (j.categories ?? []).slice(0, 6).map((t) => t.replace(/-/g, " ")), postedAt: j.pubDate, applyUrl: j.applicationLink, salaryMin: j.minSalary ?? null, salaryMax: j.maxSalary ?? null, currency: j.currency ?? null, seniorityHint: (j.seniority ?? []).join(" "), employerSite: false, applyPath: "platform" as const, jobType: j.employmentType ?? null };
+  return { externalId: j.guid || j.applicationLink, title: j.title, company: j.companyName, companyLogo: j.companyLogo || undefined, location: `Remote (${(j.locationRestrictions ?? []).join(", ") || "Worldwide"})`, remote: true, description: j.description || j.excerpt, tags: (j.categories ?? []).slice(0, 6).map((t) => t.replace(/-/g, " ")), postedAt: j.pubDate, applyUrl: j.applicationLink, salaryMin: j.minSalary ?? null, salaryMax: j.maxSalary ?? null, currency: j.currency ?? null, seniorityHint: (j.seniority ?? []).join(" "), employerSite: false, applyPath: "platform" as const, jobType: j.employmentType ?? null };
 }
 const himalayas: SourceFetcher = {
   id: "himalayas",
@@ -241,6 +244,10 @@ const weworkremotely: SourceFetcher = {
 // The connectors live in WorksLake (server/jobslake): Jobs asks them with the candidate's own words under its own ids.
 const usajobs: SourceFetcher = { id: "usajobs", available: usaJobsAvailable, fetch: (c) => fetchUsaJobs("usajobs", c) };
 const jooble: SourceFetcher = { id: "jooble", available: joobleAvailable, fetch: (c) => fetchJooble("jooble", corePhrase(c.query), c) };
+
+/* ---------- Recruitee and Personio career sites (WorksLake's shared connectors; public, no key, WJ-550) ---------- */
+const recruitee: SourceFetcher = { id: "recruitee", available: () => true, fetch: (c) => fetchRecruitee("recruitee", c) };
+const personio: SourceFetcher = { id: "personio", available: () => true, fetch: (c) => fetchPersonio("personio", c) };
 
 /* ---------- Adzuna (India) ---------- */
 /** Whole days back to `since`, at least one — Adzuna's `max_days_old` counts days, so a day's overlap is merged away by id. */
@@ -649,7 +656,7 @@ const employers: SourceFetcher = {
   },
 };
 
-export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, workingnomads, weworkremotely, usajobs, jooble, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack };
+export const SOURCE_FETCHERS: Record<string, SourceFetcher> = { employers, careers, smartrecruiters, themuse, remotive, jobicy, remoteok, himalayas, himalayas_parttime: himalayasParttime, arbeitnow, workingnomads, weworkremotely, usajobs, jooble, recruitee, personio, adzuna_in: adzunaIn, adzuna_in_parttime: adzunaInParttime, freelancer, jazzhr, theirstack, jsearch };
 
 /**
  * Re-derives one specific career-site posting from its job id's hash suffix,

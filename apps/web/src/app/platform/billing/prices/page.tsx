@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import type { PlanPrices, ProviderPrice } from "@/server/billing/admin";
 import { formatMoney } from "@/domain/billing/format";
@@ -14,7 +15,7 @@ import { label, minorDigits, newRequestId, toMinor } from "@/components/billing/
 type Data = { plans: PlanPrices[]; providers: { stripe: boolean; razorpay: boolean } };
 
 function charge(p: ProviderPrice): string {
-  if (p.state === "needs_setup") return "Needs setup — not connected on this deployment";
+  if (p.state === "needs_setup") return "Not connected (Billing → Payments)";
   if (p.state === "not_set") return "Not sold here yet";
   if (p.state === "unavailable") return `Unavailable — ${p.reason}`;
   return `${formatMoney(p.amount, p.currency)} every ${p.intervalCount === 1 ? p.interval : `${p.intervalCount} ${p.interval}s`} · ${p.ref}${"active" in p && !p.active ? " · archived" : ""}`;
@@ -26,10 +27,28 @@ export default function BillingPricesPage() {
   const none = data && !data.providers.stripe && !data.providers.razorpay;
   return (
     <>
-      <PageTitle title="Prices" subtitle="What each provider charges, read from Stripe and Razorpay just now. Existing subscribers keep the price they signed up at." />
+      <PageTitle
+        title="Prices"
+        subtitle="What each provider charges, read from Stripe and Razorpay just now. Existing subscribers keep the price they signed up at."
+        actions={
+          <Link href="/platform/billing/discounts">
+            <Button size="sm" variant="outline">
+              Discounts
+            </Button>
+          </Link>
+        }
+      />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading rows={2} />}
-      {none && <Note tone="warning">No payment provider is connected on this deployment, so there are no prices to change.</Note>}
+      {none && (
+        <Note tone="warning">
+          No payment provider is connected yet, so there are no prices to change. Connect Razorpay on{" "}
+          <Link href="/platform/billing/payments" className="font-medium underline">
+            Payments
+          </Link>{" "}
+          first.
+        </Note>
+      )}
       {data && (
         <div className="mt-3 flex flex-col gap-4">
           {data.plans.map((p) => (

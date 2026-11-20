@@ -1,9 +1,9 @@
 "use client";
 import { explainFailure, failureSummary } from "@/domain/gateway/failure";
 import Link from "next/link";
-import { ArrowRight, ChevronDown, Play } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Circle, ExternalLink, Loader2, Play, X } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
-import type { ImportAction, ImportModule, ImportRow, ImportView } from "@/server/jobslake/importView";
+import type { ImportAction, ImportModule, ImportRow, ImportView, LiveView } from "@/server/jobslake/importView";
 import type { ImportRun } from "@/server/gateway/importRuns";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
@@ -11,6 +11,7 @@ import { Fold } from "@/components/common/Fold";
 import { Field, Input, Select, Switch, Textarea } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { DataTypes } from "@/components/jobslake/DataTypes";
+import { ProspectData } from "@/components/jobslake/ProspectData";
 import { adminFetch, LoadError, Loading, Note, PageTitle, Panel, Stat, num, useAdmin } from "@/components/jobslake/ui";
 import { MODULES } from "@/modules/registry";
 import { relativeTime } from "@/lib/format";
@@ -28,7 +29,7 @@ const STATE: Record<ImportRow["state"], { label: string; tone: "success" | "warn
 };
 
 /**
- * Admin → Data → Import (owner, 2026-11-02): the whole way from a source to a listing in Find, managed here and
+ * Sources → Import (owner, 2026-11-02): the whole way from a source to a listing in Find, managed here and
  * nowhere else. One press, Import now, runs the pipeline on the server: it sets up the sources that are waiting,
  * collects, and refreshes every module's Find. The same job runs on a schedule that fits the free plans (domain/gateway/budget.ts). Each module shows its three numbers
  * (sources, collected, in Find) and, opened, its sources with one state and one action each.
@@ -36,8 +37,9 @@ const STATE: Record<ImportRow["state"], { label: string; tone: "success" | "warn
 export default function ImportPage() {
   const { data, error, reload } = useAdmin<ImportView>("import");
   const [starting, setStarting] = useState(false);
-  const running = !!data?.job?.running;
-  // While an import runs, the page re-reads it every 10 s (only while shown); nothing runs once it's done.
+  // A run on the GitHub runner counts from the press (sent, waiting for GitHub to start it) to its last step.
+  const running = !!data?.job?.running || !!data?.live?.active;
+  // While an import runs, the page re-reads it every 5 s (only while shown); nothing runs once it's done.
   useEffect(() => {
     if (!running) return;
     const t = setInterval(() => {
@@ -51,7 +53,8 @@ export default function ImportPage() {
     const r = await post({ action: "import" });
     setStarting(false);
     const skipped = r.ok && Number(r.data.skipped) ? ` ${num(Number(r.data.skipped))} that didn't go live in the last day are left out; each has Try again on its module's card.` : "";
-    if (r.ok) toast.success("Import started", (Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed.` : "Collecting, then refreshing every module's Find.") + skipped + " You can leave this page.");
+    if (r.ok && (r.data as { dispatched?: boolean }).dispatched) toast.success("Import sent to GitHub", "Its progress shows at the top of this page. You can leave this page.");
+    else if (r.ok) toast.success("Import started", (Number(r.data.queued) ? `${num(Number(r.data.queued))} sources to set up first; then every module's Find is refreshed.` : "Collecting, then refreshing every module's Find.") + skipped + " You can leave this page.");
     else toast.error("Didn't start", r.error.message);
     reload();
   };
@@ -62,32 +65,113 @@ export default function ImportPage() {
         title="Import"
         subtitle="How listings get from sources into Find, for every module. Import now sets up waiting sources, collects, and refreshes Find; the same job runs on its own every few hours. Each module can be imported on its own or paused; each source has Details for what it did lately and the ways to fix or pause it."
         actions={
-          <Button icon={<Play className="size-4" aria-hidden />} loading={starting} disabled={running || !data?.gatewayConfigured} onClick={() => void importNow()}>
+          <Button icon={running ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Play className="size-4" aria-hidden />} loading={starting} disabled={running || !data?.gatewayConfigured} onClick={() => void importNow()}>
             {running ? "Importing…" : "Import now"}
           </Button>
         }
       />
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading rows={4} />}
-      {data && !data.gatewayConfigured && <Note tone="warning">The gateway isn&apos;t configured on this deployment (GATEWAY_ADMIN_TOKEN and GATEWAY_CURSOR_SECRET), so only WorksLake&apos;s own sources bring listings in.</Note>}
+      {data && !data.gatewayConfigured && <Note tone="warning">The gateway isn&apos;t running on this deployment (it needs Supabase and SECRET_ENCRYPTION_KEY), so only WorksLake&apos;s own sources bring listings in.</Note>}
       {data && (
         <div className="flex flex-col gap-4">
-          <ProgressBanner d={data} />
+          {/* Only what's under way, or stopped and needing a look, stays on top; finished runs go to History below
+              (owner, 2026-11-07: "show history in separate section below"). */}
+          {data.live && liveNow(data.live) && <RunnerProgress live={data.live} />}
+          {data.job && (data.job.running || data.job.stalled) && <ProgressBanner d={data} />}
           <Pipeline d={data} />
           <Schedule d={data} reload={reload} />
           <div className="flex flex-col gap-3">
+            <StateLegend />
             {data.modules.map((m) => (
               <ModuleCard key={m.id} m={m} busy={running} reload={reload} />
             ))}
           </div>
           <AddSources reload={reload} />
-          <RunHistory runs={data.runs} />
+          <ProspectData />
+          <section aria-labelledby="import-history" className="flex flex-col gap-3">
+            <h2 id="import-history" className="text-[15px] font-semibold text-ink">
+              History
+            </h2>
+            {data.live && !liveNow(data.live) && <RunnerProgress live={data.live} />}
+            {data.job && !data.job.running && !data.job.stalled && <ProgressBanner d={data} />}
+            <RunHistory runs={data.runs} />
+          </section>
           <Emails d={data} reload={reload} />
           <RecentRuns d={data} />
           <DataTypes />
+          <Archived d={data} reload={reload} />
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Where a row's data comes from, in the admin's words (owner, 2026-11-05: "create some clear difference between data which
+ * is only retrieved when searched, compared to data which is fetched regularly").
+ */
+const KIND: Record<ImportRow["kind"], { label: string; text: string }> = {
+  WorksLake: { label: "On search", text: "Asked live only when someone searches with words; nothing is fetched in between. You: set its key on Admin → Keys if it needs one." },
+  Gateway: { label: "Collected regularly", text: "Collected every few hours and stored; searches read what was collected. You: Test & activate it once; then nothing." },
+  Partner: { label: "Uploaded", text: "A partner's own list. You: upload it, then Activate." },
+  Catalogue: { label: "Not added yet", text: "A reviewed source we can collect regularly. You: Add & activate." },
+  Decision: { label: "Your decision", text: "A call only you can make. Read it, do what it asks (its Open link shows where), then press the button with your answer." },
+};
+
+/** What each source's state means and what's expected of the admin (owner, 2026-11-05: "put a legend section briefly"). */
+const LEGEND: { state: ImportRow["state"]; text: string }[] = [
+  { state: "needs_you", text: "Can't go further without you: a key to set, a decision or terms check, or it failed lately (its line says why). Its button says what to do." },
+  { state: "waiting", text: "Added but not on yet. Nothing to do: Import now, or the scheduled run, tests it and switches it on. Press its button to do it now." },
+  { state: "live", text: "Collecting on its schedule. Nothing to do." },
+  { state: "down", text: "Was live, but its last collections failed. It retries on its own; Details says why." },
+  { state: "off", text: "Paused or dismissed by an admin; Import skips it. Its button turns it back on." },
+  // Sources that failed three tries in a row, and dismissed ones, are listed in Archived at the end of the page.
+];
+
+/** What each row button does (owner, 2026-11-05: "what do you mean by Mark decided? create a small legend section"). */
+const BUTTONS: { label: string; text: string }[] = [
+  { label: "Your answer (e.g. Yes, build it · Not now · Secrets added)", text: "On a Decision row, each button is an answer or a thing done; the line under it says what each one means. Pressing one records your answer, who and when, and takes the row off the list. It changes nothing else by itself: the line says what follows, such as asking Claude to build something." },
+  { label: "Terms confirmed", text: "You've checked the source's terms allow our use. Recorded, and the row stops asking." },
+  { label: "Test & activate", text: "Fetches a sample now; if it reads well the source goes live. Try again does the same after a failure." },
+  { label: "Add & activate", text: "Adds a reviewed catalogue source, then tests and activates it." },
+  { label: "Collect now / Test", text: "Collects a live source now, or only tests it without changing anything." },
+  { label: "Pause / Resume", text: "Stops or restarts a source; what Find already has stays." },
+  { label: "Dismiss / Restore", text: "Moves a source that keeps failing to Archived so Import stops trying it; Restore brings it back." },
+  { label: "Upload list", text: "A partner's own list (CSV or JSON). Nothing is fetched for these." },
+  { label: "Open", text: "Goes to the page where the step is done (a key, a setting, the source)." },
+];
+
+function StateLegend() {
+  return (
+    <Fold title="What the states and buttons mean" hint="Needs you, Waiting, Live, Down, Off · decision answers, Test & activate…">
+      <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-2">
+        {LEGEND.map((l) => (
+          <li key={l.state} className="flex items-baseline gap-2">
+            <span className="shrink-0"><Badge tone={STATE[l.state].tone}>{STATE[l.state].label}</Badge></span>
+            <span>{l.text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[12px] font-semibold text-ink-2">Where the data comes from</p>
+      <ul className="mt-1 flex flex-col gap-1.5 text-[12.5px] text-ink-2">
+        {(Object.keys(KIND) as ImportRow["kind"][]).map((k) => (
+          <li key={k} className="flex items-baseline gap-2">
+            <span className="shrink-0 font-medium text-ink">{KIND[k].label}</span>
+            <span>{KIND[k].text}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[12px] font-semibold text-ink-2">Buttons</p>
+      <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 pb-3 text-[12.5px]">
+        {BUTTONS.map((b) => (
+          <Fragment key={b.label}>
+            <dt className="font-medium text-ink">{b.label}</dt>
+            <dd className="text-ink-2">{b.text}</dd>
+          </Fragment>
+        ))}
+      </dl>
+    </Fold>
   );
 }
 
@@ -111,6 +195,133 @@ function Pipeline({ d }: { d: ImportView }) {
  * 2026-11-02): a bar, the source being worked on and its step, counts so far, and every source in a fold. After it
  * finishes, its outcome stays for a day.
  */
+/** A runner run that's under way, waiting to start, or stopped without finishing: shown on top until it's settled. */
+const liveNow = (l: LiveView) => l.active || !!l.request?.stale || !!l.run?.silent;
+
+const MODE: Record<"scheduled" | "all" | "module" | "resume", string> = { scheduled: "Scheduled collection", all: "Import now", module: "Module import", resume: "Finishing a stopped import" };
+const moduleLabel = (id: string) => MODULES.find((m) => m.id === id)?.label ?? id;
+
+/**
+ * The collection runner's progress (owner, 2026-11-07: "change the button status and other elements on the page when
+ * import is running, also show progress and whats completed"): the steps, each source's collection and each module's
+ * Find refresh, as the runner reports them (server/gateway/liveRun.ts).
+ */
+function RunnerProgress({ live }: { live: LiveView }) {
+  const { request, run } = live;
+  // A press GitHub hasn't started yet (a scheduled run may be ahead of it in the queue).
+  const waiting = request && !request.stale ? request : null;
+  if (!run && !request) return null;
+  const title = run ? `${MODE[run.mode]}${run.module ? `: ${moduleLabel(run.module)}` : ""}` : `${MODE[request!.mode]}${request!.module ? `: ${moduleLabel(request!.module)}` : ""}`;
+  const on = run?.state === "running" && !run.silent;
+  const tone = on || waiting ? "border-brand-200 bg-brand-50" : run?.state === "failed" || run?.silent || request?.stale ? "border-warning-100 bg-warning-100/40" : "border-success-100 bg-success-100/40";
+
+  const srcDone = run ? run.sources.filter((x) => x.status === "collected" || x.status === "failed" || x.status === "deferred").length : 0;
+  const srcTotal = run?.sources.length ?? 0;
+  const modsDone = run ? Object.keys(run.refresh.done).length : 0;
+  const modsTotal = run?.refresh.modules.length ?? 0;
+  const pct = !run || !on ? (run?.state === "done" ? 100 : 0) : run.step === "refreshing" && modsTotal ? Math.round((modsDone / modsTotal) * 100) : run.step === "collecting" && srcTotal ? Math.round((srcDone / srcTotal) * 100) : 5;
+
+  const headline = !run
+    ? request!.stale
+      ? `Sent to GitHub ${when(request!.at)}, but no run has started. Check GitHub Actions.`
+      : "Sent to GitHub. Waiting for the runner to start (usually under a minute)…"
+    : run.silent
+      ? `No word from the runner since ${when(run.updatedAt)}. It may have stopped; check GitHub.`
+      : run.state === "running"
+        ? run.step === "starting"
+          ? "Runner started. Getting ready…"
+          : run.step === "setup"
+            ? "Setting up waiting sources…"
+            : run.step === "collecting"
+              ? `Collecting: ${num(srcDone)} of ${num(srcTotal)} sources`
+              : `Refreshing Find: ${num(modsDone)} of ${num(modsTotal)} modules`
+        : run.state === "failed"
+          ? `Stopped ${when(run.finishedAt)}`
+          : `Finished ${when(run.finishedAt)}`;
+
+  // The steps in order; Set up shows only when this run had sources waiting to set up.
+  const order = (["starting", "setup", "collecting", "refreshing", "done"] as const).filter((s) => s !== "setup" || run?.steps.includes("setup"));
+  const STEP_LABEL = { starting: "Started", setup: "Set up waiting sources", collecting: "Collect sources", refreshing: "Refresh Find", done: "Done" } as const;
+  const stepState = (s: (typeof order)[number]): "done" | "now" | "todo" | "skipped" => {
+    if (!run) return "todo";
+    if (s === "done") return run.state === "running" ? "todo" : "done";
+    if (run.step === s && on) return "now";
+    if (run.steps.includes(s)) return "done";
+    // A finished run that never needed a step (nothing due, nothing to refresh).
+    return run.state === "running" ? "todo" : "skipped";
+  };
+
+  return (
+    <div role="status" aria-live="polite" className={`rounded-[14px] border px-4 py-3 text-[13px] ${tone}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="font-semibold text-ink">
+          {title} · {headline}
+        </p>
+        <p className="flex items-center gap-2 text-[12px] text-ink-3">
+          {run ? `Started ${when(run.startedAt)} by ${run.by}` : `Pressed ${when(request!.at)} by ${request!.by}`}
+          {run?.runUrl && (
+            <a href={run.runUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">
+              GitHub <ExternalLink className="size-3" aria-hidden />
+            </a>
+          )}
+        </p>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70" aria-hidden>
+        <div className={`h-full rounded-full ${on || waiting ? "bg-brand-500" : run?.state === "done" ? "bg-success-600" : "bg-warning-600"} transition-[width] ${waiting && !run ? "animate-pulse" : ""}`} style={{ width: `${waiting && !run ? 100 : pct}%` }} />
+      </div>
+      <ol className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px]" aria-label="Steps">
+        <li className="inline-flex items-center gap-1 text-ink-2">
+          <Check className="size-3.5 text-success-700" aria-hidden />
+          Sent to GitHub
+        </li>
+        {order.map((s) => {
+          const st = stepState(s);
+          return (
+            <li key={s} className={`inline-flex items-center gap-1 ${st === "now" ? "font-semibold text-ink" : st === "todo" || st === "skipped" ? "text-ink-3" : "text-ink-2"}`}>
+              {st === "done" ? <Check className="size-3.5 text-success-700" aria-hidden /> : st === "now" ? <Loader2 className="size-3.5 animate-spin text-brand-600" aria-hidden /> : <Circle className="size-3" aria-hidden />}
+              {STEP_LABEL[s]}
+              {st === "skipped" ? " (nothing to do)" : ""}
+            </li>
+          );
+        })}
+      </ol>
+      {waiting && run && run.state === "running" && <p className="mt-1 text-[12px] text-ink-3">Your {MODE[waiting.mode]} starts when this run ends.</p>}
+      {run && srcTotal > 0 && (
+        <details open={on} className="mt-2">
+          <summary className="cursor-pointer text-[12.5px] font-medium text-ink-2">
+            Sources: {num(run.sources.filter((x) => x.status === "collected").length)} collected · {num(run.sources.filter((x) => x.status === "failed").length)} failed · {num(srcTotal - srcDone)} to go
+          </summary>
+          <ul className="mt-1 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
+            {run.sources.map((x) => (
+              <li key={x.id} className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
+                {x.status === "collected" ? <Check className="size-3.5 shrink-0 text-success-700" aria-hidden /> : x.status === "failed" ? <X className="size-3.5 shrink-0 text-danger-600" aria-hidden /> : x.status === "running" ? <Loader2 className="size-3.5 shrink-0 animate-spin text-brand-600" aria-hidden /> : <Circle className="size-3 shrink-0 text-ink-3" aria-hidden />}
+                <span className={`truncate ${x.status === "waiting" || x.status === "deferred" ? "text-ink-3" : "text-ink"}`}>{x.name}</span>
+                <span className="shrink-0 text-ink-3">
+                  {x.status === "collected" ? `· ${num(x.valid ?? 0)} listings` : x.status === "failed" ? `· ${explainFailure("Collect", x.message).label}` : x.status === "running" ? "· collecting…" : x.status === "deferred" ? "· next run" : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {run && modsTotal > 0 && (
+        <p className="mt-2 text-[12.5px] text-ink-2">
+          Find:{" "}
+          {run.refresh.modules.map((m, i) => (
+            <Fragment key={m}>
+              {i ? ", " : ""}
+              <span className={run.refresh.done[m] != null ? "text-ink" : run.refresh.current === m ? "font-semibold text-ink" : "text-ink-3"}>
+                {moduleLabel(m)} {run.refresh.done[m] != null ? `${num(run.refresh.done[m])} ✓` : run.refresh.current === m ? "…" : ""}
+              </span>
+            </Fragment>
+          ))}
+        </p>
+      )}
+      {run && !on && run.summary && <p className="mt-1 text-[12px] text-ink-3">{run.summary}</p>}
+    </div>
+  );
+}
+
 function ProgressBanner({ d }: { d: ImportView }) {
   const j = d.job;
   if (!j) return null;
@@ -142,59 +353,103 @@ function ProgressBanner({ d }: { d: ImportView }) {
         {j.stored && Object.keys(j.stored).length ? ` · In Find: ${Object.entries(j.stored).map(([m, n]) => `${num(n)} ${MODULES.find((x) => x.id === m)?.label ?? m}`).join(", ")}` : ""}
         {j.running ? ". It runs on the server; you can leave this page." : "."}
       </p>
-      {j.stalled && <ContinueImport />}
+      {j.stalled && <ContinueImport jobId={j.id} />}
       <RunItems items={j.items} />
     </div>
   );
 }
 
 /** A running import no server has picked up for a while: one press carries it on (the scheduled run would, later). */
-function ContinueImport() {
-  const [busy, setBusy] = useState(false);
+/**
+ * A job no server worked on for minutes (its runner or hand-on stopped) is picked up again on its own, once per job
+ * (owner, 2026-11-07: "when it shows paused, what am i supposed to do, cant it auto continue and ensure it finshes?").
+ * The scheduled run finishes it too; Try again is only there if the automatic pick-up couldn't start.
+ */
+function ContinueImport({ jobId }: { jobId: string }) {
+  const key = `wj.import.resumed.${jobId}`;
+  // Asked already in this tab (a reload): don't ask again; the server also refuses a second while the first runs.
+  const [asked] = useState(() => {
+    try {
+      return !!sessionStorage.getItem(key);
+    } catch {
+      return false;
+    }
+  });
+  const [state, setState] = useState<"starting" | "started" | "failed">(asked ? "started" : "starting");
+  const [error, setError] = useState("");
+  const resume = async () => {
+    const r = await post({ action: "continue" });
+    if (r.ok) setState("started");
+    else {
+      setError(r.error.message);
+      setState("failed");
+    }
+  };
+  useEffect(() => {
+    if (asked) return;
+    try {
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* storage off: ask anyway */
+    }
+    // Once per job, after this render.
+    const t = setTimeout(() => void resume(), 0);
+    return () => clearTimeout(t);
+  }, [asked, key]);
   return (
-    <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-warning-600">
-      It has paused: no server has worked on it for a few minutes.
-      <Button
-        size="sm"
-        variant="outline"
-        loading={busy}
-        onClick={async () => {
-          setBusy(true);
-          const r = await post({ action: "continue" });
-          setBusy(false);
-          if (!r.ok) toast.error("Couldn't continue it", r.error.message);
-          else toast.success("Continuing on the server", "This page shows where it gets to.");
-        }}
-      >
-        Continue
-      </Button>
+    <p className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-2">
+      {state === "failed" ? (
+        <>
+          <span className="text-warning-600">It stopped, and picking it up again didn&apos;t start: {error}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setState("starting");
+              void resume();
+            }}
+          >
+            Try again
+          </Button>
+        </>
+      ) : (
+        <span>
+          <Loader2 className="mr-1 inline size-3.5 animate-spin" aria-hidden />
+          It stopped part-way, so it&apos;s being picked up again automatically. Nothing to do.
+        </span>
+      )}
     </p>
   );
 }
 
-const ITEM_TONE: Record<string, string> = { live: "text-success-600", collected: "text-success-600", failed: "text-danger-600", running: "text-brand-600", pending: "text-ink-4" };
+const ITEM_TONE: Record<string, "success" | "danger" | "brand" | "neutral"> = { live: "success", collected: "success", failed: "danger", running: "brand", pending: "neutral" };
 const ITEM_LABEL: Record<string, string> = { live: "Live", collected: "Collected", failed: "Didn't go live", running: "Working", pending: "Waiting" };
 
-/** A run's sources, folded: each one's outcome and, when it failed, the step and why. */
+/**
+ * A run's sources, folded: each one's name with its outcome under it, and its status as a badge on the right, so every
+ * row lines up the same way (owner, 2026-11-05: "align the elements properly in each card").
+ */
 function RunItems({ items }: { items: { name: string; status: string; step?: string; message?: string; valid?: number }[] }) {
   if (!items.length) return null;
   return (
     <details className="mt-2">
       <summary className="cursor-pointer text-[12px] font-medium text-brand-600">Every source ({num(items.length)})</summary>
-      <ul className="mt-1.5 flex flex-col divide-y divide-line/60 text-[12px]">
-        {items.map((i, n) => (
-          <li key={`${i.name}-${n}`} className="py-1">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="min-w-0 text-ink-2">{i.name}</span>
-              <span className={ITEM_TONE[i.status] ?? "text-ink-3"}>
-                {i.status === "failed" ? explainFailure(i.step, i.message).label : (ITEM_LABEL[i.status] ?? i.status)}
-                {i.valid != null && (i.status === "live" || i.status === "collected") ? ` · ${num(i.valid)} listings` : ""}
-                {i.status === "running" && i.step ? ` · ${i.step}` : ""}
+      <ul className="mt-1.5 flex flex-col divide-y divide-line/60">
+        {items.map((i, n) => {
+          const why = i.status === "failed" ? explainFailure(i.step, i.message) : null;
+          const line = why ? why.detail : i.valid != null && (i.status === "live" || i.status === "collected") ? `${num(i.valid)} listings` : i.status === "running" && i.step ? i.step : "";
+          return (
+            <li key={`${i.name}-${n}`} className="flex items-start justify-between gap-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-medium text-ink">{i.name}</p>
+                {line && <p className="mt-0.5 text-[12px] leading-snug text-ink-3">{line}</p>}
+              </div>
+              <span className="shrink-0 pt-px">
+                <Badge tone={ITEM_TONE[i.status] ?? "neutral"}>{why ? why.label : (ITEM_LABEL[i.status] ?? i.status)}</Badge>
               </span>
-            </div>
-            {i.status === "failed" && <p className="mt-0.5 text-[11.5px] leading-snug text-ink-3">{explainFailure(i.step, i.message).detail}</p>}
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </details>
   );
@@ -334,7 +589,8 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
     setBusy("import");
     const r = await post({ action: "module_import", module: m.id });
     setBusy(null);
-    if (r.ok) toast.success(`${m.label}: import started`, `${num(Number(r.data.queued))} steps on the server; then Find is refreshed.`);
+    if (r.ok && (r.data as { dispatched?: boolean }).dispatched) toast.success(`${m.label}: import started on the collection runner`, "GitHub sets up its waiting sources and collects its live ones; progress shows here within a minute.");
+    else if (r.ok) toast.success(`${m.label}: import started`, `${num(Number(r.data.queued))} steps on the server; then Find is refreshed.`);
     else toast.error("Didn't start", r.error.message);
     reload();
   };
@@ -358,13 +614,20 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
       {(canImport || review > 0) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-6">
           {canImport && (
-            <Button size="sm" variant={m.waiting ? "primary" : "outline"} loading={busy === "import"} disabled={!!busy || jobRunning} onClick={() => void importNow()}>
-              {m.waiting ? `Set up ${num(m.waiting)}` : "Import"}
+            <Button
+              size="sm"
+              variant={m.waiting ? "primary" : "outline"}
+              loading={busy === "import"}
+              disabled={!!busy || jobRunning}
+              title={m.waiting ? `Tests and switches on its ${num(m.waiting)} waiting sources, collects its live ones, then refreshes Find.` : "Collects its live sources now and refreshes Find, instead of waiting for the schedule."}
+              onClick={() => void importNow()}
+            >
+              {m.waiting ? `Set up ${num(m.waiting)} new sources` : `Collect ${m.label} now`}
             </Button>
           )}
           {review > 0 && (
-            <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
-              Review {num(review)}
+            <Button size="sm" variant="outline" title="Opens the card on the sources and decisions that need you." onClick={() => setOpen(true)}>
+              See {num(review)} that {review === 1 ? "needs" : "need"} you
             </Button>
           )}
         </div>
@@ -387,7 +650,11 @@ function ModuleCard({ m, busy: jobRunning, reload }: { m: ImportModule; busy: bo
 /** One action button, for a row's main action and its Details. */
 function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm" }: { a: ImportAction; rowId: string; busy: boolean; act: (body: Record<string, unknown>, done: (d: Record<string, unknown>) => string) => Promise<void>; setBusy: (b: boolean) => void; setMsg: (m: string | null) => void; reload: () => void; size?: "sm" }) {
   if (a.kind === "link")
-    return (
+    return /^https?:/.test(a.href) ? (
+      <a href={a.href} target="_blank" rel="noreferrer" className="text-[12px] font-medium text-brand-600 hover:underline">
+        {a.label}
+      </a>
+    ) : (
       <Link href={a.href} className="text-[12px] font-medium text-brand-600 hover:underline">
         {a.label}
       </Link>
@@ -395,13 +662,13 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
   if (a.kind === "upload") return <Upload sourceId={a.sourceId} busy={busy} setBusy={setBusy} setMsg={setMsg} reload={reload} />;
   const body: Record<string, unknown> =
     a.kind === "run" ? { action: "item", id: rowId }
-    : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true }
+    : a.kind === "decide" ? { action: "decide", decision: a.decision, done: true, note: a.label }
     : a.kind === "source_status" ? { action: "source_status", id: a.id, status: a.status }
     : a.kind === "dismiss" ? { action: "dismiss", id: a.id, dismissed: a.dismissed }
     : { action: a.kind, sourceId: a.sourceId };
   const done = (d: Record<string, unknown>) =>
     a.kind === "run" ? `Live · ${num(Number(d.valid ?? 0))} listings`
-    : a.kind === "decide" ? "Decided"
+    : a.kind === "decide" ? `Recorded: ${a.label}`
     : a.kind === "pause" ? "Paused"
     : a.kind === "activate" ? "Live"
     : a.kind === "collect" ? `Collected · ${num(Number(d.valid ?? 0))} listings`
@@ -409,13 +676,39 @@ function ActionButton({ a, rowId, busy, act, setBusy, setMsg, reload, size = "sm
     : a.kind === "dismiss" ? (a.dismissed ? "Dismissed: Import won't try it again" : "Restored")
     : a.kind === "source_status" && a.status === "paused" ? "Paused" : "Resumed";
   return (
-    <Button size={size} variant="outline" loading={busy} onClick={() => void act(body, done)}>
+    <Button size={size} variant="outline" loading={busy} title={a.kind === "decide" ? a.hint : undefined} onClick={() => void act(body, done)}>
       {a.label}
     </Button>
   );
 }
 
 /** A source: its state, a line on it, its one action, and Details (what it did lately, and the ways to fix or pause it). */
+/**
+ * Archived, at the page's end (owner, 2026-11-05): sources that failed three tries in a row, or that an admin dismissed,
+ * by module. Import leaves them out; each keeps its own button, and a success moves it back to its module's card.
+ */
+function Archived({ d, reload }: { d: ImportView; reload: () => void }) {
+  const mods = d.modules.filter((m) => m.archived.length);
+  const total = mods.reduce((n, m) => n + m.archived.length, 0);
+  if (!total) return null;
+  return (
+    <Fold title="Archived" hint={`${num(total)} sources that kept failing or were dismissed. Import leaves them out; Try again on one brings it back once it works.`}>
+      <div className="flex flex-col gap-3">
+        {mods.map((m) => (
+          <div key={m.id}>
+            <p className="text-[12px] font-semibold text-ink-2">{m.label}</p>
+            <ul className="flex flex-col divide-y divide-line">
+              {m.archived.map((r) => (
+                <Row key={r.id} r={r} reload={reload} />
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Fold>
+  );
+}
+
 function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -433,22 +726,33 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
   const shared = { rowId: r.id, busy, act, setBusy, setMsg, reload };
   return (
     <li className="py-2.5 text-[13px]">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <Badge tone={s.tone}>{s.label}</Badge>
-            <span className="font-medium text-ink">{r.name}</span>
-            <span className="text-[12px] text-ink-4">{r.kind}</span>
-            {(r.history.length > 0 || r.more.length > 0) && (
-              <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-[12px] text-ink-3 hover:text-ink">
+      {/* Name and where it comes from on the left, its state on the right; the detail and the buttons take the full width
+          below, so every row lines up the same on a phone (owner, 2026-11-05: "align the elements properly"). */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-ink">{r.name}</p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-ink-4">
+            <span title={KIND[r.kind].text}>{KIND[r.kind].label}</span>
+            {(r.history.length > 0 || (r.more.length > 0 && r.state !== "needs_you")) && (
+              <button type="button" onClick={() => setDetails((d) => !d)} aria-expanded={details} className="text-ink-3 hover:text-ink">
                 {details ? "Hide details" : "Details"}
               </button>
             )}
-          </span>
-          <span className="mt-0.5 block text-[12px] text-ink-3">{msg ?? r.detail}</span>
+          </p>
+        </div>
+        <span className="shrink-0 pt-px">
+          <Badge tone={s.tone}>{s.label}</Badge>
         </span>
-        {r.action && <ActionButton a={r.action} {...shared} />}
       </div>
+      <p className="mt-1 text-[12px] leading-snug text-ink-3">{msg ?? r.detail}</p>
+      {(r.action || (r.state === "needs_you" && r.more.length > 0)) && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {r.action && <ActionButton a={r.action} {...shared} />}
+          {/* A row that needs you shows every option on the row, not behind Details. */}
+          {r.state === "needs_you" && r.more.map((a) => <ActionButton key={a.label} a={a} {...shared} />)}
+        </div>
+      )}
+      {r.hint && !msg && <p className="mt-1.5 text-[11.5px] leading-snug text-ink-4">{r.hint}</p>}
       {details && (
         <div className="mt-2 flex flex-col gap-2 rounded-[10px] bg-bg-soft px-3 py-2">
           {r.history.length > 0 && (
@@ -461,7 +765,7 @@ function Row({ r, reload }: { r: ImportRow; reload: () => void }) {
               ))}
             </dl>
           )}
-          {r.more.length > 0 && (
+          {r.more.length > 0 && r.state !== "needs_you" && (
             <div className="flex flex-wrap items-center gap-2">
               {r.more.map((a) => (
                 <ActionButton key={a.label} a={a} {...shared} />
@@ -626,17 +930,20 @@ function RecentRuns({ d }: { d: ImportView }) {
     <Fold title="Recent collections" hint={rows.length ? `The newest ${num(d.recentRuns.length)}${failing ? ` · ${num(failing)} failing; each says why and what to do` : ""}` : "None yet"}>
       <ul className="flex flex-col divide-y divide-line pb-4">
         {rows.map((r) => (
-          <li key={`${r.source}${r.ok}${r.code}${r.kind}`} className="py-2 text-[13px]">
-            <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="font-medium text-ink">
+          <li key={`${r.source}${r.ok}${r.code}${r.kind}`} className="flex items-start justify-between gap-3 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium text-ink">
                 {r.source}
                 {r.count > 1 ? <span className="font-normal text-ink-3"> ×{r.count}</span> : null}
-              </span>
-              <span className="text-[12px] text-ink-3">
+              </p>
+              <p className="mt-0.5 text-[12px] leading-snug text-ink-3">
                 {r.kind} · {when(r.at)}
-              </span>
+                {r.ok ? ` · ${num(r.valid)} listings` : ` · ${reasonFor(r.code)}`}
+              </p>
+            </div>
+            <span className="shrink-0 pt-px">
+              <Badge tone={r.ok ? "success" : "danger"}>{r.ok ? "OK" : "Failed"}</Badge>
             </span>
-            <span className={`block text-[12px] ${r.ok ? "text-success-600" : "text-danger-600"}`}>{r.ok ? `${num(r.valid)} listings` : reasonFor(r.code)}</span>
           </li>
         ))}
       </ul>

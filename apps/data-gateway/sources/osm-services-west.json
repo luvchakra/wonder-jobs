@@ -4,12 +4,17 @@
   "modules": [
     "services"
   ],
-  "geography": ["IN"],
+  "datasets": [
+    "businesses"
+  ],
+  "geography": [
+    "IN"
+  ],
   "permission": "terms_permit",
-  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"\u00a9 OpenStreetMap contributors\" and the licence made clear; internal use needs no sharing. Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Businesses only: named features with a craft tag.",
+  "permissionEvidence": "ODbL 1.0 open data (openstreetmap.org/copyright), read 2026-11-01: free to use and show with \"© OpenStreetMap contributors\" and the licence made clear. Outside consumers: owner approved 2026-11-11 (WonderArk reads it as prospect data; attribution and the link back are returned with every row). Overpass wiki: identify the app, cache, no parallel scripts; commercial use should use a self-hosted or paid server (owner picks the endpoint). Businesses only: named features with a craft tag.",
   "termsReviewed": true,
   "redistributionAllowed": true,
-  "externalRedistributionAllowed": false,
+  "externalRedistributionAllowed": true,
   "publicBusinesses": true,
   "attribution": "OpenStreetMap contributors (ODbL)",
   "extraUrls": [
@@ -42,9 +47,13 @@
     "attr.city": "tags.addr:city",
     "attr.postcode": "tags.addr:postcode"
   },
+  "datasetMapping": {
+    "attr.phone": "tags.phone",
+    "attr.contactPhone": "tags.contact:phone",
+    "attr.email": "tags.email",
+    "attr.contactEmail": "tags.contact:email",
+    "attr.contactWebsite": "tags.contact:website"
+  },
   "retentionHours": 504,
-  "minIntervalMinutes": 10080,
-  "geography": [
-    "IN"
-  ]
+  "minIntervalMinutes": 10080
 }

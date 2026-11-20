@@ -1,5 +1,7 @@
+import { gatewayAdminToken } from "./secrets";
 import { CATALOGUE, catalogueEntries, type CatalogueEntry } from "./catalogue";
 import { hostedGateway } from "./index";
+import { syncCatalogueDefinitions } from "./catalogueSync";
 
 /** One source as the admin page shows it: what it is, how it is doing, how far a crawl has got. Never a secret. */
 export interface GatewaySourceRow {
@@ -8,6 +10,8 @@ export interface GatewaySourceRow {
   kind: string;
   modules: string[];
   host: string;
+  /** The URL's path, to tell apart sources of one site that share a name (Houzz's one per trade). */
+  path?: string;
   enabled: boolean;
   /** Its permission evidence says its terms are still to be confirmed by the owner. */
   termsPending: boolean;
@@ -57,6 +61,7 @@ export async function gatewayOverview(now = Date.now()): Promise<GatewayOverview
         kind: String(x.kind),
         modules: (x.modules as string[]) ?? [],
         host: (() => { try { return new URL(String(x.url)).hostname; } catch { return ""; } })(),
+        path: (() => { try { return new URL(String(x.url)).pathname; } catch { return ""; } })(),
         enabled: x.enabled === true,
         termsPending: /terms pending/i.test(String(x.permissionEvidence ?? "")),
         geography: Array.isArray(x.geography) ? (x.geography as string[]) : [],
@@ -104,9 +109,9 @@ export async function collectGatewaySource(sourceId: string, budgetMs?: number) 
 }
 
 /** The gateway's own admin call, made in process with the deployment's admin token (never sent to a browser). */
-async function adminCall(path: string, body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
+export async function adminCall(path: string, body: unknown): Promise<{ status: number; body: Record<string, unknown> }> {
   const hosted = hostedGateway();
-  const token = process.env.GATEWAY_ADMIN_TOKEN;
+  const token = gatewayAdminToken();
   if (!hosted || !token) return { status: 503, body: { error: { code: "NOT_CONFIGURED", message: "The gateway is not configured on this deployment" } } };
   const r = await hosted.gateway.handle(new Request("https://gateway.internal" + path, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body ?? {}) }));
   return { status: r.status, body: (await r.json()) as Record<string, unknown> };
@@ -163,12 +168,14 @@ export function testGatewaySource(sourceId: string, budgetMs?: number) {
  * registered source read from `url`: mapped and checked as the source's own fetch would be, then they replace its
  * listings and count as its test. Returns each source's result.
  */
-export async function ingestByUrl(url: string, items: unknown[]): Promise<{ sourceId: string; status: number; body: Record<string, unknown> }[]> {
+export async function ingestByUrl(url: string, items: unknown[], batch: { merge?: boolean; observedAt?: string } = {}): Promise<{ sourceId: string; status: number; body: Record<string, unknown> }[]> {
   const hosted = hostedGateway();
   if (!hosted) return [];
+  // The delivery is read with the reviewed definition's current bindings (a source newly bound to a prospect dataset).
+  await syncCatalogueDefinitions().catch(() => undefined);
   const ids = await hosted.store.read((s) => s.sources.filter((x) => x.url === url && x.kind === "json_api").map((x) => x.id as string));
   const out = [];
-  for (const id of ids) out.push({ sourceId: id, ...(await adminCall(`/v1/admin/sources/${encodeURIComponent(id)}/ingest`, { items })) });
+  for (const id of ids) out.push({ sourceId: id, ...(await adminCall(`/v1/admin/sources/${encodeURIComponent(id)}/ingest`, { items, ...(batch.merge !== undefined ? { merge: batch.merge } : {}), ...(batch.observedAt ? { observedAt: batch.observedAt } : {}) })) });
   return out;
 }
 
@@ -177,4 +184,11 @@ export async function gatewaySourceModules(sourceId: string): Promise<string[]> 
   const hosted = hostedGateway();
   if (!hosted) return [];
   return hosted.store.read((s) => ((s.sources as { id: string; modules?: string[] }[]).find((x) => x.id === sourceId)?.modules ?? []).slice());
+}
+
+/** The prospect datasets a gateway source read from `url` feeds ([] when none does, or no gateway). */
+export async function gatewayUrlDatasets(url: string): Promise<string[]> {
+  const hosted = hostedGateway();
+  if (!hosted) return [];
+  return hosted.store.read((s) => [...new Set((s.sources as { url: string; datasets?: string[] }[]).filter((x) => x.url === url).flatMap((x) => x.datasets ?? []))]);
 }

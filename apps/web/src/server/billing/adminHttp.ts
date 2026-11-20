@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/server/jobslake/access";
 import { rateLimit } from "@/server/rateLimit";
 import { AdminBillingError } from "./admin";
+import { loadBillingKeys } from "./credentials";
 
 /**
  * Every billing-admin route: platform admins only (403 for anyone else signed in, 404 when the admin
@@ -18,6 +19,7 @@ export async function billingAdminRoute(req: Request, run: (actor: string, body:
     if (!body || typeof body !== "object") return err(400, "INVALID_REQUEST", "Send the change as JSON.");
   }
   try {
+    await loadBillingKeys();
     return NextResponse.json(await run(a.actor, body), { status: okStatus, headers: { "cache-control": "no-store" } });
   } catch (e) {
     if (e instanceof AdminBillingError) return err(e.status, e.code, e.message);

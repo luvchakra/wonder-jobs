@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { request } from "node:https";
 import { isIP } from "node:net";
+import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 import { ApiError, normalizeAll } from "./core.mjs";
 import { crawlRecords } from "./crawl.mjs";
 
@@ -47,7 +48,44 @@ export function requestTimeoutMs(input) {
   const m = /\[timeout:(\d{1,3})\]/.exec(q);
   return m ? Math.min(35000, Math.max(12000, (Number(m[1]) + 5) * 1000)) : 12000;
 }
-export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redirects = 2 } = {}) {
+/** What a page crawl asks for: the page as a browser gets it. (A site that negotiates content, like Hasgeek, answers a request that prefers JSON with a JSON version of the page that has no JSON-LD.) */
+export const PAGE_ACCEPT = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5";
+// Ends with */* (Teaching, 2026-11-05): edjoin.org answers 406 to a request whose Accept has no */*, so its robots.txt "didn't load".
+const FEED_ACCEPT = "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8, */*;q=0.1";
+
+/**
+ * Reads a response body up to `maxBytes`. Past it: refused (TOO_LARGE), or, with `partial`, cut at the limit and the
+ * connection closed (exported for tests).
+ */
+export function readBody(res, { maxBytes, partial = false, abort }) {
+  return new Promise((resolve, reject) => {
+    const chunks = []; let bytes = 0, done = false;
+    const finish = () => { if (!done) { done = true; resolve(Buffer.concat(chunks).toString("utf8")); } };
+    res.on("data", (chunk) => {
+      if (done) return;
+      if (bytes + chunk.length > maxBytes) {
+        if (!partial) { done = true; const e = new ApiError(413, "TOO_LARGE", "Source response exceeds size limit"); abort(e); reject(e); return; }
+        chunks.push(chunk.subarray(0, maxBytes - bytes));
+        bytes = maxBytes;
+        finish();
+        abort();
+        return;
+      }
+      bytes += chunk.length;
+      chunks.push(chunk);
+    });
+    res.on("end", finish);
+    res.on("error", (e) => { if (!done) { done = true; reject(e); } });
+  });
+}
+
+/**
+ * `partial` (feeds only): a response bigger than `maxBytes` is cut at the limit instead of refused. A feed lists its
+ * newest items first and is read item by item, so its first 2 MB are its newest listings; the item the cut lands in is
+ * incomplete and parseFeed leaves it out (owner, 2026-11-05: We Work Remotely's feed "too large" — fix it by design,
+ * not per source). JSON and pages can't be read in part, so they are still refused.
+ */
+export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redirects = 2, accept = FEED_ACCEPT, partial = false } = {}) {
   const url = checkPublicUrl(input);
   if (origin && url.hostname !== origin) throw new ApiError(403, "UNSAFE_REDIRECT", "Cross-host redirects are not allowed");
   const addresses = await lookup(url.hostname, { all: true, verbatim: true });
@@ -57,13 +95,13 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
     const req = request(url, {
       method: "GET",
       timeout: requestTimeoutMs(input),
-      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept: "application/json, application/rss+xml, application/ld+json, text/xml, text/html;q=0.8" },
+      headers: { "user-agent": "WorksLakeGateway/1.0 (authorized public-source collection)", accept, "accept-encoding": "gzip, deflate, br" },
       lookup: pinnedLookup(selected),
     }, (res) => {
-      const chunks = []; let bytes = 0;
-      res.on("data", (chunk) => { bytes += chunk.length; if (bytes > maxBytes) { req.destroy(new ApiError(413, "TOO_LARGE", "Source response exceeds size limit")); return; } chunks.push(chunk); });
-      res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, text: Buffer.concat(chunks).toString("utf8") }));
-      res.on("error", reject);
+      // Compressed transfer (2026-11-07, crawl speed): HTML, feeds and sitemaps are 5-10x smaller over the wire. The size
+      // limit applies to the decoded text, so a small compressed body can never expand past it.
+      const body = decoded(res, url);
+      readBody(body, { maxBytes, partial: partial && res.statusCode === 200, abort: (e) => req.destroy(e) }).then((text) => resolve({ status: res.statusCode, headers: res.headers, text }), reject);
     });
     req.on("timeout", () => req.destroy(new ApiError(504, "SOURCE_TIMEOUT", "Source timed out")));
     req.on("error", reject);
@@ -71,10 +109,34 @@ export async function safeGet(input, { origin = null, maxBytes = 2_000_000, redi
   });
   if ([301, 302, 303, 307, 308].includes(response.status)) {
     if (!redirects || !response.headers.location) throw new ApiError(502, "UNSAFE_REDIRECT", "Too many redirects");
-    return safeGet(new URL(response.headers.location, url).toString(), { origin: origin || url.hostname, maxBytes, redirects: redirects - 1 });
+    return safeGet(new URL(response.headers.location, url).toString(), { origin: origin || url.hostname, maxBytes, redirects: redirects - 1, accept, partial });
   }
-  if (response.status !== 200) throw new ApiError(502, "SOURCE_UNAVAILABLE", "Source responded " + response.status);
+  if (response.status !== 200) {
+    // The source's own status and Retry-After travel with the error, so a crawl can slow down on 429/503 (crawl.mjs).
+    const e = new ApiError(502, "SOURCE_UNAVAILABLE", "Source responded " + response.status);
+    e.upstream = response.status;
+    e.retryAfterMs = retryAfterMs(response.headers["retry-after"]);
+    throw e;
+  }
   return response.text;
+}
+
+/** A response's body as text bytes: decompressed when the source sent it gzip, deflate or brotli, or as a .gz sitemap file. */
+export function decoded(res, url) {
+  const enc = String(res.headers["content-encoding"] || "").trim().toLowerCase();
+  const fail = (z) => { z.on("error", (e) => z.destroyed || z.destroy(e)); res.on("error", (e) => z.destroy(e)); return res.pipe(z); };
+  if (enc === "gzip" || enc === "x-gzip" || (!enc && /\.gz$/i.test(url.pathname))) return fail(createGunzip());
+  if (enc === "br") return fail(createBrotliDecompress());
+  if (enc === "deflate") return fail(createInflate());
+  return res;
+}
+
+/** Retry-After in ms: seconds or an HTTP date; null when absent or unreadable. Capped at 10 minutes. */
+export function retryAfterMs(value, now = Date.now()) {
+  if (value === undefined || value === null || value === "") return null;
+  const v = String(value).trim();
+  const ms = /^\d+$/.test(v) ? Number(v) * 1000 : Date.parse(v) - now;
+  return Number.isFinite(ms) ? Math.min(600_000, Math.max(0, ms)) : null;
 }
 
 /**
@@ -251,6 +313,10 @@ export function parseStructured(html) {
       if (!o || typeof o !== "object") return;
       if (o["@graph"]) walk(o["@graph"]);
       const kinds = [o["@type"]].flat().filter(Boolean);
+      // A listing page often carries all its listings in one ItemList (or as the page's mainEntity); each is read, so a
+      // page gives every listing it shows, not only the page's own (2026-11-07, content scope).
+      if (kinds.includes("ItemList") && o.itemListElement) { for (const el of [o.itemListElement].flat()) walk(el?.item && typeof el.item === "object" ? el.item : el); return; }
+      if (o.mainEntity && typeof o.mainEntity === "object") walk(o.mainEntity);
       if (kinds.includes("BreadcrumbList") && !crumbs.length) {
         for (const i of [o.itemListElement].flat()) {
           const name = typeof i?.name === "string" ? i.name : i?.item?.name;
@@ -342,7 +408,7 @@ export async function fetchRecords(source, deps = {}) {
       items.push(...list.slice(0, 500));
     }
   } else {
-    const body = await get(source.url);
+    const body = await get(source.url, source.kind === "rss" ? { partial: true } : undefined);
     items = source.kind === "rss" ? parseFeed(body) : parseStructured(body);
   }
   const n = normalizeAll(source, items, new Date(now()).toISOString(), now());
@@ -366,7 +432,7 @@ export async function pagedRecords(source, deps = {}) {
   const perRun = Math.max(1, Math.min(50, source.maxPagesPerRun ?? 5));
   let next = typeof source.crawlCursor === "string" && source.crawlCursor ? source.crawlCursor : source.url;
   const items = [];
-  let read = 0, failed = 0;
+  let read = 0, failed = 0, restarted = false;
   while (next && read < perRun) {
     if (read > 0) { if (now() - started > Math.min(40000, deps.budgetMs ?? 40000)) break; await sleep(source.requestDelayMs ?? 1000); }
     let url;
@@ -375,9 +441,17 @@ export async function pagedRecords(source, deps = {}) {
     read++;
     let parsed;
     try { parsed = JSON.parse(await get(url.toString(), { origin: host })); }
-    catch (e) { failed++; if (read === 1) throw e.code ? e : new ApiError(502, "INVALID_SOURCE", "Source did not return JSON"); break; }
+    catch (e) {
+      // A saved place that no longer exists (2026-11-05: Helsinki's events failed for days with INVALID_SOURCE: its saved
+      // "page 10" of a list that starts today had shrunk away) starts again from the first page, once.
+      if (read === 1 && url.toString() !== source.url && !restarted) { restarted = true; read = 0; next = source.url; continue; }
+      failed++; if (read === 1) throw e.code ? e : new ApiError(502, "INVALID_SOURCE", "Source did not return JSON"); break;
+    }
     const page = dig(parsed, source.itemsPath);
-    if (!Array.isArray(page)) { if (read === 1) throw new ApiError(502, "INVALID_SOURCE", "Configured itemsPath is not an array"); break; }
+    if (!Array.isArray(page)) {
+      if (read === 1 && url.toString() !== source.url && !restarted) { restarted = true; read = 0; next = source.url; continue; }
+      if (read === 1) throw new ApiError(502, "INVALID_SOURCE", "Configured itemsPath is not an array"); break;
+    }
     items.push(...page.slice(0, 500));
     const n = dig(parsed, source.nextPath);
     next = typeof n === "string" && n ? new URL(n, url).toString() : null;

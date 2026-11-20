@@ -14,7 +14,7 @@ const tones: Record<Tone, string> = {
 
 export function Badge({ tone = "neutral", icon, className, children, ...rest }: HTMLAttributes<HTMLSpanElement> & { tone?: Tone; icon?: ReactNode }) {
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium leading-none", tones[tone], className)} {...rest}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-inset ring-ink/[0.04]", tones[tone], className)} {...rest}>
       {icon}
       {children}
     </span>
@@ -25,7 +25,7 @@ export function Badge({ tone = "neutral", icon, className, children, ...rest }: 
 export function StatusPill({ tone = "neutral", label, pulse, className }: { tone?: Tone; label: string; pulse?: boolean; className?: string }) {
   const dot: Record<Tone, string> = { neutral: "bg-ink-4", brand: "bg-brand-500", success: "bg-success-600", warning: "bg-warning-600", danger: "bg-danger-600", info: "bg-info-600" };
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", tones[tone], className)}>
+    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ring-ink/[0.04]", tones[tone], className)}>
       <span className={cn("size-1.5 rounded-full", dot[tone], pulse && "wj-animate-pulse-dot")} aria-hidden />
       {label}
     </span>

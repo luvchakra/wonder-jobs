@@ -44,7 +44,7 @@ export function Tabs<T extends string>({ value, onChange, items, label, classNam
             onKeyDown={(e) => onKey(e, i)}
             className={cn(
               "inline-flex h-9 shrink-0 items-center gap-1.5 text-[13px] font-medium transition-colors",
-              variant === "pill" ? cn("rounded-full px-3.5", active ? "bg-brand-500 text-white" : "bg-surface border border-line text-ink-2 hover:text-ink") : cn("-mb-px border-b-2 px-3", active ? "border-brand-500 text-brand-700" : "border-transparent text-ink-3 hover:text-ink"),
+              variant === "pill" ? cn("rounded-full px-3.5", active ? "bg-brand-500 text-white shadow-sm" : "bg-surface border border-line text-ink-2 hover:border-line-strong hover:text-ink") : cn("-mb-px border-b-2 px-3", active ? "border-brand-500 text-brand-700" : "border-transparent text-ink-3 hover:text-ink"),
             )}
           >
             {t.label}

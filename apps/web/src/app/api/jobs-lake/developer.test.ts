@@ -194,7 +194,7 @@ describe("developer access (REST)", () => {
     const asked = connector.mock.calls.map((c) => (c[0] as { id: string }).id);
     expect(asked).toContain("greenhouse");
     expect(asked).not.toContain("remotive");
-    expect(body.sources.every((s: { sourceId: string }) => ["greenhouse", "lever", "ashby", "smartrecruiters", "jazzhr"].includes(s.sourceId))).toBe(true);
+    expect(body.sources.every((s: { sourceId: string }) => ["greenhouse", "lever", "ashby", "smartrecruiters", "jazzhr", "recruitee"].includes(s.sourceId))).toBe(true);
     for (const o of body.results) for (const r of o.sourceRecords) expect(r.sourceId).toBe("greenhouse");
 
     // A candidate search puts a Remotive posting in the warm pool; a key never gets it, not by search and not by id.

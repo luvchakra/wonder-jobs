@@ -490,8 +490,6 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
   {
     title: "Product",
     links: [
-      { label: "How it works", href: "/#how-it-works" },
-      { label: "The eight kinds", href: "/#kinds" },
       { label: "All features", href: "/features" },
       { label: "You stay in control", href: "/features#control" },
       { label: "Screens", href: "/features#screens" },
@@ -499,7 +497,6 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
       { label: "Résumé templates", href: "/features#templates" },
       { label: "Apply with Wonder", href: "/features#extension" },
       { label: "Browser helper", href: "/extension" },
-      { label: "Pricing", href: "/#pricing" },
     ],
   },
   {
@@ -514,9 +511,9 @@ const FOOTER: { title: string; links: { label: string; href: string; badge?: str
     title: "Company",
     links: [
       { label: "About", href: "/about" },
-      { label: "Contact us", href: "/#contact" },
+      { label: "Contact us", href: "/contact" },
       { label: "Careers", href: "/careers" },
-      { label: "Press", href: "/#contact" },
+      { label: "Press", href: "/contact" },
       { label: "Security", href: "/security" },
       { label: "Trust & compliance", href: "/features#trust" },
       { label: "Report a vulnerability", href: "/security#report" },
