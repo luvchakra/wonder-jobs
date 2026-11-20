@@ -72,7 +72,7 @@ const toProfile = (r: ProfileRow): NetworkProfile => ({
 });
 
 /** Discreet on purpose: a lock screen may show it, so it names no one. */
-async function tell(tenant: string, title: string, href: string): Promise<void> {
+export async function tell(tenant: string, title: string, href: string): Promise<void> {
   try {
     await deliver(tenant, { category: "recruiter_message", title, body: "Open WonderWorks to see it.", href, action: "Open" });
   } catch {
@@ -80,7 +80,7 @@ async function tell(tenant: string, title: string, href: string): Promise<void> 
   }
 }
 
-const audit = (tenant: string, capability: Capability, id: string, event: string) => recordServerAudit(tenant, { actionId: `${capability}:${id}`, actionType: capability as never, event, detail: id });
+export const audit = (tenant: string, capability: Capability, id: string, event: string) => recordServerAudit(tenant, { actionId: `${capability}:${id}`, actionType: capability as never, event, detail: id });
 
 /** The one gate for a network action that reaches another person (`resolveCapability`); a failed lookup asks. */
 export async function gate(tenant: string, capability: Capability, confirmed: boolean | undefined, what: string): Promise<void> {
@@ -177,7 +177,7 @@ async function linksOf(tenant: string): Promise<ConnRow[]> {
   const [a, b] = await Promise.all([conns().find({ requester: tenant }, { limit: 2000 }), conns().find({ recipient: tenant }, { limit: 2000 })]);
   return [...a, ...b];
 }
-const other = (c: ConnRow, me: string) => (c.requester === me ? c.recipient : c.requester);
+export const other = (c: ConnRow, me: string) => (c.requester === me ? c.recipient : c.requester);
 
 /** An ignored request still reads "Requested" to the person who sent it: being ignored is never revealed. */
 function relationOf(c: ConnRow | undefined, me: string): { relation: Relation; closed: boolean } {
@@ -188,7 +188,7 @@ function relationOf(c: ConnRow | undefined, me: string): { relation: Relation; c
   return { relation: "none", closed: false };
 }
 
-interface Around {
+export interface Around {
   me: ProfileRow;
   links: Map<string, ConnRow>;
   hidden: Set<string>;
@@ -199,7 +199,7 @@ interface Around {
 }
 
 /** Everything about the viewer needed to show other members, read once per request. */
-async function around(me: ProfileRow): Promise<Around> {
+export async function around(me: ProfileRow): Promise<Around> {
   const [rows, hidden] = await Promise.all([linksOf(me.tenant_id), hiddenFrom(NETWORK, me.tenant_id)]);
   const links = new Map(rows.map((c) => [other(c, me.tenant_id), c]));
   const friendIds = rows.filter((c) => c.status === "connected").map((c) => other(c, me.tenant_id)).filter((t) => !hidden.has(t)).slice(0, POOL);
@@ -231,7 +231,7 @@ function standingOf(ctx: Around, them: string, connections?: number): Standing {
   return { relation, connectionId: c && relation !== "none" ? c.id : undefined, note: c?.note, how: c?.how, mutual: via.length, mutualNames, connections, closed };
 }
 
-const show = (ctx: Around, r: ProfileRow, connections?: number): MemberView => viewOf(toProfile(r), r.has_photo, ctx.me.skills ?? [], standingOf(ctx, r.tenant_id, connections));
+export const show = (ctx: Around, r: ProfileRow, connections?: number): MemberView => viewOf(toProfile(r), r.has_photo, ctx.me.skills ?? [], standingOf(ctx, r.tenant_id, connections));
 
 /** The member behind a public id, when this viewer may open them; otherwise as if they didn't exist. */
 async function reach(ctx: Around, publicId: string): Promise<ProfileRow> {

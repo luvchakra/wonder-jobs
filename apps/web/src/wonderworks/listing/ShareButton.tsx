@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Link2, Loader2, Mail, Share2 } from "lucide-react";
+import { Link2, Loader2, Mail, Share2, Users } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
+import { getClientMode } from "@/lib/mode";
 import { absoluteUrl, emailHref, facebookHref, listingShareMessage, STORY_VERSION, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage, type ShareSummary } from "./share";
 
 /** What a Share button sends, worked out when the sheet opens (the link needs the browser's own address). */
@@ -176,6 +177,21 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
     done("instagram");
   };
 
+  // Share with the member's connections on WonderWorks Network (owner, 2026-11-20: every module's listings): only a
+  // listing with a public page, and only when signed in. The server refuses anything that isn't a public listing page.
+  const toNetwork = page && getClientMode().mode === "user";
+  const network = async () => {
+    try {
+      const res = await fetch("/api/network/updates", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ page, title: message.subject }) });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) return toast.error(res.status === 409 ? "Join the network first" : "Couldn't share with your network", res.status === 409 ? "Open the Network tab and set up your network profile." : data.error);
+      toast.success("Shared with your network", "Your connections see it under Network → Updates.");
+      done("network");
+    } catch {
+      toast.error("Couldn't share with your network");
+    }
+  };
+
   return (
     <Modal open onClose={onClose} title={title} description={description} size="md">
       <div className="flex flex-col gap-4">
@@ -200,6 +216,14 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
           )
         )}
         <div className={cn("grid grid-cols-4 gap-1", loading && "pointer-events-none opacity-40")} aria-busy={loading}>
+          {toNetwork && (
+            <button type="button" className={TILE} onClick={network}>
+              <span className={cn(DISC, "wj-gradient-bg")}>
+                <Users className="size-5" aria-hidden />
+              </span>
+              My network
+            </button>
+          )}
           <a href={whatsappHref(message)} target="_blank" rel="noopener noreferrer" className={TILE} onClick={whatsapp}>
             <span className={cn(DISC, "bg-[#25d366]")}>
               <WhatsAppLogo />

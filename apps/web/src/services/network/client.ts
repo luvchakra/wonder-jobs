@@ -14,6 +14,28 @@ export interface MyNetwork {
   invitations: MemberView[];
   sent: MemberView[];
 }
+export interface NetMessage {
+  id: string;
+  mine: boolean;
+  body: string;
+  at: string;
+}
+export interface NetThread {
+  id: string;
+  member: MemberView;
+  last?: NetMessage;
+  at: string;
+}
+export interface NetUpdate {
+  id: string;
+  member: MemberView;
+  kind: string;
+  module: string;
+  text: string;
+  href: string;
+  at: string;
+  connectionId: string;
+}
 const person = (id: string) => `/api/network/people/${encodeURIComponent(id)}`;
 
 /** WonderWorks Network, from the browser. Members are addressed by their public id only. */
@@ -29,5 +51,10 @@ export const networkApi = {
   block: (id: string) => call(person(id), { method: "POST", json: { action: "block" } }),
   report: (id: string, reason: string) => call<{ repeated: boolean }>(person(id), { method: "POST", json: { action: "report", reason } }),
   mine: () => call<MyNetwork>("/api/network/connections"),
+  threads: () => call<{ threads: NetThread[] }>("/api/network/threads"),
+  thread: (connectionId: string) => call<{ member: MemberView; messages: NetMessage[] }>(`/api/network/threads/${encodeURIComponent(connectionId)}`),
+  // The message box shows exactly what is sent, so Send is the confirmation.
+  send: (connectionId: string, body: string) => call<{ message: NetMessage }>(`/api/network/threads/${encodeURIComponent(connectionId)}`, { method: "POST", json: { body, confirmed: true } }),
+  updates: () => call<{ updates: NetUpdate[] }>("/api/network/updates"),
   act: (connectionId: string, action: "accept" | "ignore" | "withdraw" | "remove") => call(`/api/network/connections/${encodeURIComponent(connectionId)}`, { method: "POST", json: { action } }),
 };
