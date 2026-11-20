@@ -18,6 +18,8 @@ Companion to `docs/UX_BASELINE_AUDIT.md` (what exists today, verified in code) a
 
 **Decision — mobile bottom bar shows all 5 primary items directly, no "More."** Today's bottom bar shows 4 of 7 primary-nav entries plus a "More" drawer that duplicates the desktop sidebar. Once Automation/Resources move under Wonder/Career (below) and Settings items are demoted out of primary nav entirely, there are exactly 5 top-level destinations — small enough to fit the bottom bar without a catch-all, and it removes the one navigation surface (`MobileSidebarDrawer`) that exists purely to compensate for a primary nav that's too flat.
 
+**Decision (owner, 2026-11-20) — Network is the middle tab; the bar is restyled.** Find · Saved · Network · Pipeline · You, still with no "More". The current place is marked by a line on top of its tab and the brand colour (no pill behind the icon), so five labels fit a phone.
+
 Everything currently in the "Automation" and "Resources" nav groups is **not deleted, only relocated** — see the mapping below and the capability map for the row-by-row disposition.
 
 ## 2. Route/nav relocation map

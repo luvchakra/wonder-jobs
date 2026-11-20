@@ -16,6 +16,7 @@ The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then Won
 
 - **Filtering, search runs, caching/persistence, navigation and other cross-cutting features live in the WonderWorks layer, taken from WonderJobs.** Modules inherit them; a module never re-implements them (owner, 2026-10-29). Persistence: `wonderworks/catalog.ts` (capped, trimmed, memoised catalogs) and `store.ts` (a module's synced store: saves, responses, history, last search, closed listings, link checks).
 - **Find, Saved and You are the same in every module,** with Jobs' look as the reference and almost the same behaviour. A module supplies only its own fields, filters, card details and data.
+- **Network is the fifth tab, in the middle, and the same page in every module** (owner, 2026-11-20): `/app/network`, where members connect with each other (`NETWORK_TAB` in `wonderworks/chrome/nav.ts`; `server/network/`, `domain/network/`, `components/network/`). It belongs to WonderWorks, not to a module. Co-founders' Connections stay separate.
 - **Only the Pipeline tab varies.** Its name, stages and views come from the module's manifest (`moduleTabs` in `wonderworks/chrome/nav.ts`). WonderJobs keeps "Pipeline"; Internships' is "Applications".
 - **What WonderWorks holds:**
   - `find/`: the search box (mic, clear, Search), Refine and its fields and chips, view chips, results line, grid, cards, Save, status line, empty states (`parts.tsx`), a module's Find page (`ModuleFind.tsx`), and `place.ts` (`shortPlace`, `WorkMode`).
@@ -128,10 +129,11 @@ Never show a candidate anything WonderWorks didn't actually find, compute or rec
   - Invitations can be accepted only by the invited email.
   - Companies read Easy Apply applications only through `applications.view`, and the résumé only via `applicationResume`.
   - Screening questions' must-haves only mark an application ("Doesn't meet"); nothing is declined automatically. Scorecards and notes (`job_application_reviews`, `applications.review`) are the team's own and never reach the applicant.
-- **Only two reads cross tenants:**
+- **Only three reads cross tenants:**
   - Open job listings, shown as the "WonderWorks employers" source.
   - `talent_profiles`, which exist only while a job seeker is Open to recruiters. They hold only what the seeker saw on You → Recruiters, never contact details or work history. Two more reads hang off them, each only when the seeker turned it on there and only for a member with `talent.search`: their photo (`show_photo`, `hiring.ts::talentPhoto`) and one of their résumé files (`resume_file_id`, `talentResume`; it opens with everything in it).
   - A company may message a job seeker only while they're open to recruiters and haven't declined or blocked it.
+  - `network_profiles` (owner, 2026-11-20), which exist only while a member is on the Network. Only another member on the network can read one, only through `server/network/network.ts`, and only as a `MemberView`: each part (name, photo, headline and skills, About, experience, education, connections list) only when its tier (Everyone / Connections / Hidden) allows that viewer. Members are addressed by `public_id`; account ids, email and phone never leave the server. A block hides both people from each other and nobody is told. A connection row is read or changed only by its two people. Requests and messages go through `resolveCapability` (`network.connect`, `network.message`) and are audited.
 - **Sign-in connections are retired** (WJ-347). `portal_connections` is unused and kept until a migration drops it. Wonder never signs in to a portal, and the helper never reads a password field.
 
 ## Minimal UI

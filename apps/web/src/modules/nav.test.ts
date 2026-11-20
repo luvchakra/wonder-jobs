@@ -3,12 +3,13 @@ import { isActivePath } from "@/wonderworks/chrome/nav";
 import { moduleFromPath, moduleNav } from "./nav";
 import { PRIMARY_NAV } from "./jobs/nav";
 
-describe("one set of four tabs for every module (docs/WONDERWORKS_PLATFORM.md §4.1)", () => {
-  it("Jobs keeps exactly today's four places", () => {
+describe("one set of five tabs for every module (docs/WONDERWORKS_PLATFORM.md §4.1)", () => {
+  it("Jobs keeps its four places, with Network in the middle", () => {
     expect(moduleNav("jobs")).toBe(PRIMARY_NAV);
     expect(PRIMARY_NAV.map((n) => [n.label, n.href])).toEqual([
       ["Find", "/app/jobs"],
       ["Saved", "/app/saved"],
+      ["Network", "/app/network"],
       ["Pipeline", "/app/applications"],
       ["You", "/app/you"],
     ]);
@@ -19,6 +20,7 @@ describe("one set of four tabs for every module (docs/WONDERWORKS_PLATFORM.md §
     expect(nav.map((n) => [n.label, n.href])).toEqual([
       ["Find", "/app/m/internships"],
       ["Saved", "/app/m/internships/saved"],
+      ["Network", "/app/network"],
       ["Applications", "/app/m/internships/pipeline"],
       ["You", "/app/m/internships/you"],
     ]);
@@ -28,6 +30,8 @@ describe("one set of four tabs for every module (docs/WONDERWORKS_PLATFORM.md §
     expect(active("/app/m/internships/you/profile")).toEqual(["You"]);
     expect(active("/app/m/internships/company")).toEqual(["You"]);
     expect(active("/app/settings")).toEqual(["You"]);
+    expect(active("/app/network")).toEqual(["Network"]);
+    expect(active("/app/network/np_abc123")).toEqual(["Network"]);
   });
 
   it("a page's module: a live module's pages, Jobs' four places, or none for shared pages", () => {
@@ -41,6 +45,7 @@ describe("one set of four tabs for every module (docs/WONDERWORKS_PLATFORM.md §
     expect(moduleFromPath("/app/applications/a1")).toBe("jobs");
     expect(moduleFromPath("/app/you")).toBe("jobs");
     expect(moduleFromPath("/app/notifications")).toBeNull();
+    expect(moduleFromPath("/app/network")).toBeNull(); // every module's: the tabs stay the active module's
     expect(moduleFromPath("/app/settings")).toBeNull();
   });
 });

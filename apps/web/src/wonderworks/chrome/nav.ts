@@ -1,4 +1,4 @@
-import { Bookmark, CalendarCheck, CalendarClock, CalendarHeart, Handshake, LayoutList, LifeBuoy, Search, UserRound, type LucideIcon } from "lucide-react";
+import { Bookmark, CalendarCheck, CalendarClock, CalendarHeart, Handshake, LayoutList, LifeBuoy, Search, UserRound, Users, type LucideIcon } from "lucide-react";
 import type { ModuleManifest } from "@/wonderworks/manifest";
 
 export interface NavItem {
@@ -30,17 +30,21 @@ const SHARED_YOU = ["/app/ask", "/app/career-dna", "/app/skill-up", "/app/recrui
 type Tab = keyof ModuleManifest["routes"];
 
 /**
- * A module's four places: WonderWorks' Find, Saved and You, and the module's own Pipeline tab (its label and icon from
- * the manifest). By default each tab is its own page, and You also holds the module's company pages and the pages every
- * module shares (account, settings, workspaces). A module may set its own match for any tab (`undefined`: the tab's
- * route and anything under it).
+ * A module's five places: WonderWorks' Find, Saved and You, the module's own Pipeline tab (its label and icon from the
+ * manifest), and in the middle Network (owner, 2026-11-20): the one place that is the same page in every module, where
+ * members connect with each other. By default each tab is its own page, and You also holds the module's company pages
+ * and the pages every module shares (account, settings, workspaces). A module may set its own match for any of its own
+ * tabs (`undefined`: the tab's route and anything under it).
  */
+export const NETWORK_HREF = "/app/network";
+export const NETWORK_TAB: NavItem = { href: NETWORK_HREF, label: "Network", icon: Users };
 export function moduleTabs(m: Pick<ModuleManifest, "id" | "routes" | "pipeline">, match: Partial<Record<Tab, NavItem["match"]>> = {}): NavItem[] {
   const r = m.routes;
   const pick = (t: Tab, dflt: NavItem["match"]) => (t in match ? match[t] : dflt);
   const tabs: NavItem[] = [
     { href: r.find, label: "Find", icon: Search, match: pick("find", (p) => p === r.find || p.startsWith(`${r.find}/listing/`)) },
     { href: r.saved, label: "Saved", icon: Bookmark, match: pick("saved", (p) => p === r.saved) },
+    NETWORK_TAB,
     { href: r.pipeline, label: m.pipeline.label, icon: PIPELINE_ICONS[m.pipeline.icon] ?? LayoutList, match: pick("pipeline", (p) => p === r.pipeline) },
     { href: r.you, label: "You", icon: UserRound, match: pick("you", (p) => p === r.you || p.startsWith(`${r.you}/`) || p.startsWith(`/app/m/${m.id}/company`) || p === "/app/runs" || under(...SHARED_YOU)(p)) },
   ];
