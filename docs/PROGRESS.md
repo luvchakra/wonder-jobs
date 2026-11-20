@@ -178,6 +178,7 @@
 - ✅ Import failures explained in words; crawl tests fit the import job (WJ-708)
 - 2026-11-05 Talent & Services: Houzz and WedMeGood refused from our server, recorded and put to the owner (WJ-598)
 - ✅ Import: a site refusing its robots.txt reads "Site refused us" (WJ-709)
+- 🟡 Therapists: CQC and NHS key slots and owner decisions added; fetchers wait for the API documentation (WJ-605)
 - ✅ Events: OpenAgenda (needs a key) and TheSportsDB fixtures added as sources (WJ-730)
 - ✅ Teaching: more-sources pass; Norway NAV token decision added to Setup to-do (WJ-567)
 - ✅ Buy, Sell & Rent: Flipkart and eBay sources (keys on Admin → Keys with Test, Needs setup until set), foreign-currency prices as stated (WJ-623)

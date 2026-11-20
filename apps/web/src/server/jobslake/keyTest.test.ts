@@ -21,7 +21,8 @@ describe("Test on Admin → Keys", () => {
     // whose Tests they add and then take their name out); a new source key without a Test fails this, one with a Test needs
     // no edit. The platform's own settings (Email, AI, Push, Runner, 2026-11-06) are tested as a group: Send a test email.
     const untested = PLATFORM_KEYS.filter((k) => (k.group ?? "sources") === "sources").map((k) => k.name).filter((n) => !TESTABLE.has(n));
-    expect(untested.sort()).toEqual(["NAV_PAM_STILLING_FEED_TOKEN"]);
+    // CQC_API_KEY and NHS_SERVICE_SEARCH_KEY (Therapists, WJ-605): their Tests are added with their fetchers, once the APIs' documentation is in hand.
+    expect(untested.sort()).toEqual(["CQC_API_KEY", "NAV_PAM_STILLING_FEED_TOKEN", "NHS_SERVICE_SEARCH_KEY"]);
   });
 
   it("asks for the other half of a pair before testing", async () => {
