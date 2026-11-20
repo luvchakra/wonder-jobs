@@ -10,14 +10,11 @@ import {
 import type {
   ModuleOverview,
   OverviewView,
-  QualityView,
-  CoverageView,
 } from "@/server/jobslake/views";
 import { Button } from "@/components/common/Button";
 import {
   LoadError,
   Loading,
-  Meter,
   Note,
   PageTitle,
   Panel,
@@ -35,9 +32,6 @@ import {
  */
 export default function AdminOverview() {
   const o = useAdmin<OverviewView>("overview");
-  const q = useAdmin<{ quality: QualityView; coverage: CoverageView }>(
-    "quality?days=7",
-  );
 
   if (o.error) return <LoadError error={o.error} onRetry={o.reload} />;
   if (!o.data) return <Loading rows={4} />;
@@ -250,18 +244,6 @@ export default function AdminOverview() {
                   </li>
                 ))}
               </ul>
-              {q.data?.quality.opportunities ? (
-                <>
-                  <p className="text-[12px] text-ink-3">
-                    Jobs, 7 days: {num(d.pool.opportunities)} unique listings
-                    {d.pool.employerVerified != null
-                      ? `, ${pct(d.pool.employerVerified, 0)} from employers' own sites`
-                      : ""}
-                  </p>
-                  <Meter label="Jobs: required fields" value={q.data.quality.requiredFields} />
-                  <Meter label="Jobs: valid apply links" value={q.data.quality.validApplyUrls} />
-                </>
-              ) : null}
             </div>
           ) : (
             <Loading rows={1} />
