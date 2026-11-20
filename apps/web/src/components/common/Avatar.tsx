@@ -7,14 +7,20 @@ import { initials } from "@/lib/format";
 import { useHydration } from "@/store/hydration";
 import { avatarUrl } from "@/lib/avatarUrl";
 
-/** A person's initials; with `self`, the signed-in candidate's own photo over them when they've added one. */
-export function Avatar({ name, size = 36, className, self = false }: { name: string; size?: number; className?: string; self?: boolean }) {
+/**
+ * A person's initials; with `self`, the signed-in candidate's own photo over them when they've added one; with `photo`,
+ * that address's image instead (another person's photo they chose to show, e.g. to recruiters). A missing photo leaves
+ * the initials.
+ */
+export function Avatar({ name, size = 36, className, self = false, photo }: { name: string; size?: number; className?: string; self?: boolean; photo?: string }) {
   const version = useUIStore((s) => s.photoVersion);
   const [failedAt, setFailedAt] = useState<number | null>(null);
   // Signed in is known only in the browser: the photo waits for hydration, so the server's HTML matches the first render.
   const ready = useHydration((h) => h.hydrated);
   const mode = ready ? getClientMode() : null;
-  const src = self && mode?.mode === "user" && failedAt !== version ? avatarUrl(mode.userId, version) : null;
+  const [photoFailed, setPhotoFailed] = useState<string | null>(null);
+  const own = self && mode?.mode === "user" && failedAt !== version ? avatarUrl(mode.userId, version) : null;
+  const src = photo ? (photoFailed === photo ? null : photo) : own;
   return (
     <span
       className={cn("relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-brand-400 to-pink-500 font-semibold text-white", className)}
@@ -23,8 +29,8 @@ export function Avatar({ name, size = 36, className, self = false }: { name: str
     >
       {initials(name)}
       {src && (
-        // eslint-disable-next-line @next/next/no-img-element -- the candidate's own small photo from our API; no photo leaves the initials
-        <img src={src} alt="" onError={() => setFailedAt(version)} className="absolute inset-0 size-full object-cover" />
+        // eslint-disable-next-line @next/next/no-img-element -- a small photo from our own API; no photo leaves the initials
+        <img src={src} alt="" onError={() => (photo ? setPhotoFailed(photo) : setFailedAt(version))} className="absolute inset-0 size-full object-cover" />
       )}
     </span>
   );

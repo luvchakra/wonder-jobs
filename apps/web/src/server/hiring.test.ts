@@ -6,6 +6,8 @@ vi.mock("./push/subscriptions", () => ({ notifyTenant: vi.fn(async () => ({ sent
 import type { Session } from "./auth";
 import { resetTablesForTests, table } from "./db/table";
 import * as H from "./hiring";
+import { stateStore } from "./state";
+import { resumeFileStore } from "./resume/files";
 import { can, permissionsOf } from "@/domain/org/permissions";
 import { displayName, searchTalent, talentProfileFrom } from "@/domain/org/talent";
 import { EMPTY_DNA } from "@/domain/career/types";
@@ -143,6 +145,30 @@ describe("talent, shortlist and reports", () => {
     await expect(H.findTalent(hm, orgId, "kubernetes", "")).rejects.toThrow(/can't do that/);
     await H.removeMyTalentProfile(seeker);
     expect(await H.findTalent(rec, orgId, "kubernetes", "")).toEqual([]);
+  });
+
+  it("opens the photo and résumé only when the job seeker shared each, only for roles that may search", async () => {
+    const orgId = await workspace();
+    await stateStore.put("u-seek", "wj.avatar", { data: Buffer.from("photo").toString("base64"), type: "image/png", updatedAt: "2026-11-20" });
+    const file = await resumeFileStore().save("u-seek", { filename: "sam.pdf", mime: "application/pdf", bytes: Buffer.from("%PDF-1.4 sam") });
+    await H.saveMyTalentProfile(seeker, profile);
+    const [m] = await H.findTalent(rec, orgId, "kubernetes", "");
+    expect(m.profile).toMatchObject({ showPhoto: false, hasResume: false });
+    await expect(H.talentPhoto(rec, orgId, "u-seek")).rejects.toThrow(/No photo/);
+    await expect(H.talentResume(rec, orgId, "u-seek")).rejects.toThrow(/haven't shared/);
+    // Only one of their own files may be shared.
+    await expect(H.saveMyTalentProfile(seeker, { ...profile, resumeFileId: "rf_someone_else" })).rejects.toThrow(/isn't in your account/);
+    const mine = await H.saveMyTalentProfile(seeker, { ...profile, showPhoto: true, resumeFileId: file.id });
+    expect(mine.resumeFileId).toBe(file.id);
+    const [shown] = await H.findTalent(rec, orgId, "kubernetes", "");
+    expect(shown.profile).toMatchObject({ showPhoto: true, hasResume: true });
+    expect(shown.profile.resumeFileId).toBeUndefined();
+    expect((await H.talentPhoto(rec, orgId, "u-seek")).bytes.toString()).toBe("photo");
+    expect((await H.talentResume(rec, orgId, "u-seek")).bytes.toString()).toBe("%PDF-1.4 sam");
+    await expect(H.talentResume(hm, orgId, "u-seek")).rejects.toThrow(/can't do that/);
+    await expect(H.talentPhoto(outsider, orgId, "u-seek")).rejects.toThrow();
+    await H.removeMyTalentProfile(seeker);
+    await expect(H.talentResume(rec, orgId, "u-seek")).rejects.toThrow(/isn't open to recruiters/);
   });
 
   it("lets a recruiter shortlist and report; only a hiring manager or owner decides", async () => {

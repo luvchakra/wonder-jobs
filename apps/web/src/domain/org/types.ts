@@ -83,6 +83,12 @@ export interface TalentProfile {
   locations: string[];
   workModes: string[];
   summary: string;
+  /** They chose to show their profile photo to recruiters (off unless turned on). */
+  showPhoto?: boolean;
+  /** They chose to share a résumé file with recruiters. */
+  hasResume?: boolean;
+  /** Which of their résumé files: only in their own view, never sent to a company. */
+  resumeFileId?: string;
   updatedAt: string;
 }
 
