@@ -206,12 +206,12 @@ test.describe("Golden journey — mobile navigation", () => {
     await openApp(page, "/app");
   });
 
-  test("GJ-008 the bottom bar shows the four places directly, with no menu drawer or More catch-all", async ({ page }) => {
+  test("GJ-008 the bottom bar shows the five places directly, with no menu drawer or More catch-all", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
-    for (const label of ["Find", "Saved", "Pipeline", "You"]) {
+    for (const label of ["Find", "Saved", "Network", "Pipeline", "You"]) {
       await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
     }
-    await expect(bottomBar.getByRole("link")).toHaveCount(4);
+    await expect(bottomBar.getByRole("link")).toHaveCount(5);
     await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
     // Help, account and sign-out are in the avatar menu rather than a drawer.

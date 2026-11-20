@@ -34,7 +34,7 @@ export const CAPABILITIES = [
  * `CAPABILITIES`, which Jobs' Automation screens list, so the jobs portal shows exactly what it did; each module offers
  * its own setting on its own You tab. `resolveCapability` and `defaultPolicy` cover them like any other.
  */
-export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book", "therapists.book", "cofounders.connect", "cofounders.join", "cofounders.invite", "cofounders.message", "cofounders.share_contact", "events.rsvp", "events.cancel", "events.promote", "marketplace.publish", "marketplace.message", "marketplace.offer", "marketplace.accept", "marketplace.share_contact", "scholarships.apply", "scholarships.draft"] as const;
+export const MODULE_CAPABILITIES = ["internships.apply", "teaching.apply", "teaching.book_demo", "services.request_quote", "services.book", "therapists.book", "cofounders.connect", "cofounders.join", "cofounders.invite", "cofounders.message", "cofounders.share_contact", "events.rsvp", "events.cancel", "events.promote", "marketplace.publish", "marketplace.message", "marketplace.offer", "marketplace.accept", "marketplace.share_contact", "scholarships.apply", "scholarships.draft", "network.connect", "network.message"] as const;
 
 export type Capability = (typeof CAPABILITIES)[number] | (typeof MODULE_CAPABILITIES)[number];
 export type PolicyMode = "automatic" | "ask" | "off";
@@ -115,6 +115,9 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   // Co-founders: these involve other people, so the ones that reach someone first (connect, join, invite) and the one that
   // gives out contact details ask first by default and show what goes. A message is typed and sent by the person's own
   // press, so it sends at once. Nothing here runs without the person's own press, at any automation level.
+  // WonderWorks Network (owner, 2026-11-20). The Connect sheet and the message box show exactly what goes before Send.
+  "network.connect": { key: "network.connect", label: "Send connection requests", description: "When you press Send request on someone's network profile, they see your network profile and your note, and can accept or ignore. Ask me shows it first; Off turns connecting off.", risk: "low", external: true, default: "automatic" },
+  "network.message": { key: "network.message", label: "Send messages to connections", description: "A message you write and send to a connection goes to them at once. Ask me shows it first; Off turns messaging off.", risk: "low", external: true, default: "automatic" },
   "cofounders.connect": { key: "cofounders.connect", label: "Show interest in a co-founder", description: "When you press Connect on someone's profile, tell them you're interested. They see only the fields you chose to show. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },
   "cofounders.join": { key: "cofounders.join", label: "Ask to join a team", description: "When you press Ask to join on a team, send your request to its founders. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },
   "cofounders.invite": { key: "cofounders.invite", label: "Invite someone to your team", description: "When you press Invite on someone's profile, ask them to join your team. Ask me shows it first; Off turns it off.", risk: "low", external: true, default: "ask" },

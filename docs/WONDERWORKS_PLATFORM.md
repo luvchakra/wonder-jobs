@@ -200,6 +200,8 @@ Real data only, so nothing is listed until it comes from one of these:
 
 ### 4.1 Navigation: one set of four tabs, one page structure (owner, 2026-10-29)
 
+> 2026-11-20 (owner): a fifth tab, **Network**, sits in the middle of every module's bar (Find · Saved · Network · Pipeline · You). It is WonderWorks' own and the same page in every module (`/app/network`); the four tabs below are unchanged.
+
 Find, Saved and You are WonderWorks' (`src/wonderworks/`) and identical across modules, with Jobs' look as the
 reference; a module supplies only its own fields, filters, card details and data. Only the Pipeline tab varies: its
 name, stages and views come from the module's manifest (`moduleTabs`). WonderJobs keeps "Pipeline"; Internships' is

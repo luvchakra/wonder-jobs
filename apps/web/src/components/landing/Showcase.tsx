@@ -49,8 +49,8 @@ function useDeviceMotion() {
   return ref;
 }
 
-/** The app's four places, as its navigation names them. */
-const NAV = ["Find", "Saved", "Pipeline", "You"];
+/** The app's five places, as its navigation names them. */
+const NAV = ["Find", "Saved", "Network", "Pipeline", "You"];
 
 const MATCHES = [
   { t: "Senior Product Designer", c: "Northwind Labs", fit: 94, tag: "Strong", loc: "Remote · India", why: "Strong overlap with your skills", pay: "₹38–45 LPA", src: "Greenhouse" },
@@ -305,7 +305,7 @@ function PhoneFind() {
 
 function PhoneApplication() {
   return (
-    <PhoneShell title="an application" tab={2}>
+    <PhoneShell title="an application" tab={3}>
       <p className="flex items-center gap-1 text-[13px] font-semibold text-ink">
         <CheckCircle2 className="size-3.5 text-success-600" aria-hidden /> Application ready
       </p>

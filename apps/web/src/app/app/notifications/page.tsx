@@ -34,7 +34,8 @@ function NotificationsPage() {
   const moduleLabel = moduleById(selected)?.label ?? "Jobs";
   const { tabsFor } = useChromeSlots();
   // The module's Pipeline tab (Pipeline, Applications…): where Needs attention leads when it's empty.
-  const pipeline = tabsFor(selected)[2];
+  // Find, Saved, Network, then the module's own tab.
+  const pipeline = tabsFor(selected)[3];
   // Needs attention is worked out from Jobs' applications, so it is Jobs' alone; another module has none of its own yet.
   const jobsRows = useAttentionRows();
   const rows = selected === "jobs" ? jobsRows : [];

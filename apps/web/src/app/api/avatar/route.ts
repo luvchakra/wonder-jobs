@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSession } from "@/server/auth";
 import { photoType } from "@/server/avatar";
 import { stateStore } from "@/server/state";
+import { notePhoto } from "@/server/network/network";
 
 export const runtime = "nodejs";
 
@@ -37,6 +38,7 @@ export async function PUT(req: Request) {
   if (!type) return NextResponse.json({ error: "A JPEG, PNG or WebP image." }, { status: 400 });
   const photo: Photo = { data: Buffer.from(bytes).toString("base64"), type, updatedAt: new Date().toISOString() };
   await stateStore.put(session.tenantId, STORE, photo);
+  await notePhoto(session.tenantId, true);
   return NextResponse.json({ ok: true, updatedAt: photo.updatedAt });
 }
 
@@ -45,5 +47,6 @@ export async function DELETE() {
   const session = await requireSession();
   if (session instanceof NextResponse) return session;
   await stateStore.remove(session.tenantId, STORE);
+  await notePhoto(session.tenantId, false);
   return NextResponse.json({ ok: true });
 }

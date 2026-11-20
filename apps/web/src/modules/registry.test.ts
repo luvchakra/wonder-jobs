@@ -15,8 +15,9 @@ describe("WonderWorks module registry", () => {
   it("Jobs is live and only points at today's routes and tab names", () => {
     const jobs = moduleById("jobs")!;
     expect(jobs.status).toBe("live");
-    expect([jobs.routes.find, jobs.routes.saved, jobs.routes.pipeline, jobs.routes.you]).toEqual(PRIMARY_NAV.map((n) => n.href));
-    expect(jobs.pipeline.label).toBe(PRIMARY_NAV[2].label);
+    // Jobs' own four places; Network, in the middle, is WonderWorks' and the same in every module.
+    expect([jobs.routes.find, jobs.routes.saved, "/app/network", jobs.routes.pipeline, jobs.routes.you]).toEqual(PRIMARY_NAV.map((n) => n.href));
+    expect(jobs.pipeline.label).toBe(PRIMARY_NAV[3].label);
   });
 
   it("Internships (WJ-418), Teaching, Co-founders, Talent & Services, Therapists and Events are live; every other module is coming soon; each lives at /app/m/<id>", () => {
