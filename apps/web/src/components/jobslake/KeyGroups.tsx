@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import type { PlatformKeyStatus } from "@/server/jobslake/platformKeys";
 import type { KeyNote } from "@/server/jobslake/keyNotes";
 import { Button } from "@/components/common/Button";
@@ -84,7 +85,7 @@ export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
         return (
           <Panel key={g.id} title={`${g.title}${missing ? ` · ${missing} of ${keys.length} not set` : " · all set"}`} className="mb-4">
             <p className="-mt-1 mb-1 text-[12.5px] text-ink-3">{g.hint}</p>
-            <ul className="flex flex-col divide-y divide-line">
+            <ul className="flex flex-col gap-2">
               {visible.map((k) => (
                 <KeyRow key={k.name} k={k} note={notes[k.name]} allTags={tags} onChanged={reload} />
               ))}
@@ -227,6 +228,7 @@ function KeyNotes({ name, note, allTags, onChanged }: { name: string; note?: Key
 }
 
 function KeyRow({ k, note, allTags, onChanged }: { k: PlatformKeyStatus; note?: KeyNote; allTags: string[]; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -262,15 +264,20 @@ function KeyRow({ k, note, allTags, onChanged }: { k: PlatformKeyStatus; note?: 
     setBusy(false);
     setMsg(r.ok ? r.data.message : r.error.message);
   };
+  // Each key is its own card, folded to its name and status until opened (owner, 2026-11-20: "make these as
+  // collapsible cards separated").
   return (
-    <li className="flex flex-col gap-2 py-3 text-[13px]">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <li className="rounded-[12px] border border-line bg-surface text-[13px]">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left">
         <span className="min-w-0">
-          <span className="font-medium text-ink">{k.label}</span> <code className="text-[11.5px] text-ink-4">{k.name}</code>
-          <span className="block text-[12px] text-ink-3">{k.usedBy}</span>
+          <span className="font-medium text-ink">{k.label}</span> <code className="break-all text-[11.5px] text-ink-4">{k.name}</code>
+          <span className={`block truncate text-[12px] font-medium ${k.set ? "text-success-600" : "text-warning-600"}`}>{k.masked}</span>
         </span>
-        <span className={k.set ? "text-[12px] font-medium text-success-600" : "text-[12px] font-medium text-warning-600"}>{k.masked}</span>
-      </div>
+        <ChevronDown aria-hidden className={`h-4 w-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+      <div className="flex flex-col gap-2 border-t border-line px-3 pb-3 pt-2.5">
+      <span className="text-[12px] text-ink-3">{k.usedBy}</span>
       {k.multi && (
         <div className="flex flex-col gap-2">
           {/* Several keys, used in turn (owner, 2026-11-05: "configure multiple key setup in admin"): each masked, each removable. */}
@@ -359,6 +366,8 @@ function KeyRow({ k, note, allTags, onChanged }: { k: PlatformKeyStatus; note?: 
         {msg ? ` · ${msg}` : ""}
       </span>
       <KeyNotes name={k.name} note={note} allTags={allTags} onChanged={onChanged} />
+      </div>
+      )}
     </li>
   );
 }
