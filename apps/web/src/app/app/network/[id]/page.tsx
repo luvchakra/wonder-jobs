@@ -58,7 +58,7 @@ export default function MemberPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title={m.name} back={{ href: "/app/network", label: "My network" }} />
+      <PageHeader title="Profile" back={{ href: "/app/network", label: "My network" }} />
       <section className="overflow-hidden rounded-[16px] border border-line bg-surface pb-4">
         <div className="wj-gradient-bg h-24" aria-hidden />
         <div className="px-4">
