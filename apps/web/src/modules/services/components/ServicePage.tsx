@@ -17,6 +17,7 @@ import { useServicesStore } from "../store";
 import { SERVICES_OUTSIDE } from "../outside";
 import { OutsideTracker } from "@/wonderworks/listing/OutsideProgress";
 import { call } from "@/wonderworks/api";
+import { NetworkLink } from "@/components/network/parts";
 import { shortDate } from "@/wonderworks/listing/terms";
 import type { ReviewSummary } from "../deal";
 import { RequestQuote } from "./Request";
@@ -58,9 +59,22 @@ function useReviews(postingId: string | undefined) {
   return r;
 }
 
+/** The viewer's link to the network profile of the member who posted a WonderWorks pro's listing: the public id, or none (the server decides). */
+function usePosterNetworkId(postingId: string | undefined) {
+  const [id, setId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!postingId) return;
+    call<{ networkId: string | null }>(`/api/m/services/poster?listing=${encodeURIComponent(postingId)}`)
+      .then((x) => setId(x.networkId))
+      .catch(() => setId(null));
+  }, [postingId]);
+  return id;
+}
+
 function Page({ l }: { l: ServiceListing }) {
   const params = useSearchParams();
   const reviews = useReviews(l.origin === "wonderstar" ? l.postingId : undefined);
+  const networkId = usePosterNetworkId(l.origin === "wonderstar" ? l.postingId : undefined);
   const saved = useServicesStore((s) => !!s.saved[l.id]);
   const toggle = useServicesStore((s) => s.toggleSaved);
   const m = useMatch(l);
@@ -125,6 +139,7 @@ function Page({ l }: { l: ServiceListing }) {
             ),
           ]}
         />
+        <NetworkLink id={networkId} className="mt-1" />
         {(fit || reviews) && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {reviews && (
