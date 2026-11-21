@@ -52,8 +52,8 @@ test.describe("WorksLake admin", () => {
 
   test("WJ-JL-013 admin opens WorksLake", async ({ page }) => {
     await page.goto(PORTAL);
-    await expect(page.getByRole("heading", { name: "WorksLake", level: 1 })).toBeVisible();
-    await expect(page.getByText("Active sources", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "WonderWorks admin", level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Live sources/ })).toBeVisible();
   });
 
   test("WJ-JL-014 admin views the source registry — access labels, and partnership portals shown as Partner API", async ({ page }, info) => {
@@ -65,12 +65,15 @@ test.describe("WorksLake admin", () => {
     await expect(row("LinkedIn")).toContainText("Partner API");
   });
 
-  test("WJ-JL-016/018/019 admin detects an ATS board, tests it against the real board, and activates it", async ({ page, request }) => {
+  test("WJ-JL-016/018/019 admin detects an ATS board, tests it against the real board, and activates it", async ({ page, request }, info) => {
     test.setTimeout(120_000);
-    await removeSource(request, "ats_lever_spotify");
+    // The desktop and phone runs share one server, and a board is one source there (its id is the board's): each
+    // run adds its own board, or one would find the other's "already registered".
+    const board = info.project.name === "Mobile Chrome" ? { slug: "palantir", company: "Palantir" } : { slug: "spotify", company: "Spotify" };
+    await removeSource(request, `ats_lever_${board.slug}`);
     await page.goto(`${PORTAL}/add`);
-    await page.getByLabel("Careers or job-listing URL").fill("https://jobs.lever.co/spotify");
-    await page.getByRole("button", { name: "Detect" }).click();
+    await page.getByLabel("Link to the listings").fill(`https://jobs.lever.co/${board.slug}`);
+    await page.getByRole("button", { name: "Check link" }).click();
     await expect(page.getByText("Lever board detected")).toBeVisible();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByRole("button", { name: "Save as draft" }).click();
@@ -80,10 +83,10 @@ test.describe("WorksLake admin", () => {
     await expect(page.getByText("Connection", { exact: true })).toBeVisible();
     await expect(page.getByText("Protocol v1 validation", { exact: true })).toBeVisible();
     const passed = await page.getByText(/^Test passed/).isVisible();
-    test.skip(!passed, "Spotify's Lever board didn't pass today; nothing to activate");
+    test.skip(!passed, `${board.company}'s Lever board didn't pass today; nothing to activate`);
     await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page.getByRole("button", { name: "Activate source" }).click();
-    await expect(page.getByText(/Spotify careers is active/)).toBeVisible();
+    await page.getByRole("button", { name: "Make it live" }).click();
+    await expect(page.getByText(new RegExp(`${board.company} careers is live in Jobs`))).toBeVisible();
   });
 
   test("WJ-JL-015/017/024 admin adds an API source; its mapping is validated live, and a missing required field blocks it", async ({ page, request }) => {
@@ -128,7 +131,9 @@ test.describe("WorksLake admin", () => {
     // …and the wizard says so.
     await page.goto(`${PORTAL}/add`);
     await page.getByRole("radio", { name: /Feed/ }).click();
-    await page.getByRole("button", { name: "Skip detection and configure manually" }).click();
+    // The link can go straight to Continue without Check link: the refusal has to come from saving, not from detection.
+    await page.getByLabel("Link to the listings").fill("https://127.0.0.1/feed.xml");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByLabel("Name").fill("Internal feed");
     await page.getByLabel("Feed URL (https)").fill("https://127.0.0.1/feed.xml");
     await page.getByRole("button", { name: "Save as draft" }).click();

@@ -168,6 +168,8 @@ test.describe("DECIDE", () => {
     await expect(page.getByRole("checkbox", { name: /^Compare / })).toHaveCount(0);
     await page.getByRole("button", { name: /^Refine/ }).click();
     await page.getByRole("button", { name: "Compare jobs" }).click();
+    // Refine stays open after it (from 1024px it lies over the results, and a click outside it only closes it): go back.
+    await page.getByRole("button", { name: "Back to jobs" }).click();
     const boxes = page.getByRole("checkbox", { name: /^Compare / });
     await boxes.nth(0).check();
     await boxes.nth(1).check();

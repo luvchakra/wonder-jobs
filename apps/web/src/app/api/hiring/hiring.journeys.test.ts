@@ -22,6 +22,8 @@ vi.mock("@/server/push/subscriptions", () => ({ notifyTenant: vi.fn(async (tenan
 
 import { resetTablesForTests } from "@/server/db/table";
 import { SOURCE_FETCHERS } from "@/server/jobs/providers";
+import { resumeFileStore } from "@/server/resume/files";
+import { stateStore } from "@/server/state";
 import * as hiring from "./route";
 import * as workspace from "./[org]/route";
 import * as invite from "./invites/[id]/route";
@@ -543,5 +545,132 @@ describe("walk-through: Owner, Recruiter, Hiring manager and a job seeker", () =
     const seenByC = await ok(readThread(C, id, "org"));
     expect(seenByC.messages.map((m: { body: string }) => m.body)).toEqual(["Hi Sam, WonderHome is hiring a Platform Engineer.", "Yes, I'd like to interview."]);
     expect((await ok(listShort(A, org.id))).entries[0].status).toBe("interview");
+  });
+});
+
+/* ---- a job seeker's photo and résumé (the two file reads that hang off a talent profile) -------------------- */
+describe("talent photo and résumé", () => {
+  /** These two routes answer with the file itself, so they are read as bytes, not JSON. */
+  async function file(who: Actor | null, handler: Handler, org: string, tenant: string) {
+    current = who;
+    const res = await handler(new Request(`http://localhost/api/hiring/${org}/talent/${tenant}/x`), { params: Promise.resolve({ org, tenant }) });
+    return { status: res.status, text: Buffer.from(await res.arrayBuffer()).toString(), headers: res.headers };
+  }
+  const photoOf = (who: Actor | null, org: string, tenant: string) => file(who, talentPhoto.GET, org, tenant);
+  const resumeOf = (who: Actor | null, org: string, tenant: string) => file(who, talentResume.GET, org, tenant);
+
+  /** A job seeker with a photo and one résumé file in their account, neither shared yet. */
+  async function seekerWithFiles() {
+    const seeker = person("seeker");
+    await stateStore.put(seeker.tenantId, "wj.avatar", { data: Buffer.from("seeker photo").toString("base64"), type: "image/png", updatedAt: "2026-11-21" });
+    const cv = await resumeFileStore().save(seeker.tenantId, { filename: "Sam – CV.pdf", mime: "application/pdf", bytes: Buffer.from("%PDF-1.4 sam") });
+    return { seeker, cv };
+  }
+
+  it("signed out gets 401 and no file", async () => {
+    const { orgId } = await company();
+    const { seeker, cv } = await seekerWithFiles();
+    await ok(optIn(seeker, { ...PROFILE, showPhoto: true, resumeFileId: cv.id }));
+    for (const read of [photoOf, resumeOf]) {
+      const r = await read(null, orgId, seeker.tenantId);
+      expect(r.status).toBe(401);
+      expect(r.text).not.toMatch(/seeker photo|%PDF/);
+    }
+  });
+
+  it("stays 404 until the job seeker turns each one on, separately", async () => {
+    const { orgId, recruiter } = await company();
+    const { seeker, cv } = await seekerWithFiles();
+    // Not open to recruiters at all: there is nobody to read.
+    expect((await photoOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+    expect((await resumeOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+
+    // Open to recruiters, sharing neither.
+    await ok(optIn(seeker));
+    expect((await photoOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+    expect((await resumeOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+
+    // The photo only.
+    await ok(optIn(seeker, { ...PROFILE, showPhoto: true }));
+    const photo = await photoOf(recruiter, orgId, seeker.tenantId);
+    expect(photo.status).toBe(200);
+    expect(photo.text).toBe("seeker photo");
+    expect(photo.headers.get("content-type")).toBe("image/png");
+    expect(photo.headers.get("cache-control")).toMatch(/^private/);
+    expect(photo.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(photo.headers.get("content-security-policy")).toContain("sandbox");
+    expect((await resumeOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+
+    // The résumé only.
+    await ok(optIn(seeker, { ...PROFILE, showPhoto: false, resumeFileId: cv.id }));
+    expect((await photoOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+    const resume = await resumeOf(recruiter, orgId, seeker.tenantId);
+    expect(resume.status).toBe(200);
+    expect(resume.text).toBe("%PDF-1.4 sam");
+    expect(resume.headers.get("content-type")).toBe("application/pdf");
+    expect(resume.headers.get("cache-control")).toBe("private, no-store");
+    expect(resume.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(resume.headers.get("content-security-policy")).toBe("sandbox");
+    expect(resume.headers.get("content-disposition")).toMatch(/^inline; filename="Sam _ CV\.pdf"/);
+  });
+
+  it("is refused for a role without talent.search, for someone outside, and for another company's id", async () => {
+    const { orgId, owner, manager, recruiter } = await company();
+    const other = await company("Globex");
+    const outsider = person("outsider");
+    const { seeker, cv } = await seekerWithFiles();
+    await ok(optIn(seeker, { ...PROFILE, showPhoto: true, resumeFileId: cv.id }));
+
+    for (const read of [photoOf, resumeOf]) {
+      for (const who of [owner, recruiter, other.recruiter]) expect((await read(who, who === other.recruiter ? other.orgId : orgId, seeker.tenantId)).status).toBe(200);
+      // A hiring manager is in the workspace but may not search talent.
+      const hm = await read(manager, orgId, seeker.tenantId);
+      expect(hm.status).toBe(403);
+      expect(hm.text).not.toMatch(/seeker photo|%PDF/);
+      // Not a member of that workspace: their own role elsewhere doesn't count.
+      for (const who of [outsider, other.recruiter, seeker]) {
+        const r = await read(who, orgId, seeker.tenantId);
+        expect([403, 404]).toContain(r.status);
+        expect(r.text).not.toMatch(/seeker photo|%PDF/);
+      }
+      expect([403, 404]).toContain((await read(recruiter, "org_doesnotexist", seeker.tenantId)).status);
+      // Ids that aren't account ids find nobody.
+      for (const bad of ["../x", "u seeker", "x".repeat(81)]) expect((await read(recruiter, orgId, bad)).status).toBe(404);
+    }
+  });
+
+  it("closes again the moment the job seeker stops sharing, or stops being open to recruiters", async () => {
+    const { orgId, recruiter } = await company();
+    const { seeker, cv } = await seekerWithFiles();
+    await ok(optIn(seeker, { ...PROFILE, showPhoto: true, resumeFileId: cv.id }));
+    expect((await photoOf(recruiter, orgId, seeker.tenantId)).status).toBe(200);
+    expect((await resumeOf(recruiter, orgId, seeker.tenantId)).status).toBe(200);
+
+    await ok(optIn(seeker));
+    expect((await photoOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+    expect((await resumeOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+
+    await ok(optIn(seeker, { ...PROFILE, showPhoto: true, resumeFileId: cv.id }));
+    await ok(call(seeker, me.DELETE, { method: "DELETE" }));
+    for (const read of [photoOf, resumeOf]) {
+      const r = await read(recruiter, orgId, seeker.tenantId);
+      expect(r.status).toBe(404);
+      expect(r.text).not.toMatch(/seeker photo|%PDF/);
+    }
+  });
+
+  it("shares only a file from the job seeker's own account, and never tells recruiters which file it is", async () => {
+    const { orgId, recruiter } = await company();
+    const { seeker } = await seekerWithFiles();
+    const someoneElse = await seekerWithFiles();
+    const refused = await optIn(seeker, { ...PROFILE, resumeFileId: someoneElse.cv.id });
+    expect(refused.status).toBe(404);
+    expect((await resumeOf(recruiter, orgId, seeker.tenantId)).status).toBe(404);
+
+    await ok(optIn(someoneElse.seeker, { ...PROFILE, resumeFileId: someoneElse.cv.id }));
+    const found = JSON.stringify(await ok(search(recruiter, orgId, "Kubernetes")));
+    expect(found).toContain('"hasResume":true');
+    expect(found).not.toContain(someoneElse.cv.id);
+    expect(found).not.toContain(someoneElse.seeker.email!);
   });
 });

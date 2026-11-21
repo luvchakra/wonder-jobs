@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { openDescription } from "./utils/jobPage";
 import { openApp } from "./fixtures/sample";
-import { pickKind } from "./utils/findMode";
+import { expectKind, pickKind } from "./utils/findMode";
 import { stubPractice } from "./fixtures/ai";
 
 /**
@@ -290,8 +290,8 @@ test.describe("Golden journey — search", () => {
     const companies: string[] = [];
     for (let i = 0; companies.length < 2 && i < 12; i++) {
       const card = cards.nth(i);
-      // The company is named on the line under the title.
-      const company = (await card.locator("span.font-medium.text-ink-2").first().innerText()).trim();
+      // The company, from the card's Share button ("Share <title> at <company>"): its name, not its styling.
+      const company = ((await card.getByRole("button", { name: /^Share .+ at / }).getAttribute("aria-label")) ?? "").split(" at ").pop()!.trim();
       if (!company || companies.includes(company)) continue;
       await card.getByRole("button", { name: "Save job" }).click();
       companies.push(company);
@@ -428,12 +428,6 @@ test.describe("Golden journey — search", () => {
   test("GJ-023 Full Time and Part Time each keep their own Refine settings, across a reload", async ({ page }) => {
     await openApp(page, "/app/jobs");
     const main = page.locator("#main");
-    // Full Time / Part Time: the menu in the middle of the top bar.
-    const kindBtn = page.getByRole("button", { name: /^Module/ });
-    const pickKind = async (label: "Full Time Jobs" | "Part Time Jobs") => {
-      await kindBtn.click();
-      await page.getByRole("menuitemradio", { name: label }).click();
-    };
     const refine = main.getByRole("button", { name: /^Refine/ });
     await expect(refine).toHaveAccessibleName("Refine");
     await refine.click();
@@ -441,16 +435,16 @@ test.describe("Golden journey — search", () => {
     await main.getByRole("button", { name: "Back to jobs" }).click();
     await expect(refine).toHaveAccessibleName("Refine, 1 set");
     // Part Time starts with nothing set; Full Time's setting comes back with it.
-    await pickKind("Part Time Jobs");
+    await pickKind(page, "Part Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine");
-    await pickKind("Full Time Jobs");
+    await pickKind(page, "Full Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine, 1 set");
     // Kept between visits, per mode.
     await page.waitForTimeout(1500);
     await page.reload();
-    await expect(kindBtn).toHaveAccessibleName("Module: Full Time Jobs");
+    await expectKind(page, "Full Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine, 1 set");
-    await pickKind("Part Time Jobs");
+    await pickKind(page, "Part Time Jobs");
     await expect(refine).toHaveAccessibleName("Refine");
   });
 
@@ -715,15 +709,15 @@ test.describe("Golden journey — the phone keyboard", () => {
     // The shortcut works once the app is interactive: a press during hydration is lost (and pressing again
     // would toggle it shut), so wait for the stores to hydrate and the top bar's listener to attach first.
     await page.waitForFunction(() => performance.getEntriesByName("wj:hydrated").length > 0);
-    await expect(page.getByRole("link", { name: /^Tasks/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Notifications/ })).toBeVisible();
     await page.keyboard.press("ControlOrMeta+k");
     const input = page.getByRole("combobox", { name: "Command" });
     await expect(input).toBeVisible();
     await page.evaluate(() => (window as unknown as { __kbd: (h: number) => void }).__kbd(430));
     const box = (await input.boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(430);
-    const dialog = (await page.locator("dialog[open]").boundingBox())!;
-    expect(Math.round(dialog.width)).toBe(390);
+    // Full width once it has finished opening (it scales in, so its box is a few pixels short until then).
+    await expect.poll(async () => Math.round((await page.locator("dialog[open]").boundingBox())!.width)).toBe(390);
     await page.keyboard.press("Escape");
 
     await page.goto("/app/applications");
