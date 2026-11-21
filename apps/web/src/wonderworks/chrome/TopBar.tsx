@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Bell, Bot, ChartNoAxesColumn, Database, Download, KeyRound, LifeBuoy, LogOut, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FlipAvatar } from "./FlipAvatar";
@@ -18,6 +19,7 @@ import dynamic from "next/dynamic";
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { NETWORK_HREF } from "./nav";
 import { NotificationBell } from "./NotificationBell";
 import { useMediaQuery } from "@/lib/motion";
 import { arrangeMenu } from "@/domain/navigation/menus";
@@ -46,6 +48,8 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   const cmd = useUIStore((s) => s.commandOpen);
   const setCmd = useUIStore((s) => s.setCommandOpen);
   const slots = useChromeSlots();
+  const pathname = usePathname();
+  const onNetwork = pathname === NETWORK_HREF || pathname.startsWith(`${NETWORK_HREF}/`);
   const dna = useCareerStore((s) => s.dna);
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
@@ -195,7 +199,11 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
           edge and the bell and avatar sit together on the right, as desktop apps do. */}
       {/* From 1024px the sidebar lists the modules, so the menu leaves the top bar (its space stays, keeping the bell and
           avatar on the right). */}
-      <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start lg:hidden">{hydrated && slots.FindMenu && <slots.FindMenu />}</div>
+      {/* Network is the same page in every module, so there the bar names it and the module menu steps aside (owner,
+          2026-11-21: "move my network to top navbar"). */}
+      <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start lg:hidden">
+        {onNetwork ? <h1 className="truncate text-[18px] font-bold text-ink">My network</h1> : hydrated && slots.FindMenu && <slots.FindMenu />}
+      </div>
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
           on the badge). Ask Wonder is under You, and ⌘K on a computer. */}

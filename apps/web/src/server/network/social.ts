@@ -8,7 +8,8 @@ import { newId } from "@/lib/ids";
 import type { Session } from "../auth";
 import { table } from "../db/table";
 import { HiringError } from "../hiring";
-import { around, audit, conns, gate, member, now, other, profiles, show, tell, updates, type Around, type ConnRow, type ProfileRow } from "./network";
+import { fileReport, reports } from "../modules/safety";
+import { NETWORK, around, audit, conns, gate, member, now, other, profiles, show, tell, updates, type Around, type ConnRow, type ProfileRow } from "./network";
 
 type MsgRow = { id: string; connection_id: string; sender_tenant: string; body: string; created_at: string };
 export const msgs = () => table<MsgRow>("network_messages");
@@ -87,32 +88,95 @@ export async function sendMessage(s: Session, connectionId: string, body: string
   return toMsg(row, s.tenantId);
 }
 
-/* ---- updates ------------------------------------------------------------------------------------------------- */
+/* ---- the feed ------------------------------------------------------------------------------------------------ */
 
 export interface NetUpdate {
   id: string;
   member: MemberView;
-  /** "role", "status:<id>" or "shared". */
+  /** "post", "post:everyone", "role", "status:<id>" or "shared". */
   kind: string;
   module: string;
   text: string;
   href: string;
   at: string;
-  /** The connection with this member, to write to them. */
-  connectionId: string;
+  /** The viewer's own post or update: they may delete it. */
+  mine: boolean;
+  /** The connection with this member, to write to them; none for the viewer's own or a non-connection's post. */
+  connectionId?: string;
 }
 
-/** What the member's connections did and chose to share, newest first. Only connections' updates, never strangers'. */
-export async function updatesFor(s: Session): Promise<NetUpdate[]> {
-  const ctx = await around(await member(s));
-  const list = await connected(ctx);
-  if (!list.length) return [];
-  const by = new Map(list.map((x) => [x.them.tenant_id, x]));
-  const rows = await updates().findIn("tenant_id", [...by.keys()], {}, { order: "created_at", desc: true, limit: 60 });
-  return rows.map((u) => {
-    const { c, them } = by.get(u.tenant_id)!;
-    return { id: u.id, member: show(ctx, them), kind: u.kind, module: u.module, text: u.text, href: u.href, at: u.created_at, connectionId: c.id };
-  });
+/** A post for everyone on the network, not only the author's connections. */
+const EVERYONE = "post:everyone";
+const isPost = (kind: string) => kind === "post" || kind === EVERYONE;
+/** A post this many different members reported leaves every feed until an admin looks (the same count Moderation starts from). */
+const HIDE_AT = 3;
+
+/**
+ * The feed (owner, 2026-11-21: "a feed of what other people are doing and posting on network"): what the member's
+ * connections posted and did, the member's own, and posts their authors addressed to everyone on the network. A
+ * non-connection's post shows only when its author is findable by everyone; blocked people never show; a post the
+ * viewer reported, or that enough members reported, is left out.
+ */
+export async function feedFor(s: Session): Promise<NetUpdate[]> {
+  const me = await member(s);
+  const ctx = await around(me);
+  const by = new Map((await connected(ctx)).map((x) => [x.them.tenant_id, x]));
+  const [theirs, own, open, flagged] = await Promise.all([
+    by.size ? updates().findIn("tenant_id", [...by.keys()], {}, { order: "created_at", desc: true, limit: 80 }) : [],
+    updates().find({ tenant_id: s.tenantId }, { order: "created_at", desc: true, limit: 20 }),
+    updates().find({ kind: EVERYONE }, { order: "created_at", desc: true, limit: 60 }),
+    reports().find({ module: NETWORK, subject_kind: "message" }, { limit: 2000 }),
+  ]);
+  const reporters = new Map<string, Set<string>>();
+  for (const r of flagged) reporters.set(r.subject_id, (reporters.get(r.subject_id) ?? new Set()).add(r.reporter_tenant));
+  const hiddenPost = (id: string) => (reporters.get(id)?.has(s.tenantId) ?? false) || (reporters.get(id)?.size ?? 0) >= HIDE_AT;
+  // Authors of open posts who aren't the member or a connection: only those anyone on the network may find.
+  const strangers = [...new Set(open.map((u) => u.tenant_id).filter((t) => t !== s.tenantId && !by.has(t) && !ctx.hidden.has(t)))].slice(0, 200);
+  const authors = new Map((strangers.length ? await profiles().findIn("tenant_id", strangers) : []).filter((p) => p.find_by === "everyone").map((p) => [p.tenant_id, p]));
+  const rows = new Map([...theirs, ...own, ...open.filter((u) => u.tenant_id === s.tenantId || by.has(u.tenant_id) || authors.has(u.tenant_id))].map((u) => [u.id, u]));
+  return [...rows.values()]
+    .filter((u) => !hiddenPost(u.id))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 60)
+    .map((u) => {
+      const mine = u.tenant_id === s.tenantId;
+      const friend = by.get(u.tenant_id);
+      const row = mine ? me : (friend?.them ?? authors.get(u.tenant_id)!);
+      return { id: u.id, member: show(ctx, row), kind: u.kind, module: u.module, text: u.text, href: u.href, at: u.created_at, mine, connectionId: friend?.c.id };
+    });
+}
+
+const POSTS_A_DAY = 20;
+const dayAgo = () => new Date(Date.now() - 864e5).toISOString();
+
+/** Post to the feed: the member's own typed and sent words, to their connections or to everyone on the network. */
+export async function publishPost(s: Session, input: { text: string; audience?: "connections" | "everyone" }, confirmed?: boolean): Promise<void> {
+  const me = await member(s);
+  const text = input.text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1500);
+  if (!text) throw new HiringError("Write something first.", 400);
+  const recent = await updates().find({ tenant_id: me.tenant_id }, { order: "created_at", desc: true, limit: 60 });
+  if (recent.filter((u) => isPost(u.kind) && u.created_at > dayAgo()).length >= POSTS_A_DAY) throw new HiringError("You've posted a lot today. Try again tomorrow.", 429);
+  await gate(s.tenantId, "network.post", confirmed, "Posting");
+  const row = { id: newId("nu"), tenant_id: me.tenant_id, kind: input.audience === "everyone" ? EVERYONE : "post", module: "", text, href: "", created_at: now() };
+  await updates().insert(row);
+  // The audit names the action, never the words.
+  await audit(s.tenantId, "network.post", row.id, "POST_PUBLISHED");
+}
+
+/** Remove one of the member's own posts or updates. Nobody else's. */
+export async function deleteUpdate(s: Session, id: string): Promise<void> {
+  await member(s);
+  const n = /^nu_[A-Za-z0-9_-]{6,40}$/.test(id) ? await updates().remove({ id, tenant_id: s.tenantId }) : 0;
+  if (!n) throw new HiringError("That isn't yours to remove.", 404);
+}
+
+/** Report someone's post. The author isn't told; the reporter stops seeing it at once. */
+export async function reportUpdate(s: Session, id: string, reason: string): Promise<{ repeated: boolean }> {
+  await member(s);
+  const u = /^nu_[A-Za-z0-9_-]{6,40}$/.test(id) ? await updates().one({ id }) : undefined;
+  if (!u || u.tenant_id === s.tenantId) throw new HiringError("That post isn't available.", 404);
+  const out = await fileReport(NETWORK, s.tenantId, { kind: "message", id: u.id, tenant: u.tenant_id }, reason);
+  return { repeated: out.repeated };
 }
 
 const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-9_.~-]{1,120})$/;
@@ -129,7 +193,6 @@ export async function shareListing(s: Session, input: { page: string; title: str
   if (!m || !title) throw new HiringError("Only a listing's public page can be shared.", 400);
   const mine = await updates().find({ tenant_id: me.tenant_id }, { order: "created_at", desc: true, limit: 60 });
   if (mine.some((u) => u.kind === "shared" && u.href === input.page)) return;
-  const dayAgo = new Date(Date.now() - 864e5).toISOString();
-  if (mine.filter((u) => u.kind === "shared" && u.created_at > dayAgo).length >= SHARES_A_DAY) throw new HiringError("You've shared a lot today. Try again tomorrow.", 429);
+  if (mine.filter((u) => u.kind === "shared" && u.created_at > dayAgo()).length >= SHARES_A_DAY) throw new HiringError("You've shared a lot today. Try again tomorrow.", 429);
   await updates().insert({ id: newId("nu"), tenant_id: me.tenant_id, kind: "shared", module: m[1] ?? "jobs", text: `shared a listing: ${title}`, href: input.page, created_at: now() });
 }

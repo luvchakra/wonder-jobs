@@ -34,7 +34,8 @@ export interface NetUpdate {
   text: string;
   href: string;
   at: string;
-  connectionId: string;
+  mine: boolean;
+  connectionId?: string;
 }
 const person = (id: string) => `/api/network/people/${encodeURIComponent(id)}`;
 
@@ -56,5 +57,9 @@ export const networkApi = {
   // The message box shows exactly what is sent, so Send is the confirmation.
   send: (connectionId: string, body: string) => call<{ message: NetMessage }>(`/api/network/threads/${encodeURIComponent(connectionId)}`, { method: "POST", json: { body, confirmed: true } }),
   updates: () => call<{ updates: NetUpdate[] }>("/api/network/updates"),
+  // The composer shows exactly what is posted and to whom, so Post is the confirmation.
+  post: (text: string, audience: "connections" | "everyone") => call("/api/network/updates", { method: "POST", json: { text, audience, confirmed: true } }),
+  deleteUpdate: (id: string) => call(`/api/network/updates?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+  reportUpdate: (id: string, reason: string) => call<{ repeated: boolean }>("/api/network/updates", { method: "POST", json: { action: "report", id, reason } }),
   act: (connectionId: string, action: "accept" | "ignore" | "withdraw" | "remove") => call(`/api/network/connections/${encodeURIComponent(connectionId)}`, { method: "POST", json: { action } }),
 };
