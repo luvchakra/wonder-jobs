@@ -253,11 +253,18 @@ describe("WorksLake search cache — the next similar search reuses each source'
     const runs = (await jobsLakeStore().listRuns()).length;
     const upsert = vi.spyOn(jobsLakeStore(), "upsertOpportunities");
     const prune = vi.spyOn(jobsLakeStore(), "pruneCachedAnswers");
+    const health = vi.spyOn(jobsLakeStore(), "listRuns");
 
     const second = await search(req({ query: { text: "security, identity", locations: ["Bengaluru, Karnataka"] } }), { trigger: "search" });
     expect(connector.mock.calls.length).toBe(calls); // no source was asked again
     expect(upsert).not.toHaveBeenCalled(); // nothing new was fetched, so nothing is stored again
     expect(prune).not.toHaveBeenCalled(); // old answers are dropped after the response, never while a search waits
+    // The first search asked a source, so this one reads the week's runs again for planning; a third, with nothing new
+    // recorded since, plans on the same summary without reading them.
+    const planningReads = () => health.mock.calls.filter(([o]) => !!o?.sinceIso && !o.sourceId).length; // not a paid source's own credit count
+    expect(planningReads()).toBe(1);
+    await search(req({ query: { text: "Identity Security", locations: ["Bangalore"] } }), { trigger: "search" });
+    expect(planningReads()).toBe(1);
     expect((await jobsLakeStore().listRuns()).length).toBe(runs);
     expect(second.response.results).toHaveLength(1);
     const gh = second.response.sources.find((s) => s.sourceId === "greenhouse")!;

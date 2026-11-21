@@ -49,6 +49,22 @@ export async function healthBySource(sinceDays = 7): Promise<Record<string, Sour
   return Object.fromEntries(ids.map((id) => [id, summarizeHealth(id, runs)]));
 }
 
+/**
+ * Source health for planning a search, kept per server instance for two minutes. Summarising a week of runs (up to
+ * 5,000 rows) cost about 0.65 s on every search and 2.4 to 3.5 s on a cold one (measured 2026-11-21), and a week's
+ * health barely moves between two searches. A search that records runs of its own drops the copy, so this instance
+ * plans its next search on what it just saw (a source that failed now is still held back at once).
+ */
+const HEALTH_TTL_MS = 2 * 60_000;
+let plannedHealth: { at: number; store: unknown; value: Record<string, SourceHealth> } | null = null;
+async function healthForPlanning(now = Date.now()): Promise<Record<string, SourceHealth>> {
+  const store = jobsLakeStore();
+  if (plannedHealth && plannedHealth.store === store && now - plannedHealth.at < HEALTH_TTL_MS) return plannedHealth.value;
+  const value = await healthBySource();
+  plannedHealth = { at: now, store, value };
+  return value;
+}
+
 /* --------------------------------------------------------------- helpers */
 
 const BUDGET: Record<Depth, number> = { shallow: 9_000, normal: 14_000, deep: 22_000 };
@@ -219,7 +235,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const [stamp, allSources, [health], bannedCos, hidden] = await Promise.all([
     gatewayRefreshStamp().catch(() => undefined),
     listSources(dataset),
-    Promise.all([healthBySource(), loadPlatformKeys()]),
+    Promise.all([healthForPlanning(), loadPlatformKeys()]),
     // Companies a platform admin banned: their listings are left out of every module's results (owner, 2026-11-01).
     // A failed read leaves nothing out, and says so in the logs.
     bannedCompanies().catch((e: unknown) => {
@@ -439,6 +455,8 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   // a failed write is logged for operators, never turned into a failed search for the candidate.
   // Only what a source returned just now is written: a posting served from the search cache was stored when it was
   // fetched, and storing it again on every search cost 1.3 to 1.5 s for nothing new (2026-11-21).
+  // This search asked sources: the next one on this instance plans on their health as it now is.
+  if (runs.length) plannedHealth = null;
   const fresh = valid.filter((o) => o.sourceRecords.some((r) => asked.has(r.sourceId)));
   // These writes and the warm pool read don't depend on each other, so they run together.
   const [, , , , warm] = await Promise.all([
