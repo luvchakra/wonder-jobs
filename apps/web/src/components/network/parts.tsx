@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Users } from "lucide-react";
 import { HOW_KNOWN, NET_STATUSES, type MemberView, type NetStatus } from "@/domain/network/network";
 import { networkApi, type Suggested } from "@/services/network/client";
 import { cn } from "@/lib/cn";
@@ -15,6 +15,19 @@ import { Modal } from "@/components/common/Modal";
  * A member is shown only as the server returned them: the parts their own settings allow this viewer.
  */
 export const memberHref = (id: string) => `/app/network/${encodeURIComponent(id)}`;
+
+/**
+ * For a module's page that already shows who a person is: a link to their network profile. `id` is what
+ * `server/network/links.ts::networkIdFor` returned for this viewer; with none, nothing shows.
+ */
+export function NetworkLink({ id, className }: { id?: string | null; className?: string }) {
+  if (!id) return null;
+  return (
+    <Link href={memberHref(id)} className={cn("inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-brand-600 hover:underline", className)}>
+      <Users className="size-4" aria-hidden /> View network profile
+    </Link>
+  );
+}
 
 export function MemberAvatar({ m, size, className }: { m: Pick<MemberView, "id" | "name" | "photo">; size: number; className?: string }) {
   return <Avatar name={m.name} size={size} photo={m.photo ? networkApi.photoUrl(m.id) : undefined} className={className} />;
