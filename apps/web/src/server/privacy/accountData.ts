@@ -6,6 +6,7 @@
  */
 import { eraseHiring, exportHiring } from "../hiringAccount";
 import { eraseCofounders, exportCofounders } from "../cofounders/account";
+import { eraseContact, exportContact } from "../contact/exchange";
 import { eraseMarketplace, exportMarketplace } from "../marketplace/account";
 import { eraseNetwork, exportNetwork } from "../network/account";
 
@@ -22,4 +23,6 @@ export const ACCOUNT_DATA: AccountData[] = [
   // Hiring workspaces stay (owner, 2026-11-21): only the person's own part is handed on (hiringAccount.ts).
   { key: "hiring", export: exportHiring, erase: eraseHiring },
   { key: "cofounders", export: exportCofounders, erase: eraseCofounders },
+  // Phone and email offered in any module's conversation, and those offered to the person.
+  { key: "contact", export: exportContact, erase: eraseContact },
 ];

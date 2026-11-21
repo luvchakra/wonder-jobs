@@ -62,7 +62,7 @@ export async function myThreads(s: Session): Promise<NetThread[]> {
 }
 
 /** The connection, when the caller is on it, it is live, and neither blocked the other; otherwise as if it weren't there. */
-async function stand(s: Session, connectionId: string): Promise<{ ctx: Around; c: ConnRow; them: ProfileRow }> {
+export async function stand(s: Session, connectionId: string): Promise<{ ctx: Around; c: ConnRow; them: ProfileRow }> {
   const ctx = await around(await member(s));
   const c = /^nc_[A-Za-z0-9_-]{6,40}$/.test(connectionId) ? await conns().one({ id: connectionId }) : undefined;
   const gone = new HiringError("That conversation isn't available.", 404);

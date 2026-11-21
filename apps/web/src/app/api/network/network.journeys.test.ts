@@ -30,6 +30,7 @@ import * as updateRoute from "./updates/[id]/route";
 import * as mediaRoute from "./media/route";
 import * as mediaItem from "./media/[id]/route";
 import * as previewRoute from "./preview/route";
+import * as contactRoute from "./threads/[id]/contact/route";
 
 /* ---- helpers ------------------------------------------------------------------------------------------------ */
 let n = 0;
@@ -141,6 +142,7 @@ describe("signed out", () => {
       [updateRoute.GET, "GET"], [updateRoute.POST, "POST"], [updateRoute.DELETE, "DELETE"],
       [mediaRoute.POST, "POST"], [mediaItem.GET, "GET"], [mediaItem.DELETE, "DELETE"],
       [previewRoute.GET, "GET"],
+      [contactRoute.GET, "GET"], [contactRoute.POST, "POST"], [contactRoute.DELETE, "DELETE"],
     ];
     for (const [r, method] of routes) {
       const res = await call(null, r, { method, body: method === "GET" || method === "DELETE" ? undefined : { action: "connect", confirmed: true }, params: { id: ashaId } });
@@ -155,7 +157,7 @@ describe("signed out", () => {
     const { join: path } = await import("node:path");
     const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path(dir, e.name)) : e.name === "route.ts" ? [path(dir, e.name)] : []));
     const found = walk(__dirname).map((f) => f.slice(__dirname.length + 1).replace(/\\/g, "/")).sort();
-    expect(found).toEqual(["connections/[id]/route.ts", "connections/route.ts", "me/route.ts", "media/[id]/route.ts", "media/route.ts", "people/[id]/photo/route.ts", "people/[id]/route.ts", "people/route.ts", "preview/route.ts", "threads/[id]/route.ts", "threads/route.ts", "updates/[id]/route.ts", "updates/route.ts"]);
+    expect(found).toEqual(["connections/[id]/route.ts", "connections/route.ts", "me/route.ts", "media/[id]/route.ts", "media/route.ts", "people/[id]/photo/route.ts", "people/[id]/route.ts", "people/route.ts", "preview/route.ts", "threads/[id]/contact/route.ts", "threads/[id]/route.ts", "threads/route.ts", "updates/[id]/route.ts", "updates/route.ts"]);
   });
 });
 

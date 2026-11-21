@@ -1,5 +1,6 @@
 "use client";
 import type { MemberView, NetworkProfile, NetworkProfileInput, Reaction } from "@/domain/network/network";
+import type { ContactOffer, ContactView } from "@/domain/contact/contact";
 
 async function call<T>(url: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const res = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body });
@@ -120,5 +121,9 @@ export const networkApi = {
   reshare: (id: string, text: string, audience: "connections" | "everyone") => call(post(id), { method: "POST", json: { action: "reshare", text, audience, confirmed: true } }),
   deleteComment: (id: string, comment: string) => call(`${post(id)}?comment=${encodeURIComponent(comment)}`, { method: "DELETE" }),
   reportComment: (id: string, comment: string, reason: string) => call<{ repeated: boolean }>(post(id), { method: "POST", json: { action: "reportComment", comment, reason } }),
+  contact: (connectionId: string) => call<{ contact: ContactView }>(`/api/network/threads/${encodeURIComponent(connectionId)}/contact`),
+  // The sheet shows exactly what is shared and with whom, so Share is the confirmation.
+  shareContact: (connectionId: string, offer: ContactOffer) => call<{ contact: ContactView }>(`/api/network/threads/${encodeURIComponent(connectionId)}/contact`, { method: "POST", json: { ...offer, confirmed: true } }),
+  stopContact: (connectionId: string) => call(`/api/network/threads/${encodeURIComponent(connectionId)}/contact`, { method: "DELETE" }),
   act: (connectionId: string, action: "accept" | "ignore" | "withdraw" | "remove") => call(`/api/network/connections/${encodeURIComponent(connectionId)}`, { method: "POST", json: { action } }),
 };

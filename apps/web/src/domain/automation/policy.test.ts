@@ -68,3 +68,11 @@ describe("easy_apply — the candidate's press of Easy Apply sends at once, unle
     expect(resolveCapability("easy_apply", older as ReturnType<typeof defaultPolicy>, "guided")).toBe("ask");
   });
 });
+
+describe("network.share_contact (WJ-831)", () => {
+  it("is a medium-risk, external capability that asks by default", async () => {
+    const { CAPABILITY_META, MODULE_CAPABILITIES } = await import("./policy");
+    expect(MODULE_CAPABILITIES).toContain("network.share_contact");
+    expect(CAPABILITY_META["network.share_contact"]).toMatchObject({ risk: "medium", external: true, default: "ask" });
+  });
+});
