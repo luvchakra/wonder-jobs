@@ -14,7 +14,7 @@ const Body = z.union([
   // Share a listing's public page.
   z.object({ page: z.string().max(260), title: z.string().min(1).max(300) }),
   // Post the caller's own words (network.post, checked on the server), audited without the words.
-  z.object({ text: z.string().min(1).max(4000), audience: z.enum(["connections", "everyone"]).optional(), about: z.object({ page: z.string().max(260), title: z.string().max(300) }).optional(), module: z.string().max(30).optional(), confirmed: z.boolean().optional() }),
+  z.object({ text: z.string().max(4000), media: z.array(z.string().max(60)).max(4).optional(), audience: z.enum(["connections", "everyone"]).optional(), about: z.object({ page: z.string().max(260), title: z.string().max(300) }).optional(), module: z.string().max(30).optional(), confirmed: z.boolean().optional() }),
   z.object({ action: z.literal("report"), id: z.string().max(60), reason: z.string().min(3).max(500) }),
 ]);
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     async (s, b) => {
       if ("action" in b) return reportUpdate(s, b.id, b.reason);
       if ("page" in b) return shareListing(s, b);
-      return publishPost(s, { text: b.text, audience: b.audience, about: b.about, module: b.module }, b.confirmed);
+      return publishPost(s, { text: b.text, media: b.media, audience: b.audience, about: b.about, module: b.module }, b.confirmed);
     },
     { schema: Body, write: true },
   );

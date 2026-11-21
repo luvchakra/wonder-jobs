@@ -25,14 +25,14 @@ export async function exportNetwork(tenantId: string): Promise<unknown> {
     profile: p ? toProfile(p) : null,
     connections: links.map((c) => ({ id: c.id, direction: c.requester === tenantId ? "you asked" : "they asked", status: c.status, how: c.requester === tenantId ? c.how : undefined, note: c.requester === tenantId ? c.note : undefined, at: c.created_at, updatedAt: c.updated_at })),
     messagesYouSent: sent.map((m) => ({ connection: m.connection_id, body: m.body, at: m.created_at })),
-    updates: shared.map((u) => ({ id: u.id, kind: u.kind, module: u.module, text: u.text, href: u.href, ...(u.reshare_of ? { reshareOf: u.reshare_of } : {}), at: u.created_at })),
+    updates: shared.map((u) => ({ id: u.id, kind: u.kind, module: u.module, text: u.text, href: u.href, ...(u.reshare_of ? { reshareOf: u.reshare_of } : {}), ...(u.media?.length ? { photos: u.media.length } : {}), at: u.created_at })),
     commentsYouWrote: said.map((c) => ({ on: c.update_id, body: c.body, at: c.created_at })),
     reactionsYouGave: felt.map((r) => ({ on: r.update_id, reaction: r.kind, at: r.created_at })),
   };
 }
 
 /**
- * Remove the member from the network for good: their profile, updates, reactions and comments (and others' on their posts), every connection and request they are on with
+ * Remove the member from the network for good: their profile, updates and photos, reactions and comments (and others' on their posts), every connection and request they are on with
  * its whole conversation (the other person loses that conversation too), and the blocks and reports that name them.
  */
 export async function eraseNetwork(tenantId: string): Promise<void> {

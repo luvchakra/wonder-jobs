@@ -9,7 +9,8 @@ import type { Session } from "../auth";
 import { table } from "../db/table";
 import { HiringError } from "../hiring";
 import { fileReport, reports } from "../modules/safety";
-import { NETWORK, around, audit, comments, conns, gate, member, now, other, profiles, reactions, show, tell, updates, type Around, type ConnRow, type ProfileRow, type UpdateRow } from "./network";
+import { attachMedia, claimMedia } from "./media";
+import { NETWORK, around, audit, comments, conns, gate, media, member, now, other, profiles, reactions, show, tell, updates, type Around, type ConnRow, type ProfileRow, type UpdateRow } from "./network";
 
 type MsgRow = { id: string; connection_id: string; sender_tenant: string; body: string; created_at: string };
 export const msgs = () => table<MsgRow>("network_messages");
@@ -103,6 +104,8 @@ export interface NetUpdate {
   href: string;
   /** A post's attached listing's title, when it has one. */
   about?: string;
+  /** Its photos' ids, in order: each opens at /api/network/media/<id> for whoever may see the post. */
+  media?: string[];
   at: string;
   /** The viewer's own post or update: they may delete it. */
   mine: boolean;
@@ -117,10 +120,12 @@ export interface NetUpdate {
   reshares: number;
   /** Only a post addressed to everyone on the network can be reshared. */
   canReshare: boolean;
+  /** The id of the viewer's own repost of this post (or of the post it quotes), to undo it. */
+  myRepost?: string;
   /** A reshare: the post it quotes, or null when that post is gone or isn't the viewer's to see. */
   reshared?: NetQuoted | null;
 }
-export type NetQuoted = Pick<NetUpdate, "id" | "member" | "kind" | "module" | "text" | "href" | "about" | "at">;
+export type NetQuoted = Pick<NetUpdate, "id" | "member" | "kind" | "module" | "text" | "href" | "about" | "media" | "at">;
 
 /** A post for everyone on the network, not only the author's connections. */
 export const EVERYONE = "post:everyone";
@@ -165,7 +170,7 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
     ? await Promise.all([
         orNone(reactions().findIn("update_id", ids, {}, { limit: 5000 })),
         orNone(comments().findIn("update_id", ids, {}, { limit: 5000 })),
-        orNone(updates().findIn("reshare_of", ids, {}, { limit: 2000 })),
+        orNone(updates().findIn("reshare_of", [...ids, ...quotedIds], {}, { limit: 2000 })),
         quotedIds.length ? orNone(updates().findIn("id", quotedIds)) : [],
       ])
     : [[], [], [], []];
@@ -178,7 +183,7 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
     const author = ctx.hidden.has(o.tenant_id) ? undefined : rowOf(o.tenant_id);
     const mayRead = o.tenant_id === s.tenantId || by.has(o.tenant_id) || o.kind === EVERYONE;
     if (!author || !mayRead || (o.tenant_id !== s.tenantId && hiddenPost(o.id))) continue;
-    quoted.set(o.id, { id: o.id, member: show(ctx, author), kind: o.kind, module: isPost(o.kind) && !o.href ? "" : o.module, text: o.text, href: o.href, ...(o.about ? { about: o.about } : {}), at: o.created_at });
+    quoted.set(o.id, { id: o.id, member: show(ctx, author), kind: o.kind, module: isPost(o.kind) && !o.href ? "" : o.module, text: o.text, href: o.href, ...(o.about ? { about: o.about } : {}), ...(o.media?.length ? { media: o.media } : {}), at: o.created_at });
   }
   const shownTo = (t: string, id: string) => !ctx.hidden.has(t) && (t === s.tenantId || !hiddenPost(id));
   return shown.map((u) => {
@@ -199,6 +204,7 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
       text: u.text,
       href: u.href,
       ...(u.about ? { about: u.about } : {}),
+      ...(u.media?.length ? { media: u.media } : {}),
       at: u.created_at,
       mine,
       connectionId: friend?.c.id,
@@ -206,7 +212,13 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
       ...(mineR && REACTIONS.some((x) => x.id === mineR) ? { myReaction: mineR as Reaction } : {}),
       comments: said.filter((c) => c.update_id === u.id && shownTo(c.tenant_id, c.id)).length,
       reshares: reshares.filter((r) => r.reshare_of === u.id && !ctx.hidden.has(r.tenant_id)).length,
-      canReshare: u.kind === EVERYONE && reshared !== null,
+      // A repost reposts the original: what counts is whether that one is for everyone.
+      canReshare: reshared !== undefined ? reshared !== null && reshared.kind === EVERYONE : u.kind === EVERYONE,
+      // The member's own repost of this post (of the original, for a repost), so Repost can be taken back.
+      ...(() => {
+        const mineR = reshares.find((r) => r.reshare_of === (u.reshare_of ?? u.id) && r.tenant_id === s.tenantId);
+        return mineR ? { myRepost: mineR.id } : {};
+      })(),
       ...(reshared !== undefined ? { reshared } : {}),
     };
   });
@@ -241,6 +253,8 @@ export interface PostInput {
   audience?: "connections" | "everyone";
   /** The listing the member was looking at when they pressed +, if they kept it on the post. */
   about?: { page: string; title: string };
+  /** Photos the member chose while writing (`uploadMedia`), in order; up to four. */
+  media?: string[];
   /** Ignored: a post names a module only through the listing it carries (owner, 2026-11-21: "why does it say therapists"). */
   module?: string;
 }
@@ -253,7 +267,9 @@ export interface PostInput {
 export async function publishPost(s: Session, input: PostInput, confirmed?: boolean): Promise<void> {
   const me = await member(s);
   const text = input.text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1500);
-  if (!text) throw new HiringError("Write something first.", 400);
+  // A post's own photos: the member's, chosen while writing and not yet posted.
+  const photos = await claimMedia(me.tenant_id, input.media ?? []);
+  if (!text && !photos.length) throw new HiringError("Write something first.", 400);
   const page = input.about?.page ?? "";
   const m = page ? PUBLIC_PAGE.exec(page) : null;
   if (page && !m) throw new HiringError("Only a listing's public page can go with a post.", 400);
@@ -263,16 +279,20 @@ export async function publishPost(s: Session, input: PostInput, confirmed?: bool
   const recent = await updates().find({ tenant_id: me.tenant_id }, { order: "created_at", desc: true, limit: 60 });
   if (recent.filter((u) => isPost(u.kind) && u.created_at > dayAgo()).length >= POSTS_A_DAY) throw new HiringError("You've posted a lot today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Posting");
-  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: input.audience === "everyone" ? EVERYONE : "post", module: fromModule, text, href: m ? page : "", about: about || null, created_at: now() };
+  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: input.audience === "everyone" ? EVERYONE : "post", module: fromModule, text, href: m ? page : "", about: about || null, ...(photos.length ? { media: photos } : {}), created_at: now() };
   try {
     await updates().insert(row);
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    // Photos need migration 0056; nothing is posted without them.
+    if (photos.length && /media/.test(msg)) throw new HiringError("Photos on posts aren't available yet.", 409);
     // Until migration 0053 adds `about`, a post is stored without its listing's title (the link still goes with it).
-    if (!/about/.test(e instanceof Error ? e.message : "")) throw e;
+    if (!/about/.test(msg)) throw e;
     const rest: UpdateRow = { ...row };
     delete rest.about;
     await updates().insert(rest);
   }
+  await attachMedia(me.tenant_id, row.id, photos);
   // The audit names the action, never the words.
   await audit(s.tenantId, "network.post", row.id, "POST_PUBLISHED");
 }
@@ -285,6 +305,7 @@ export async function deleteUpdate(s: Session, id: string): Promise<void> {
   // Its reactions and comments go with it; a reshare of it then says the post is gone.
   await reactions().remove({ update_id: id }).catch(() => 0);
   await comments().remove({ update_id: id }).catch(() => 0);
+  await media().remove({ update_id: id, tenant_id: s.tenantId }).catch(() => 0);
 }
 
 /** Report someone's post. The author isn't told; the reporter stops seeing it at once. */

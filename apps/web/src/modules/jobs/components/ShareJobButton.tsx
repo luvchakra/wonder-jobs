@@ -17,7 +17,7 @@ export function ShareJobButton({ job, className, post }: { job: ShareJob; classN
       build={(origin, summary) => {
         const url = shareUrl(origin, job.id);
         const page = `/j/${encodeURIComponent(job.id)}`;
-        return { url, message: shareMessage(job, url, origin, summary), image: storyPath(page), page };
+        return { url, title: `${job.title} at ${job.company}`, message: shareMessage(job, url, origin, summary), image: storyPath(page), page };
       }}
     />
   );

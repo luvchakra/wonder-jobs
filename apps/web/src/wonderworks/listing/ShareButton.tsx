@@ -19,6 +19,8 @@ export interface ShareBuild {
   image?: string;
   /** The listing's public page (`/j/<id>`, `/s/<module>/<id>`), which the sheet asks for a summary of before sharing. */
   page?: string;
+  /** The listing's own title, for a network post about it (the message's subject is an email's). */
+  title?: string;
 }
 
 /** What a Share button sends, given the summary (null when there is none or it couldn't be had). */
@@ -62,8 +64,8 @@ export function ShareButton({ label, title, description, build, onShared, classN
   const [posting, setPosting] = useState<{ page: string; title: string; module: string } | null>(null);
   const signedIn = useSyncExternalStore(noChange, () => getClientMode().mode === "user", () => false);
   const toNetwork = () => {
-    const { page, message } = build(window.location.origin, null);
-    if (page) setPosting(postAbout(page, message.subject));
+    const { page, message, title } = build(window.location.origin, null);
+    if (page) setPosting(postAbout(page, title ?? message.subject));
   };
   return (
     <>
@@ -169,7 +171,7 @@ function saveFile(file: File) {
  * and X the link (their preview card is the listing's image), then email, copy link and the phone's own sheet.
  */
 function ShareSheet({ title, description, build, onShared, onClose }: { title: string; description?: string; build: ShareBuilder; onShared?: (via: string) => void; onClose: () => void }) {
-  const [{ page, image }] = useState(() => build(window.location.origin, null));
+  const [{ page, image, title: postTitle }] = useState(() => build(window.location.origin, null));
   // The message is summarised before anything is shared: the buttons wait for it (7 s at most).
   const { summary, loading } = useSummary(page);
   const { url, message } = useMemo(() => build(window.location.origin, summary), [build, summary]);
@@ -210,7 +212,7 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
   const toNetwork = page && getClientMode().mode === "user";
   const [posting, setPosting] = useState(false);
   if (posting && page) {
-    return <PostSheet attach={postAbout(page, message.subject)} onClose={() => done("network")} />;
+    return <PostSheet attach={postAbout(page, postTitle ?? message.subject)} onClose={() => done("network")} />;
   }
   const network = () => setPosting(true);
 
@@ -356,7 +358,7 @@ export function ListingShare({ module, className, noun, title, facts, lines, det
         const url = absoluteUrl(origin, input.url);
         // Listings with a public page (`/s/<module>/<id>`) have a share image and a summary; people's profiles don't.
         const page = input.url.startsWith("/s/") ? input.url : undefined;
-        return { url, message: listingShareMessage(input, url, { summary, image: !!page }), ...(page ? { image: storyPath(page), page } : {}) };
+        return { url, title: input.title, message: listingShareMessage(input, url, { summary, image: !!page }), ...(page ? { image: storyPath(page), page } : {}) };
       }}
     />
   );

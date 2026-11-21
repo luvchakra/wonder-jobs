@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Link2, MessageCircle, MoreHorizontal, Repeat2, SendHorizontal, ThumbsUp } from "lucide-react";
+import { MessageCircle, MoreHorizontal, Repeat2, SendHorizontal, ThumbsUp } from "lucide-react";
 import { REACTIONS, type Reaction } from "@/domain/network/network";
 import { networkApi, type NetComment, type NetQuoted, type NetUpdate } from "@/services/network/client";
+import { ListingCard } from "./ListingCard";
 import { relativeTime } from "@/lib/format";
 import { moduleById } from "@/modules/registry";
 import { cn } from "@/lib/cn";
@@ -23,22 +24,38 @@ const isPost = (kind: string) => kind === "post" || kind === "post:everyone";
 const emoji = (r: Reaction) => REACTIONS.find((x) => x.id === r)?.emoji ?? "👍";
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
-function Body({ u, quoted }: { u: Pick<NetQuoted, "kind" | "text" | "href" | "about" | "module" | "member">; quoted?: boolean }) {
+/** A post's photos: one full width, two side by side, three or four in a grid; tap one to see it large. */
+function Photos({ ids }: { ids: string[] }) {
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <>
+      <div className={cn("mt-2 grid gap-1 overflow-hidden rounded-[14px]", ids.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
+        {ids.map((id, i) => (
+          <button key={id} type="button" onClick={() => setOpen(id)} aria-label={`Open photo ${i + 1} of ${ids.length}`} className={cn("relative block bg-surface-2", ids.length === 1 ? "max-h-[420px]" : "aspect-square", ids.length === 3 && i === 0 && "row-span-2 aspect-auto")}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- a member's photo from our own route, only for people who may see the post */}
+            <img src={networkApi.mediaUrl(id)} alt="" loading="lazy" className={cn("size-full object-cover", ids.length === 1 && "max-h-[420px]")} />
+          </button>
+        ))}
+      </div>
+      {open && (
+        <Modal open onClose={() => setOpen(null)} title="Photo" size="lg">
+          {/* eslint-disable-next-line @next/next/no-img-element -- as above */}
+          <img src={networkApi.mediaUrl(open)} alt="" className="mx-auto max-h-[75dvh] w-auto rounded-[12px] object-contain" />
+        </Modal>
+      )}
+    </>
+  );
+}
+
+function Body({ u, quoted }: { u: Pick<NetQuoted, "kind" | "text" | "href" | "about" | "module" | "member" | "media">; quoted?: boolean }) {
   const post = isPost(u.kind);
   const moduleLabel = moduleById(u.module)?.label ?? "";
-  if (!u.text && !(post && u.href)) return null;
+  if (!u.text && !(post && u.href) && !u.media?.length) return null;
   return (
     <>
       {u.text && <p className={cn("mt-2 whitespace-pre-line break-words leading-relaxed text-ink [overflow-wrap:anywhere]", quoted ? "text-[13.5px]" : "text-[14px]")}>{post ? u.text : `${u.member.name.split(" ")[0]} ${u.text}`}</p>}
-      {post && u.href && (
-        <Link href={u.href} className="mt-2 flex items-center gap-3 rounded-[14px] border border-line bg-surface-2 p-3 hover:bg-bg-soft">
-          <Link2 className="size-4 shrink-0 text-brand-600" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13.5px] font-medium text-ink">{u.about || "See the listing"}</span>
-            {moduleLabel && <span className="block text-[11.5px] text-ink-3">{moduleLabel}</span>}
-          </span>
-        </Link>
-      )}
+      {!!u.media?.length && <Photos ids={u.media} />}
+      {post && u.href && <ListingCard page={u.href} fallback={u.about} moduleLabel={moduleLabel} />}
     </>
   );
 }
@@ -198,7 +215,7 @@ function Comments({ u, onCount }: { u: NetUpdate; onCount: (n: number) => void }
   );
 }
 
-/** Reshare a post for everyone: the member's own words on top (or none), and who sees it. Reshare is the confirmation. */
+/** Quote: repost a post for everyone with the member's own words on top, and who sees it. Repost is the confirmation. */
 function ReshareSheet({ u, onClose, onDone }: { u: NetUpdate; onClose: () => void; onDone: () => void }) {
   const [text, setText] = useState("");
   const [audience, setAudience] = useState<"connections" | "everyone">("connections");
@@ -208,12 +225,12 @@ function ReshareSheet({ u, onClose, onDone }: { u: NetUpdate; onClose: () => voi
     <Modal
       open
       onClose={onClose}
-      title="Reshare"
-      description="To your network"
+      title="Quote"
+      description="Repost with your own words"
       size="md"
       footer={
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          <Select value={audience} onChange={(e) => setAudience(e.target.value as "connections" | "everyone")} aria-label="Who sees this reshare" className="mr-auto h-10 w-auto min-w-0">
+          <Select value={audience} onChange={(e) => setAudience(e.target.value as "connections" | "everyone")} aria-label="Who sees this repost" className="mr-auto h-10 w-auto min-w-0">
             <option value="connections">My connections</option>
             <option value="everyone">Everyone on the network</option>
           </Select>
@@ -223,20 +240,20 @@ function ReshareSheet({ u, onClose, onDone }: { u: NetUpdate; onClose: () => voi
               setBusy(true);
               try {
                 await networkApi.reshare(u.id, text.trim(), audience);
-                toast.success("Reshared", audience === "everyone" ? "Everyone on the network can see it." : "Your connections can see it.");
+                toast.success("Reposted", audience === "everyone" ? "Everyone on the network can see it." : "Your connections can see it.");
                 onDone();
               } catch (e) {
-                toast.error("Couldn't reshare", (e as Error).message);
+                toast.error("Couldn't repost", (e as Error).message);
                 setBusy(false);
               }
             }}
           >
-            Reshare
+            Repost
           </Button>
         </div>
       }
     >
-      <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={1500} placeholder="Add your thoughts (optional)" aria-label="Your words on top" className="w-full resize-none bg-transparent py-1 text-[15px] text-ink outline-none placeholder:text-ink-4" />
+      <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={1500} placeholder="Add your thoughts" aria-label="Your words on top" className="w-full resize-none bg-transparent py-1 text-[15px] text-ink outline-none placeholder:text-ink-4" />
       <Quoted q={q} />
     </Modal>
   );
@@ -284,7 +301,10 @@ export function ReportSheet({ title, who, send, onClose, onDone }: { title: stri
   );
 }
 
-function More({ label, onPick }: { label: string; onPick: () => void }) {
+type MenuItem = { label: string; onPick?: () => void; href?: string };
+
+/** A small menu: the ⋯ on a post, and Repost's two choices. */
+function Menu({ items, trigger, label, up, className }: { items: MenuItem[]; trigger: (open: boolean) => React.ReactNode; label: string; up?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -293,24 +313,34 @@ function More({ label, onPick }: { label: string; onPick: () => void }) {
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
   }, [open]);
+  const item = "block w-full rounded-[8px] px-3 py-2 text-left text-[13.5px] text-ink hover:bg-bg-soft";
   return (
-    <div ref={ref} className="relative -mr-1 -mt-1 shrink-0">
-      <button type="button" aria-label="More" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="grid size-9 place-items-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink">
-        <MoreHorizontal className="size-5" aria-hidden />
+    <div ref={ref} className={cn("relative", className)}>
+      <button type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="contents">
+        {trigger(open)}
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-full z-20 mt-1 min-w-32 rounded-[12px] border border-line bg-surface p-1 shadow-lg">
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onPick();
-            }}
-            className="block w-full rounded-[8px] px-3 py-2 text-left text-[13.5px] text-ink hover:bg-bg-soft"
-          >
-            {label}
-          </button>
+        <div role="menu" aria-label={label} className={cn("absolute z-20 min-w-40 rounded-[12px] border border-line bg-surface p-1 shadow-lg", up ? "bottom-full left-0 mb-1" : "right-0 top-full mt-1")}>
+          {items.map((it) =>
+            it.href ? (
+              <Link key={it.label} role="menuitem" href={it.href} onClick={() => setOpen(false)} className={item}>
+                {it.label}
+              </Link>
+            ) : (
+              <button
+                key={it.label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  it.onPick?.();
+                }}
+                className={item}
+              >
+                {it.label}
+              </button>
+            ),
+          )}
         </div>
       )}
     </div>
@@ -337,7 +367,35 @@ export function FeedCard({ u: initial, onDelete, onReport, onReshared }: { u: Ne
       toast.error("Couldn't react", (e as Error).message);
     }
   };
-  const counts = [u.comments ? plural(u.comments, "comment") : "", u.reshares ? plural(u.reshares, "reshare") : ""].filter(Boolean).join(" · ");
+  const counts = [u.comments ? plural(u.comments, "comment") : "", u.reshares ? plural(u.reshares, "repost") : ""].filter(Boolean).join(" · ");
+  // Message and Delete or Report sit under the ⋯ (owner, 2026-11-21: "take message to here").
+  const menu: MenuItem[] = [
+    ...(!u.mine && u.connectionId ? [{ label: u.kind === "role" ? "Say congrats" : `Message ${u.member.name.split(" ")[0]}`, href: `/app/network/messages/${encodeURIComponent(u.connectionId)}` }] : []),
+    ...(u.mine ? [{ label: "Delete", onPick: onDelete }] : post ? [{ label: "Report", onPick: onReport }] : []),
+  ];
+  // Repost (owner, 2026-11-21: "similar to retweet in Twitter/X"): at once, or with your words (Quote); again to undo.
+  const repost = async () => {
+    try {
+      await networkApi.reshare(u.id, "", "connections");
+      setU((x) => ({ ...x, reshares: x.reshares + (x.reshared === undefined ? 1 : 0), myRepost: "pending" }));
+      toast.success("Reposted", "Your connections can see it.");
+      onReshared();
+    } catch (e) {
+      toast.error("Couldn't repost", (e as Error).message);
+    }
+  };
+  const undoRepost = async () => {
+    if (!u.myRepost) return;
+    try {
+      await networkApi.deleteUpdate(u.myRepost);
+      setU((x) => ({ ...x, reshares: Math.max(0, x.reshares - 1), myRepost: undefined }));
+      toast.success("Repost removed");
+      onReshared();
+    } catch (e) {
+      toast.error("Couldn't undo the repost", (e as Error).message);
+    }
+  };
+  const closedPost = post && !u.canReshare;
   return (
     <li className="rounded-[16px] border border-line bg-surface p-3">
       <div className="flex gap-3">
@@ -351,27 +409,29 @@ export function FeedCard({ u: initial, onDelete, onReport, onReshared }: { u: Ne
           {u.member.headline && <p className="truncate text-[12px] text-ink-3">{u.member.headline}</p>}
           <p className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3">
             {relativeTime(u.at)}
-            {post && <span>· {u.reshared !== undefined ? "Reshared · " : ""}{u.kind === "post:everyone" ? "Everyone on the network" : "Connections"}</span>}
+            {post && <span>· {u.reshared !== undefined ? "Reposted · " : ""}{u.kind === "post:everyone" ? "Everyone on the network" : "Connections"}</span>}
             {moduleLabel && <span className="rounded-full bg-brand-50 px-2 py-px text-[10.5px] font-semibold text-brand-700">{moduleLabel}</span>}
           </p>
         </div>
-        {(u.mine || post) && <More label={u.mine ? "Delete" : "Report"} onPick={u.mine ? onDelete : onReport} />}
+        {menu.length > 0 && (
+          <Menu
+            label="More"
+            items={menu}
+            className="-mr-1 -mt-1 shrink-0"
+            trigger={() => (
+              <span className="grid size-9 place-items-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink">
+                <MoreHorizontal className="size-5" aria-hidden />
+              </span>
+            )}
+          />
+        )}
       </div>
       <Body u={u} />
       {u.reshared !== undefined && <Quoted q={u.reshared} />}
-      {(shared || (!u.mine && u.connectionId)) && (
-        <div className="mt-1 flex flex-wrap items-center gap-x-4">
-          {shared && (
-            <Link href={u.href} className="inline-flex min-h-9 items-center text-[13px] font-semibold text-brand-600 hover:underline">
-              See the listing
-            </Link>
-          )}
-          {!u.mine && u.connectionId && (
-            <Link href={`/app/network/messages/${encodeURIComponent(u.connectionId)}`} className="inline-flex min-h-9 items-center text-[13px] font-semibold text-brand-600 hover:underline">
-              {u.kind === "role" ? "Say congrats" : "Message"}
-            </Link>
-          )}
-        </div>
+      {shared && (
+        <Link href={u.href} className="mt-1 inline-flex min-h-9 items-center text-[13px] font-semibold text-brand-600 hover:underline">
+          See the listing
+        </Link>
       )}
       {(u.reactions.total > 0 || counts) && (
         <p className="mt-2 flex items-center gap-2 text-[12px] text-ink-3">
@@ -393,11 +453,24 @@ export function FeedCard({ u: initial, onDelete, onReport, onReshared }: { u: Ne
         <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={ACTION}>
           <MessageCircle className="size-4" aria-hidden /> Comment
         </button>
-        {u.canReshare && (
-          <button type="button" onClick={() => setResharing(true)} className={ACTION}>
-            <Repeat2 className="size-4" aria-hidden /> Reshare
-          </button>
-        )}
+        {post &&
+          (closedPost ? (
+            // A post its author kept to their connections can't travel further.
+            <button type="button" onClick={() => toast.info("Only posts for everyone can be reposted", `${u.member.name.split(" ")[0]} shared this with their connections only.`)} className={cn(ACTION, "text-ink-4")}>
+              <Repeat2 className="size-4" aria-hidden /> Repost
+            </button>
+          ) : (
+            <Menu
+              label="Repost"
+              up
+              items={u.myRepost ? [{ label: "Undo repost", onPick: undoRepost }] : [{ label: "Repost", onPick: repost }, { label: "Quote", onPick: () => setResharing(true) }]}
+              trigger={() => (
+                <span className={cn(ACTION, u.myRepost && "text-success-600")}>
+                  <Repeat2 className="size-4" aria-hidden /> {u.myRepost ? "Reposted" : "Repost"}
+                </span>
+              )}
+            />
+          ))}
       </div>
       {open && <Comments u={u} onCount={(n) => setU((x) => ({ ...x, comments: n }))} />}
       {resharing && (
