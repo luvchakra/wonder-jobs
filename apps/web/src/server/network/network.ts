@@ -285,8 +285,18 @@ export async function people(s: Session, q: string): Promise<{ people: (MemberVi
       return { ...v, reason: suggestionReason(v) || (Date.parse(r.created_at) > recent ? "New on the network" : "") };
     })
     .filter((v) => v.canRequest && v.reason)
-    .sort((a, b) => suggestionScore(b) - suggestionScore(a));
-  return { people: suggested.slice(0, 20) };
+    .sort((a, b) => suggestionScore(b) - suggestionScore(a))
+    .slice(0, 20);
+  // People the member already stands with stay on the People tab (owner, 2026-11-21: "even after pending request, or
+  // accepted request the user should be visible"): each shows where things stand (Respond, Requested, Connected).
+  const standing = [...ctx.links.entries()].filter(([t, c]) => !ctx.hidden.has(t) && relationOf(c, s.tenantId).relation !== "none").map(([t]) => t);
+  const inPool = new Map(pool.map((r) => [r.tenant_id, r]));
+  const missing = standing.filter((t) => !inPool.has(t)).slice(0, POOL);
+  for (const r of missing.length ? await profiles().findIn("tenant_id", missing) : []) inPool.set(r.tenant_id, r);
+  const known = standing.flatMap((t) => (inPool.has(t) ? [show(ctx, inPool.get(t)!)] : [])).map((v) => ({ ...v, reason: suggestionReason(v) || undefined }));
+  const of = (rel: Relation) => known.filter((v) => v.relation === rel).slice(0, 20);
+  // Requests waiting for the member first, then people to meet, then those already asked or connected.
+  return { people: [...of("pending_in"), ...suggested, ...of("pending_out"), ...of("connected")] };
 }
 
 /** A member's photo, only for a viewer their photo tier allows. */

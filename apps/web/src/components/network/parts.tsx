@@ -71,6 +71,10 @@ export function PersonCard({ m, onConnect }: { m: Suggested; onConnect: (m: Sugg
           <span className="flex h-9 items-center justify-center rounded-full border border-line text-[13px] font-medium text-ink-3">Requested</span>
         ) : m.relation === "connected" ? (
           <span className="flex h-9 items-center justify-center rounded-full border border-line text-[13px] font-medium text-ink-3">Connected</span>
+        ) : m.relation === "pending_in" ? (
+          <Button size="sm" full href={memberHref(m.id)}>
+            Respond
+          </Button>
         ) : m.canRequest ? (
           <Button size="sm" variant="outline" full onClick={() => onConnect(m)}>
             Connect
