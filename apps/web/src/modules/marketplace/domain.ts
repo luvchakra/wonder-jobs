@@ -6,7 +6,7 @@
  * Open rules (owner, 2026-10-31: "go with defaults"):
  * - Sell only for now. Rentals touch housing law and need the owner's say, so a "rent" listing is refused until then.
  * - Payment happens off WonderWorks. We never hold money; every offer and conversation carries the advance-payment warning.
- * - A seller's contact details stay hidden until they press Share contact; a message that carries one is refused.
+ * - A seller's contact details stay hidden until both of you share them (masked until then); a message that carries one is refused.
  * - A deal is Done when one side marks it and the other confirms; an unconfirmed mark closes after 14 days.
  * - Prohibited items are refused on the server (`prohibitedReason`); a listing reported by 3 different people is hidden.
  */
@@ -56,7 +56,7 @@ export function prohibitedReason(...texts: string[]): string | null {
 /* ------------------------------------------------------------------ contact details and scam wording */
 
 const CONTACT = [/(?:\+?\d[\s().-]?){9,}/, /[a-z0-9._%+-]+\s?(?:@|\(at\)|\[at\])\s?[a-z0-9-]+\s?(?:\.|\(dot\)|\[dot\])\s?[a-z]{2,}/i, /\b(?:https?:\/\/|www\.|wa\.me|t\.me\/)\S+/i, /\b(?:whats\s?app|telegram|signal)\b.{0,12}\d/i];
-/** Whether text carries a phone number, an email address or a link: those only travel through Share contact. */
+/** Whether text carries a phone number, an email address or a link: those only travel through the contact exchange. */
 export const hasContactDetails = (text: string) => CONTACT.some((re) => re.test(text));
 
 const RISKY = /\b(advance|token amount|booking amount|registration fee|delivery fee|courier charges?|pay (?:first|before)|gift card|western union|upi (?:pin|request)|scan (?:this )?qr|google ?pay|phone ?pe|paytm|crypto|bitcoin|army|cisf|transferred)\b/i;
@@ -235,11 +235,11 @@ export interface Offer {
 
 export const MAX_MESSAGE = 1000;
 
-/** A message, checked: no contact details (they travel through Share contact), a sensible length. */
+/** A message, checked: no contact details (they travel through the contact exchange), a sensible length. */
 export function cleanMessage(raw: unknown): { value: string } | { problem: string } {
   const body = typeof raw === "string" ? raw.trim().slice(0, MAX_MESSAGE) : "";
   if (!body) return { problem: "Write a message." };
-  if (hasContactDetails(body)) return { problem: "Phone numbers, emails and links can't go in a message. Use Share contact when you're ready." };
+  if (hasContactDetails(body)) return { problem: "Phone numbers, emails and links can't go in a message. Share them from the contact card when you're ready." };
   const banned = prohibitedReason(body);
   if (banned) return { problem: banned };
   return { value: body };

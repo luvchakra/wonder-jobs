@@ -15,7 +15,7 @@ import { buildExport, eraseAccount } from "@/server/privacy/subjectRights";
 import { eraseMarketplace, exportMarketplace } from "./account";
 import { addPhoto } from "./photos";
 import { publish, saveListing } from "./listings";
-import { answerOffer, makeOffer, sendMessage, shareContact, startThread } from "./threads";
+import { answerOffer, makeOffer, sendMessage, shareThreadContact, startThread } from "./threads";
 import { blockInThread, reportListing, reportThread } from "./safety";
 import { listings, messages, photos, threads } from "./store";
 
@@ -42,7 +42,7 @@ async function world() {
   await makeOffer(bo, withBo, 3000);
   await answerOffer(sana, withBo, "accept");
   await sendMessage(sana, withBo, "Yes, from Sana");
-  await shareContact(sana, withBo);
+  await shareThreadContact(sana, withBo, { email: "sana-private@example.com" });
   const withCy = (await startThread(cy, table, "Hello from Cy")).id;
   const sanaBuys = (await startThread(sana, lamp, "Is the lamp available? From Sana")).id;
   await sendMessage(dee, sanaBuys, "Yes, from Dee");
@@ -64,7 +64,6 @@ describe("Buy, Sell & Rent and the person's own data rights", () => {
     const out = JSON.stringify(await exportMarketplace("u-sana"));
     expect(out).toContain("Study table");
     expect(out).toContain("From Sana");
-    expect(out).toContain("u-sana@example.com");
     expect(out).toContain('"photos":1');
     for (const other of ["u-bo", "u-cy", "u-dee", "Bo Lee", "Cy Mehta", "Dee Nair", "From Bo", "Hello from Cy", "From Dee", "bo@", "dee@"]) expect(out).not.toContain(other);
     // As the seller, the buyer's offer stays out; as a buyer, your own offers are in.

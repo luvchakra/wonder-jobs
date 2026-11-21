@@ -16,7 +16,9 @@ import type { Session } from "../auth";
 import { HiringError } from "../hiring";
 import { recordServerAudit } from "../audit";
 import { blockedBetween } from "../modules/safety";
-import { networkIdsFor } from "../network/links";
+import { networkIdFor } from "../network/links";
+import { contactView, offerContact, withdrawContact } from "../contact/exchange";
+import type { ContactOffer, ContactView } from "@/domain/contact/contact";
 import { newId } from "@/lib/ids";
 import type { Capability } from "@/domain/automation/policy";
 import { cleanMessage, cleanOffer, confirmExpired, LIMITS, looksRisky, mayDo, MARKETPLACE, readTerms, statusAfter, withinLimit, type Offer, type ThreadShape, type ThreadStatus } from "@/modules/marketplace/domain";
@@ -168,30 +170,45 @@ export async function closeThread(s: Session, id: string): Promise<void> {
   await move(t, { status: "closed", end_reason: "closed" });
 }
 
-/** Give the other side the account email: the caller's own press, once per thread, gated (marketplace.share_contact). */
-export async function shareContact(s: Session, id: string, confirmed?: boolean): Promise<void> {
+/**
+ * Phone and email between the two people, through the shared contact exchange (server/contact/exchange.ts): offered only on a
+ * conversation that is still going (or done), only on the caller's own press (marketplace.share_contact, audited without the
+ * details), and what the other side sees is masked until they offer theirs back.
+ */
+const audited = (tenant: string, t: ThreadRow, event: string) => audit(tenant, "marketplace.share_contact", t, event, `${t.id}:${tenant}:${event}:${now()}`);
+
+/** What the caller sees of the exchange in this conversation; null when it has ended or sharing isn't switched on yet. */
+async function contactOf(t: ThreadRow, me: string): Promise<ContactView | null> {
+  if (!LIVE_OR_DONE.includes(t.status)) return null;
+  try {
+    return await contactView(MARKETPLACE, t.id, me, other(t, me));
+  } catch {
+    return null;
+  }
+}
+
+export async function shareThreadContact(s: Session, id: string, offer: ContactOffer, confirmed?: boolean): Promise<{ contact: ContactView }> {
   const { t } = await stand(s, id);
   if (!LIVE_OR_DONE.includes(t.status)) throw new HiringError("This conversation has ended.", 409);
-  if (t.shared.some((x) => x.tenant === s.tenantId)) return;
-  if (!s.email) throw new HiringError("Sign in with your email to share it.", 403);
   await gate(s.tenantId, "marketplace.share_contact", confirmed, "Sharing contact details");
-  await move(t, { shared: [...t.shared, { tenant: s.tenantId, email: s.email.trim().toLowerCase(), at: now() }] });
-  await audit(s.tenantId, "marketplace.share_contact", t, "CONTACT_SHARED", `${t.id}:${s.tenantId}`);
+  const them = other(t, s.tenantId);
+  const contact = await offerContact(MARKETPLACE, t.id, s.tenantId, them, offer);
+  await audited(s.tenantId, t, "CONTACT_SHARED");
+  await tell(them, contact.theirs ? "They shared their contact details with you" : "Someone offered to exchange contact details", `/app/m/marketplace/pipeline/${t.id}`);
+  return { contact };
+}
+
+/** Stop sharing: the caller's offer is deleted, and the other person sees nothing of it again. */
+export async function stopThreadContact(s: Session, id: string): Promise<void> {
+  const { t } = await stand(s, id);
+  await withdrawContact(MARKETPLACE, t.id, s.tenantId);
+  await audited(s.tenantId, t, "CONTACT_WITHDRAWN");
 }
 const LIVE_OR_DONE: ThreadStatus[] = ["messaged", "offer", "visit", "done"];
 
 // ---- reading --------------------------------------------------------------------------------------------------------
 
-/** Whether the other side has shared their contact details here: the point from which you know who they are. */
-const revealed = (t: ThreadRow, me: string) => t.shared.some((x) => x.tenant !== me);
-
-/** Network profile ids (public ids only) for the counterparts of these threads, and only of those who have revealed themselves in it. */
-async function networkIdsOf(s: Session, rows: ThreadRow[]): Promise<Map<string, string>> {
-  const who = rows.filter((t) => revealed(t, s.tenantId)).map((t) => other(t, s.tenantId));
-  return who.length ? networkIdsFor(s.tenantId, who) : new Map();
-}
-
-async function view(s: Session, t: ThreadRow, l: ListingRow, ids: Map<string, string> = new Map()): Promise<ThreadView> {
+async function view(s: Session, t: ThreadRow, l: ListingRow): Promise<ThreadView> {
   const me = s.tenantId;
   const side = me === t.buyer_tenant ? "buyer" : "seller";
   const terms = readTerms(l.attrs);
@@ -206,10 +223,6 @@ async function view(s: Session, t: ThreadRow, l: ListingRow, ids: Map<string, st
     status: t.status,
     offers: t.offers,
     may: mayDo(shape(t), me),
-    contacts: t.shared.filter((x) => x.tenant !== me).map((x) => ({ email: x.email })),
-    youSharedContact: t.shared.some((x) => x.tenant === me),
-    // Never before they have shared: until then the counterpart is as anonymous as this module keeps them.
-    ...(revealed(t, me) && ids.get(other(t, me)) ? { networkId: ids.get(other(t, me)) } : {}),
     ...(t.done_marks.some((m) => m.tenant === me) ? { youMarkedDone: true } : {}),
     createdAt: t.created_at,
     updatedAt: t.updated_at,
@@ -220,20 +233,29 @@ async function view(s: Session, t: ThreadRow, l: ListingRow, ids: Map<string, st
 export async function myThreads(s: Session): Promise<ThreadView[]> {
   const rows = [...(await threads().find({ buyer_tenant: s.tenantId }, { order: "updated_at", desc: true, limit: 200 })), ...(await threads().find({ seller_tenant: s.tenantId }, { order: "updated_at", desc: true, limit: 200 }))].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   const ls = new Map((await listings().findIn("id", [...new Set(rows.map((r) => r.listing_id))])).map((l) => [l.id, l]));
-  const settled: [ThreadRow, ListingRow][] = [];
+  const out: ThreadView[] = [];
   for (const t of rows) {
     const l = ls.get(t.listing_id);
-    if (l) settled.push([(await stand(s, t.id)).t, l]);
+    if (l) out.push(await view(s, (await stand(s, t.id)).t, l));
   }
-  const ids = await networkIdsOf(s, settled.map(([t]) => t));
-  return Promise.all(settled.map(([t, l]) => view(s, t, l, ids)));
+  return out;
 }
 
-/** One conversation and its messages, for someone on it. */
-export async function thread(s: Session, id: string): Promise<{ thread: ThreadView; messages: ThreadMessage[] }> {
+/**
+ * One conversation, its messages and the contact exchange, for someone on it. The other person's network profile id comes
+ * only once you have both shared (the point from which you know who they are); a masked offer reveals no one.
+ */
+export async function thread(s: Session, id: string): Promise<{ thread: ThreadView; messages: ThreadMessage[]; contact: ContactView | null }> {
   const { t, l } = await stand(s, id);
   const list = await messages().find({ thread_id: t.id }, { order: "created_at", limit: 500 });
-  return { thread: await view(s, t, l, await networkIdsOf(s, [t])), messages: list.map((m) => ({ id: m.id, mine: m.sender_tenant === s.tenantId, body: m.body, risky: m.sender_tenant !== s.tenantId && m.risky, at: m.created_at })) };
+  const contact = await contactOf(t, s.tenantId);
+  const both = !!contact?.mine && !!contact.theirs && !contact.theirs.masked;
+  const networkId = both ? await networkIdFor(s.tenantId, other(t, s.tenantId)) : null;
+  return {
+    thread: { ...(await view(s, t, l)), ...(networkId ? { networkId } : {}) },
+    messages: list.map((m) => ({ id: m.id, mine: m.sender_tenant === s.tenantId, body: m.body, risky: m.sender_tenant !== s.tenantId && m.risky, at: m.created_at })),
+    contact,
+  };
 }
 
 export { stand as standIn };
