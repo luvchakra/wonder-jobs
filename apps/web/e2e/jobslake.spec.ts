@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
-import { createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { CLEANUP_TIMEOUT_MS, createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
 import { openDescription } from "./utils/jobPage";
 import { expectKind } from "./utils/findMode";
 
@@ -293,6 +293,7 @@ test.describe("Candidate searches through WorksLake", () => {
     }).toPass({ timeout: 30_000 });
   });
   test.afterEach(async ({ browser }) => {
+    test.setTimeout(CLEANUP_TIMEOUT_MS);
     if (account) await removeTestAccount(browser, account);
     account = null;
   });

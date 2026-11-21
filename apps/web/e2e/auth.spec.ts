@@ -137,6 +137,7 @@ test.describe("AUTH — real account lifecycle (Supabase-backed, disposable)", (
   });
 
   test("AUTH-017 two accounts on the same browser never see each other's local data", async ({ page, browser }) => {
+    test.setTimeout(180_000); // two accounts, each deleted through the product afterwards
     const a = await createTestAccount("isoA");
     const b = await createTestAccount("isoB");
     try {

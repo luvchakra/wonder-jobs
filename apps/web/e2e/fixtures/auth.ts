@@ -95,6 +95,10 @@ export async function deleteTestAccount(id: string): Promise<void> {
  * longer sign in, or the product refused): the caller then falls back to `deleteTestAccount`.
  */
 export async function eraseTestAccount(browser: Browser, account: TestAccount, context?: Parameters<Browser["newContext"]>[0]): Promise<boolean> {
+  // An account that already deleted itself in its test (or was never created) has nobody to sign in: say so at once
+  // instead of waiting on a sign-in that can't succeed.
+  const user = await adminClient()?.auth.admin.getUserById(account.id).catch(() => null);
+  if (!user || user.error || !user.data.user) return false;
   // A test's own `browser` already carries the run's base URL and proxy; the global setup's doesn't, and passes them.
   const ctx = await browser.newContext(context).catch(() => null);
   if (!ctx) return false;
@@ -111,7 +115,10 @@ export async function eraseTestAccount(browser: Browser, account: TestAccount, c
 }
 
 /** A test's own cleanup: the product's erasure first, then the sweep for whatever is left (or for an account that
- *  could no longer sign in). Best-effort, like `deleteTestAccount`: it never fails the test it cleans up after. */
+ *  could no longer sign in). Best-effort, like `deleteTestAccount`: it never fails the test it cleans up after.
+ *  Each account is a real sign-in (about ten seconds), so a hook that removes several gives itself the time:
+ *  `test.setTimeout(CLEANUP_TIMEOUT_MS)`. */
+export const CLEANUP_TIMEOUT_MS = 300_000;
 export async function removeTestAccount(browser: Browser, account: TestAccount): Promise<void> {
   await eraseTestAccount(browser, account);
   await deleteTestAccount(account.id);

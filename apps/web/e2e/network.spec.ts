@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
-import { createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { CLEANUP_TIMEOUT_MS, createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
 import { ERASE_PHRASE } from "../src/content/privacy";
 import { openApp } from "./fixtures/sample";
 
@@ -82,6 +82,7 @@ test.describe("Network — two people connect", () => {
     info.skip(!LOCAL && !REAL, "BLOCKED: runs on a local build (with or without the Supabase project), not against a deployment");
   });
   test.afterAll(async ({ browser }) => {
+    test.setTimeout(CLEANUP_TIMEOUT_MS);
     for (const p of Object.values(people)) await p?.ctx.close().catch(() => {});
     // Whoever is still there (the visitor; everyone, if the journey stopped early) is deleted the product's way too,
     // which is what removes network data.

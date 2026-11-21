@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { CLEANUP_TIMEOUT_MS, createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
 import { openDescription } from "./utils/jobPage";
 
 /**
@@ -30,6 +30,7 @@ test.describe("Real account — production walk-through", () => {
     info.skip(!supabaseConfigured(), "BLOCKED: needs Supabase admin credentials to create a disposable account");
   });
   test.afterAll(async ({ browser }) => {
+    test.setTimeout(CLEANUP_TIMEOUT_MS);
     for (const a of accounts) await removeTestAccount(browser, a);
   });
 
