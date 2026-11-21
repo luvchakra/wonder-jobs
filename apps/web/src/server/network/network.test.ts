@@ -7,6 +7,7 @@ import type { Session } from "../auth";
 import { resetTablesForTests } from "../db/table";
 import { stateStore } from "../state";
 import * as N from "./network";
+import { networkIdFor, networkIdsFor } from "./links";
 import { DEFAULT_TIERS, cleanProfile, mayOpen, pairKey, shortName, type NetworkProfileInput } from "@/domain/network/network";
 
 const person = (id: string): Session => ({ userId: id, tenantId: id, email: `${id}@example.com` });
@@ -146,6 +147,27 @@ describe("requests and connections", () => {
     await expect(N.viewMember(kunal, ashaId)).rejects.toThrow(/isn't on the network/);
     await expect(N.requestConnection(kunal, ashaId, {}, true)).rejects.toThrow(/isn't on the network/);
     await expect(N.viewMember(asha, kunalId)).rejects.toThrow(/isn't on the network/);
+  });
+
+  it("gives a module a person's network id only when the network itself would show them to this viewer", async () => {
+    const ashaId = await join(asha, "Asha Rao");
+    const rahulId = await join(rahul, "Rahul Sen", { findBy: "link" });
+    await join(vik, "Vikram Kumar", { findBy: "connections" });
+    // Not on the network yourself: no links at all.
+    expect(await networkIdFor("u-kunal", "u-asha")).toBeNull();
+    const kunalId = await join(kunal, "Kunal Chakraborty");
+    expect(await networkIdFor("u-kunal", "u-asha")).toBe(ashaId);
+    expect(await networkIdFor("u-kunal", "u-kunal")).toBeNull();
+    expect(await networkIdFor("u-kunal", "u-nobody")).toBeNull();
+    // By link only, or connections only: a module page is not their link.
+    expect([...(await networkIdsFor("u-kunal", ["u-asha", "u-rahul", "u-vik"])).keys()]).toEqual(["u-asha"]);
+    // Once connected, they show.
+    await connect(kunal, rahul, rahulId);
+    expect(await networkIdFor("u-kunal", "u-rahul")).toBe(rahulId);
+    // A block hides both ways.
+    await N.blockMember(asha, kunalId);
+    expect(await networkIdFor("u-kunal", "u-asha")).toBeNull();
+    expect(await networkIdFor("u-asha", "u-kunal")).toBeNull();
   });
 
   it("notes a status turned on and a new role as updates, only when the member shares updates", async () => {
