@@ -14,6 +14,9 @@ export interface ConnMessage {
   at: string;
 }
 
+/** A team founder as the viewer sees them, with their network profile id when the viewer may be linked to it. */
+export type FounderView = ProfileView & { networkId?: string };
+
 export interface Counterpart {
   kind: "person" | "team";
   /** The page of the person or team (cfp_… or cft_…). */
@@ -22,9 +25,11 @@ export interface Counterpart {
   title: string;
   /** What they show: a person's profile at the audience the connection allows; a team's public listing. */
   profile?: ProfileView;
+  /** The person's WonderWorks Network profile id, only once their name shows (mutual interest or later) and only if the Network lets this viewer see them: a public id, never an account id. */
+  networkId?: string;
   team?: CofounderListing;
   /** A team's founders, each at the audience the connection allows. */
-  founders?: ProfileView[];
+  founders?: FounderView[];
 }
 
 export interface ConnView {

@@ -23,6 +23,7 @@ import { shownEnd, type ConnMessage, type ConnView, type Counterpart } from "@/m
 import { blocks, conns, founderIds, gate, hiddenFor, members, msgs, now, profiles, reports, roleIn, teams, tell, type ConnRow } from "./store";
 import { openProfile, toProfile } from "./profiles";
 import { addMember, foundersView, requireTeam, teamListing } from "./teams";
+import { networkIdFor, networkIdsFor } from "../network/links";
 
 const gone = () => new HiringError("This profile isn't available.", 404);
 const shape = (c: ConnRow): ConnShape => ({ kind: c.kind, initiator: c.initiator, person: c.person_tenant, ...(c.other_tenant ? { other: c.other_tenant } : {}) });
@@ -280,17 +281,23 @@ async function viewOf(s: Session, c: ConnRow): Promise<ConnView | null> {
   let counterpart: Counterpart;
   let yourTeam: ConnView["yourTeam"];
   const personRow = async (t: string) => profiles().one({ tenant_id: t });
+  // A network profile link is offered only where the person's name shows (mutual interest or later), never before.
+  const named = audience === "mutual";
   if (c.kind === "pair") {
     const other = (await personRow(c.person_tenant === me ? c.other_tenant! : c.person_tenant))!;
-    counterpart = { kind: "person", listingId: other.public_id, title: other.headline, profile: viewProfile(toProfile(other), audience) };
+    const networkId = named ? await networkIdFor(me, other.tenant_id) : null;
+    counterpart = { kind: "person", listingId: other.public_id, title: other.headline, profile: viewProfile(toProfile(other), audience), ...(networkId ? { networkId } : {}) };
   } else if (side === 0) {
     // The person looks at the team and its founders.
     if (!team) return null;
-    counterpart = { kind: "team", listingId: team.id, title: team.name, team: teamListing(team, founders.length), founders: await foundersView(team.id, audience) };
+    const fs = await foundersView(team.id, audience);
+    const ids = named ? await networkIdsFor(me, fs.map((f) => f.tenant)) : new Map<string, string>();
+    counterpart = { kind: "team", listingId: team.id, title: team.name, team: teamListing(team, founders.length), founders: fs.map((f) => ({ ...f.view, ...(ids.get(f.tenant) ? { networkId: ids.get(f.tenant) } : {}) })) };
   } else {
     const p = await personRow(c.person_tenant);
     if (!p) return null;
-    counterpart = { kind: "person", listingId: p.public_id, title: p.headline, profile: viewProfile(toProfile(p), audience) };
+    const networkId = named ? await networkIdFor(me, p.tenant_id) : null;
+    counterpart = { kind: "person", listingId: p.public_id, title: p.headline, profile: viewProfile(toProfile(p), audience), ...(networkId ? { networkId } : {}) };
     if (team) yourTeam = { id: team.id, name: team.name };
   }
   const initiatorSide = (await participants(c)).tenants[0].includes(c.initiator) ? 0 : 1;
