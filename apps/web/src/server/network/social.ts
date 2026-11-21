@@ -28,6 +28,9 @@ export interface NetThread {
   at: string;
 }
 
+/** Rows written in the same millisecond still come out in one fixed order. */
+const newestFirst = (a: { created_at: string; id: string }, b: { created_at: string; id: string }) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
+
 const toMsg = (m: MsgRow, me: string): NetMessage => ({ id: m.id, mine: m.sender_tenant === me, body: m.body, at: m.created_at });
 
 /** The member's live connections that aren't blocked, with the other person's profile row. */
@@ -47,14 +50,14 @@ export async function myThreads(s: Session): Promise<NetThread[]> {
   if (!list.length) return [];
   const recent = await msgs().findIn("connection_id", list.map((x) => x.c.id), {}, { order: "created_at", desc: true, limit: 3000 });
   const last = new Map<string, MsgRow>();
-  for (const m of recent) if (!last.has(m.connection_id)) last.set(m.connection_id, m);
+  for (const m of [...recent].sort(newestFirst)) if (!last.has(m.connection_id)) last.set(m.connection_id, m);
   return list
     .map(({ c, them }) => {
       const m = last.get(c.id);
       return { id: c.id, member: show(ctx, them), last: m ? toMsg(m, s.tenantId) : undefined, at: m?.created_at ?? "" };
     })
     .filter((t) => t.last)
-    .sort((a, b) => b.at.localeCompare(a.at));
+    .sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
 }
 
 /** The connection, when the caller is on it, it is live, and neither blocked the other; otherwise as if it weren't there. */
@@ -72,7 +75,7 @@ async function stand(s: Session, connectionId: string): Promise<{ ctx: Around; c
 export async function thread(s: Session, connectionId: string): Promise<{ member: MemberView; messages: NetMessage[] }> {
   const { ctx, c, them } = await stand(s, connectionId);
   const list = await msgs().find({ connection_id: c.id }, { order: "created_at", limit: 500 });
-  return { member: show(ctx, them), messages: list.map((m) => toMsg(m, s.tenantId)) };
+  return { member: show(ctx, them), messages: [...list].sort((a, b) => newestFirst(b, a)).map((m) => toMsg(m, s.tenantId)) };
 }
 
 /** Send a message to a connection: the member's own typed and sent press, through the gate, audited without its words. */
@@ -135,8 +138,9 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
   const authors = new Map((strangers.length ? await profiles().findIn("tenant_id", strangers) : []).filter((p) => p.find_by === "everyone").map((p) => [p.tenant_id, p]));
   const rows = new Map([...theirs, ...own, ...open.filter((u) => u.tenant_id === s.tenantId || by.has(u.tenant_id) || authors.has(u.tenant_id))].map((u) => [u.id, u]));
   return [...rows.values()]
-    .filter((u) => !hiddenPost(u.id))
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    // The author keeps seeing their own post whatever was reported: nothing tells them it was.
+    .filter((u) => u.tenant_id === s.tenantId || !hiddenPost(u.id))
+    .sort(newestFirst)
     .slice(0, 60)
     .map((u) => {
       const mine = u.tenant_id === s.tenantId;
@@ -172,9 +176,14 @@ export async function deleteUpdate(s: Session, id: string): Promise<void> {
 
 /** Report someone's post. The author isn't told; the reporter stops seeing it at once. */
 export async function reportUpdate(s: Session, id: string, reason: string): Promise<{ repeated: boolean }> {
-  await member(s);
+  const ctx = await around(await member(s));
   const u = /^nu_[A-Za-z0-9_-]{6,40}$/.test(id) ? await updates().one({ id }) : undefined;
-  if (!u || u.tenant_id === s.tenantId) throw new HiringError("That post isn't available.", 404);
+  const gone = new HiringError("That post isn't available.", 404);
+  if (!u || u.tenant_id === s.tenantId || ctx.hidden.has(u.tenant_id)) throw gone;
+  // Only a post the reporter could be shown: a connection's, or one addressed to everyone by an author anyone may find.
+  // Otherwise three accounts that learned an id could hide a post none of them was ever shown.
+  const theirs = ctx.links.get(u.tenant_id)?.status === "connected";
+  if (!theirs && !(u.kind === EVERYONE && (await profiles().one({ tenant_id: u.tenant_id }))?.find_by === "everyone")) throw gone;
   const out = await fileReport(NETWORK, s.tenantId, { kind: "message", id: u.id, tenant: u.tenant_id }, reason);
   return { repeated: out.repeated };
 }
