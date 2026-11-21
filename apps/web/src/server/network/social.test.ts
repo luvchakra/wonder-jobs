@@ -76,7 +76,7 @@ describe("updates", () => {
     await S.shareListing(asha, { page: "/s/events/ev_123", title: "Kubernetes Community Day" });
     await S.shareListing(asha, { page: "/j/job_9", title: "IAM Lead at A bank" });
     await S.shareListing(rahul, { page: "/j/job_1", title: "Not for Kunal" });
-    const seen = await S.updatesFor(kunal);
+    const seen = await S.feedFor(kunal);
     expect(seen.map((u) => [u.member.name, u.module, u.text, u.href])).toEqual(
       expect.arrayContaining([
         ["Asha Rao", "events", "shared a listing: Kubernetes Community Day", "/s/events/ev_123"],
@@ -84,7 +84,43 @@ describe("updates", () => {
       ]),
     );
     expect(seen).toHaveLength(2);
-    expect(await S.updatesFor(rahul)).toEqual([]);
-    await expect(S.updatesFor(person("u-nobody"))).rejects.toThrow(/Turn on your network profile/);
+    // Rahul has no connections: he sees only his own share.
+    expect((await S.feedFor(rahul)).map((u) => [u.mine, u.text])).toEqual([[true, "shared a listing: Not for Kunal"]]);
+    await expect(S.feedFor(person("u-nobody"))).rejects.toThrow(/Turn on your network profile/);
+  });
+
+  it("a post reaches connections, or everyone on the network when the author chose that; only its author can delete it", async () => {
+    const ashaId = await join(asha, "Asha Rao");
+    const kunalId = await join(kunal, "Kunal Chakraborty");
+    await join(rahul, "Rahul Sen");
+    const conn = await connect(kunal, asha, ashaId);
+    await expect(S.publishPost(asha, { text: "Hello" })).rejects.toThrow(/Check what goes/);
+    await expect(S.publishPost(asha, { text: "   " }, true)).rejects.toThrow(/Write something/);
+    await S.publishPost(asha, { text: "For my connections" }, true);
+    await S.publishPost(asha, { text: "For everyone", audience: "everyone" }, true);
+    const kunalSees = await S.feedFor(kunal);
+    expect(kunalSees.map((u) => u.text).sort()).toEqual(["For everyone", "For my connections"]);
+    expect(kunalSees.every((u) => u.member.name === "Asha Rao" && u.connectionId === conn && !u.mine)).toBe(true);
+    // Rahul isn't connected to Asha: only the post for everyone, and no way to message from it.
+    const rahulSees = await S.feedFor(rahul);
+    expect(rahulSees.map((u) => [u.text, u.connectionId])).toEqual([["For everyone", undefined]]);
+    // Asha sees her own, marked hers.
+    expect((await S.feedFor(asha)).filter((u) => u.mine).map((u) => u.text).sort()).toEqual(["For everyone", "For my connections"]);
+    const post = rahulSees[0];
+    await expect(S.deleteUpdate(rahul, post.id)).rejects.toThrow(/isn't yours/);
+    // A report hides it from the reporter at once, and the author can't report their own.
+    await expect(S.reportUpdate(asha, post.id, "mine")).rejects.toThrow(/isn't available/);
+    await S.reportUpdate(rahul, post.id, "spam");
+    expect(await S.feedFor(rahul)).toEqual([]);
+    expect((await S.feedFor(kunal)).some((u) => u.id === post.id)).toBe(true);
+    await S.deleteUpdate(asha, post.id);
+    expect((await S.feedFor(kunal)).map((u) => u.text)).toEqual(["For my connections"]);
+    // Blocked people's posts never show, and neither do posts from someone who isn't findable by everyone.
+    await S.publishPost(rahul, { text: "Rahul to all", audience: "everyone" }, true);
+    expect((await S.feedFor(kunal)).some((u) => u.text === "Rahul to all")).toBe(true);
+    await N.blockMember(kunal, (await N.myProfile(rahul))!.publicId);
+    expect((await S.feedFor(kunal)).some((u) => u.text === "Rahul to all")).toBe(false);
+    expect(JSON.stringify([kunalSees, rahulSees])).not.toContain("u-asha");
+    expect(kunalId).toBeTruthy();
   });
 });

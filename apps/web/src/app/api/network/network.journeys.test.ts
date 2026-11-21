@@ -547,10 +547,11 @@ describe("updates", () => {
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({ kind: "status:open_to_work", text: "is open to work.", connectionId: id, href: `/app/network/${ashaId}` });
     expect(updates[0].member.id).toBe(ashaId);
-    expect(Object.keys(updates[0]).sort()).toEqual(["at", "connectionId", "href", "id", "kind", "member", "module", "text"]);
-    // Rahul is on the network but not Asha's connection; Asha doesn't see her own.
+    expect(Object.keys(updates[0]).sort()).toEqual(["at", "connectionId", "href", "id", "kind", "member", "mine", "module", "text"]);
+    expect(updates[0].mine).toBe(false);
+    // Rahul is on the network but not Asha's connection. Asha's feed shows her own update, marked hers (WJ-818).
     expect((await ok(feed(rahul))).updates).toEqual([]);
-    expect((await ok(feed(asha))).updates).toEqual([]);
+    expect((await ok(feed(asha))).updates.map((u: { mine: boolean; kind: string }) => [u.mine, u.kind])).toEqual([[true, "status:open_to_work"]]);
   });
 
   it("a shared listing must be a listing's public page, and reaches connections only", async () => {

@@ -61,8 +61,8 @@ async function join(p: Person): Promise<string> {
   await expect(page.getByRole("heading", { name: "My network profile" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Join the network" }).click();
   await expect(page.getByText("You're on the network")).toBeVisible();
-  // Joining lands on My network, now with its three tabs.
-  await expect(page.getByRole("tab", { name: "People" })).toBeVisible({ timeout: 20_000 });
+  // Joining lands on My network: the feed, with People, Invitations and Connections as the icons above it.
+  await expect(page.getByRole("button", { name: "People" })).toBeVisible({ timeout: 20_000 });
   await page.goto("/app/network/profile");
   const mine = page.getByRole("link", { name: "See my profile" });
   await expect(mine).toBeVisible({ timeout: 20_000 });
@@ -126,18 +126,18 @@ test.describe("Network — two people connect", () => {
   test("NET-003 the other sees the request with its note and accepts; each lists the other as a connection", async () => {
     const { asha, kunal } = people as Required<typeof people>;
     await asha.page.goto("/app/network?tab=invitations");
-    await expect(asha.page.getByRole("tab", { name: "Invitations · 1" })).toBeVisible({ timeout: 20_000 });
+    await expect(asha.page.getByRole("button", { name: "Invitations · 1" })).toBeVisible({ timeout: 20_000 });
     await expect(asha.page.getByText(`Worked together · “${NOTE}”`)).toBeVisible();
     await expect(asha.page.locator(`a[href="/app/network/${kunal.id}"]`).first()).toBeVisible();
     await asha.page.getByRole("button", { name: "Accept" }).click();
     await expect(asha.page.getByText(/^You and .+ are connected$/)).toBeVisible();
 
     await asha.page.goto("/app/network?tab=connections");
-    await expect(asha.page.getByRole("tab", { name: "Connections · 1" })).toBeVisible({ timeout: 20_000 });
+    await expect(asha.page.getByRole("button", { name: "Connections · 1" })).toBeVisible({ timeout: 20_000 });
     await expect(asha.page.locator(`a[href="/app/network/${kunal.id}"]`).first()).toBeVisible();
 
     await kunal.page.goto("/app/network?tab=connections");
-    await expect(kunal.page.getByRole("tab", { name: "Connections · 1" })).toBeVisible({ timeout: 20_000 });
+    await expect(kunal.page.getByRole("button", { name: "Connections · 1" })).toBeVisible({ timeout: 20_000 });
     await expect(kunal.page.locator(`a[href="/app/network/${asha.id}"]`).first()).toBeVisible();
     await kunal.page.goto(`/app/network/${asha.id}`);
     await expect(kunal.page.getByText("Connected", { exact: true })).toBeVisible({ timeout: 20_000 });

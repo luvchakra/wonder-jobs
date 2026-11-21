@@ -185,7 +185,7 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
       const res = await fetch("/api/network/updates", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ page, title: message.subject }) });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) return toast.error(res.status === 409 ? "Join the network first" : "Couldn't share with your network", res.status === 409 ? "Open the Network tab and set up your network profile." : data.error);
-      toast.success("Shared with your network", "Your connections see it under Network → Updates.");
+      toast.success("Shared with your network", "Your connections see it in their Network feed.");
       done("network");
     } catch {
       toast.error("Couldn't share with your network");

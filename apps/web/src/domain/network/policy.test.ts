@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CAPABILITIES, CAPABILITY_META, defaultPolicy, MODULE_CAPABILITIES, resolveCapability } from "@/domain/automation/policy";
 
-const CAPS = ["network.connect", "network.message"] as const;
+const CAPS = ["network.connect", "network.message", "network.post"] as const;
 
 describe("network capabilities — a request or message to another member goes through resolveCapability", () => {
   it("are module-namespaced, external, and send on the member's own press by default; Ask me asks; Off skips", () => {
