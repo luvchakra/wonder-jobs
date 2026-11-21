@@ -2,19 +2,17 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Link2, MessagesSquare, Plus, Search, Settings2, UserCheck, UserPlus, Users, type LucideIcon } from "lucide-react";
+import { MessagesSquare, Plus, Search, Settings2, UserCheck, UserPlus, Users, type LucideIcon } from "lucide-react";
 import type { MemberView, NetworkProfile } from "@/domain/network/network";
 import { networkApi, type MyNetwork, type NetUpdate, type Suggested } from "@/services/network/client";
-import { relativeTime } from "@/lib/format";
-import { moduleById } from "@/modules/registry";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Button } from "@/components/common/Button";
-import { Field, Input, Textarea } from "@/components/common/Input";
-import { Modal } from "@/components/common/Modal";
+import { Input } from "@/components/common/Input";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
-import { ConnectSheet, MemberAvatar, PersonCard, PersonRow, memberHref, mutualLine } from "@/components/network/parts";
+import { ConnectSheet, PersonCard, PersonRow, mutualLine } from "@/components/network/parts";
+import { FeedCard, ReportSheet } from "@/components/network/FeedCard";
 import { usePostTarget } from "@/wonderworks/chrome/postTarget";
 import dynamic from "next/dynamic";
 
@@ -166,6 +164,7 @@ function NetworkPage() {
                   key={u.id}
                   u={u}
                   onReport={() => setReporting(u)}
+                  onReshared={() => setFeed(null)}
                   onDelete={async () => {
                     try {
                       await networkApi.deleteUpdate(u.id);
@@ -279,8 +278,10 @@ function NetworkPage() {
         />
       )}
       {reporting && (
-        <ReportPost
-          u={reporting}
+        <ReportSheet
+          title="Report this post"
+          who={reporting.member.name}
+          send={(reason) => networkApi.reportUpdate(reporting.id, reason)}
           onClose={() => setReporting(null)}
           onDone={() => {
             // The reporter stops seeing it at once.
@@ -313,109 +314,6 @@ function Shortcut({ icon: Icon, label, badge, quiet, active, href, onClick }: { 
     <button type="button" aria-pressed={active} aria-label={badge ? `${label} · ${badge}` : label} onClick={onClick} className={cls}>
       {inner}
     </button>
-  );
-}
-
-/** One thing in the feed: a post in its author's words, or something a connection did, with one way on. */
-function FeedCard({ u, onDelete, onReport }: { u: NetUpdate; onDelete: () => void; onReport: () => void }) {
-  const post = u.kind === "post" || u.kind === "post:everyone";
-  const shared = u.kind === "shared";
-  const moduleLabel = moduleById(u.module)?.label ?? "";
-  const quiet = "min-h-9 text-[12.5px] font-medium text-ink-3 hover:text-ink";
-  return (
-    <li className="rounded-[16px] border border-line bg-surface p-3">
-      <div className="flex gap-3">
-        <Link href={memberHref(u.member.id)} aria-label={u.member.name}>
-          <MemberAvatar m={u.member} size={44} />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <Link href={memberHref(u.member.id)} className="block truncate text-[14px] font-semibold text-ink hover:underline">
-            {u.member.name}
-          </Link>
-          {u.member.headline && <p className="truncate text-[12px] text-ink-3">{u.member.headline}</p>}
-          <p className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3">
-            {relativeTime(u.at)}
-            {post && <span>· {u.kind === "post:everyone" ? "Everyone on the network" : "Connections"}</span>}
-            {moduleLabel && <span className="rounded-full bg-brand-50 px-2 py-px text-[10.5px] font-semibold text-brand-700">{moduleLabel}</span>}
-          </p>
-        </div>
-      </div>
-      <p className="mt-2 whitespace-pre-line break-words text-[14px] leading-relaxed text-ink [overflow-wrap:anywhere]">{post ? u.text : `${u.member.name.split(" ")[0]} ${u.text}`}</p>
-      {post && u.href && (
-        <Link href={u.href} className="mt-2 flex items-center gap-3 rounded-[14px] border border-line bg-surface-2 p-3 hover:bg-bg-soft">
-          <Link2 className="size-4 shrink-0 text-brand-600" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13.5px] font-medium text-ink">{u.about || "See the listing"}</span>
-            {moduleLabel && <span className="block text-[11.5px] text-ink-3">{moduleLabel}</span>}
-          </span>
-        </Link>
-      )}
-      <div className="mt-1 flex flex-wrap items-center gap-x-4">
-        {shared && (
-          <Link href={u.href} className="inline-flex min-h-9 items-center text-[13px] font-semibold text-brand-600 hover:underline">
-            See the listing
-          </Link>
-        )}
-        {!u.mine && u.connectionId && (
-          <Link href={`/app/network/messages/${encodeURIComponent(u.connectionId)}`} className="inline-flex min-h-9 items-center text-[13px] font-semibold text-brand-600 hover:underline">
-            {u.kind === "role" ? "Say congrats" : "Message"}
-          </Link>
-        )}
-        {u.mine ? (
-          <button type="button" onClick={onDelete} className={cn(quiet, "ml-auto")}>
-            Delete
-          </button>
-        ) : (
-          post && (
-            <button type="button" onClick={onReport} className={cn(quiet, "ml-auto")}>
-              Report
-            </button>
-          )
-        )}
-      </div>
-    </li>
-  );
-}
-
-function ReportPost({ u, onClose, onDone }: { u: NetUpdate; onClose: () => void; onDone: () => void }) {
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title="Report this post"
-      description={`${u.member.name} isn't told who reported it. You stop seeing it at once.`}
-      size="sm"
-      footer={
-        <div className="flex w-full justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            loading={busy}
-            disabled={reason.trim().length < 3}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await networkApi.reportUpdate(u.id, reason.trim());
-                toast.success("Reported", "Our team reviews reports.");
-                onDone();
-              } catch (e) {
-                toast.error("Couldn't report", (e as Error).message);
-                setBusy(false);
-              }
-            }}
-          >
-            Send report
-          </Button>
-        </div>
-      }
-    >
-      <Field label="What's wrong?" htmlFor="post-report">
-        <Textarea id="post-report" rows={3} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </Field>
-    </Modal>
   );
 }
 

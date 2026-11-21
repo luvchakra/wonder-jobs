@@ -1,13 +1,17 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { MessagesSquare } from "lucide-react";
+import { MessageSquarePlus, MessagesSquare } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Button } from "@/components/common/Button";
 import { networkApi } from "@/services/network/client";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { Avatar } from "@/components/common/Avatar";
 import { EmptyState, PageLoading } from "@/components/common/States";
+
+const NewMessageSheet = dynamic(() => import("@/components/network/NewMessageSheet").then((m) => m.NewMessageSheet), { ssr: false });
 
 /**
  * One inbox (owner, 2026-11-20): every conversation the member has on WonderWorks in one list — connections, companies
@@ -59,6 +63,7 @@ async function loadAll(): Promise<Row[]> {
 export default function InboxPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [only, setOnly] = useState<Kind | null>(null);
+  const [writing, setWriting] = useState(false);
   useEffect(() => {
     void loadAll().then(setRows);
   }, []);
@@ -68,11 +73,21 @@ export default function InboxPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title="Messages" back={{ href: "/app/network", label: "My network" }} />
+      {/* Phones start a message from the + (New message); from 768px it is here. */}
+      <PageHeader
+        title="Messages"
+        back={{ href: "/app/network", label: "My network" }}
+        actions={
+          <Button onClick={() => setWriting(true)} icon={<MessageSquarePlus className="size-4" aria-hidden />} className="max-md:hidden">
+            New message
+          </Button>
+        }
+      />
+      {writing && <NewMessageSheet onClose={() => setWriting(false)} />}
       {rows === null ? (
         <PageLoading />
       ) : rows.length === 0 ? (
-        <EmptyState icon={<MessagesSquare className="size-6" aria-hidden />} title="No conversations yet" body="Messages with your connections, companies, co-founders and buyers or sellers all show here. To write to a connection, open their profile and press Message." action={{ label: "My network", href: "/app/network?tab=connections" }} />
+        <EmptyState icon={<MessagesSquare className="size-6" aria-hidden />} title="No conversations yet" body="Messages with your connections, companies, co-founders and buyers or sellers all show here. To write to a connection, press + and New message, or Message on their profile." action={{ label: "My network", href: "/app/network?tab=connections" }} />
       ) : (
         <>
           {have.size > 1 && (

@@ -47,11 +47,15 @@ export type ProfileRow = {
 };
 export type ConnStatus = "pending" | "connected" | "ignored" | "withdrawn" | "removed";
 export type ConnRow = { id: string; pair_key: string; requester: string; recipient: string; status: ConnStatus; how: string; note: string; created_at: string; updated_at: string };
-export type UpdateRow = { id: string; tenant_id: string; kind: string; module: string; text: string; href: string; /** A post's attached listing's title (migration 0053); absent before it is applied. */ about?: string | null; created_at: string };
+export type UpdateRow = { id: string; tenant_id: string; kind: string; module: string; text: string; href: string; /** A post's attached listing's title (migration 0053); absent before it is applied. */ about?: string | null; /** The post this one reshares (migration 0055). */ reshare_of?: string | null; created_at: string };
+export type ReactionRow = { update_id: string; tenant_id: string; kind: string; created_at: string };
+export type CommentRow = { id: string; update_id: string; tenant_id: string; body: string; created_at: string };
 
 export const profiles = () => table<ProfileRow>("network_profiles");
 export const conns = () => table<ConnRow>("network_connections");
 export const updates = () => table<UpdateRow>("network_updates");
+export const reactions = () => table<ReactionRow>("network_reactions");
+export const comments = () => table<CommentRow>("network_comments");
 export const now = () => new Date().toISOString();
 
 export const toProfile = (r: ProfileRow): NetworkProfile => ({
@@ -167,7 +171,18 @@ async function noteChanges(old: ProfileRow, row: ProfileRow): Promise<void> {
 /** Leave the network: the profile and its updates go; connections are kept, unseen, in case the member returns. */
 export async function leaveNetwork(s: Session): Promise<void> {
   await profiles().remove({ tenant_id: s.tenantId });
-  await updates().remove({ tenant_id: s.tenantId });
+  await dropUpdates(s.tenantId);
+}
+
+/** A member's updates go with the reactions and comments on them, and their own reactions and comments on others'. */
+export async function dropUpdates(tenant: string): Promise<void> {
+  for (const u of await updates().find({ tenant_id: tenant }, { limit: 5000 })) {
+    await reactions().remove({ update_id: u.id });
+    await comments().remove({ update_id: u.id });
+  }
+  await updates().remove({ tenant_id: tenant });
+  await reactions().remove({ tenant_id: tenant });
+  await comments().remove({ tenant_id: tenant });
 }
 
 /* ---- how two people stand ------------------------------------------------------------------------------------ */

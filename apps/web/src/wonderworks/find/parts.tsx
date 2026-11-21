@@ -547,7 +547,7 @@ export function ResultCard({ className, premium = true, cover, aside, title, fac
         </span>
         {(share || actions) && (
           <div className="relative z-10 -my-1 -mr-1.5 flex shrink-0 items-center">
-            {share && <ListingShare {...share} />}
+            {share && <ListingShare {...share} post={share.url.startsWith("/s/")} />}
             {actions}
           </div>
         )}

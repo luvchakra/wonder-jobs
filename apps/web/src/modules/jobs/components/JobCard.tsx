@@ -145,7 +145,7 @@ export function JobCard({ job, match, saved, onToggleSave, onReject, compact = f
       actions={
         onToggleSave && (
           <>
-            <ShareJobButton job={job} className="size-9 text-ink-2" />
+            <ShareJobButton job={job} className="size-9 text-ink-2" post />
             <SaveButton saved={!!saved} onToggle={onToggleSave} noun="job" />
           </>
         )

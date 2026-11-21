@@ -3,13 +3,13 @@
  * Same guards as network.ts: the caller is on the network, a thread is read or written only by the two people on a
  * connected, unblocked connection, and other members leave here only as a `MemberView`.
  */
-import type { MemberView } from "@/domain/network/network";
+import { REACTIONS, type MemberView, type Reaction } from "@/domain/network/network";
 import { newId } from "@/lib/ids";
 import type { Session } from "../auth";
 import { table } from "../db/table";
 import { HiringError } from "../hiring";
 import { fileReport, reports } from "../modules/safety";
-import { NETWORK, around, audit, conns, gate, member, now, other, profiles, show, tell, updates, type Around, type ConnRow, type ProfileRow, type UpdateRow } from "./network";
+import { NETWORK, around, audit, comments, conns, gate, member, now, other, profiles, reactions, show, tell, updates, type Around, type ConnRow, type ProfileRow, type UpdateRow } from "./network";
 
 type MsgRow = { id: string; connection_id: string; sender_tenant: string; body: string; created_at: string };
 export const msgs = () => table<MsgRow>("network_messages");
@@ -29,7 +29,7 @@ export interface NetThread {
 }
 
 /** Rows written in the same millisecond still come out in one fixed order. */
-const newestFirst = (a: { created_at: string; id: string }, b: { created_at: string; id: string }) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
+export const newestFirst = (a: { created_at: string; id: string }, b: { created_at: string; id: string }) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id);
 
 const toMsg = (m: MsgRow, me: string): NetMessage => ({ id: m.id, mine: m.sender_tenant === me, body: m.body, at: m.created_at });
 
@@ -108,13 +108,28 @@ export interface NetUpdate {
   mine: boolean;
   /** The connection with this member, to write to them; none for the viewer's own or a non-connection's post. */
   connectionId?: string;
+  /** Reactions from people the viewer hasn't blocked: how many, and the kinds used most, most first. */
+  reactions: { total: number; top: Reaction[] };
+  /** The viewer's own reaction. */
+  myReaction?: Reaction;
+  /** Comments the viewer would be shown. */
+  comments: number;
+  reshares: number;
+  /** Only a post addressed to everyone on the network can be reshared. */
+  canReshare: boolean;
+  /** A reshare: the post it quotes, or null when that post is gone or isn't the viewer's to see. */
+  reshared?: NetQuoted | null;
 }
+export type NetQuoted = Pick<NetUpdate, "id" | "member" | "kind" | "module" | "text" | "href" | "about" | "at">;
 
 /** A post for everyone on the network, not only the author's connections. */
-const EVERYONE = "post:everyone";
-const isPost = (kind: string) => kind === "post" || kind === EVERYONE;
+export const EVERYONE = "post:everyone";
+export const isPost = (kind: string) => kind === "post" || kind === EVERYONE;
 /** A post this many different members reported leaves every feed until an admin looks (the same count Moderation starts from). */
-const HIDE_AT = 3;
+export const HIDE_AT = 3;
+export const UPDATE_ID = /^nu_[A-Za-z0-9_-]{6,40}$/;
+/** Before migration 0055 the reaction and comment tables don't exist: the feed shows none rather than fail. */
+const orNone = <T,>(p: Promise<T[]>): Promise<T[]> => p.catch(() => []);
 
 /**
  * The feed (owner, 2026-11-21: "a feed of what other people are doing and posting on network"): what the member's
@@ -139,22 +154,84 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
   const strangers = [...new Set(open.map((u) => u.tenant_id).filter((t) => t !== s.tenantId && !by.has(t) && !ctx.hidden.has(t)))].slice(0, 200);
   const authors = new Map((strangers.length ? await profiles().findIn("tenant_id", strangers) : []).filter((p) => p.find_by === "everyone").map((p) => [p.tenant_id, p]));
   const rows = new Map([...theirs, ...own, ...open.filter((u) => u.tenant_id === s.tenantId || by.has(u.tenant_id) || authors.has(u.tenant_id))].map((u) => [u.id, u]));
-  return [...rows.values()]
+  const shown = [...rows.values()]
     // The author keeps seeing their own post whatever was reported: nothing tells them it was.
     .filter((u) => u.tenant_id === s.tenantId || !hiddenPost(u.id))
     .sort(newestFirst)
-    .slice(0, 60)
-    .map((u) => {
-      const mine = u.tenant_id === s.tenantId;
-      const friend = by.get(u.tenant_id);
-      const row = mine ? me : (friend?.them ?? authors.get(u.tenant_id)!);
+    .slice(0, 60);
+  const ids = shown.map((u) => u.id);
+  const quotedIds = [...new Set(shown.map((u) => u.reshare_of).filter((x): x is string => !!x))];
+  const [rx, said, reshares, originals] = ids.length
+    ? await Promise.all([
+        orNone(reactions().findIn("update_id", ids, {}, { limit: 5000 })),
+        orNone(comments().findIn("update_id", ids, {}, { limit: 5000 })),
+        orNone(updates().findIn("reshare_of", ids, {}, { limit: 2000 })),
+        quotedIds.length ? orNone(updates().findIn("id", quotedIds)) : [],
+      ])
+    : [[], [], [], []];
+  // Who wrote the quoted posts: the member, a connection, or someone anyone on the network may find.
+  const unknown = [...new Set(originals.map((o) => o.tenant_id).filter((t) => t !== s.tenantId && !by.has(t) && !authors.has(t) && !ctx.hidden.has(t)))];
+  for (const p of unknown.length ? await profiles().findIn("tenant_id", unknown) : []) if (p.find_by === "everyone") authors.set(p.tenant_id, p);
+  const rowOf = (t: string) => (t === s.tenantId ? me : (by.get(t)?.them ?? authors.get(t)));
+  const quoted = new Map<string, NetQuoted>();
+  for (const o of originals) {
+    const author = ctx.hidden.has(o.tenant_id) ? undefined : rowOf(o.tenant_id);
+    const mayRead = o.tenant_id === s.tenantId || by.has(o.tenant_id) || o.kind === EVERYONE;
+    if (!author || !mayRead || (o.tenant_id !== s.tenantId && hiddenPost(o.id))) continue;
+    quoted.set(o.id, { id: o.id, member: show(ctx, author), kind: o.kind, module: isPost(o.kind) && !o.href ? "" : o.module, text: o.text, href: o.href, ...(o.about ? { about: o.about } : {}), at: o.created_at });
+  }
+  const shownTo = (t: string, id: string) => !ctx.hidden.has(t) && (t === s.tenantId || !hiddenPost(id));
+  return shown.map((u) => {
+    const mine = u.tenant_id === s.tenantId;
+    const friend = by.get(u.tenant_id);
+    const row = mine ? me : (friend?.them ?? authors.get(u.tenant_id)!);
+    const felt = rx.filter((r) => r.update_id === u.id && !ctx.hidden.has(r.tenant_id));
+    const kinds = new Map<Reaction, number>();
+    for (const r of felt) if (REACTIONS.some((x) => x.id === r.kind)) kinds.set(r.kind as Reaction, (kinds.get(r.kind as Reaction) ?? 0) + 1);
+    const mineR = felt.find((r) => r.tenant_id === s.tenantId)?.kind;
+    const reshared = u.reshare_of ? (quoted.get(u.reshare_of) ?? null) : undefined;
+    return {
+      id: u.id,
+      member: show(ctx, row),
+      kind: u.kind,
       // Posts made before 2026-11-21 kept the module open at the time; without a listing it isn't shown.
-      return { id: u.id, member: show(ctx, row), kind: u.kind, module: isPost(u.kind) && !u.href ? "" : u.module, text: u.text, href: u.href, ...(u.about ? { about: u.about } : {}), at: u.created_at, mine, connectionId: friend?.c.id };
-    });
+      module: isPost(u.kind) && !u.href ? "" : u.module,
+      text: u.text,
+      href: u.href,
+      ...(u.about ? { about: u.about } : {}),
+      at: u.created_at,
+      mine,
+      connectionId: friend?.c.id,
+      reactions: { total: felt.length, top: [...kinds.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k).slice(0, 3) },
+      ...(mineR && REACTIONS.some((x) => x.id === mineR) ? { myReaction: mineR as Reaction } : {}),
+      comments: said.filter((c) => c.update_id === u.id && shownTo(c.tenant_id, c.id)).length,
+      reshares: reshares.filter((r) => r.reshare_of === u.id && !ctx.hidden.has(r.tenant_id)).length,
+      canReshare: u.kind === EVERYONE && reshared !== null,
+      ...(reshared !== undefined ? { reshared } : {}),
+    };
+  });
 }
 
-const POSTS_A_DAY = 20;
-const dayAgo = () => new Date(Date.now() - 864e5).toISOString();
+/**
+ * An update the caller may be shown, to react to or comment on: their own, a connection's, or a post addressed to everyone
+ * by an author anyone may find; never a blocked person's, or one the caller reported or that enough people reported.
+ * Anything else is as if it weren't there.
+ */
+export async function seeable(s: Session, id: string): Promise<{ ctx: Around; u: UpdateRow }> {
+  const ctx = await around(await member(s));
+  const u = UPDATE_ID.test(id) ? await updates().one({ id }) : undefined;
+  const gone = new HiringError("That post isn't available.", 404);
+  if (!u || ctx.hidden.has(u.tenant_id)) throw gone;
+  if (u.tenant_id === s.tenantId) return { ctx, u };
+  const theirs = ctx.links.get(u.tenant_id)?.status === "connected";
+  if (!theirs && !(u.kind === EVERYONE && (await profiles().one({ tenant_id: u.tenant_id }))?.find_by === "everyone")) throw gone;
+  const by = new Set((await reports().find({ module: NETWORK, subject_kind: "message", subject_id: u.id })).map((r) => r.reporter_tenant));
+  if (by.has(s.tenantId) || by.size >= HIDE_AT) throw gone;
+  return { ctx, u };
+}
+
+export const POSTS_A_DAY = 20;
+export const dayAgo = () => new Date(Date.now() - 864e5).toISOString();
 
 /** A listing a post may carry: only a public listing page, and the module comes from its path (`/j/…` is Jobs'). */
 const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-9_.~-]{1,120})$/;
@@ -203,8 +280,11 @@ export async function publishPost(s: Session, input: PostInput, confirmed?: bool
 /** Remove one of the member's own posts or updates. Nobody else's. */
 export async function deleteUpdate(s: Session, id: string): Promise<void> {
   await member(s);
-  const n = /^nu_[A-Za-z0-9_-]{6,40}$/.test(id) ? await updates().remove({ id, tenant_id: s.tenantId }) : 0;
+  const n = UPDATE_ID.test(id) ? await updates().remove({ id, tenant_id: s.tenantId }) : 0;
   if (!n) throw new HiringError("That isn't yours to remove.", 404);
+  // Its reactions and comments go with it; a reshare of it then says the post is gone.
+  await reactions().remove({ update_id: id }).catch(() => 0);
+  await comments().remove({ update_id: id }).catch(() => 0);
 }
 
 /** Report someone's post. The author isn't told; the reporter stops seeing it at once. */
