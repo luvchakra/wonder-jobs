@@ -158,7 +158,6 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
     // The author keeps seeing their own post whatever was reported: nothing tells them it was.
     .filter((u) => u.tenant_id === s.tenantId || !hiddenPost(u.id))
     .sort(newestFirst)
-<<<<<<< HEAD
     .slice(0, 60);
   const ids = shown.map((u) => u.id);
   const quotedIds = [...new Set(shown.map((u) => u.reshare_of).filter((x): x is string => !!x))];
@@ -211,16 +210,6 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
       ...(reshared !== undefined ? { reshared } : {}),
     };
   });
-=======
-    .slice(0, 60)
-    .map((u) => {
-      const mine = u.tenant_id === s.tenantId;
-      const friend = by.get(u.tenant_id);
-      const row = mine ? me : (friend?.them ?? authors.get(u.tenant_id)!);
-      // Posts made before 2026-11-21 kept the module open at the time; without a listing it isn't shown.
-      return { id: u.id, member: show(ctx, row), kind: u.kind, module: isPost(u.kind) && !u.href ? "" : u.module, text: u.text, href: u.href, ...(u.about ? { about: u.about } : {}), at: u.created_at, mine, connectionId: friend?.c.id };
-    });
->>>>>>> origin/main
 }
 
 /**
