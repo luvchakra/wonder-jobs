@@ -49,3 +49,20 @@ export async function fileReport(module: string, reporter: string, subject: { ki
 export async function reportCount(module: string, kind: ReportKind, id: string): Promise<number> {
   return new Set((await reports().find({ module, subject_kind: kind, subject_id: id })).map((r) => r.reporter_tenant)).size;
 }
+
+/** Account export: the reports the person filed and the people they blocked, in every module (not who they were). */
+export async function exportSafety(tenantId: string): Promise<unknown> {
+  const [filed, blocked] = await Promise.all([reports().find({ reporter_tenant: tenantId }, { limit: 5000 }), blocks().find({ blocker_tenant: tenantId }, { limit: 5000 })]);
+  return { reportsYouFiled: filed.map((r) => ({ module: r.module, about: r.subject_kind, reason: r.reason, at: r.created_at })), blocksYouMade: blocked.length };
+}
+
+/**
+ * Account erasure, in every module (found 2026-11-21 by the erasure coverage test: a report filed in any module's Find
+ * outlived the account): the reports the person filed and those about them, and their blocks both ways.
+ */
+export async function eraseSafety(tenantId: string): Promise<void> {
+  await reports().remove({ reporter_tenant: tenantId });
+  await reports().remove({ subject_tenant: tenantId });
+  await blocks().remove({ blocker_tenant: tenantId });
+  await blocks().remove({ blocked_tenant: tenantId });
+}

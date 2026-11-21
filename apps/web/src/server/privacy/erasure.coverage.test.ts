@@ -84,9 +84,9 @@ const ERASED_BY: Record<string, string> = {
   marketplace_photos: "marketplace",
   marketplace_threads: "marketplace",
   marketplace_messages: "marketplace",
-  // Shared by modules; each module's entry removes its own rows (see KNOWN_GAPS for the rest).
-  module_blocks: "network",
-  module_reports: "network",
+  // Shared by modules: the "safety" entry removes them in every module.
+  module_blocks: "safety",
+  module_reports: "safety",
   cofounder_profiles: "cofounders",
   cofounder_teams: "cofounders",
   cofounder_team_members: "cofounders",
@@ -294,9 +294,9 @@ describe("account deletion, end to end", () => {
     cascadeLikeTheDatabase(asha.tenantId);
 
     const left = tablesNaming(asha.tenantId);
-    // job_applications: her Easy Apply application to Globex. module_reports: her report of a listing in Jobs' Find,
-    // which neither Network's nor Buy, Sell & Rent's erasure removes (each removes only its own module's reports).
-    expect(left).toEqual(["job_applications", "module_reports"]);
+    // job_applications: her Easy Apply application to Globex (a known gap). Her report of a listing in Jobs' Find goes
+    // with the "safety" entry, which covers every module's reports and blocks.
+    expect(left).toEqual(["job_applications"]);
     // The workspace she owned stays with Ravi, and nothing in it names her.
     expect(tablesNaming(ravi.tenantId)).toEqual(expect.arrayContaining(["hiring_orgs", "hiring_members", "employer_jobs"]));
   });

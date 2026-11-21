@@ -7,6 +7,7 @@
 import { eraseHiring, exportHiring } from "../hiringAccount";
 import { eraseCofounders, exportCofounders } from "../cofounders/account";
 import { eraseContact, exportContact } from "../contact/exchange";
+import { eraseSafety, exportSafety } from "../modules/safety";
 import { eraseMarketplace, exportMarketplace } from "../marketplace/account";
 import { eraseNetwork, exportNetwork } from "../network/account";
 
@@ -25,4 +26,6 @@ export const ACCOUNT_DATA: AccountData[] = [
   { key: "cofounders", export: exportCofounders, erase: eraseCofounders },
   // Phone and email offered in any module's conversation, and those offered to the person.
   { key: "contact", export: exportContact, erase: eraseContact },
+  // Reports and blocks in every module (module_reports, module_blocks), not only Network's and Buy, Sell & Rent's.
+  { key: "safety", export: exportSafety, erase: eraseSafety },
 ];
