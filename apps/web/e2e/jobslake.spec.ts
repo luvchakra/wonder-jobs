@@ -1,6 +1,7 @@
 import { test, expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
 import { openDescription } from "./utils/jobPage";
+import { expectKind } from "./utils/findMode";
 
 /**
  * WorksLake journeys WJ-JL-001..040 (WorksLake spec §88). Everything here runs against real sources —
@@ -325,7 +326,7 @@ test.describe("Candidate searches through WorksLake", () => {
 
   test("WJ-JL-001/002/003 Find Jobs sends the candidate's search to WorksLake — terms and places only", async ({ page }) => {
     await page.goto("/app/jobs");
-    await expect(page.getByRole("button", { name: "Module: Full Time Jobs" })).toBeVisible();
+    await expectKind(page, "Full Time Jobs");
     const { lake } = await find(page, "Product designer roles, remote");
     const body = JSON.parse(lake.postData() ?? "{}");
     expect(Object.keys(body).sort()).toEqual(["limit", "query", "searchMode", "sourceIds"]);
