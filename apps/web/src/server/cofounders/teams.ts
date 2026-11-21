@@ -25,10 +25,10 @@ export async function requireTeam(s: Session, teamId: string, action: TeamAction
 }
 
 /** The founders' public views, as people who find the team see them (headline and the fields each shows everyone). */
-export async function foundersView(teamId: string, audience: "public" | "mutual"): Promise<ProfileView[]> {
+export async function foundersView(teamId: string, audience: "public" | "mutual"): Promise<{ tenant: string; view: ProfileView }[]> {
   const ids = await founderIds(teamId);
   const rows = await profiles().findIn("tenant_id", ids);
-  return rows.map((r) => viewProfile(toProfile(r), audience));
+  return rows.map((r) => ({ tenant: r.tenant_id, view: viewProfile(toProfile(r), audience) }));
 }
 
 export function teamListing(r: TeamRow, founders: number): CofounderListing {

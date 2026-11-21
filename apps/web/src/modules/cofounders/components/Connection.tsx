@@ -15,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { MAX_MESSAGE, STAGE_OF, STATUS_LABEL, type ProfileView } from "../domain";
 import { lineOf, type ConnMessage, type ConnView } from "../connections";
 import { cofoundersManifest } from "../manifest";
+import { NetworkLink } from "@/components/network/parts";
 import { Act } from "./Act";
 import { Safety } from "./Safety";
 import { TONE } from "./Pipeline";
@@ -82,7 +83,8 @@ export function CofoundersConnection({ id }: { id: string }) {
           </ItemHead>
           {cp.profile && (
             <div className="mt-3">
-              {cp.profile.name && <p className="mb-2 text-[15px] font-semibold text-ink">{cp.profile.name}</p>}
+              {cp.profile.name && <p className="text-[15px] font-semibold text-ink">{cp.profile.name}</p>}
+              <NetworkLink id={cp.networkId} className="mb-2" />
               <Facts v={cp.profile} />
             </div>
           )}
@@ -93,6 +95,7 @@ export function CofoundersConnection({ id }: { id: string }) {
                 <div key={i} className="rounded-[12px] border border-line p-3">
                   <p className="text-[14px] font-semibold text-ink">{f.name ?? f.headline}</p>
                   {f.name && <p className="text-[12px] text-ink-3">{f.headline}</p>}
+                  <NetworkLink id={f.networkId} />
                   <div className="mt-2">
                     <Facts v={f} />
                   </div>

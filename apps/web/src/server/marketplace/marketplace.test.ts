@@ -16,6 +16,8 @@ import { myListings, openListing, openMarketListings, publish, saveListing, setL
 import { answerOffer, arrangeVisit, closeThread, makeOffer, markDone, myThreads, sendMessage, shareContact, startThread, thread, withdrawOffer } from "./threads";
 import { blockInThread, reportListing, reportThread } from "./safety";
 import { listings } from "./store";
+import * as Network from "../network/network";
+import { DEFAULT_TIERS, type NetworkProfileInput } from "@/domain/network/network";
 
 const seller: Session = { userId: "u-s", tenantId: "u-s", email: "seller@example.com", name: "Sana Rao" };
 const buyer: Session = { userId: "u-b", tenantId: "u-b", email: "buyer@example.com", name: "Bo Lee" };
@@ -130,6 +132,44 @@ describe("conversations and offers", () => {
     await shareContact(buyer, t);
     expect((await thread(seller, t)).thread.contacts).toEqual([{ email: "buyer@example.com" }]);
     expect((await thread(buyer, t)).thread.contacts).toEqual([]);
+  });
+  it("links the other person's network profile only once they have shared their contact details, and sends only the public id", async () => {
+    const profile = (name: string): Partial<NetworkProfileInput> => ({ name, headline: "Maker", location: "Bengaluru", about: "About me", skills: [], experience: [], education: [], tiers: DEFAULT_TIERS, findBy: "everyone", requestsFrom: "everyone", statuses: [], shareUpdates: true });
+    const sellerNet = (await Network.saveMyProfile(seller, profile("Sana Rao"))).publicId;
+    const buyerNet = (await Network.saveMyProfile(buyer, profile("Bo Lee"))).publicId;
+    const id = await listed();
+    const { id: t } = await startThread(buyer, id, "Hi there");
+    // Before anyone has shared: no link on either side, in the list or the conversation.
+    expect((await thread(buyer, t)).thread.networkId).toBeUndefined();
+    expect((await thread(seller, t)).thread.networkId).toBeUndefined();
+    expect((await myThreads(buyer))[0].networkId).toBeUndefined();
+    // The buyer shares: the seller now knows who they are, and sees their profile link; the buyer, who has been shown nothing, still doesn't.
+    await shareContact(buyer, t);
+    expect((await thread(seller, t)).thread.networkId).toBe(buyerNet);
+    expect((await myThreads(seller))[0].networkId).toBe(buyerNet);
+    expect((await thread(buyer, t)).thread.networkId).toBeUndefined();
+    // The seller shares back: the buyer sees theirs.
+    await shareContact(seller, t);
+    expect((await thread(buyer, t)).thread.networkId).toBe(sellerNet);
+    // Only public ids leave the server: never an account id.
+    expect(JSON.stringify(await thread(buyer, t))).not.toMatch(/u-s|u-b|u-x/);
+    expect(JSON.stringify(await thread(seller, t))).not.toMatch(/"u-b"|"u-s"/);
+  });
+  it("shows no network link when the network wouldn't: not on it, a block, or findable by link only", async () => {
+    const profile = (name: string, findBy = "everyone"): Partial<NetworkProfileInput> => ({ name, headline: "Maker", location: "Bengaluru", about: "About me", skills: [], experience: [], education: [], tiers: DEFAULT_TIERS, findBy: findBy as never, requestsFrom: "everyone", statuses: [], shareUpdates: true });
+    const id = await listed();
+    const { id: t } = await startThread(buyer, id, "Hi there");
+    await shareContact(buyer, t);
+    // The seller isn't on the network: nothing to link, and the conversation is as before.
+    expect((await thread(seller, t)).thread.networkId).toBeUndefined();
+    await Network.saveMyProfile(seller, profile("Sana Rao"));
+    // The buyer is on the network, but only by link: a module page isn't their link.
+    const buyerNet = (await Network.saveMyProfile(buyer, profile("Bo Lee", "link"))).publicId;
+    expect((await thread(seller, t)).thread.networkId).toBeUndefined();
+    await Network.saveMyProfile(buyer, profile("Bo Lee"));
+    expect((await thread(seller, t)).thread.networkId).toBe(buyerNet);
+    await Network.blockMember(seller, buyerNet);
+    expect((await thread(seller, t)).thread.networkId).toBeUndefined();
   });
   it("warns the reader about advance-payment wording", async () => {
     const id = await listed();
