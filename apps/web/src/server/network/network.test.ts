@@ -102,6 +102,9 @@ describe("requests and connections", () => {
     await expect(N.requestConnection(kunal, ashaId, {})).rejects.toThrow(/Check what goes/);
     const sent = await N.requestConnection(kunal, ashaId, { how: "Met at an event", note: "Hello Asha" }, true);
     expect(sent.relation).toBe("pending_out");
+    // Asked: she stays on his People tab as Requested, and he shows on hers as a request to answer.
+    expect((await N.people(kunal, "")).people.filter((p) => p.name === "Asha Rao").map((p) => p.relation)).toEqual(["pending_out"]);
+    expect((await N.people(asha, "")).people[0]).toMatchObject({ name: "Kunal Chakraborty", relation: "pending_in" });
     await expect(N.requestConnection(kunal, ashaId, {}, true)).rejects.toThrow(/already asked/);
     const [inv] = (await N.myNetwork(asha)).invitations;
     expect(inv).toMatchObject({ name: "Kunal Chakraborty", note: "Hello Asha", how: "Met at an event", relation: "pending_in" });
@@ -117,7 +120,10 @@ describe("requests and connections", () => {
     const back = await N.requestConnection(asha, kunalId, {}, true);
     await N.actOnConnection(kunal, back.connectionId!, "accept");
     expect((await N.myNetwork(kunal)).connections.map((p) => p.name)).toEqual(["Asha Rao"]);
+    // Connected: still on the People tab, once, marked connected.
+    expect((await N.people(kunal, "")).people.filter((p) => p.name === "Asha Rao").map((p) => p.relation)).toEqual(["connected"]);
     await N.actOnConnection(asha, back.connectionId!, "remove");
+    expect((await N.people(kunal, "")).people.some((p) => p.name === "Asha Rao")).toBe(false);
     expect((await N.myNetwork(kunal)).connections).toEqual([]);
   });
 
