@@ -922,3 +922,240 @@ describe("reacting, commenting and resharing", () => {
     expect(ashaFeed.find((u) => u.text === "Just for connections")?.reactions.total).toBe(1);
   });
 });
+
+/* ---- reactions, comments, reshares: who may reach what (WJ-829) ---------------------------------------------- */
+describe("reacting, commenting and resharing: only on a post the caller could be shown", () => {
+  const react = (who: Actor | null, id: string, reaction: string | null = "like", confirmed: boolean | null = true) => engage(who, id, { action: "react", reaction, confirmed: confirmed ?? undefined });
+  const comment = (who: Actor | null, id: string, body = "A comment", confirmed: boolean | null = true) => engage(who, id, { action: "comment", body, confirmed: confirmed ?? undefined });
+  const reshare = (who: Actor | null, id: string, confirmed: boolean | null = true) => engage(who, id, { action: "reshare", text: "Worth reading", audience: "everyone", confirmed: confirmed ?? undefined });
+  const reportC = (who: Actor | null, id: string, commentId: string, reason = "Rude and off topic") => engage(who, id, { action: "reportComment", comment: commentId, reason });
+  const removeComment = (who: Actor | null, commentId: string) => call(who, updateRoute.DELETE, { method: "DELETE", path: `/api/network/updates/x?comment=${encodeURIComponent(commentId)}`, params: { id: "x" } });
+  type Comment = { id: string; body: string; mine: boolean; canDelete: boolean; member: { id: string; name: string } };
+  const bodies = async (who: Actor, id: string) => ((await ok(commentsOf(who, id))).comments as Comment[]).map((c) => c.body);
+  /** Every action on a post, as the given person: each answer's status. */
+  const everyAction = async (who: Actor, id: string, someComment: string) => [
+    (await commentsOf(who, id)).status,
+    (await react(who, id)).status,
+    (await comment(who, id)).status,
+    (await reshare(who, id)).status,
+    (await reportC(who, id, someComment)).status,
+  ];
+
+  it("someone not on the network can't read, react, comment, reshare, report or remove (409)", async () => {
+    const asha = person("asha");
+    const outsider = person("outsider");
+    await join(asha);
+    await ok(post(asha, "For everyone: mint-arch", "everyone"));
+    const id = (await item(asha, "For everyone: mint-arch"))!.id;
+    const c = (await ok(comment(asha, id, "Her own comment"))).comment as Comment;
+    for (const st of await everyAction(outsider, id, c.id)) expect(st).toBe(409);
+    expect((await removeComment(outsider, c.id)).status).toBe(409);
+    expect(await bodies(asha, id)).toEqual(["Her own comment"]);
+  });
+
+  it("a post the caller couldn't be shown answers 404 to every action, exactly like a post that isn't there", async () => {
+    const asha = person("asha");
+    const linked = person("linked"); // findable only by link
+    const kunal = person("kunal"); // Asha's connection
+    const rahul = person("rahul"); // a stranger to both
+    const ashaId = await join(asha);
+    const linkedId = await join(linked, { findBy: "link" });
+    await join(kunal);
+    await join(rahul);
+    await connected(kunal, asha, ashaId);
+    await connected(kunal, linked, linkedId);
+    await ok(post(asha, "Connections only: nectar-bay"));
+    await ok(post(linked, "Not findable author: oak-sill", "everyone"));
+    const closed = (await item(kunal, "Connections only: nectar-bay"))!.id;
+    const hidden = (await item(kunal, "Not findable author: oak-sill"))!.id;
+    const onClosed = (await ok(comment(kunal, closed, "Kunal on a closed post"))).comment as Comment;
+    const onHidden = (await ok(comment(kunal, hidden, "Kunal on a hidden post"))).comment as Comment;
+
+    const missing = await commentsOf(rahul, "nu_doesnotexist1");
+    expect(missing.status).toBe(404);
+    for (const [id, c] of [[closed, onClosed.id], [hidden, onHidden.id]] as const) {
+      expect(await everyAction(rahul, id, c)).toEqual([404, 404, 404, 404, 404]);
+      const r = await commentsOf(rahul, id);
+      expect(r.body).toEqual(missing.body);
+      expect(r.text).not.toMatch(/nectar|oak-sill|Kunal on/);
+    }
+    for (const bad of ["", "nu_", "../x", asha.tenantId, ashaId]) expect((await commentsOf(kunal, bad)).status).toBe(404);
+    // Nothing the stranger tried landed.
+    expect(await bodies(kunal, closed)).toEqual(["Kunal on a closed post"]);
+    expect(await bodies(kunal, hidden)).toEqual(["Kunal on a hidden post"]);
+    expect(((await ok(feed(asha))).updates as (FeedItem & { reactions: { total: number } })[]).find((u) => u.id === closed)!.reactions.total).toBe(0);
+  });
+
+  it("a block, either way, closes each person's posts to the other, and hides their comments from each other", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    await join(asha);
+    const kunalId = await join(kunal);
+    await join(rahul);
+    await ok(post(asha, "Asha to everyone: pearl-tide", "everyone"));
+    await ok(post(kunal, "Kunal to everyone: quill-rock", "everyone"));
+    const hers = (await item(rahul, "Asha to everyone: pearl-tide"))!.id;
+    const his = (await item(rahul, "Kunal to everyone: quill-rock"))!.id;
+    const kunalOnHers = (await ok(comment(kunal, hers, "Kunal was here"))).comment as Comment;
+    const rahulOnHers = (await ok(comment(rahul, hers, "Rahul was here"))).comment as Comment;
+    const rahulOnHis = (await ok(comment(rahul, his, "Rahul on Kunal's post"))).comment as Comment;
+
+    await ok(act(asha, kunalId, { action: "block" }));
+    expect(await everyAction(kunal, hers, rahulOnHers.id)).toEqual([404, 404, 404, 404, 404]);
+    expect(await everyAction(asha, his, rahulOnHis.id)).toEqual([404, 404, 404, 404, 404]);
+    // On her own post she no longer sees his comment, and can't report it either; a third member sees both.
+    expect(await bodies(asha, hers)).toEqual(["Rahul was here"]);
+    expect((await reportC(asha, hers, kunalOnHers.id)).status).toBe(404);
+    expect(await bodies(rahul, hers)).toEqual(["Kunal was here", "Rahul was here"]);
+  });
+
+  it("a post the caller reported, or that three members reported, is closed to them; its author still has it", async () => {
+    const asha = person("asha");
+    const readers = [person("kunal"), person("rahul"), person("meera"), person("dev")];
+    await join(asha);
+    for (const r of readers) await join(r);
+    const [kunal, rahul, meera, dev] = readers;
+    await ok(post(asha, "Disputed: ruby-wren", "everyone"));
+    const id = (await item(dev, "Disputed: ruby-wren"))!.id;
+    const c = (await ok(comment(dev, id, "Dev's comment"))).comment as Comment;
+
+    await ok(reportPost(kunal, id));
+    expect(await everyAction(kunal, id, c.id)).toEqual([404, 404, 404, 404, 404]);
+    expect((await commentsOf(rahul, id)).status).toBe(200);
+    await ok(reportPost(rahul, id));
+    await ok(reportPost(meera, id));
+    expect(await everyAction(dev, id, c.id)).toEqual([404, 404, 404, 404, 404]);
+    // Its author can still read and answer the comments on it, and nothing in the answer says why the others can't.
+    const hers = await ok(commentsOf(asha, id));
+    expect((hers.comments as Comment[]).map((x) => x.body)).toEqual(["Dev's comment"]);
+    expect(JSON.stringify(hers)).not.toMatch(/report|flag|hidden/i);
+  });
+
+  it("nothing is written until the person confirms, and taking a reaction back needs no confirmation", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    await join(asha);
+    await join(kunal);
+    await ok(post(asha, "Gate check: sage-loft", "everyone"));
+    const id = (await item(kunal, "Gate check: sage-loft"))!.id;
+    for (const confirmed of [null, false]) {
+      expect((await react(kunal, id, "like", confirmed)).status).toBe(409);
+      expect((await comment(kunal, id, "Not yet", confirmed)).status).toBe(409);
+      expect((await reshare(kunal, id, confirmed)).status).toBe(409);
+    }
+    expect(await bodies(asha, id)).toEqual([]);
+    const ofHers = ((await ok(feed(asha))).updates as (FeedItem & { reactions: { total: number }; reshares: number })[]).find((u) => u.id === id)!;
+    expect(ofHers).toMatchObject({ reactions: { total: 0 }, reshares: 0 });
+
+    await ok(react(kunal, id, "insightful"));
+    await ok(react(kunal, id, "like")); // one reaction per person: a change, not a second
+    expect(((await ok(feed(asha))).updates as (FeedItem & { reactions: { total: number } })[]).find((u) => u.id === id)!.reactions.total).toBe(1);
+    await ok(react(kunal, id, null, null));
+    expect(((await ok(feed(asha))).updates as (FeedItem & { reactions: { total: number } })[]).find((u) => u.id === id)!.reactions.total).toBe(0);
+    expect((await react(kunal, id, "love")).status).toBe(400);
+    expect((await comment(kunal, id, "   ")).status).toBe(400);
+  });
+
+  it("a comment is removed only by its writer or by the post's author: anyone else gets 404 and it stays", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    await join(asha);
+    await join(kunal);
+    await join(rahul);
+    await ok(post(asha, "Comments here: tide-plume", "everyone"));
+    const id = (await item(kunal, "Comments here: tide-plume"))!.id;
+    const his = (await ok(comment(kunal, id, "Kunal's comment"))).comment as Comment;
+    const rahuls = (await ok(comment(rahul, id, "Rahul's comment"))).comment as Comment;
+    expect(his).toMatchObject({ mine: true, canDelete: true });
+    const asSeenByRahul = ((await ok(commentsOf(rahul, id))).comments as Comment[]).find((c) => c.id === his.id)!;
+    expect(asSeenByRahul).toMatchObject({ mine: false, canDelete: false });
+    expect(((await ok(commentsOf(asha, id))).comments as Comment[]).every((c) => c.canDelete)).toBe(true);
+
+    const refused = await removeComment(rahul, his.id);
+    expect(refused.status).toBe(404);
+    expect(refused.text).not.toMatch(/Kunal/);
+    for (const bad of ["", "nk_", "nk_doesnotexist1", his.id.replace(/^nk_/, "nu_"), "../x"]) expect((await removeComment(kunal, bad)).status).toBe(404);
+    expect(await bodies(asha, id)).toEqual(["Kunal's comment", "Rahul's comment"]);
+
+    await ok(removeComment(kunal, his.id)); // his own
+    await ok(removeComment(asha, rahuls.id)); // one on her post
+    expect(await bodies(asha, id)).toEqual([]);
+    expect((await removeComment(kunal, his.id)).status).toBe(404);
+  });
+
+  it("a reported comment is hidden from its reporter at once and from everyone at three; its writer and the post's author aren't told", async () => {
+    const asha = person("asha");
+    const writer = person("writer");
+    const readers = [person("kunal"), person("rahul"), person("meera"), person("dev")];
+    await join(asha);
+    await join(writer);
+    for (const r of readers) await join(r);
+    const [kunal, rahul, meera, dev] = readers;
+    await ok(post(asha, "A thread: vale-crest", "everyone"));
+    const id = (await item(dev, "A thread: vale-crest"))!.id;
+    const bad = (await ok(comment(writer, id, "A rude comment"))).comment as Comment;
+
+    expect((await reportC(writer, id, bad.id)).status).toBe(404); // not your own
+    expect((await reportC(kunal, id, bad.id, "x")).status).toBe(400);
+    expect((await reportC(kunal, id, "nk_doesnotexist1")).status).toBe(404);
+    expect((await ok(reportC(kunal, id, bad.id))).repeated).toBe(false);
+    expect((await ok(reportC(kunal, id, bad.id))).repeated).toBe(true);
+    expect(await bodies(kunal, id)).toEqual([]);
+    expect(await bodies(dev, id)).toEqual(["A rude comment"]);
+    await ok(reportC(rahul, id, bad.id));
+    await ok(reportC(meera, id, bad.id));
+    expect(await bodies(dev, id)).toEqual([]);
+    // The writer still sees their own comment; nothing in any answer says it was reported.
+    const theirs = await ok(commentsOf(writer, id));
+    expect((theirs.comments as Comment[]).map((c) => c.body)).toEqual(["A rude comment"]);
+    expect(JSON.stringify(theirs)).not.toMatch(/report|flag/i);
+  });
+
+  it("only a post for everyone travels by reshare, once per person, and a reshare of a reshare quotes the original", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    const ashaId = await join(asha);
+    await join(kunal);
+    await join(rahul);
+    await connected(kunal, asha, ashaId);
+    await ok(post(asha, "For connections: wick-hollow"));
+    await ok(post(asha, "For everyone: yarrow-gate", "everyone"));
+    const closed = (await item(kunal, "For connections: wick-hollow"))!.id;
+    const open = (await item(kunal, "For everyone: yarrow-gate"))!.id;
+    // Her own connection can't carry a connections-only post further.
+    expect((await reshare(kunal, closed)).status).toBe(400);
+    expect(JSON.stringify(await ok(feed(rahul)))).not.toContain("wick-hollow");
+
+    await ok(reshare(kunal, open));
+    expect((await reshare(kunal, open)).status).toBe(409);
+    const kunalsReshare = ((await ok(feed(rahul))).updates as (FeedItem & { reshareOf?: { id: string } })[]).find((u) => u.member.name.startsWith("Kunal") && u.text === "Worth reading")!;
+    expect(kunalsReshare).toBeTruthy();
+    // Resharing Kunal's reshare quotes Asha's post, so it counts once for her and can't be done twice.
+    await ok(reshare(rahul, kunalsReshare.id));
+    expect((await reshare(rahul, open)).status).toBe(409);
+    const ofHers = ((await ok(feed(asha))).updates as (FeedItem & { reshares: number })[]).find((u) => u.id === open)!;
+    expect(ofHers.reshares).toBe(2);
+  });
+
+  it("comments name their writers only as the reader may see them, and carry no account id or email", async () => {
+    const asha = person("asha");
+    const shy = person("shy"); // full name for connections only, headline hidden
+    const kunal = person("kunal");
+    await join(asha);
+    await join(shy, { tiers: { ...TIERS, name: "connections", headline: "hidden", about: "hidden" } });
+    await join(kunal);
+    await ok(post(asha, "Open thread: zinc-pier", "everyone"));
+    const id = (await item(kunal, "Open thread: zinc-pier"))!.id;
+    await ok(comment(shy, id, "From the shy one"));
+    const r = await ok(commentsOf(kunal, id));
+    const [c] = r.comments as (Comment & Record<string, unknown>)[];
+    expect(Object.keys(c).sort()).toEqual(["at", "body", "canDelete", "id", "member", "mine"]);
+    expect(c.member.name).toBe("Shy N.");
+    expect(c.member).not.toHaveProperty("headline");
+    expect(JSON.stringify(r)).not.toMatch(/Nettest|About Shy/);
+    expectNoAccountDetails(JSON.stringify(r), asha, shy, kunal);
+  });
+});
