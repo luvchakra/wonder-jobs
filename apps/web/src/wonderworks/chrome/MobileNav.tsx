@@ -75,7 +75,7 @@ export function MobileNav() {
           </div>
         </Modal>
       )}
-      {create === "post" && <PostSheet module={selected} onClose={() => setCreate(null)} />}
+      {create === "post" && <PostSheet onClose={() => setCreate(null)} />}
       {/* The account menu (help, account, sign out) within thumb's reach, above the bar. */}
       {!barShown && (
         <button
