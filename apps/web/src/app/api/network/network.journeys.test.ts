@@ -23,6 +23,9 @@ import * as personRoute from "./people/[id]/route";
 import * as photoRoute from "./people/[id]/photo/route";
 import * as connections from "./connections/route";
 import * as connection from "./connections/[id]/route";
+import * as threads from "./threads/route";
+import * as threadRoute from "./threads/[id]/route";
+import * as updatesRoute from "./updates/route";
 
 /* ---- helpers ------------------------------------------------------------------------------------------------ */
 let n = 0;
@@ -77,6 +80,12 @@ const answer = (who: Actor | null, id: string, action: string) => call(who, conn
 const mine = (who: Actor | null) => call(who, connections.GET);
 const find = (who: Actor | null, q = "") => call(who, peopleRoute.GET, { path: `/api/network/people?q=${encodeURIComponent(q)}` });
 const photo = (who: Actor | null, id: string) => call(who, photoRoute.GET, { params: { id } });
+const inbox = (who: Actor | null) => call(who, threads.GET);
+const read = (who: Actor | null, id: string) => call(who, threadRoute.GET, { params: { id } });
+/** `confirmed: null` leaves the field out, as a caller that never confirmed would. */
+const write = (who: Actor | null, id: string, body: string, confirmed: boolean | null = true) => call(who, threadRoute.POST, { method: "POST", body: { body, confirmed: confirmed ?? undefined }, params: { id } });
+const feed = (who: Actor | null) => call(who, updatesRoute.GET);
+const share = (who: Actor | null, page: string, title = "Platform Engineer at Acme") => call(who, updatesRoute.POST, { method: "POST", body: { page, title } });
 const givePhoto = (who: Actor) => stateStore.put(who.tenantId, "wj.avatar", { data: Buffer.from(`photo of ${who.tenantId}`).toString("base64"), type: "image/png", updatedAt: "2026-11-21" });
 
 /** Two members who are connected: `a` asked, `b` accepted. */
@@ -112,6 +121,9 @@ describe("signed out", () => {
       [photoRoute.GET, "GET"],
       [connections.GET, "GET"],
       [connection.POST, "POST"],
+      [threads.GET, "GET"],
+      [threadRoute.GET, "GET"], [threadRoute.POST, "POST"],
+      [updatesRoute.GET, "GET"], [updatesRoute.POST, "POST"],
     ];
     for (const [r, method] of routes) {
       const res = await call(null, r, { method, body: method === "GET" || method === "DELETE" ? undefined : { action: "connect", confirmed: true }, params: { id: ashaId } });
@@ -126,7 +138,7 @@ describe("signed out", () => {
     const { join: path } = await import("node:path");
     const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path(dir, e.name)) : e.name === "route.ts" ? [path(dir, e.name)] : []));
     const found = walk(__dirname).map((f) => f.slice(__dirname.length + 1).replace(/\\/g, "/")).sort();
-    expect(found).toEqual(["connections/[id]/route.ts", "connections/route.ts", "me/route.ts", "people/[id]/photo/route.ts", "people/[id]/route.ts", "people/route.ts"]);
+    expect(found).toEqual(["connections/[id]/route.ts", "connections/route.ts", "me/route.ts", "people/[id]/photo/route.ts", "people/[id]/route.ts", "people/route.ts", "threads/[id]/route.ts", "threads/route.ts", "updates/route.ts"]);
   });
 });
 
@@ -139,7 +151,7 @@ describe("someone who hasn't joined", () => {
     const ashaId = await join(asha);
 
     expect((await ok(call(visitor, me.GET))).profile).toBeNull();
-    for (const r of [await find(visitor, "asha"), await find(visitor), await view(visitor, ashaId), await mine(visitor), await ask(visitor, ashaId), await act(visitor, ashaId, { action: "block" }), await act(visitor, ashaId, { action: "report", reason: "spam profile" }), await answer(visitor, "nc_abcdefgh12", "accept")]) {
+    for (const r of [await find(visitor, "asha"), await find(visitor), await view(visitor, ashaId), await mine(visitor), await ask(visitor, ashaId), await act(visitor, ashaId, { action: "block" }), await act(visitor, ashaId, { action: "report", reason: "spam profile" }), await answer(visitor, "nc_abcdefgh12", "accept"), await inbox(visitor), await read(visitor, "nc_abcdefgh12"), await write(visitor, "nc_abcdefgh12", "Hello"), await feed(visitor), await share(visitor, "/j/job_1")]) {
       expect(r.status, r.text).toBe(409);
       expect(r.body.error).toMatch(/Turn on your network profile/);
       expect(r.text).not.toContain("Asha");
@@ -402,6 +414,177 @@ describe("a block", () => {
   });
 });
 
+/* ---- messages --------------------------------------------------------------------------------------------------- */
+describe("messages", () => {
+  it("go only between two connected people: not on a waiting request, and not until the sender confirms", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const ashaId = await join(asha);
+    const kunalId = await join(kunal);
+    const id = (await ok(ask(kunal, ashaId))).member.connectionId as string;
+
+    // A request is not a conversation, for either of them.
+    for (const who of [asha, kunal]) {
+      expect((await read(who, id)).status).toBe(404);
+      expect((await write(who, id, "Before you accept")).status).toBe(404);
+    }
+    await ok(answer(asha, id, "accept"));
+    expect((await ok(read(kunal, id))).messages).toEqual([]);
+
+    // The setting can't be read here, so the gate asks: nothing goes without the sender's confirmation.
+    expect((await write(kunal, id, "Unconfirmed", null)).status).toBe(409);
+    expect((await write(kunal, id, "Unconfirmed", false)).status).toBe(409);
+    expect((await ok(read(asha, id))).messages).toEqual([]);
+    expect((await write(kunal, id, "   ")).status).toBe(400);
+    expect((await write(kunal, id, "")).status).toBe(400);
+
+    const { message } = await ok(write(kunal, id, "Hello Asha, good to connect"));
+    // A message carries its words, its time and whose it is to the reader. Never who sent it by account.
+    expect(Object.keys(message).sort()).toEqual(["at", "body", "id", "mine"]);
+    expect(message).toMatchObject({ mine: true, body: "Hello Asha, good to connect" });
+
+    const seen = await ok(read(asha, id));
+    expect(seen.member.id).toBe(kunalId);
+    expect(seen.messages.map((m: { body: string; mine: boolean }) => [m.body, m.mine])).toEqual([["Hello Asha, good to connect", false]]);
+    await ok(write(asha, id, "Hello Kunal"));
+    expect((await ok(read(kunal, id))).messages.map((m: { body: string; mine: boolean }) => [m.body, m.mine])).toEqual([["Hello Asha, good to connect", true], ["Hello Kunal", false]]);
+
+    const [mineNow] = (await ok(inbox(asha))).threads;
+    expect(mineNow).toMatchObject({ id, last: { body: "Hello Kunal", mine: true } });
+    expect(mineNow.member.id).toBe(kunalId);
+  });
+
+  it("can't be read, listed or written by anyone else, member or not", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    const outsider = person("outsider"); // signed in, never joined
+    const ashaId = await join(asha);
+    await join(kunal);
+    await join(rahul);
+    const id = await connected(kunal, asha, ashaId);
+    await connected(rahul, asha, ashaId); // Rahul is Asha's connection too: that gives him nothing of Kunal's.
+    await ok(write(kunal, id, "For Asha only: zebra-crossing"));
+
+    for (const r of [await read(rahul, id), await write(rahul, id, "Let me in")]) {
+      expect(r.status).toBe(404);
+      expect(r.text).not.toMatch(/zebra|Asha|Kunal/);
+    }
+    for (const r of [await read(outsider, id), await write(outsider, id, "Let me in"), await inbox(outsider)]) expect(r.status).toBe(409);
+    expect(JSON.stringify(await ok(inbox(rahul)))).not.toContain("zebra");
+    expect((await ok(inbox(rahul))).threads).toEqual([]);
+    // Nothing of Rahul's attempt was stored.
+    expect((await ok(read(asha, id))).messages).toHaveLength(1);
+    // Ids that aren't connection ids, or are someone's account or profile id, find nothing.
+    for (const bad of ["nc_", "nc_doesnotexist1", asha.tenantId, ashaId, "../x"]) {
+      expect((await read(kunal, bad)).status).toBe(404);
+      expect((await write(kunal, bad, "Hello")).status).toBe(404);
+    }
+  });
+
+  it("stop for both the moment the connection ends, by removal or by a block", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    const ashaId = await join(asha);
+    const kunalId = await join(kunal);
+    await join(rahul);
+
+    const removed = await connected(kunal, asha, ashaId);
+    await ok(write(kunal, removed, "Before removal"));
+    await ok(answer(asha, removed, "remove"));
+    for (const who of [asha, kunal]) {
+      expect((await read(who, removed)).status).toBe(404);
+      expect((await write(who, removed, "After removal")).status).toBe(404);
+      expect((await ok(inbox(who))).threads).toEqual([]);
+    }
+
+    const blocked = await connected(rahul, asha, ashaId);
+    await ok(write(rahul, blocked, "Before the block"));
+    await ok(act(asha, (await ok(call(rahul, me.GET))).profile.publicId, { action: "block" }));
+    for (const who of [asha, rahul]) {
+      const r = await read(who, blocked);
+      expect(r.status).toBe(404);
+      expect(r.text).not.toContain("Before the block");
+      expect((await write(who, blocked, "After the block")).status).toBe(404);
+      expect((await ok(inbox(who))).threads).toEqual([]);
+    }
+    expect(kunalId).toMatch(/^np_/);
+  });
+
+  it("stop when the other person leaves the network", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const ashaId = await join(asha);
+    await join(kunal);
+    const id = await connected(kunal, asha, ashaId);
+    await ok(write(kunal, id, "Are you there?"));
+    await ok(call(asha, me.DELETE, { method: "DELETE" }));
+    expect((await read(kunal, id)).status).toBe(404);
+    expect((await write(kunal, id, "Hello?")).status).toBe(404);
+    expect((await ok(inbox(kunal))).threads).toEqual([]);
+  });
+});
+
+/* ---- updates ---------------------------------------------------------------------------------------------------- */
+describe("updates", () => {
+  it("show only what connections chose to share: never a stranger's, never from someone who turned sharing off", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    const quiet = person("quiet");
+    const ashaId = await join(asha);
+    await join(kunal);
+    await join(rahul);
+    const quietId = await join(quiet, { shareUpdates: false });
+    const id = await connected(kunal, asha, ashaId);
+    await connected(kunal, quiet, quietId);
+
+    await ok(call(asha, me.PUT, { method: "PUT", body: profileOf(asha, { statuses: ["open_to_work"] }) }));
+    await ok(call(quiet, me.PUT, { method: "PUT", body: profileOf(quiet, { shareUpdates: false, statuses: ["open_to_work"] }) }));
+
+    const { updates } = await ok(feed(kunal));
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toMatchObject({ kind: "status:open_to_work", text: "is open to work.", connectionId: id, href: `/app/network/${ashaId}` });
+    expect(updates[0].member.id).toBe(ashaId);
+    expect(Object.keys(updates[0]).sort()).toEqual(["at", "connectionId", "href", "id", "kind", "member", "module", "text"]);
+    // Rahul is on the network but not Asha's connection; Asha doesn't see her own.
+    expect((await ok(feed(rahul))).updates).toEqual([]);
+    expect((await ok(feed(asha))).updates).toEqual([]);
+  });
+
+  it("a shared listing must be a listing's public page, and reaches connections only", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    const ashaId = await join(asha);
+    const kunalId = await join(kunal);
+    await join(rahul);
+    await connected(kunal, asha, ashaId);
+
+    // Anything but /j/<id> or /s/<module>/<id> is refused: no outside links, no app pages, no path tricks.
+    for (const page of ["https://evil.example/j/x", "//evil.example/j/x", "/app/you", "/j/../app/you", "/j/a/b", "/s/Jobs/x", "/s/jobs/", "javascript:alert(1)", "/j/x?next=//evil.example", ""]) {
+      expect((await share(asha, page)).status, page).toBe(400);
+    }
+    expect((await share(asha, "/j/job_1", " ")).status).toBe(400);
+    expect((await ok(feed(kunal))).updates).toEqual([]);
+
+    await ok(share(asha, "/j/job_1"));
+    await ok(share(asha, "/j/job_1")); // the same listing again adds nothing
+    await ok(share(asha, "/s/internships/int_9", "Summer intern\n  at  Acme"));
+    const { updates } = await ok(feed(kunal));
+    expect(updates.map((u: { href: string; module: string; text: string }) => [u.href, u.module, u.text]).sort()).toEqual([
+      ["/j/job_1", "jobs", "shared a listing: Platform Engineer at Acme"],
+      ["/s/internships/int_9", "internships", "shared a listing: Summer intern at Acme"],
+    ]);
+    expect((await ok(feed(rahul))).updates).toEqual([]);
+
+    // A block, or the end of the connection, takes them out of the feed.
+    await ok(act(asha, kunalId, { action: "block" }));
+    expect((await ok(feed(kunal))).updates).toEqual([]);
+  });
+});
+
 /* ---- nothing that identifies an account leaves ------------------------------------------------------------------ */
 describe("every response", () => {
   it("carries public ids only: no account id and no email, in answers and in refusals", async () => {
@@ -434,7 +617,21 @@ describe("every response", () => {
     await keep(find(kunal, "IAM"));
     await keep(find(rahul, "Nettest"));
     await keep(mine(asha));
+    const conn = req.body.member.connectionId as string;
+    await keep(write(kunal, conn, "Hello Asha"));
+    await keep(write(asha, conn, "Hello Kunal"));
+    await keep(read(kunal, conn));
+    await keep(read(asha, conn));
+    await keep(inbox(asha));
+    await keep(inbox(kunal));
+    await keep(call(asha, me.PUT, { method: "PUT", body: profileOf(asha, { statuses: ["hiring"] }) }));
+    await keep(share(asha, "/j/job_1"));
+    await keep(feed(kunal));
+    await keep(feed(rahul));
     // Refusals.
+    await keep(read(rahul, conn));
+    await keep(write(rahul, conn, "Let me in"));
+    await keep(share(kunal, "https://evil.example"));
     await keep(view(kunal, asha.tenantId));
     await keep(answer(rahul, req.body.member.connectionId, "remove"));
     await keep(ask(kunal, ashaId));
@@ -442,7 +639,7 @@ describe("every response", () => {
     await keep(act(kunal, rahulId, { action: "block" }));
     await keep(view(kunal, rahulId));
 
-    expect(sent.length).toBeGreaterThan(15);
+    expect(sent.length).toBeGreaterThan(30);
     for (const text of sent) expectNoAccountDetails(text, ...all);
     // And the ids that do leave are the public ones.
     expect((await ok(mine(asha))).connections.map((c: { id: string }) => c.id).sort()).toEqual([kunalId, rahulId].sort());

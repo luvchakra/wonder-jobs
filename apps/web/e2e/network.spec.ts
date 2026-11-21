@@ -4,9 +4,10 @@ import { supabaseConfigured } from "./fixtures/auth";
 import { openApp } from "./fixtures/sample";
 
 /**
- * WonderWorks Network (WJ-811), two people each in their own browser with their own account: both join from
- * My network profile, one asks the other to connect with a note, the other sees the note and accepts, and each
- * then lists the other as a connection. A third account that never joined can't open either of them.
+ * WonderWorks Network (WJ-811, WJ-812), two people each in their own browser with their own account: both join
+ * from My network profile, one asks the other to connect with a note, the other sees the note and accepts, each
+ * then lists the other as a connection, and a message one sends shows in the other's Messages. A third account
+ * that never joined can't open either of them or their conversation.
  *
  * Local build only (no Supabase: in-memory tables, each browser its own tenant; E2E_LEGACY_EMAIL=1 says a server
  * named by PLAYWRIGHT_BASE_URL is such a build, as in hiring.spec.ts). Both people start from the same
@@ -16,6 +17,10 @@ import { openApp } from "./fixtures/sample";
 const LOCAL = !supabaseConfigured() && (!process.env.PLAYWRIGHT_BASE_URL || process.env.E2E_LEGACY_EMAIL === "1");
 const token = `zq${randomBytes(3).toString("hex")}`;
 const NOTE = `We met at the IAM meetup ${token}`;
+const HELLO = `Good to connect ${token}`;
+const REPLY = `Likewise ${token}`;
+/** A message in the open conversation: its bubble. */
+const bubble = (page: Page, text: string) => page.locator("p").filter({ hasText: new RegExp(`^${text}$`) });
 
 type Person = { ctx: BrowserContext; page: Page; id: string };
 
@@ -45,6 +50,7 @@ async function join(p: Person): Promise<string> {
 test.describe("Network — two people connect", () => {
   test.describe.configure({ mode: "serial", timeout: 180_000 });
   const people: Partial<Record<"asha" | "kunal" | "visitor", Person>> = {};
+  let conversation = ""; // /app/network/messages/<connection id>
 
   test.beforeEach(async ({}, info) => {
     info.skip(info.project.name !== "chromium", "Desktop Chromium");
@@ -109,18 +115,55 @@ test.describe("Network — two people connect", () => {
     await expect(kunal.page.getByRole("button", { name: "Connect" })).toHaveCount(0);
   });
 
-  test("NET-004 an account that never joined can't read either profile, and nothing sent to a browser names an account", async ({ browser }) => {
+  test("NET-004 a message to a connection shows in their Messages, and the reply comes back", async () => {
+    const { asha, kunal } = people as Required<typeof people>;
+    await kunal.page.goto(`/app/network/${asha.id}`);
+    await kunal.page.getByRole("link", { name: "Message" }).click();
+    await expect(kunal.page).toHaveURL(/\/app\/network\/messages\/nc_/);
+    conversation = new URL(kunal.page.url()).pathname;
+    await expect(kunal.page.getByText("No messages yet. Say hello.")).toBeVisible({ timeout: 20_000 });
+    await kunal.page.getByRole("textbox", { name: "Message" }).fill(HELLO);
+    await kunal.page.getByRole("button", { name: "Send" }).click();
+    await expect(bubble(kunal.page, HELLO)).toBeVisible();
+
+    // The other person finds it in Messages, marked as from a connection, and opens the conversation.
+    await asha.page.goto("/app/network/messages");
+    const row = asha.page.locator(`a[href="${conversation}"]`);
+    await expect(row).toBeVisible({ timeout: 20_000 });
+    await expect(row).toContainText(HELLO);
+    await expect(row).toContainText("Connection");
+    await row.click();
+    await expect(bubble(asha.page, HELLO)).toBeVisible({ timeout: 20_000 });
+    await asha.page.getByRole("textbox", { name: "Message" }).fill(REPLY);
+    await asha.page.getByRole("button", { name: "Send" }).click();
+    await expect(bubble(asha.page, REPLY)).toBeVisible();
+
+    await kunal.page.goto(conversation);
+    await expect(bubble(kunal.page, REPLY)).toBeVisible({ timeout: 20_000 });
+    await kunal.page.goto("/app/network/messages");
+    await expect(kunal.page.locator(`a[href="${conversation}"]`)).toContainText(REPLY, { timeout: 20_000 });
+  });
+
+  test("NET-005 an account that never joined can't read either profile or the conversation, and nothing sent to a browser names an account", async ({ browser }) => {
     const { asha, kunal } = people as Required<typeof people>;
     const visitor = (people.visitor = await person(browser, "/app/network"));
     await expect(visitor.page.getByRole("heading", { name: "Join the network" })).toBeVisible({ timeout: 30_000 });
-    for (const path of [`/api/network/people/${asha.id}`, `/api/network/people/${asha.id}/photo`, "/api/network/people?q=alex", "/api/network/connections"]) {
+    const thread = `/api/network/threads/${conversation.split("/").pop()}`;
+    for (const path of [`/api/network/people/${asha.id}`, `/api/network/people/${asha.id}/photo`, "/api/network/people?q=alex", "/api/network/connections", "/api/network/threads", thread, "/api/network/updates"]) {
       const res = await visitor.page.request.get(path);
       expect(res.status(), path).toBe(409);
-      expect(await res.text()).not.toContain(asha.id);
+      const text = await res.text();
+      expect(text).not.toContain(asha.id);
+      expect(text).not.toContain(token);
     }
+    expect((await visitor.page.request.post(thread, { data: { body: "Let me in", confirmed: true } })).status()).toBe(409);
+    await visitor.page.goto(conversation);
+    await expect(visitor.page.getByText("Conversation not available")).toBeVisible({ timeout: 20_000 });
+    await expect(visitor.page.getByText(HELLO)).toHaveCount(0);
+    await expect(visitor.page.getByRole("textbox", { name: "Message" })).toHaveCount(0);
     // (Signed out is 401 on every route: src/app/api/network/network.journeys.test.ts. A local build has no sign-in.)
     // What a connected member's browser receives: network ids, never an account id or an email.
-    for (const path of ["/api/network/connections", `/api/network/people/${asha.id}`, "/api/network/people?q=product"]) {
+    for (const path of ["/api/network/connections", `/api/network/people/${asha.id}`, "/api/network/people?q=product", "/api/network/threads", thread, "/api/network/updates"]) {
       const res = await kunal.page.request.get(path);
       expect(res.status(), path).toBe(200);
       const text = await res.text();
