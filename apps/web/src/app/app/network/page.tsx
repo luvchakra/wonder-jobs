@@ -77,9 +77,9 @@ function NetworkPage() {
       await networkApi.act(m.connectionId, action);
       toast.success(done);
       // Both lists show where each person stands, so both are read again.
-      const [m, p] = await Promise.all([networkApi.mine(), networkApi.people(searched)]);
-      setMine(m);
-      setList(p.people);
+      const [net, found] = await Promise.all([networkApi.mine(), networkApi.people(searched)]);
+      setMine(net);
+      setList(found.people);
     } catch (e) {
       toast.error("That didn't go through", (e as Error).message);
     }
