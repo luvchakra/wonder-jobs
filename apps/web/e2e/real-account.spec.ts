@@ -109,8 +109,13 @@ test.describe("Real account — production walk-through", () => {
     }).toPass({ timeout: 150_000 });
 
     // Decide → Apply with Wonder on a real posting, guided (nothing is submitted). Apply with Wonder is a paid-plan
-    // feature; pre-launch, a test account switches plans through the audited test-plan route.
-    expect((await page.request.post("/api/billing/test-plan", { data: { plan: "max" } })).status()).toBe(200);
+    // feature. Where no payment provider is connected, a test account switches plans through the audited test-plan
+    // route. Where payments are live (production, since 2026-11) that route refuses everyone but a platform admin,
+    // and there is deliberately no way past billing for a test account: the walk-through then stops at what a Free
+    // account sees, and the paid steps stay covered by the local part (jobs-apply.spec.ts).
+    const switched = await page.request.post("/api/billing/test-plan", { data: { plan: "max" } });
+    expect([200, 403], await switched.text()).toContain(switched.status());
+    const paid = switched.status() === 200;
     await page.goto("/app/jobs");
     // A posting on an employer's own site: a job posted on WonderJobs (its card's Apply is "Easy Apply to …") is
     // applied to on WonderJobs itself with one tap, not through the guided page.
@@ -121,6 +126,26 @@ test.describe("Real account — production walk-through", () => {
     await openDescription(page);
     await page.getByText("Sources & hiring signals", { exact: true }).click({ timeout: 20_000 });
     await expect(page.getByText("Where this job was found")).toBeVisible();
+    if (!paid) {
+      // Free: the job page says which plan has Easy Apply, offers the listing itself, and no guided session exists.
+      await expect(page.getByText("Easy Apply fills the employer's form for you.")).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole("link", { name: /^Included in .+ ›$/ })).toHaveAttribute("href", "/app/profile#plan");
+      await expect(page.getByRole("link", { name: "Easy Apply" })).toHaveCount(0);
+      const listing = page.getByRole("link", { name: /Go to the job listing/ });
+      await expect(listing).toHaveAttribute("href", /^https:\/\//);
+      await expect(listing).toHaveAttribute("target", "_blank");
+      const none = await (await page.request.get("/api/jobs-apply/sessions")).json();
+      expect((none.sessions ?? none) as unknown[]).toEqual([]);
+      // Isolation: a second account sees none of the first account's profile.
+      const other = await freshSignedIn(browser, "isolation");
+      accounts.push(other.account);
+      await other.page.goto("/app/career-dna");
+      await expect(other.page.getByRole("heading", { name: "Career Profile" })).toBeVisible({ timeout: 20_000 });
+      await expect(other.page.locator("#name")).not.toHaveValue(NAME);
+      await other.close();
+      await a.close();
+      return;
+    }
     // On a computer the job page offers Easy Apply, which opens the guided page.
     await page.getByRole("link", { name: "Easy Apply" }).click({ timeout: 20_000 });
     await expect(page.getByRole("heading", { name: "How would you like to apply?" })).toBeVisible({ timeout: 30_000 });

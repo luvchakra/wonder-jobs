@@ -1,19 +1,26 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
-import { supabaseConfigured } from "./fixtures/auth";
+import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { ERASE_PHRASE } from "../src/content/privacy";
 import { openApp } from "./fixtures/sample";
 
 /**
  * WonderWorks Network (WJ-811, WJ-812), two people each in their own browser with their own account: both join
  * from My network profile, one asks the other to connect with a note, the other sees the note and accepts, each
  * then lists the other as a connection, and a message one sends shows in the other's Messages. A third account
- * that never joined can't open either of them or their conversation.
+ * that never joined can't open either of them or their conversation. Last, one of them deletes their account and
+ * is gone from the other's network, conversation included.
  *
- * Local build only (no Supabase: in-memory tables, each browser its own tenant; E2E_LEGACY_EMAIL=1 says a server
- * named by PLAYWRIGHT_BASE_URL is such a build, as in hiring.spec.ts). Both people start from the same
- * sample Career Profile, so they share a name; they are told apart by their network ids and by the note, which
- * carries a word nothing else contains.
+ * Two ways to run, as hiring.spec.ts:
+ *   - a local build without Supabase (in-memory tables, each browser its own tenant; E2E_LEGACY_EMAIL=1 says a
+ *     server named by PLAYWRIGHT_BASE_URL is such a build). Both people start from the same sample Career Profile,
+ *     so they share a name; they are told apart by their network ids and by the note's own word.
+ *   - a local build on the Supabase project (the nightly's signed-in part): each person is a disposable
+ *     wj-e2e-*@example.com account that signs in for real and puts a name on its Career Profile. Both delete their
+ *     accounts through the product at the end, which is what removes their network data (WJ-815).
+ * Against a deployment it doesn't run: the production part is the real-account walk-through only.
  */
+const REAL = supabaseConfigured() && !process.env.PLAYWRIGHT_BASE_URL;
 const LOCAL = !supabaseConfigured() && (!process.env.PLAYWRIGHT_BASE_URL || process.env.E2E_LEGACY_EMAIL === "1");
 const token = `zq${randomBytes(3).toString("hex")}`;
 const NOTE = `We met at the IAM meetup ${token}`;
@@ -22,14 +29,31 @@ const REPLY = `Likewise ${token}`;
 /** A message in the open conversation: its bubble. */
 const bubble = (page: Page, text: string) => page.locator("p").filter({ hasText: new RegExp(`^${text}$`) });
 
-type Person = { ctx: BrowserContext; page: Page; id: string };
+type Person = { ctx: BrowserContext; page: Page; id: string; account?: TestAccount };
 
-async function person(browser: Browser, next: string): Promise<Person> {
+async function person(browser: Browser, next: string, tag: string, accounts: TestAccount[]): Promise<Person> {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await openApp(page, next);
-  return { ctx, page, id: "" };
+  if (!REAL) {
+    await openApp(page, next);
+    return { ctx, page, id: "" };
+  }
+  const account = await createTestAccount(`net-${tag}`);
+  accounts.push(account);
+  await signInThroughUI(page, account);
+  await skipOnboardingIfShown(page);
+  // A network profile comes from the Career Profile, and needs a name there.
+  await page.goto("/app/career-dna");
+  await page.locator("#name").fill(`${tag[0].toUpperCase()}${tag.slice(1)} Nettest`);
+  await page.locator("#headline").fill("Product Manager");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Career Profile updated")).toBeVisible();
+  await page.goto(next);
+  return { ctx, page, id: "", account };
 }
+
+/** Deletes the signed-in account through the product itself ("Delete my account"), as the person would. */
+const deleteOwnAccount = (p: Person) => p.page.request.post("/api/privacy/erase", { data: { confirm: ERASE_PHRASE } });
 
 /** Joins from My network profile and returns the member's network id (from "See my profile"). */
 async function join(p: Person): Promise<string> {
@@ -50,18 +74,23 @@ async function join(p: Person): Promise<string> {
 test.describe("Network — two people connect", () => {
   test.describe.configure({ mode: "serial", timeout: 180_000 });
   const people: Partial<Record<"asha" | "kunal" | "visitor", Person>> = {};
+  const accounts: TestAccount[] = [];
   let conversation = ""; // /app/network/messages/<connection id>
 
   test.beforeEach(async ({}, info) => {
     info.skip(info.project.name !== "chromium", "Desktop Chromium");
-    info.skip(!LOCAL, "BLOCKED: Network's tables (migration 0051) aren't on the Supabase project yet; this journey runs on a local build");
+    info.skip(!LOCAL && !REAL, "BLOCKED: runs on a local build (with or without the Supabase project), not against a deployment");
   });
   test.afterAll(async () => {
+    // If the journey stopped early, the people who joined still delete their accounts the product's way, which is what
+    // removes their network data; the sweep after it is for the accounts themselves (already gone is fine).
+    if (REAL) for (const p of [people.asha, people.kunal]) await (p ? deleteOwnAccount(p) : Promise.resolve()).catch(() => {});
     for (const p of Object.values(people)) await p?.ctx.close().catch(() => {});
+    for (const a of accounts) await deleteTestAccount(a.id);
   });
 
   test("NET-001 someone who hasn't joined is asked to join, and both people join from My network profile", async ({ browser }) => {
-    const asha = (people.asha = await person(browser, "/app/network"));
+    const asha = (people.asha = await person(browser, "/app/network", "asha", accounts));
     await expect(asha.page.getByRole("heading", { name: "Join the network" })).toBeVisible({ timeout: 30_000 });
     await asha.page.getByRole("link", { name: "Set up my network profile" }).click();
     await expect(asha.page).toHaveURL(/\/app\/network\/profile/);
@@ -69,7 +98,7 @@ test.describe("Network — two people connect", () => {
     await expect(asha.page.getByText("Your email and phone are never shown.")).toBeVisible();
     await join(asha);
 
-    const kunal = (people.kunal = await person(browser, "/app/network/profile"));
+    const kunal = (people.kunal = await person(browser, "/app/network/profile", "kunal", accounts));
     await join(kunal);
     expect(kunal.id).not.toBe(asha.id);
   });
@@ -146,7 +175,7 @@ test.describe("Network — two people connect", () => {
 
   test("NET-005 an account that never joined can't read either profile or the conversation, and nothing sent to a browser names an account", async ({ browser }) => {
     const { asha, kunal } = people as Required<typeof people>;
-    const visitor = (people.visitor = await person(browser, "/app/network"));
+    const visitor = (people.visitor = await person(browser, "/app/network", "visitor", accounts));
     await expect(visitor.page.getByRole("heading", { name: "Join the network" })).toBeVisible({ timeout: 30_000 });
     const thread = `/api/network/threads/${conversation.split("/").pop()}`;
     for (const path of [`/api/network/people/${asha.id}`, `/api/network/people/${asha.id}/photo`, "/api/network/people?q=alex", "/api/network/connections", "/api/network/threads", thread, "/api/network/updates"]) {
@@ -168,6 +197,27 @@ test.describe("Network — two people connect", () => {
       expect(res.status(), path).toBe(200);
       const text = await res.text();
       expect(text).not.toMatch(/u-e2e-|wj-e2e-|@example\.com|tenant/i);
+      for (const a of accounts) expect(text).not.toContain(a.id);
     }
+  });
+
+  test("NET-006 deleting an account takes the person, the connection and the conversation off the network", async () => {
+    const { asha, kunal } = people as Required<typeof people>;
+    const thread = `/api/network/threads/${conversation.split("/").pop()}`;
+    const erased = await deleteOwnAccount(asha);
+    expect(erased.status(), await erased.text()).toBe(200);
+    // For the other person she is as if she had never been there, and nothing of the conversation is left to read.
+    expect((await kunal.page.request.get(`/api/network/people/${asha.id}`)).status()).toBe(404);
+    const gone = await kunal.page.request.get(thread);
+    expect(gone.status()).toBe(404);
+    expect(await gone.text()).not.toContain(token);
+    expect(await (await kunal.page.request.get("/api/network/connections")).json()).toEqual({ connections: [], invitations: [], sent: [] });
+    expect((await (await kunal.page.request.get("/api/network/threads")).json()).threads).toEqual([]);
+    await kunal.page.goto(conversation);
+    await expect(kunal.page.getByText("Conversation not available")).toBeVisible({ timeout: 20_000 });
+    await kunal.page.goto("/app/network?tab=connections");
+    await expect(kunal.page.getByText("No connections yet.")).toBeVisible({ timeout: 20_000 });
+    // He deletes his too: nothing of either is left behind.
+    expect((await deleteOwnAccount(kunal)).status()).toBe(200);
   });
 });
