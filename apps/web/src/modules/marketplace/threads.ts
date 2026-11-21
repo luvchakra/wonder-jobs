@@ -15,6 +15,11 @@ export interface ThreadView {
   may: ReturnType<typeof mayDo>;
   contacts: { email: string }[];
   youSharedContact: boolean;
+  /**
+   * The counterpart's WonderWorks Network profile id (public, never an account id): present only once they have shared their
+   * contact details in this conversation, i.e. once you may know who they are, and only when the network lets you see them.
+   */
+  networkId?: string;
   youMarkedDone?: boolean;
   createdAt: string;
   updatedAt: string;
