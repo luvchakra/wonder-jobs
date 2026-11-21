@@ -86,6 +86,14 @@ const read = (who: Actor | null, id: string) => call(who, threadRoute.GET, { par
 const write = (who: Actor | null, id: string, body: string, confirmed: boolean | null = true) => call(who, threadRoute.POST, { method: "POST", body: { body, confirmed: confirmed ?? undefined }, params: { id } });
 const feed = (who: Actor | null) => call(who, updatesRoute.GET);
 const share = (who: Actor | null, page: string, title = "Platform Engineer at Acme") => call(who, updatesRoute.POST, { method: "POST", body: { page, title } });
+/** `confirmed: null` leaves the field out. */
+const post = (who: Actor | null, text: string, audience?: "connections" | "everyone", confirmed: boolean | null = true) => call(who, updatesRoute.POST, { method: "POST", body: { text, audience, confirmed: confirmed ?? undefined } });
+const reportPost = (who: Actor | null, id: string, reason = "Spam, not about work") => call(who, updatesRoute.POST, { method: "POST", body: { action: "report", id, reason } });
+const removePost = (who: Actor | null, id: string) => call(who, updatesRoute.DELETE, { method: "DELETE", path: `/api/network/updates?id=${encodeURIComponent(id)}` });
+type FeedItem = { id: string; text: string; kind: string; mine: boolean; connectionId?: string; member: { id: string; name: string } };
+/** What a member's feed holds, as [text, mine] pairs, newest first. */
+const texts = async (who: Actor) => ((await ok(feed(who))).updates as FeedItem[]).map((u) => u.text);
+const item = async (who: Actor, text: string) => ((await ok(feed(who))).updates as FeedItem[]).find((u) => u.text === text);
 const givePhoto = (who: Actor) => stateStore.put(who.tenantId, "wj.avatar", { data: Buffer.from(`photo of ${who.tenantId}`).toString("base64"), type: "image/png", updatedAt: "2026-11-21" });
 
 /** Two members who are connected: `a` asked, `b` accepted. */
@@ -123,7 +131,7 @@ describe("signed out", () => {
       [connection.POST, "POST"],
       [threads.GET, "GET"],
       [threadRoute.GET, "GET"], [threadRoute.POST, "POST"],
-      [updatesRoute.GET, "GET"], [updatesRoute.POST, "POST"],
+      [updatesRoute.GET, "GET"], [updatesRoute.POST, "POST"], [updatesRoute.DELETE, "DELETE"],
     ];
     for (const [r, method] of routes) {
       const res = await call(null, r, { method, body: method === "GET" || method === "DELETE" ? undefined : { action: "connect", confirmed: true }, params: { id: ashaId } });
@@ -446,6 +454,8 @@ describe("messages", () => {
     const seen = await ok(read(asha, id));
     expect(seen.member.id).toBe(kunalId);
     expect(seen.messages.map((m: { body: string; mine: boolean }) => [m.body, m.mine])).toEqual([["Hello Asha, good to connect", false]]);
+    // Messages are ordered by their time, which the server keeps to the millisecond: a reply is never in the same one.
+    await new Promise((r) => setTimeout(r, 3));
     await ok(write(asha, id, "Hello Kunal"));
     expect((await ok(read(kunal, id))).messages.map((m: { body: string; mine: boolean }) => [m.body, m.mine])).toEqual([["Hello Asha, good to connect", true], ["Hello Kunal", false]]);
 
@@ -586,6 +596,181 @@ describe("updates", () => {
   });
 });
 
+/* ---- the feed: posts ---------------------------------------------------------------------------------------------- */
+describe("posts on the feed", () => {
+  it("someone who hasn't joined can't post, report or remove, and a post isn't published until its author confirms", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const outsider = person("outsider");
+    const ashaId = await join(asha);
+    await join(kunal);
+    await connected(kunal, asha, ashaId);
+    for (const r of [await post(outsider, "Hello network"), await reportPost(outsider, "nu_abcdefgh12"), await removePost(outsider, "nu_abcdefgh12")]) expect(r.status).toBe(409);
+
+    // The setting can't be read here, so the gate asks: nothing is published without the author's confirmation.
+    expect((await post(asha, "Not confirmed", "everyone", null)).status).toBe(409);
+    expect((await post(asha, "Not confirmed", "everyone", false)).status).toBe(409);
+    expect((await post(asha, "   ")).status).toBe(400);
+    expect((await post(asha, "x", "all" as never)).status).toBe(400);
+    expect(await texts(asha)).toEqual([]);
+    expect(await texts(kunal)).toEqual([]);
+
+    await ok(post(asha, "  Hiring two IAM engineers\n\n\n\n\nin Pune  "));
+    expect(await texts(kunal)).toEqual(["Hiring two IAM engineers\n\nin Pune"]);
+    // Words are capped on the way in.
+    await ok(post(asha, "z".repeat(4000)));
+    expect((await texts(kunal)).map((t) => t.length).sort((x, y) => y - x)[0]).toBe(1500);
+  });
+
+  it("a post for connections reaches connections and its author only", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul"); // on the network, not connected to Asha
+    const ashaId = await join(asha);
+    await join(kunal);
+    await join(rahul);
+    const conn = await connected(kunal, asha, ashaId);
+    await connected(rahul, kunal, (await ok(call(kunal, me.GET))).profile.publicId); // Rahul knows Kunal: that gives him nothing of Asha's
+
+    await ok(post(asha, "For my connections: owl-lantern"));
+    await ok(post(asha, "Also for connections: default audience", "connections"));
+    const seen = await item(kunal, "For my connections: owl-lantern");
+    expect(seen).toMatchObject({ kind: "post", mine: false, connectionId: conn });
+    expect(seen!.member.id).toBe(ashaId);
+    expect(await item(asha, "For my connections: owl-lantern")).toMatchObject({ mine: true });
+    expect((await item(asha, "For my connections: owl-lantern"))!.connectionId).toBeUndefined();
+    expect(JSON.stringify(await ok(feed(rahul)))).not.toMatch(/owl-lantern|default audience/);
+
+    // Once the connection ends, so does the reach.
+    await ok(answer(asha, conn, "remove"));
+    expect(JSON.stringify(await ok(feed(kunal)))).not.toMatch(/owl-lantern|default audience/);
+  });
+
+  it("a post for everyone shows to strangers only when its author can be found by everyone, and only as they may see the author", async () => {
+    const asha = person("asha"); // findable by everyone, full name for connections only
+    const linked = person("linked"); // only people with the link
+    const closed = person("closed"); // connections only
+    const kunal = person("kunal"); // a stranger to all three
+    const friend = person("friend"); // connected to "closed"
+    const ashaId = await join(asha, { tiers: { ...TIERS, name: "connections", about: "hidden" } });
+    await join(linked, { findBy: "link" });
+    const closedId = await join(closed, { findBy: "connections" });
+    await join(kunal);
+    const friendId = await join(friend);
+    await connected(closed, friend, friendId);
+
+    await ok(post(asha, "Open to all: amber-kite", "everyone"));
+    await ok(post(linked, "Link only author: basalt-reed", "everyone"));
+    await ok(post(closed, "Closed author: cobalt-fern", "everyone"));
+
+    const seen = await item(kunal, "Open to all: amber-kite");
+    expect(seen).toMatchObject({ kind: "post:everyone", mine: false });
+    expect(seen!.connectionId).toBeUndefined();
+    // The author as this stranger may see her: short name, nothing hidden.
+    expect(seen!.member).toMatchObject({ id: ashaId, name: "Asha N.", relation: "none" });
+    expect(JSON.stringify(seen)).not.toMatch(/Nettest|About Asha/);
+    const all = JSON.stringify(await ok(feed(kunal)));
+    expect(all).not.toMatch(/basalt-reed|cobalt-fern/);
+    expect(all).not.toContain(closedId);
+    // Their own connections still get them.
+    expect(await texts(friend)).toEqual(expect.arrayContaining(["Closed author: cobalt-fern", "Open to all: amber-kite"]));
+    expect(await texts(friend)).not.toContain("Link only author: basalt-reed");
+
+    // She stops being findable by everyone: strangers lose the post at once.
+    await ok(call(asha, me.PUT, { method: "PUT", body: profileOf(asha, { findBy: "link" }) }));
+    expect(await texts(kunal)).toEqual([]);
+    // And when an author leaves the network, their posts go with them.
+    await ok(call(asha, me.PUT, { method: "PUT", body: profileOf(asha) }));
+    expect(await texts(kunal)).toEqual(["Open to all: amber-kite"]);
+    await ok(call(asha, me.DELETE, { method: "DELETE" }));
+    expect(await texts(kunal)).toEqual([]);
+  });
+
+  it("a block, either way, takes each person's posts out of the other's feed", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    const ashaId = await join(asha);
+    const kunalId = await join(kunal);
+    await join(rahul);
+    await connected(kunal, asha, ashaId);
+    await ok(post(asha, "Asha to everyone: delta-moss", "everyone"));
+    await ok(post(asha, "Asha to connections: ember-vale"));
+    await ok(post(kunal, "Kunal to everyone: fjord-ink", "everyone"));
+    expect(await texts(kunal)).toEqual(expect.arrayContaining(["Asha to everyone: delta-moss", "Asha to connections: ember-vale"]));
+
+    await ok(act(kunal, ashaId, { action: "block" })); // the blocked person is Asha
+    expect(JSON.stringify(await ok(feed(kunal)))).not.toMatch(/delta-moss|ember-vale/);
+    expect(JSON.stringify(await ok(feed(asha)))).not.toMatch(/fjord-ink/);
+    // Neither can reach the other's post to report or remove it into view, and a third member still sees both.
+    expect(await texts(rahul)).toEqual(expect.arrayContaining(["Asha to everyone: delta-moss", "Kunal to everyone: fjord-ink"]));
+    expect(kunalId).toMatch(/^np_/);
+  });
+
+  it("only the author removes a post: anyone else gets 404 and it stays", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    const ashaId = await join(asha);
+    await join(kunal);
+    await join(rahul);
+    await connected(kunal, asha, ashaId);
+    await ok(post(asha, "Mine to remove: garnet-pine", "everyone"));
+    await ok(call(asha, me.PUT, { method: "PUT", body: profileOf(asha, { statuses: ["hiring"] }) }));
+    const theirs = (await item(kunal, "Mine to remove: garnet-pine"))!.id;
+    const statusId = ((await ok(feed(kunal))).updates as FeedItem[]).find((u) => u.kind === "status:hiring")!.id;
+
+    for (const who of [kunal, rahul]) {
+      for (const id of [theirs, statusId]) {
+        const r = await removePost(who, id);
+        expect(r.status).toBe(404);
+        expect(r.text).not.toMatch(/garnet|Asha/);
+      }
+    }
+    for (const bad of ["", "nu_", "nu_doesnotexist1", asha.tenantId, ashaId, "../x"]) expect((await removePost(asha, bad)).status).toBe(404);
+    expect(await texts(kunal)).toContain("Mine to remove: garnet-pine");
+
+    expect(await ok(removePost(asha, theirs))).toEqual({ ok: true });
+    expect((await removePost(asha, theirs)).status).toBe(404);
+    expect(await texts(kunal)).not.toContain("Mine to remove: garnet-pine");
+    expect(await texts(rahul)).not.toContain("Mine to remove: garnet-pine");
+    // Her own status update is hers to remove too.
+    await ok(removePost(asha, statusId));
+    expect(await texts(kunal)).toEqual([]);
+  });
+
+  it("a reported post is hidden from its reporter at once, the author isn't told, and enough reports hide it from everyone", async () => {
+    const asha = person("asha");
+    const readers = [person("kunal"), person("rahul"), person("meera"), person("dev")];
+    await join(asha);
+    for (const r of readers) await join(r);
+    const [kunal, rahul, meera, dev] = readers;
+    await ok(post(asha, "A disputed post: heron-quay", "everyone"));
+    const id = (await item(kunal, "A disputed post: heron-quay"))!.id;
+
+    expect((await reportPost(kunal, id, "x")).status).toBe(400);
+    expect((await reportPost(asha, id)).status).toBe(404); // not her own
+    for (const bad of ["nu_", "nu_doesnotexist1", asha.tenantId, "../x"]) expect((await reportPost(kunal, bad)).status).toBe(404);
+
+    const first = await ok(reportPost(kunal, id));
+    expect(Object.keys(first)).toEqual(["repeated"]);
+    expect(first.repeated).toBe(false);
+    expect((await ok(reportPost(kunal, id))).repeated).toBe(true);
+    expect(await texts(kunal)).toEqual([]);
+    // Everyone else still sees it, the author included, and nothing in her feed says it was reported.
+    expect(await texts(rahul)).toEqual(["A disputed post: heron-quay"]);
+    const hers = await ok(feed(asha));
+    expect(hers.updates).toHaveLength(1);
+    expect(JSON.stringify(hers)).not.toMatch(/report|flag/i);
+
+    // The same person reporting again doesn't count twice: it takes three different members.
+    await ok(reportPost(rahul, id));
+    expect(await texts(meera)).toEqual(["A disputed post: heron-quay"]);
+    await ok(reportPost(meera, id));
+    expect(await texts(dev)).toEqual([]);
+  });
+});
+
 /* ---- nothing that identifies an account leaves ------------------------------------------------------------------ */
 describe("every response", () => {
   it("carries public ids only: no account id and no email, in answers and in refusals", async () => {
@@ -627,7 +812,13 @@ describe("every response", () => {
     await keep(inbox(kunal));
     await keep(call(asha, me.PUT, { method: "PUT", body: profileOf(asha, { statuses: ["hiring"] }) }));
     await keep(share(asha, "/j/job_1"));
-    await keep(feed(kunal));
+    await keep(post(asha, "A post for everyone", "everyone"));
+    await keep(post(kunal, "A post for my connections"));
+    const feeds = [await keep(feed(kunal)), await keep(feed(rahul)), await keep(feed(asha))];
+    const someonesPost = (feeds[1].body.updates as FeedItem[]).find((u) => u.text === "A post for everyone")!.id;
+    await keep(reportPost(rahul, someonesPost));
+    await keep(removePost(rahul, someonesPost));
+    await keep(removePost(kunal, "nu_doesnotexist1"));
     await keep(feed(rahul));
     // Refusals.
     await keep(read(rahul, conn));
@@ -640,7 +831,7 @@ describe("every response", () => {
     await keep(act(kunal, rahulId, { action: "block" }));
     await keep(view(kunal, rahulId));
 
-    expect(sent.length).toBeGreaterThan(30);
+    expect(sent.length).toBeGreaterThan(36);
     for (const text of sent) expectNoAccountDetails(text, ...all);
     // And the ids that do leave are the public ones.
     expect((await ok(mine(asha))).connections.map((c: { id: string }) => c.id).sort()).toEqual([kunalId, rahulId].sort());
