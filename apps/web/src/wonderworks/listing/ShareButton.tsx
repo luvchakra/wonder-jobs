@@ -6,6 +6,9 @@ import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 import { getClientMode } from "@/lib/mode";
+import dynamic from "next/dynamic";
+
+const PostSheet = dynamic(() => import("@/components/network/PostSheet").then((m) => m.PostSheet), { ssr: false });
 import { absoluteUrl, emailHref, facebookHref, listingShareMessage, STORY_VERSION, storyPath, whatsappHref, xHref, type ListingShareInput, type ShareMessage, type ShareSummary } from "./share";
 
 /** What a Share button sends, worked out when the sheet opens (the link needs the browser's own address). */
@@ -177,20 +180,15 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
     done("instagram");
   };
 
-  // Share with the member's connections on WonderWorks Network (owner, 2026-11-20: every module's listings): only a
-  // listing with a public page, and only when signed in. The server refuses anything that isn't a public listing page.
+  // Post it to the member's network (owner, 2026-11-21: posts from every module, about the listing): opens the same post
+  // sheet as the +, with this listing attached. Only a listing with a public page, and only when signed in.
   const toNetwork = page && getClientMode().mode === "user";
-  const network = async () => {
-    try {
-      const res = await fetch("/api/network/updates", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ page, title: message.subject }) });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) return toast.error(res.status === 409 ? "Join the network first" : "Couldn't share with your network", res.status === 409 ? "Open the Network tab and set up your network profile." : data.error);
-      toast.success("Shared with your network", "Your connections see it in their Network feed.");
-      done("network");
-    } catch {
-      toast.error("Couldn't share with your network");
-    }
-  };
+  const [posting, setPosting] = useState(false);
+  if (posting && page) {
+    const m = /^\/s\/([a-z]{2,20})\//.exec(page);
+    return <PostSheet module={m?.[1] ?? "jobs"} attach={{ page, title: message.subject, module: m?.[1] ?? "jobs" }} onClose={() => done("network")} />;
+  }
+  const network = () => setPosting(true);
 
   return (
     <Modal open onClose={onClose} title={title} description={description} size="md">

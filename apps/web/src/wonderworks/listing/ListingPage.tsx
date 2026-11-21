@@ -5,6 +5,7 @@ import { CompanyLogo } from "@/wonderworks/brand/CompanyLogo";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { ListingShare, type ListingShareProps } from "./ShareButton";
 import { cn } from "@/lib/cn";
+import { usePostAbout } from "@/wonderworks/chrome/postTarget";
 
 /**
  * A listing's own page, shared by every WonderWorks module (taken from Jobs' job page, app/app/jobs/[id]): the header
@@ -13,6 +14,8 @@ import { cn } from "@/lib/cn";
  * view on a wide screen. A module brings only what goes in each.
  */
 export function ListingPage({ back, title, share, actions, notice, report, children }: { back: { href: string; label: string }; title: string; /** Share, at the top beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; actions?: React.ReactNode; notice?: React.ReactNode; /** "Report this listing" at the foot (2026-11-03): the module and the listing id its Find serves. */ report?: { module: string; id: string }; children: React.ReactNode }) {
+  // The listing on screen, for a network post started with + (only one with a public page).
+  usePostAbout(share && share.url.startsWith("/s/") ? { page: share.url, title, module: share.module } : null);
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
