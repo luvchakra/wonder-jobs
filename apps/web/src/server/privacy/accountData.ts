@@ -4,6 +4,7 @@
  * `subjectRights.ts` runs them all. A feature or module that stores a person's data in such a table adds its entry
  * here in the same PR (CLAUDE.md: Identity, tenant isolation and security).
  */
+import { eraseCofounders, exportCofounders } from "../cofounders/account";
 import { eraseMarketplace, exportMarketplace } from "../marketplace/account";
 import { eraseNetwork, exportNetwork } from "../network/account";
 
@@ -17,4 +18,5 @@ export interface AccountData {
 export const ACCOUNT_DATA: AccountData[] = [
   { key: "network", export: exportNetwork, erase: eraseNetwork },
   { key: "marketplace", export: exportMarketplace, erase: eraseMarketplace },
+  { key: "cofounders", export: exportCofounders, erase: eraseCofounders },
 ];
