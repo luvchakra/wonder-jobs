@@ -383,6 +383,12 @@ export interface ServicePosting {
   status: "draft" | "open" | "closed";
   createdAt: string;
   updatedAt: string;
+  /**
+   * For the member who posted it (and only them): that they did, and whether their network profile is shown on the
+   * listing's page (WonderWorks Network, their own opt-in, off by default). Nobody else is told either.
+   */
+  poster?: true;
+  showNetworkProfile?: boolean;
 }
 
 const oneOf = <T extends string>(v: unknown, all: readonly T[]) => (typeof v === "string" && (all as readonly string[]).includes(v) ? (v as T) : undefined);
@@ -444,6 +450,8 @@ export interface ServicePostingInput {
   materials?: unknown;
   warrantyDays?: unknown;
   turnaroundDays?: unknown;
+  /** The poster's own choice to show their network profile on the listing; ignored for anyone else. */
+  showNetworkProfile?: unknown;
   skills?: unknown;
   gst?: unknown;
   gstin?: unknown;

@@ -7,7 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { Field, Input, Select, Textarea } from "@/components/common/Input";
+import { Field, Input, Select, Switch, Textarea } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { Badge } from "@/components/common/Badge";
 import { Fold } from "@/components/common/Fold";
@@ -270,6 +270,9 @@ function ServiceForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
     skills: t?.skills?.join(", ") ?? "",
     gstin: t?.gstin ?? "",
   });
+  // The poster's own choice, theirs alone: a new listing is the poster's; an edit shows it only to the member who posted it.
+  const mine = !p || p.poster === true;
+  const [network, setNetwork] = useState(p?.showNetworkProfile === true);
   const [busy, setBusy] = useState(false);
   const set = (k: keyof FormState) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const num = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(/[^\d]/g, "")));
@@ -291,6 +294,7 @@ function ServiceForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
         warrantyDays: num(f.warrantyDays),
         skills: list(f.skills),
         gstin: f.gstin.trim() || undefined,
+        ...(mine ? { showNetworkProfile: network } : {}),
         ...(local ? { areas: list(f.areas), visitCharge: num(f.visitCharge), materials: f.materials || undefined } : { turnaroundDays: num(f.turnaroundDays) }),
       };
       const url = `/api/m/services/org/${encodeURIComponent(orgId)}`;
@@ -402,6 +406,12 @@ function ServiceForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; p
         <Field label="GSTIN" htmlFor="sf-gstin" hint="Only if you're GST-registered. Shown on your page as you state it; WonderWorks doesn't look it up">
           <Input id="sf-gstin" value={f.gstin} onChange={set("gstin")} placeholder="27ABCDE1234F1Z5" autoCapitalize="characters" />
         </Field>
+        {mine && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[14px] text-ink-2">Show my network profile on this listing</span>
+            <Switch id="sf-network" checked={network} onChange={setNetwork} label="Show my network profile on this listing" />
+          </div>
+        )}
       </div>
     </Modal>
   );
