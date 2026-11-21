@@ -13,7 +13,13 @@ import { listings, newId, now, openListings, responses as allResponses, type Lis
 import { cleanEventPosting, EVENTS, readTerms, type EventPosting, type EventPostingInput, type RsvpStatus } from "@/modules/events/domain";
 import { setCapacity } from "./seats";
 
+/** Whether the member who posted the event chose to be shown as its host (stored beside its terms; off unless set). */
+export const showsHost = (r: Pick<ListingRow, "attrs">) => r.attrs?.host === true;
+
 export const toPosting = (r: ListingRow): EventPosting => ({ id: r.id, orgId: r.org_id, title: r.title, description: r.description, location: r.location, workMode: r.work_mode, terms: readTerms(r.attrs), status: r.status, createdAt: r.created_at, updatedAt: r.updated_at });
+
+/** The posting as the poster sees it: with their own host choice. Anyone else gets the public posting only. */
+const forViewer = (s: Session, r: ListingRow): EventPosting => (r.created_by === s.tenantId ? { ...toPosting(r), poster: true, showAsHost: showsHost(r) } : toPosting(r));
 
 /** Every open event, with its workspace (public postings). Events that already started are no longer offered. */
 export async function openEventPosts(limit = 300, at = Date.now()) {
@@ -36,7 +42,7 @@ export async function seatCounts(listingIds: string[]): Promise<Map<string, { go
 /** The workspace's events (jobs.view). */
 export async function orgEvents(s: Session, orgId: string): Promise<EventPosting[]> {
   await requirePermission(s, orgId, "jobs.view");
-  return (await listings().find({ org_id: orgId, module: EVENTS }, { order: "updated_at", desc: true, limit: 200 })).map(toPosting);
+  return (await listings().find({ org_id: orgId, module: EVENTS }, { order: "updated_at", desc: true, limit: 200 })).map((r) => forViewer(s, r));
 }
 
 /** Post an event (a draft until opened), or edit one (jobs.edit). Capacity changes go through seats.ts so the waitlist moves. */
@@ -52,14 +58,16 @@ export async function saveEvent(s: Session, orgId: string, input: EventPostingIn
     // Everything but capacity here; the capacity goes through the lock that promotes the waitlist.
     const { capacity, ...rest } = c.value.terms;
     const was = readTerms(old.attrs);
+    // Being shown as the host is the poster's alone: any other member's edit keeps what the poster chose.
+    const host = old.created_by === s.tenantId ? input.showAsHost === true : showsHost(old);
     // The cover has its own route (covers.ts); an edit of the words keeps it.
-    await listings().update({ id: postingId, org_id: orgId, module: EVENTS }, { ...fields, attrs: { ...rest, ...(was.capacity ? { capacity: was.capacity } : {}), ...(was.cover ? { cover: was.cover } : {}) } });
+    await listings().update({ id: postingId, org_id: orgId, module: EVENTS }, { ...fields, attrs: { ...rest, ...(was.capacity ? { capacity: was.capacity } : {}), ...(was.cover ? { cover: was.cover } : {}), ...(host ? { host: true } : {}) } });
     const promoted = await setCapacity({ listingId: postingId, orgId, capacity });
-    return { posting: toPosting((await listings().one({ id: postingId, org_id: orgId, module: EVENTS }))!), promoted };
+    return { posting: forViewer(s, (await listings().one({ id: postingId, org_id: orgId, module: EVENTS }))!), promoted };
   }
-  const row: ListingRow = { id: newId("lst"), module: EVENTS, org_id: orgId, ...fields, attrs: { ...c.value.terms }, status: "draft", created_by: s.tenantId, created_at: at };
+  const row: ListingRow = { id: newId("lst"), module: EVENTS, org_id: orgId, ...fields, attrs: { ...c.value.terms, ...(input.showAsHost === true ? { host: true } : {}) }, status: "draft", created_by: s.tenantId, created_at: at };
   await listings().insert(row);
-  return { posting: toPosting(row), promoted: [] };
+  return { posting: forViewer(s, row), promoted: [] };
 }
 
 /** Open, close or return an event to draft (jobs.edit). */
