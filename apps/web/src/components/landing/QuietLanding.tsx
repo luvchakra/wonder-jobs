@@ -56,7 +56,6 @@ export function QuietLanding() {
           {[
             ["/features", "Features"],
             ["/about", "About"],
-            ["/help", "Help"],
             ["/contact", "Contact"],
             ["/privacy", "Privacy"],
             ["/terms", "Terms"],

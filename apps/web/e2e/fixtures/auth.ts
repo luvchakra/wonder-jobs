@@ -108,7 +108,8 @@ export async function skipOnboardingIfShown(page: Page): Promise<void> {
   // the server: wait for that decision (the page's loading skeleton gone, or onboarding), not a fixed time.
   await expect(async () => {
     if (/\/onboarding/.test(page.url())) return;
-    await expect(page.locator('#main [aria-busy="true"][aria-label="Loading"]')).toHaveCount(0, { timeout: 1_000 });
+    // The loading mark by its role, not its label (the label is "Loading…" now, and a page may pass its own).
+    await expect(page.locator('#main [role="status"][aria-busy="true"]')).toHaveCount(0, { timeout: 1_000 });
   }).toPass({ timeout: 45_000 });
   if (/\/onboarding/.test(page.url())) {
     await page.getByRole("button", { name: "Skip" }).click();
