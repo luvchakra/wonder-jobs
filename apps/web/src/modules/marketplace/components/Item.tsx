@@ -18,6 +18,8 @@ import { cn } from "@/lib/cn";
 import { ClampedText, isLongText } from "@/wonderworks/listing/ListingPage";
 import { MAX_MESSAGE, priceLabel, STAGE_OF, STATUS_LABEL } from "../domain";
 import { NetworkLink } from "@/components/network/parts";
+import type { ContactView } from "@/domain/contact/contact";
+import { ContactExchange } from "@/wonderworks/contact/ContactExchange";
 import { marketplaceManifest } from "../manifest";
 import type { ThreadMessage, ThreadView } from "../threads";
 import { Gallery } from "./Gallery";
@@ -30,18 +32,18 @@ const ENDED: Record<string, string> = { blocked: "This conversation ended.", not
 
 /**
  * One deal: the thread, the offer and what each side may do next (domain.ts::mayDo, asked again by the server), the
- * advance-payment warning, contact details only once the other side shared them, and report and block.
+ * advance-payment warning, the contact exchange (phone and email masked until both share), and report and block.
  * No money moves through WonderWorks: an agreed offer is an agreement to meet, and Done needs both sides.
  */
 export function MarketplaceItem({ id }: { id: string }) {
   const router = useRouter();
-  const [data, setData] = useState<{ thread: ThreadView; messages: ThreadMessage[] } | null>(null);
+  const [data, setData] = useState<{ thread: ThreadView; messages: ThreadMessage[]; contact: ContactView | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [showAll, setShowAll] = useState(false);
   const url = `/api/m/marketplace/threads/${encodeURIComponent(id)}`;
   const load = () =>
-    call<{ thread: ThreadView; messages: ThreadMessage[] }>(url)
+    call<{ thread: ThreadView; messages: ThreadMessage[]; contact: ContactView | null }>(url)
       .then(setData)
       .catch((e: Error) => setError(e.message));
   useEffect(() => {
@@ -58,7 +60,7 @@ export function MarketplaceItem({ id }: { id: string }) {
       </div>
     );
   if (!data) return <PageLoading rows={3} />;
-  const { thread: t, messages } = data;
+  const { thread: t, messages, contact } = data;
   const stages = marketplaceManifest.pipeline.stages;
   const may = new Set(t.may);
   const pending = t.offers.find((o) => o.status === "pending");
@@ -148,13 +150,22 @@ export function MarketplaceItem({ id }: { id: string }) {
         </ItemSection>
         {t.status !== "declined" && t.status !== "closed" && (
           <div className="flex flex-col gap-2 border-t border-line pt-3">
-            {t.contacts.map((c) => (
-              <p key={c.email} className="text-[13px] text-ink-2">
-                {t.counterpart} shared <a className="font-medium text-brand-600 hover:underline" href={`mailto:${c.email}`}>{c.email}</a>
-              </p>
-            ))}
+            {contact && (
+              <ContactExchange
+                view={contact}
+                name={t.counterpart}
+                offer={async (o) => {
+                  const r = await call<{ contact: ContactView }>(url, { body: { action: "share", ...o, confirmed: true } });
+                  void load();
+                  return r.contact;
+                }}
+                withdraw={async () => {
+                  await call(url, { body: { action: "stop_sharing" } });
+                  void load();
+                }}
+              />
+            )}
             <NetworkLink id={t.networkId} />
-            {t.youSharedContact ? <p className="text-[12px] text-ink-3">You shared your email.</p> : <Act capability="marketplace.share_contact" label="Share my email" variant="outline" full settings={SETTINGS} review={<>Your account email goes to {t.counterpart}. They can write to you outside WonderWorks, where WonderWorks can&apos;t protect you. You can&apos;t take it back.</>} run={(confirmed) => act({ action: "share", confirmed })} done="Shared" />}
           </div>
         )}
         {may.has("close") && (

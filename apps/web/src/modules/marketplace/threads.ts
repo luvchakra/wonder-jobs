@@ -1,6 +1,6 @@
 import type { Offer, ThreadStatus, mayDo } from "./domain";
 
-/** One conversation as the screens read it: what each side sees, never the other's contact details unless they shared. */
+/** One conversation as the screens read it: what each side sees; the contact exchange (phone and email, masked until both share) comes beside it, from the shared contact core. */
 export interface ThreadView {
   id: string;
   listingId: string;
@@ -13,11 +13,9 @@ export interface ThreadView {
   status: ThreadStatus;
   offers: Offer[];
   may: ReturnType<typeof mayDo>;
-  contacts: { email: string }[];
-  youSharedContact: boolean;
   /**
-   * The counterpart's WonderWorks Network profile id (public, never an account id): present only once they have shared their
-   * contact details in this conversation, i.e. once you may know who they are, and only when the network lets you see them.
+   * The counterpart's WonderWorks Network profile id (public, never an account id): present only once you have both shared
+   * your contact details in this conversation, i.e. once you may know who they are, and only when the network lets you see them.
    */
   networkId?: string;
   youMarkedDone?: boolean;

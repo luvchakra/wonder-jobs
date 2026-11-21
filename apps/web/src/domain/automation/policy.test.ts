@@ -76,3 +76,12 @@ describe("network.share_contact (WJ-831)", () => {
     expect(CAPABILITY_META["network.share_contact"]).toMatchObject({ risk: "medium", external: true, default: "ask" });
   });
 });
+
+describe("marketplace.share_contact (WJ-626)", () => {
+  it("stays a medium-risk, external capability that asks by default, and says the other side sees it masked until they share back", async () => {
+    const { CAPABILITY_META, MODULE_CAPABILITIES } = await import("./policy");
+    expect(MODULE_CAPABILITIES).toContain("marketplace.share_contact");
+    expect(CAPABILITY_META["marketplace.share_contact"]).toMatchObject({ risk: "medium", external: true, default: "ask" });
+    expect(CAPABILITY_META["marketplace.share_contact"].description).toMatch(/masked until they share theirs/);
+  });
+});

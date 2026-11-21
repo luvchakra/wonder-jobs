@@ -7,6 +7,7 @@
 import type { Session } from "../auth";
 import { HiringError } from "../hiring";
 import { recordServerAudit } from "../audit";
+import { withdrawContact } from "../contact/exchange";
 import { blockPerson, fileReport, reportCount } from "../modules/safety";
 import { cleanReason, MARKETPLACE, REPORTS_TO_HIDE } from "@/modules/marketplace/domain";
 import { gone, listings, messages, now, threads } from "./store";
@@ -49,7 +50,12 @@ async function blockTenant(s: Session, them: string, detail: string): Promise<vo
   await blockPerson(MARKETPLACE, s.tenantId, them);
   await recordServerAudit(s.tenantId, { actionId: `marketplace.block:${them}`, actionType: "marketplace.block", event: "PERSON_BLOCKED", detail });
   const all = [...(await threads().find({ buyer_tenant: s.tenantId, seller_tenant: them })), ...(await threads().find({ buyer_tenant: them, seller_tenant: s.tenantId }))];
-  for (const x of all) if (["messaged", "offer", "visit"].includes(x.status)) await threads().update({ id: x.id }, { status: "closed", end_reason: "blocked", updated_at: now() });
+  for (const x of all) {
+    if (["messaged", "offer", "visit"].includes(x.status)) await threads().update({ id: x.id }, { status: "closed", end_reason: "blocked", updated_at: now() });
+    // A block takes back what each side shared: neither sees the other's phone or email again.
+    await withdrawContact(MARKETPLACE, x.id, s.tenantId).catch(() => undefined);
+    await withdrawContact(MARKETPLACE, x.id, them).catch(() => undefined);
+  }
 }
 
 /** Block the other person in a conversation: it ends, and they are hidden from each other everywhere in this module. */

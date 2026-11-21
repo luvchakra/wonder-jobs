@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
-import { answerOffer, arrangeVisit, closeThread, makeOffer, markDone, sendMessage, shareContact, thread, withdrawOffer } from "@/server/marketplace/threads";
+import { answerOffer, arrangeVisit, closeThread, makeOffer, markDone, sendMessage, shareThreadContact, stopThreadContact, thread, withdrawOffer } from "@/server/marketplace/threads";
 import { blockInThread, reportThread } from "@/server/marketplace/safety";
 
 export const runtime = "nodejs";
@@ -15,7 +15,8 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("visit") }),
   z.object({ action: z.literal("done") }),
   z.object({ action: z.literal("close") }),
-  z.object({ action: z.literal("share"), confirmed: z.boolean().optional() }),
+  z.object({ action: z.literal("share"), phone: z.string().max(40).optional(), email: z.string().max(254).optional(), confirmed: z.boolean().optional() }),
+  z.object({ action: z.literal("stop_sharing") }),
   z.object({ action: z.literal("report"), reason: z.string().max(500), messageId: z.string().max(60).optional() }),
   z.object({ action: z.literal("block") }),
 ]);
@@ -49,7 +50,9 @@ export async function POST(req: Request, ctx: Ctx) {
         case "close":
           return closeThread(s, id);
         case "share":
-          return shareContact(s, id, b.confirmed);
+          return shareThreadContact(s, id, { phone: b.phone, email: b.email }, b.confirmed);
+        case "stop_sharing":
+          return stopThreadContact(s, id);
         case "report":
           return reportThread(s, id, b.reason, b.messageId);
         case "block":

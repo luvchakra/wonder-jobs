@@ -13,7 +13,7 @@ import { defaultPolicy, POLICY_VERSION } from "@/domain/automation/policy";
 import { notificationModule } from "@/domain/career/notifications";
 import { addPhoto, cleanPhoto, readPhoto } from "./photos";
 import { myListings, openListing, openMarketListings, publish, saveListing, setListingState } from "./listings";
-import { answerOffer, arrangeVisit, closeThread, makeOffer, markDone, myThreads, sendMessage, shareContact, startThread, thread, withdrawOffer } from "./threads";
+import { answerOffer, arrangeVisit, closeThread, makeOffer, markDone, myThreads, sendMessage, shareThreadContact, startThread, stopThreadContact, thread, withdrawOffer } from "./threads";
 import { blockInThread, reportListing, reportThread } from "./safety";
 import { listings } from "./store";
 import * as Network from "../network/network";
@@ -124,42 +124,89 @@ describe("conversations and offers", () => {
     expect(await myThreads(stranger)).toHaveLength(0);
     expect(await myThreads(seller)).toHaveLength(1);
   });
-  it("keeps contact details out of messages and shows them only after Share contact", async () => {
+  it("keeps contact details out of messages, and shows what the other offered masked until you offer yours back", async () => {
     const id = await listed();
     const { id: t } = await startThread(buyer, id, "Hi there");
-    await expect(sendMessage(buyer, t, "WhatsApp me on 98450 12345")).rejects.toThrow(/Share contact/);
-    expect((await thread(seller, t)).thread.contacts).toEqual([]);
-    await shareContact(buyer, t);
-    expect((await thread(seller, t)).thread.contacts).toEqual([{ email: "buyer@example.com" }]);
-    expect((await thread(buyer, t)).thread.contacts).toEqual([]);
+    await expect(sendMessage(buyer, t, "WhatsApp me on 98450 12345")).rejects.toThrow(/contact card/);
+    expect((await thread(seller, t)).contact).toEqual({ mine: null, theirs: null });
+    // The buyer offers a phone and an email: the seller sees them masked, and the buyer sees nothing of the seller's.
+    await shareThreadContact(buyer, t, { phone: "+91 98450 12345", email: "bo.lee@example.com" });
+    const masked = (await thread(seller, t)).contact!;
+    expect(masked.mine).toBeNull();
+    expect(masked.theirs).toMatchObject({ masked: true });
+    expect(JSON.stringify(masked)).not.toMatch(/98450 12345|bo\.lee@example\.com/);
+    expect((await thread(buyer, t)).contact).toMatchObject({ mine: { phone: "+91 98450 12345", email: "bo.lee@example.com" }, theirs: null });
+    // The seller offers theirs back: both see each other's in full.
+    await shareThreadContact(seller, t, { email: "sana@example.com" });
+    expect((await thread(seller, t)).contact!.theirs).toEqual({ phone: "+91 98450 12345", email: "bo.lee@example.com", masked: false });
+    expect((await thread(buyer, t)).contact!.theirs).toEqual({ email: "sana@example.com", masked: false });
+    // Stopping takes it back at once: the other is masked again.
+    await stopThreadContact(buyer, t);
+    expect((await thread(seller, t)).contact!.theirs).toBeNull();
+    expect((await thread(buyer, t)).contact).toMatchObject({ mine: null, theirs: { masked: true } });
   });
-  it("links the other person's network profile only once they have shared their contact details, and sends only the public id", async () => {
+  it("shares contact details only on the person's own press, only on a live conversation of theirs, and audits without the details", async () => {
+    const id = await listed();
+    const { id: t } = await startThread(buyer, id, "Hi there");
+    // Someone not on the conversation can neither offer nor read, and is told nothing about it.
+    await expect(shareThreadContact(stranger, t, { email: "x@example.com" })).rejects.toMatchObject({ status: 404 });
+    await expect(thread(stranger, t)).rejects.toMatchObject({ status: 404 });
+    await expect(shareThreadContact(buyer, t, { email: "not an email" })).rejects.toMatchObject({ status: 400 });
+    await expect(shareThreadContact(buyer, t, {})).rejects.toMatchObject({ status: 400 });
+    // Ask me: the sheet's confirmation is required; Off: refused.
+    await policy("u-b", { "marketplace.share_contact": "ask" });
+    await expect(shareThreadContact(buyer, t, { email: "bo@example.com" })).rejects.toMatchObject({ status: 409 });
+    await shareThreadContact(buyer, t, { email: "bo@example.com" }, true);
+    await policy("u-b", { "marketplace.share_contact": "off" });
+    await expect(shareThreadContact(buyer, t, { email: "bo2@example.com" }, true)).rejects.toMatchObject({ status: 403 });
+    // The notice to the other side names no details.
+    expect(JSON.stringify(delivered)).not.toMatch(/bo@example\.com/);
+    // An ended conversation takes no new offer and shows no contact card.
+    await closeThread(seller, t);
+    expect((await thread(buyer, t)).contact).toBeNull();
+    await policy("u-b", { "marketplace.share_contact": "automatic" });
+    await expect(shareThreadContact(buyer, t, { email: "bo3@example.com" })).rejects.toMatchObject({ status: 409 });
+  });
+  it("takes back what each side shared when one blocks the other", async () => {
+    const id = await listed();
+    const { id: t } = await startThread(buyer, id, "Hi there");
+    await shareThreadContact(buyer, t, { email: "bo@example.com" });
+    await shareThreadContact(seller, t, { email: "sana@example.com" });
+    await blockInThread(seller, t);
+    const { contactView } = await import("../contact/exchange");
+    expect(await contactView("marketplace", t, "u-b", "u-s")).toEqual({ mine: null, theirs: null });
+    expect(await contactView("marketplace", t, "u-s", "u-b")).toEqual({ mine: null, theirs: null });
+  });
+  it("links the other person's network profile only once you have both shared, and sends only the public id", async () => {
     const profile = (name: string): Partial<NetworkProfileInput> => ({ name, headline: "Maker", location: "Bengaluru", about: "About me", skills: [], experience: [], education: [], tiers: DEFAULT_TIERS, findBy: "everyone", requestsFrom: "everyone", statuses: [], shareUpdates: true });
     const sellerNet = (await Network.saveMyProfile(seller, profile("Sana Rao"))).publicId;
     const buyerNet = (await Network.saveMyProfile(buyer, profile("Bo Lee"))).publicId;
     const id = await listed();
     const { id: t } = await startThread(buyer, id, "Hi there");
-    // Before anyone has shared: no link on either side, in the list or the conversation.
+    // Before anyone has shared: no link on either side.
     expect((await thread(buyer, t)).thread.networkId).toBeUndefined();
     expect((await thread(seller, t)).thread.networkId).toBeUndefined();
-    expect((await myThreads(buyer))[0].networkId).toBeUndefined();
-    // The buyer shares: the seller now knows who they are, and sees their profile link; the buyer, who has been shown nothing, still doesn't.
-    await shareContact(buyer, t);
-    expect((await thread(seller, t)).thread.networkId).toBe(buyerNet);
-    expect((await myThreads(seller))[0].networkId).toBe(buyerNet);
+    // One side's masked offer reveals no one: still no link for either.
+    await shareThreadContact(buyer, t, { email: "bo@example.com" });
+    expect((await thread(seller, t)).thread.networkId).toBeUndefined();
     expect((await thread(buyer, t)).thread.networkId).toBeUndefined();
-    // The seller shares back: the buyer sees theirs.
-    await shareContact(seller, t);
+    // Both shared: each sees the other's link.
+    await shareThreadContact(seller, t, { email: "sana@example.com" });
+    expect((await thread(seller, t)).thread.networkId).toBe(buyerNet);
     expect((await thread(buyer, t)).thread.networkId).toBe(sellerNet);
-    // Only public ids leave the server: never an account id.
-    expect(JSON.stringify(await thread(buyer, t))).not.toMatch(/u-s|u-b|u-x/);
-    expect(JSON.stringify(await thread(seller, t))).not.toMatch(/"u-b"|"u-s"/);
+    // The list never carries it, and only public ids leave the server: never an account id.
+    expect((await myThreads(seller))[0].networkId).toBeUndefined();
+    expect(JSON.stringify(await thread(buyer, t))).not.toMatch(/"u-s"|"u-b"|"u-x"/);
+    // Taking it back removes the link again.
+    await stopThreadContact(seller, t);
+    expect((await thread(buyer, t)).thread.networkId).toBeUndefined();
   });
-  it("shows no network link when the network wouldn't: not on it, a block, or findable by link only", async () => {
+  it("shows no network link when the network wouldn't: not on it, findable by link only, or a block", async () => {
     const profile = (name: string, findBy = "everyone"): Partial<NetworkProfileInput> => ({ name, headline: "Maker", location: "Bengaluru", about: "About me", skills: [], experience: [], education: [], tiers: DEFAULT_TIERS, findBy: findBy as never, requestsFrom: "everyone", statuses: [], shareUpdates: true });
     const id = await listed();
     const { id: t } = await startThread(buyer, id, "Hi there");
-    await shareContact(buyer, t);
+    await shareThreadContact(buyer, t, { email: "bo@example.com" });
+    await shareThreadContact(seller, t, { email: "sana@example.com" });
     // The seller isn't on the network: nothing to link, and the conversation is as before.
     expect((await thread(seller, t)).thread.networkId).toBeUndefined();
     await Network.saveMyProfile(seller, profile("Sana Rao"));
