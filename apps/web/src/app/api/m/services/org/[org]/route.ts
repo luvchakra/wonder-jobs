@@ -26,6 +26,7 @@ const Posting = z.object({
   turnaroundDays: z.number().int().min(1).max(365).optional(),
   skills: z.array(z.string().max(40)).max(10).optional(),
   gstin: z.string().max(20).optional(),
+  showNetworkProfile: z.boolean().optional(),
 });
 
 /** The workspace's service listings, its quote requests when the caller's role may view them, and that role. */
