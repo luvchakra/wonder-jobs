@@ -35,6 +35,7 @@ import * as N from "@/server/network/network";
 import * as S from "@/server/network/social";
 import * as E from "@/server/network/engage";
 import { uploadMedia } from "@/server/network/media";
+import { shareThreadContact } from "@/server/network/contact";
 import { reportListing } from "@/server/moderation";
 import { saveProfile } from "@/server/cofounders/profiles";
 import { createTeam } from "@/server/cofounders/teams";
@@ -78,6 +79,7 @@ const ERASED_BY: Record<string, string> = {
   network_reactions: "network",
   network_comments: "network",
   network_media: "network",
+  contact_exchanges: "contact",
   marketplace_listings: "marketplace",
   marketplace_photos: "marketplace",
   marketplace_threads: "marketplace",
@@ -221,6 +223,8 @@ async function aWorldWithAsha() {
   await N.actOnConnection(asha, v.connectionId!, "accept");
   await S.sendMessage(asha, v.connectionId!, "From Asha", true);
   await S.sendMessage(ravi, v.connectionId!, "From Ravi", true);
+  await shareThreadContact(asha, v.connectionId!, { email: "asha@example.com" }, true);
+  await shareThreadContact(ravi, v.connectionId!, { phone: "+91 98765 43210" }, true);
   await S.publishPost(asha, { text: "Asha's post", audience: "everyone", media: [(await uploadMedia(asha, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x4a, 0x46, 0xff, 0xda, 0x00, 0x02, 0x01, 0x02, 0xff, 0xd9]), "image/jpeg")).id] }, true);
   await S.publishPost(ravi, { text: "Ravi's post", audience: "everyone" }, true);
   const feed = await S.feedFor(asha);
@@ -282,7 +286,7 @@ describe("account deletion, end to end", () => {
     await aWorldWithAsha();
     const before = tablesNaming(asha.tenantId);
     // The world really reaches every part checked below (so a quiet seeding failure can't pass this test).
-    for (const t of ["network_profiles", "network_connections", "network_messages", "network_updates", "network_reactions", "network_comments", "network_media", "module_reports", "module_blocks", "cofounder_profiles", "cofounder_teams", "cofounder_connections", "cofounder_messages", "marketplace_listings", "marketplace_threads", "marketplace_messages", "hiring_orgs", "hiring_members", "employer_jobs", "hiring_shortlist", "hiring_conversations", "job_applications"]) {
+    for (const t of ["network_profiles", "network_connections", "network_messages", "network_updates", "network_reactions", "network_comments", "network_media", "contact_exchanges", "module_reports", "module_blocks", "cofounder_profiles", "cofounder_teams", "cofounder_connections", "cofounder_messages", "marketplace_listings", "marketplace_threads", "marketplace_messages", "hiring_orgs", "hiring_members", "employer_jobs", "hiring_shortlist", "hiring_conversations", "job_applications"]) {
       expect(before, t).toContain(t);
     }
 

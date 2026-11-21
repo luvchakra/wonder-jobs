@@ -11,6 +11,8 @@ import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { MemberAvatar, memberHref } from "@/components/network/parts";
+import type { ContactView } from "@/domain/contact/contact";
+import { ContactExchange } from "@/wonderworks/contact/ContactExchange";
 
 /** A conversation with one connection. Loaded when opened; nothing polls in the background. */
 export default function ThreadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +22,8 @@ export default function ThreadPage({ params }: { params: Promise<{ id: string }>
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  // Phone and email (owner, 2026-11-21): masked until both share. Absent until it loads, or if it can't yet.
+  const [contact, setContact] = useState<ContactView | null>(null);
   const end = useRef<HTMLDivElement>(null);
 
   const load = useCallback(() => {
@@ -30,6 +34,10 @@ export default function ThreadPage({ params }: { params: Promise<{ id: string }>
         setList(d.messages);
       })
       .catch((e) => setError((e as Error).message));
+    networkApi
+      .contact(id)
+      .then((d) => setContact(d.contact))
+      .catch(() => setContact(null));
   }, [id]);
   useEffect(load, [load]);
   useEffect(() => {
@@ -64,6 +72,7 @@ export default function ThreadPage({ params }: { params: Promise<{ id: string }>
           {who.headline && <span className="block truncate text-[12px] text-ink-3">{who.headline}</span>}
         </span>
       </Link>
+      {contact && <ContactExchange view={contact} name={who.name} offer={async (o) => (await networkApi.shareContact(id, o)).contact} withdraw={async () => void (await networkApi.stopContact(id))} />}
       <div className="flex flex-col gap-2 pb-2">
         {list.length === 0 && <p className="py-6 text-center text-[13px] text-ink-3">No messages yet. Say hello.</p>}
         {list.map((m) => (
