@@ -20,6 +20,7 @@ const Posting = z.object({
   ageMin: z.number().int().min(1).max(99).optional(),
   tags: z.array(z.string().max(30)).max(5).optional(),
   price: z.number().min(0).max(0).optional(),
+  showAsHost: z.boolean().optional(),
 });
 
 /** The workspace's events, its RSVPs when the caller's role may view them, and that role. */

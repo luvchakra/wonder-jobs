@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { useOpenNew } from "@/wonderworks/owner/useOpenNew";
 import { Button } from "@/components/common/Button";
 import { Modal } from "@/components/common/Modal";
-import { Chip, Field, Input, Textarea } from "@/components/common/Input";
+import { Chip, Field, Input, Switch, Textarea } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { Badge, type Tone } from "@/components/common/Badge";
 import type { OrgRole } from "@/domain/org/types";
@@ -203,6 +203,9 @@ function EventForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; pos
   const [ageMin, setAgeMin] = useState(t?.ageMin?.toString() ?? "");
   const [tags, setTags] = useState<string[]>(t?.tags ?? []);
   const [tell, setTell] = useState(false);
+  // The poster's own choice, theirs alone: a new event is the poster's; an edit shows it only to the member who posted it.
+  const mine = !p || p.poster === true;
+  const [asHost, setAsHost] = useState(p?.showAsHost === true);
   const [busy, setBusy] = useState(false);
   // The cover: a photo chosen now (sent after the event is saved), or the current one marked for removal.
   const [photo, setPhoto] = useState<File | null>(null);
@@ -229,7 +232,7 @@ function EventForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; pos
     const endsAt = ends ? fromIstInput(ends) : undefined;
     setBusy(true);
     try {
-      const posting = { title, description, location: place || undefined, startsAt, endsAt, capacity: num(capacity), online, ageMin: num(ageMin), tags };
+      const posting = { title, description, location: place || undefined, startsAt, endsAt, capacity: num(capacity), online, ageMin: num(ageMin), tags, ...(mine ? { showAsHost: asHost } : {}) };
       const url = `/api/m/events/org/${encodeURIComponent(orgId)}`;
       const saved = p ? ((await call<{ posting: EventPosting }>(url, { method: "PATCH", body: { id: p.id, posting, tell } })).posting) : await call<EventPosting>(url, { body: posting });
       // The event is saved first; then its cover. A cover that can't go is said so, and the event stays saved.
@@ -315,6 +318,12 @@ function EventForm({ orgId, posting: p, onClose, onSaved }: { orgId: string; pos
           </div>
         </Field>
         <p className="text-[12px] text-ink-3">Free. Paid events aren&apos;t open yet.</p>
+        {mine && (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[14px] text-ink-2">Show me as the host</span>
+            <Switch id="ef-host" checked={asHost} onChange={setAsHost} label="Show me as the host" />
+          </div>
+        )}
         {p && (
           <label className="flex items-center gap-2 text-[13px] text-ink-2">
             <input type="checkbox" checked={tell} onChange={(e) => setTell(e.target.checked)} /> Tell the people going that it changed

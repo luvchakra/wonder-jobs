@@ -1,6 +1,6 @@
 "use client";
 import { TranslatedText } from "@/wonderworks/translate/TranslatedText";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Bookmark, CalendarDays, Clock, ExternalLink, MapPin, Users } from "lucide-react";
@@ -11,6 +11,8 @@ import { PageHeader } from "@/wonderworks/chrome/PageHeader";
 import { shortSourceNames } from "@/wonderworks/find/parts";
 import { findListing } from "@/wonderworks/store";
 import { isLongText, ListingAside, ListingHead, ListingMain, ListingPage } from "@/wonderworks/listing/ListingPage";
+import { call } from "@/wonderworks/api";
+import { NetworkLink } from "@/components/network/parts";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ageLabel, dateRangeLabel, outsidePlace, seatsLabel, whenLabel, whenOf, type EventListing } from "../domain";
@@ -35,6 +37,22 @@ const siteOf = (url: string) => {
 };
 
 /**
+ * Who hosts an event posted on WonderWorks, for this viewer: the member who posted it, only when they chose to be shown
+ * (their own opt-in, off by default), with their name as the network lets this viewer see it. The server decides; with
+ * no answer nothing shows (never a name from the account).
+ */
+function useHost(postingId: string | undefined) {
+  const [host, setHost] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    if (!postingId) return;
+    call<{ host: { id: string; name: string } | null }>(`/api/m/events/host?listing=${encodeURIComponent(postingId)}`)
+      .then((x) => setHost(x.host))
+      .catch(() => setHost(null));
+  }, [postingId]);
+  return host;
+}
+
+/**
  * One event's own page, on WonderWorks' listing page (wonderworks/listing/): the head and whether it fits your interests
  * and city, About in the organiser's words, then the Details and Source folds. It shows how many seats are left, never who
  * is going. Shown from what the person saw: their saves, else their last search in this visit.
@@ -57,6 +75,7 @@ function Page({ l }: { l: EventListing }) {
   const params = useSearchParams();
   const saved = useEventsStore((s) => !!s.saved[l.id]);
   const toggle = useEventsStore((s) => s.toggleSaved);
+  const host = useHost(l.outside ? undefined : l.postingId);
   const m = useMatch(l);
   const fit = fitOf(m);
   const long = isLongText(l.description);
@@ -122,6 +141,14 @@ function Page({ l }: { l: EventListing }) {
             !out && <span key="$">Free</span>,
           ]}
         />
+        {host && (
+          <p className="mt-2 flex flex-wrap items-center gap-x-3 text-[13px] text-ink-2">
+            <span>
+              Hosted by <span className="font-medium text-ink">{host.name}</span>
+            </span>
+            <NetworkLink id={host.id} />
+          </p>
+        )}
         {fit && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span title={fit.title} className={cn("rounded-full px-2.5 py-1 text-[12px] font-semibold", fit.tone)}>
