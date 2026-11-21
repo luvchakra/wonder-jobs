@@ -143,7 +143,7 @@ describe("updates", () => {
     const by = (t: string) => seen.find((u) => u.text === t)!;
     expect(by("Going to this one")).toMatchObject({ href: "/s/events/ev_42", about: "Kubernetes Community Day", module: "events" });
     expect(by("Hiring!")).toMatchObject({ href: "/j/job_7", about: "IAM Lead at A bank", module: "jobs" });
-    expect(by("Just words")).toMatchObject({ href: "", module: "cofounders" });
+    expect(by("Just words")).toMatchObject({ href: "", module: "" }); // no listing, no module tag
     expect(by("Just words").about).toBeUndefined();
     expect(by("Odd module").module).toBe("");
   });

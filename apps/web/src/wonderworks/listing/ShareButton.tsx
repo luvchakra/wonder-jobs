@@ -186,7 +186,7 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
   const [posting, setPosting] = useState(false);
   if (posting && page) {
     const m = /^\/s\/([a-z]{2,20})\//.exec(page);
-    return <PostSheet module={m?.[1] ?? "jobs"} attach={{ page, title: message.subject, module: m?.[1] ?? "jobs" }} onClose={() => done("network")} />;
+    return <PostSheet attach={{ page, title: message.subject, module: m?.[1] ?? "jobs" }} onClose={() => done("network")} />;
   }
   const network = () => setPosting(true);
 

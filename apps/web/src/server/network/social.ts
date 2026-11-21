@@ -148,7 +148,8 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
       const mine = u.tenant_id === s.tenantId;
       const friend = by.get(u.tenant_id);
       const row = mine ? me : (friend?.them ?? authors.get(u.tenant_id)!);
-      return { id: u.id, member: show(ctx, row), kind: u.kind, module: u.module, text: u.text, href: u.href, ...(u.about ? { about: u.about } : {}), at: u.created_at, mine, connectionId: friend?.c.id };
+      // Posts made before 2026-11-21 kept the module open at the time; without a listing it isn't shown.
+      return { id: u.id, member: show(ctx, row), kind: u.kind, module: isPost(u.kind) && !u.href ? "" : u.module, text: u.text, href: u.href, ...(u.about ? { about: u.about } : {}), at: u.created_at, mine, connectionId: friend?.c.id };
     });
 }
 
@@ -157,14 +158,13 @@ const dayAgo = () => new Date(Date.now() - 864e5).toISOString();
 
 /** A listing a post may carry: only a public listing page, and the module comes from its path (`/j/…` is Jobs'). */
 const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-9_.~-]{1,120})$/;
-const MODULE_ID = /^[a-z]{2,20}$/;
 
 export interface PostInput {
   text: string;
   audience?: "connections" | "everyone";
   /** The listing the member was looking at when they pressed +, if they kept it on the post. */
   about?: { page: string; title: string };
-  /** The module the member posted from (shown on the post); an attached listing's own module wins. */
+  /** Ignored: a post names a module only through the listing it carries (owner, 2026-11-21: "why does it say therapists"). */
   module?: string;
 }
 
@@ -181,7 +181,8 @@ export async function publishPost(s: Session, input: PostInput, confirmed?: bool
   const m = page ? PUBLIC_PAGE.exec(page) : null;
   if (page && !m) throw new HiringError("Only a listing's public page can go with a post.", 400);
   const about = m ? (input.about?.title ?? "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
-  const fromModule = m ? (m[1] ?? "jobs") : MODULE_ID.test(input.module ?? "") ? input.module! : "";
+  // A post names a module only when it carries that module's listing; the module open when + was pressed says nothing.
+  const fromModule = m ? (m[1] ?? "jobs") : "";
   const recent = await updates().find({ tenant_id: me.tenant_id }, { order: "created_at", desc: true, limit: 60 });
   if (recent.filter((u) => isPost(u.kind) && u.created_at > dayAgo()).length >= POSTS_A_DAY) throw new HiringError("You've posted a lot today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Posting");

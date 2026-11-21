@@ -12,9 +12,9 @@ import { toast } from "@/components/feedback/Toast";
 /**
  * A new network post, opened from the + in any module (owner, 2026-11-21: "use the + icon to create new post"). It
  * shows exactly what goes and to whom, so Post is the confirmation. The listing on screen, if any, is attached and can
- * be taken off; the post is marked with the module it came from.
+ * be taken off; a post carrying a listing is marked with that listing's module, and a post without one names no module.
  */
-export function PostSheet({ module, moduleLabel, attach, onClose }: { module: string; moduleLabel?: string; /** A listing to attach instead of the one on screen (Share → My network on a card). */ attach?: PostAbout; onClose: () => void }) {
+export function PostSheet({ attach, onClose }: { /** A listing to attach instead of the one on screen (Share → My network on a card). */ attach?: PostAbout; onClose: () => void }) {
   const onScreen = usePostTarget((s) => s.about);
   const bump = usePostTarget((s) => s.bump);
   const [about, setAbout] = useState<PostAbout | null>(attach ?? onScreen);
@@ -32,7 +32,7 @@ export function PostSheet({ module, moduleLabel, attach, onClose }: { module: st
   const post = async () => {
     setBusy(true);
     try {
-      await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), module: about?.module ?? module });
+      await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}) });
       bump();
       toast.success("Posted", audience === "everyone" ? "Everyone on the network can see it." : "Your connections can see it.");
       onClose();
@@ -49,7 +49,7 @@ export function PostSheet({ module, moduleLabel, attach, onClose }: { module: st
       open
       onClose={onClose}
       title="New post"
-      description={moduleLabel ? `From ${moduleLabel}, to your network` : "To your network"}
+      description="To your network"
       size="md"
       footer={
         joined ? (

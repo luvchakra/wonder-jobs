@@ -144,7 +144,7 @@ function NetworkPage() {
           New post
         </Button>
       </div>
-      {posting && <PostSheet module="" onClose={() => setPosting(false)} />}
+      {posting && <PostSheet onClose={() => setPosting(false)} />}
       <nav aria-label="My network" className="mb-4 grid grid-cols-5 gap-1">
         <Shortcut icon={Users} label="People" active={view === "people"} onClick={() => go("people")} />
         <Shortcut icon={UserPlus} label="Invitations" badge={mine?.invitations.length} active={view === "invitations"} onClick={() => go("invitations")} />
