@@ -181,11 +181,11 @@ export async function publishPost(s: Session, input: PostInput, confirmed?: bool
   const m = page ? PUBLIC_PAGE.exec(page) : null;
   if (page && !m) throw new HiringError("Only a listing's public page can go with a post.", 400);
   const about = m ? (input.about?.title ?? "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
-  const module = m ? (m[1] ?? "jobs") : MODULE_ID.test(input.module ?? "") ? input.module! : "";
+  const fromModule = m ? (m[1] ?? "jobs") : MODULE_ID.test(input.module ?? "") ? input.module! : "";
   const recent = await updates().find({ tenant_id: me.tenant_id }, { order: "created_at", desc: true, limit: 60 });
   if (recent.filter((u) => isPost(u.kind) && u.created_at > dayAgo()).length >= POSTS_A_DAY) throw new HiringError("You've posted a lot today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Posting");
-  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: input.audience === "everyone" ? EVERYONE : "post", module, text, href: m ? page : "", about: about || null, created_at: now() };
+  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: input.audience === "everyone" ? EVERYONE : "post", module: fromModule, text, href: m ? page : "", about: about || null, created_at: now() };
   try {
     await updates().insert(row);
   } catch (e) {
