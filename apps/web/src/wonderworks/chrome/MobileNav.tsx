@@ -1,11 +1,18 @@
 "use client";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus, Users } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
-import { isActivePath } from "./nav";
+import { NETWORK_HREF, isActivePath } from "./nav";
+import { Modal } from "@/components/common/Modal";
+import { getClientMode } from "@/lib/mode";
+import { useHydration } from "@/store/hydration";
+
+// The post sheet loads only when the + is pressed.
+const PostSheet = dynamic(() => import("@/components/network/PostSheet").then((m) => m.PostSheet), { ssr: false });
 import { useModuleNav, useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
 
@@ -28,23 +35,47 @@ export function MobileNav() {
   const barShown = useUIStore((s) => s.bottomBars > 0);
   // Jobs' five places, or the active WonderWorks module's.
   const nav = useModuleNav();
-  // The selected module's "post a new entry" page (owner, 2026-11-02): a + just above the menu button. Not on that page itself.
+  // The + (owner, 2026-11-21: "use the + icon to create new post"): a post to the member's network from any module,
+  // about the listing on screen if there is one. Where the module also has its own new entry (owner, 2026-11-02: post a
+  // job, host an event…), the + asks which. On Network's own pages it opens the post straight away.
   const slots = useChromeSlots();
   const selected = useSelectedModule();
-  const post = slots.postFor?.(selected) ?? null;
-  const showPost = !barShown && post && pathname !== post.href.split("?")[0];
+  const entry = slots.postFor?.(selected) ?? null;
+  const onNetwork = pathname === NETWORK_HREF || pathname.startsWith(`${NETWORK_HREF}/`);
+  const moduleEntry = entry && !onNetwork && pathname !== entry.href.split("?")[0] ? entry : null;
+  const [create, setCreate] = useState<"choose" | "post" | null>(null);
+  const signedIn = useHydration((h) => h.hydrated) && getClientMode().mode === "user";
   return (
     <>
-      {showPost && (
-        <Link
-          href={post.href}
-          aria-label={post.label}
-          title={post.label}
+      {!barShown && signedIn && (
+        <button
+          type="button"
+          aria-label={moduleEntry ? "Create" : "New post"}
+          title={moduleEntry ? "Create" : "New post"}
+          onClick={() => setCreate(moduleEntry ? "choose" : "post")}
           className="wj-gradient-bg fixed bottom-[calc(var(--wj-mobile-nav-h)+5.25rem)] right-5 z-40 grid size-12 place-items-center rounded-full text-white shadow-lg active:scale-95 md:hidden"
         >
           <Plus className="size-6" aria-hidden />
-        </Link>
+        </button>
       )}
+      {create === "choose" && moduleEntry && (
+        <Modal open onClose={() => setCreate(null)} title="Create" size="sm">
+          <div className="flex flex-col gap-2 pb-1">
+            <button type="button" onClick={() => setCreate("post")} className="flex min-h-14 items-center gap-3 rounded-[14px] border border-line bg-surface px-4 text-left hover:bg-bg-soft">
+              <Users className="size-5 shrink-0 text-brand-600" aria-hidden />
+              <span>
+                <span className="block text-[14.5px] font-semibold text-ink">Post to your network</span>
+                <span className="block text-[12px] text-ink-3">Your connections, or everyone on the network</span>
+              </span>
+            </button>
+            <Link href={moduleEntry.href} onClick={() => setCreate(null)} className="flex min-h-14 items-center gap-3 rounded-[14px] border border-line bg-surface px-4 text-left hover:bg-bg-soft">
+              <Plus className="size-5 shrink-0 text-brand-600" aria-hidden />
+              <span className="block text-[14.5px] font-semibold text-ink">{moduleEntry.label}</span>
+            </Link>
+          </div>
+        </Modal>
+      )}
+      {create === "post" && <PostSheet module={selected} onClose={() => setCreate(null)} />}
       {/* The account menu (help, account, sign out) within thumb's reach, above the bar. */}
       {!barShown && (
         <button

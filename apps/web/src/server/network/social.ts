@@ -9,7 +9,7 @@ import type { Session } from "../auth";
 import { table } from "../db/table";
 import { HiringError } from "../hiring";
 import { fileReport, reports } from "../modules/safety";
-import { NETWORK, around, audit, conns, gate, member, now, other, profiles, show, tell, updates, type Around, type ConnRow, type ProfileRow } from "./network";
+import { NETWORK, around, audit, conns, gate, member, now, other, profiles, show, tell, updates, type Around, type ConnRow, type ProfileRow, type UpdateRow } from "./network";
 
 type MsgRow = { id: string; connection_id: string; sender_tenant: string; body: string; created_at: string };
 export const msgs = () => table<MsgRow>("network_messages");
@@ -101,6 +101,8 @@ export interface NetUpdate {
   module: string;
   text: string;
   href: string;
+  /** A post's attached listing's title, when it has one. */
+  about?: string;
   at: string;
   /** The viewer's own post or update: they may delete it. */
   mine: boolean;
@@ -146,23 +148,53 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
       const mine = u.tenant_id === s.tenantId;
       const friend = by.get(u.tenant_id);
       const row = mine ? me : (friend?.them ?? authors.get(u.tenant_id)!);
-      return { id: u.id, member: show(ctx, row), kind: u.kind, module: u.module, text: u.text, href: u.href, at: u.created_at, mine, connectionId: friend?.c.id };
+      return { id: u.id, member: show(ctx, row), kind: u.kind, module: u.module, text: u.text, href: u.href, ...(u.about ? { about: u.about } : {}), at: u.created_at, mine, connectionId: friend?.c.id };
     });
 }
 
 const POSTS_A_DAY = 20;
 const dayAgo = () => new Date(Date.now() - 864e5).toISOString();
 
-/** Post to the feed: the member's own typed and sent words, to their connections or to everyone on the network. */
-export async function publishPost(s: Session, input: { text: string; audience?: "connections" | "everyone" }, confirmed?: boolean): Promise<void> {
+/** A listing a post may carry: only a public listing page, and the module comes from its path (`/j/…` is Jobs'). */
+const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-9_.~-]{1,120})$/;
+const MODULE_ID = /^[a-z]{2,20}$/;
+
+export interface PostInput {
+  text: string;
+  audience?: "connections" | "everyone";
+  /** The listing the member was looking at when they pressed +, if they kept it on the post. */
+  about?: { page: string; title: string };
+  /** The module the member posted from (shown on the post); an attached listing's own module wins. */
+  module?: string;
+}
+
+/**
+ * Post to the feed (owner, 2026-11-21: "creating post should be possible from various modules", with the + button):
+ * the member's own typed and sent words, to their connections or to everyone on the network, from any module, optionally
+ * about the listing they were looking at.
+ */
+export async function publishPost(s: Session, input: PostInput, confirmed?: boolean): Promise<void> {
   const me = await member(s);
   const text = input.text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1500);
   if (!text) throw new HiringError("Write something first.", 400);
+  const page = input.about?.page ?? "";
+  const m = page ? PUBLIC_PAGE.exec(page) : null;
+  if (page && !m) throw new HiringError("Only a listing's public page can go with a post.", 400);
+  const about = m ? (input.about?.title ?? "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
+  const fromModule = m ? (m[1] ?? "jobs") : MODULE_ID.test(input.module ?? "") ? input.module! : "";
   const recent = await updates().find({ tenant_id: me.tenant_id }, { order: "created_at", desc: true, limit: 60 });
   if (recent.filter((u) => isPost(u.kind) && u.created_at > dayAgo()).length >= POSTS_A_DAY) throw new HiringError("You've posted a lot today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Posting");
-  const row = { id: newId("nu"), tenant_id: me.tenant_id, kind: input.audience === "everyone" ? EVERYONE : "post", module: "", text, href: "", created_at: now() };
-  await updates().insert(row);
+  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: input.audience === "everyone" ? EVERYONE : "post", module: fromModule, text, href: m ? page : "", about: about || null, created_at: now() };
+  try {
+    await updates().insert(row);
+  } catch (e) {
+    // Until migration 0053 adds `about`, a post is stored without its listing's title (the link still goes with it).
+    if (!/about/.test(e instanceof Error ? e.message : "")) throw e;
+    const rest: UpdateRow = { ...row };
+    delete rest.about;
+    await updates().insert(rest);
+  }
   // The audit names the action, never the words.
   await audit(s.tenantId, "network.post", row.id, "POST_PUBLISHED");
 }
@@ -188,7 +220,6 @@ export async function reportUpdate(s: Session, id: string, reason: string): Prom
   return { repeated: out.repeated };
 }
 
-const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-9_.~-]{1,120})$/;
 const SHARES_A_DAY = 20;
 
 /**

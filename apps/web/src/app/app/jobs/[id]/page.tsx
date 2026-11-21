@@ -14,6 +14,7 @@ import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { formatSalaryRange, relativeTime, formatDate } from "@/lib/format";
 import { track } from "@/lib/analytics";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
+import { usePostAbout } from "@/wonderworks/chrome/postTarget";
 import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Fold } from "@/components/common/Fold";
@@ -111,6 +112,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ id: string
     track("opportunity_viewed", { jobId: job.id, fit: match?.fit });
   }, [job, match?.fit]);
 
+  // The job on screen, for a network post started with + (its public page, /j/<id>).
+  usePostAbout(job ? { page: `/j/${encodeURIComponent(job.id)}`, title: `${job.title} at ${job.company}`, module: "jobs" } : null);
   if (!job) {
     return (
       <div className="mx-auto max-w-3xl">

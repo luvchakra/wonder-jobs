@@ -128,4 +128,23 @@ describe("updates", () => {
     expect(JSON.stringify([kunalSees, rahulSees])).not.toContain("u-asha");
     expect(kunalId).toBeTruthy();
   });
+
+  it("a post from a module can carry the listing on screen: only a public listing page, its module from the path", async () => {
+    const ashaId = await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    await connect(kunal, asha, ashaId);
+    await expect(S.publishPost(asha, { text: "Look", about: { page: "https://evil.example/x", title: "X" } }, true)).rejects.toThrow(/public page/);
+    await expect(S.publishPost(asha, { text: "Look", about: { page: "/app/settings", title: "X" } }, true)).rejects.toThrow(/public page/);
+    await S.publishPost(asha, { text: "Going to this one", about: { page: "/s/events/ev_42", title: "  Kubernetes   Community Day " }, module: "jobs" }, true);
+    await S.publishPost(asha, { text: "Hiring!", about: { page: "/j/job_7", title: "IAM Lead at A bank" } }, true);
+    await S.publishPost(asha, { text: "Just words", module: "cofounders" }, true);
+    await S.publishPost(asha, { text: "Odd module", module: "../x" }, true);
+    const seen = await S.feedFor(kunal);
+    const by = (t: string) => seen.find((u) => u.text === t)!;
+    expect(by("Going to this one")).toMatchObject({ href: "/s/events/ev_42", about: "Kubernetes Community Day", module: "events" });
+    expect(by("Hiring!")).toMatchObject({ href: "/j/job_7", about: "IAM Lead at A bank", module: "jobs" });
+    expect(by("Just words")).toMatchObject({ href: "", module: "cofounders" });
+    expect(by("Just words").about).toBeUndefined();
+    expect(by("Odd module").module).toBe("");
+  });
 });

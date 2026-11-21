@@ -2,20 +2,23 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessagesSquare, Search, Settings2, UserCheck, UserPlus, Users, type LucideIcon } from "lucide-react";
+import { Link2, MessagesSquare, Plus, Search, Settings2, UserCheck, UserPlus, Users, type LucideIcon } from "lucide-react";
 import type { MemberView, NetworkProfile } from "@/domain/network/network";
 import { networkApi, type MyNetwork, type NetUpdate, type Suggested } from "@/services/network/client";
 import { relativeTime } from "@/lib/format";
 import { moduleById } from "@/modules/registry";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
-import { Avatar } from "@/components/common/Avatar";
 import { Button } from "@/components/common/Button";
-import { Field, Input, Select, Textarea } from "@/components/common/Input";
+import { Field, Input, Textarea } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { ConnectSheet, MemberAvatar, PersonCard, PersonRow, memberHref, mutualLine } from "@/components/network/parts";
+import { usePostTarget } from "@/wonderworks/chrome/postTarget";
+import dynamic from "next/dynamic";
+
+const PostSheet = dynamic(() => import("@/components/network/PostSheet").then((m) => m.PostSheet), { ssr: false });
 
 /**
  * My network (owner, 2026-11-20): the middle tab of every module. It opens on the feed (owner, 2026-11-21): what the
@@ -40,6 +43,7 @@ function NetworkPage() {
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState<MemberView | null>(null);
   const [reporting, setReporting] = useState<NetUpdate | null>(null);
+  const [posting, setPosting] = useState(false);
 
   const loadFeed = useCallback(() => {
     networkApi
@@ -59,6 +63,13 @@ function NetworkPage() {
   }, []);
   useEffect(load, [load]);
   const on = !!me;
+  // A post made from the + (here or in any module) shows at once: the feed is read again.
+  const posted = usePostTarget((st) => st.posted);
+  const [seenPosted, setSeenPosted] = useState(posted);
+  if (posted !== seenPosted) {
+    setSeenPosted(posted);
+    setFeed(null);
+  }
   const wantFeed = on && view === "feed" && feed === null;
   const wantPeople = on && view === "people" && list === null;
   useEffect(() => {
@@ -117,7 +128,23 @@ function NetworkPage() {
   return (
     <div className="mx-auto max-w-3xl">
       {/* Below 1024px the top bar carries the title; from there the page does. */}
-      <PageHeader title="My network" className="max-lg:hidden" />
+      {/* Below 1024px the top bar carries the title; phones post with the floating +, which tablets and desktops don't
+          have, so from 768px the + is here. */}
+      <PageHeader
+        title="My network"
+        className="max-lg:hidden"
+        actions={
+          <Button onClick={() => setPosting(true)} icon={<Plus className="size-4" aria-hidden />}>
+            New post
+          </Button>
+        }
+      />
+      <div className="mb-3 hidden justify-end md:flex lg:hidden">
+        <Button onClick={() => setPosting(true)} icon={<Plus className="size-4" aria-hidden />}>
+          New post
+        </Button>
+      </div>
+      {posting && <PostSheet module="" onClose={() => setPosting(false)} />}
       <nav aria-label="My network" className="mb-4 grid grid-cols-5 gap-1">
         <Shortcut icon={Users} label="People" active={view === "people"} onClick={() => go("people")} />
         <Shortcut icon={UserPlus} label="Invitations" badge={mine?.invitations.length} active={view === "invitations"} onClick={() => go("invitations")} />
@@ -128,11 +155,10 @@ function NetworkPage() {
 
       {view === "feed" && (
         <>
-          <Composer name={me.name} onPosted={() => setFeed(null)} />
           {feed === null ? (
             <PageLoading rows={2} />
           ) : feed.length === 0 ? (
-            <p className="rounded-[16px] border border-line bg-surface p-4 text-[13px] text-ink-3">Nothing here yet. Post something, or find people under People: what your connections post, their new roles and the listings they share show here.</p>
+            <p className="rounded-[16px] border border-line bg-surface p-4 text-[13px] text-ink-3">Nothing here yet. Press + to post, or find people under People: what your connections post, their new roles and the listings they share show here.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {feed.map((u) => (
@@ -290,51 +316,6 @@ function Shortcut({ icon: Icon, label, badge, quiet, active, href, onClick }: { 
   );
 }
 
-/** The box to post from. It shows what goes and to whom, so Post is the confirmation. */
-function Composer({ name, onPosted }: { name: string; onPosted: () => void }) {
-  const [text, setText] = useState("");
-  const [audience, setAudience] = useState<"connections" | "everyone">("connections");
-  const [busy, setBusy] = useState(false);
-  const post = async () => {
-    setBusy(true);
-    try {
-      await networkApi.post(text.trim(), audience);
-      setText("");
-      toast.success("Posted", audience === "everyone" ? "Everyone on the network can see it." : "Your connections can see it.");
-      onPosted();
-    } catch (e) {
-      toast.error("Couldn't post", (e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <form
-      className="mb-3 rounded-[16px] border border-line bg-surface p-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (text.trim()) void post();
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <Avatar name={name} size={40} self />
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={text ? 3 : 1} maxLength={1500} placeholder="Share something with your network" aria-label="Write a post" className="min-h-10 flex-1 resize-none bg-transparent py-2 text-[14px] text-ink outline-none placeholder:text-ink-4" />
-      </div>
-      {text.trim() && (
-        <div className="mt-2 flex flex-wrap items-center justify-end gap-2 border-t border-line pt-2">
-          <Select value={audience} onChange={(e) => setAudience(e.target.value as "connections" | "everyone")} aria-label="Who sees this post" className="h-9 w-auto min-w-0">
-            <option value="connections">My connections</option>
-            <option value="everyone">Everyone on the network</option>
-          </Select>
-          <Button type="submit" size="sm" loading={busy}>
-            Post
-          </Button>
-        </div>
-      )}
-    </form>
-  );
-}
-
 /** One thing in the feed: a post in its author's words, or something a connection did, with one way on. */
 function FeedCard({ u, onDelete, onReport }: { u: NetUpdate; onDelete: () => void; onReport: () => void }) {
   const post = u.kind === "post" || u.kind === "post:everyone";
@@ -360,6 +341,15 @@ function FeedCard({ u, onDelete, onReport }: { u: NetUpdate; onDelete: () => voi
         </div>
       </div>
       <p className="mt-2 whitespace-pre-line break-words text-[14px] leading-relaxed text-ink [overflow-wrap:anywhere]">{post ? u.text : `${u.member.name.split(" ")[0]} ${u.text}`}</p>
+      {post && u.href && (
+        <Link href={u.href} className="mt-2 flex items-center gap-3 rounded-[14px] border border-line bg-surface-2 p-3 hover:bg-bg-soft">
+          <Link2 className="size-4 shrink-0 text-brand-600" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13.5px] font-medium text-ink">{u.about || "See the listing"}</span>
+            {moduleLabel && <span className="block text-[11.5px] text-ink-3">{moduleLabel}</span>}
+          </span>
+        </Link>
+      )}
       <div className="mt-1 flex flex-wrap items-center gap-x-4">
         {shared && (
           <Link href={u.href} className="inline-flex min-h-9 items-center text-[13px] font-semibold text-brand-600 hover:underline">

@@ -47,7 +47,7 @@ export type ProfileRow = {
 };
 export type ConnStatus = "pending" | "connected" | "ignored" | "withdrawn" | "removed";
 export type ConnRow = { id: string; pair_key: string; requester: string; recipient: string; status: ConnStatus; how: string; note: string; created_at: string; updated_at: string };
-export type UpdateRow = { id: string; tenant_id: string; kind: string; module: string; text: string; href: string; created_at: string };
+export type UpdateRow = { id: string; tenant_id: string; kind: string; module: string; text: string; href: string; /** A post's attached listing's title (migration 0053); absent before it is applied. */ about?: string | null; created_at: string };
 
 export const profiles = () => table<ProfileRow>("network_profiles");
 export const conns = () => table<ConnRow>("network_connections");
