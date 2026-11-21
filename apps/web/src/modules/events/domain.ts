@@ -218,6 +218,12 @@ export interface EventPosting {
   status: "draft" | "open" | "closed";
   createdAt: string;
   updatedAt: string;
+  /**
+   * For the member who posted the event (and only them): that they did, and whether they are shown as its host
+   * (WonderWorks Network, their own opt-in, off by default). Nobody else is told either; the public posting never carries it.
+   */
+  poster?: true;
+  showAsHost?: boolean;
 }
 
 export interface EventPostingInput {
@@ -232,6 +238,8 @@ export interface EventPostingInput {
   tags?: unknown;
   /** Paid events aren't open yet: anything above zero is refused. */
   price?: unknown;
+  /** The poster's own choice to be shown as the event's host; ignored for anyone else. */
+  showAsHost?: unknown;
 }
 
 /** A stored `attrs` read back into terms; a field that doesn't fit is dropped, never guessed. */
