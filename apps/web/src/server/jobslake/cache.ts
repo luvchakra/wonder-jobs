@@ -52,6 +52,7 @@ export function answerFor(src: Pick<SourceRecord, "id" | "updatedAt">, depth: De
 }
 
 const g = globalThis as unknown as { __jlCachePrunedAt?: number };
+const PRUNE_EVERY_MS = 60 * 60_000;
 
 /** Stores this search's fresh answers. */
 export async function saveAnswers(entries: CachedAnswer[], module: ModuleId = "jobs"): Promise<void> {
@@ -59,12 +60,13 @@ export async function saveAnswers(entries: CachedAnswer[], module: ModuleId = "j
 }
 
 /**
- * Drops answers too old to serve, at most every 10 minutes per server. It is a delete across every data database
+ * Drops answers too old to serve, at most once an hour per server (it took 5.8 to 8.7 s after the response when it ran
+ * every 10 minutes; an answer too old to serve is never read anyway, so nothing waits on this). It is a delete across every data database
  * (7.4 s on a cold instance, measured 2026-11-21, when the search itself waited on it), so a search never waits for it:
  * the caller runs the returned work after the response is sent. Null when it isn't due.
  */
 export function pruneAnswersIfDue(now = Date.now()): (() => Promise<void>) | null {
-  if (g.__jlCachePrunedAt && now - g.__jlCachePrunedAt <= 10 * 60_000) return null;
+  if (g.__jlCachePrunedAt && now - g.__jlCachePrunedAt <= PRUNE_EVERY_MS) return null;
   g.__jlCachePrunedAt = now;
   return async () => {
     await jobsLakeStore().pruneCachedAnswers(new Date(now - STALE_MS).toISOString());
