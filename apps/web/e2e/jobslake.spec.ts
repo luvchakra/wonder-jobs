@@ -52,8 +52,8 @@ test.describe("WorksLake admin", () => {
 
   test("WJ-JL-013 admin opens WorksLake", async ({ page }) => {
     await page.goto(PORTAL);
-    await expect(page.getByRole("heading", { name: "WorksLake", level: 1 })).toBeVisible();
-    await expect(page.getByText("Active sources", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "WonderWorks admin", level: 1 })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Live sources/ })).toBeVisible();
   });
 
   test("WJ-JL-014 admin views the source registry — access labels, and partnership portals shown as Partner API", async ({ page }, info) => {
