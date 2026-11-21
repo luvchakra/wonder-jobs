@@ -108,11 +108,16 @@ describe("updates", () => {
     expect((await S.feedFor(asha)).filter((u) => u.mine).map((u) => u.text).sort()).toEqual(["For everyone", "For my connections"]);
     const post = rahulSees[0];
     await expect(S.deleteUpdate(rahul, post.id)).rejects.toThrow(/isn't yours/);
+    // Rahul was never shown Asha's connections-only post, so he can't report it even with its id.
+    const hidden = kunalSees.find((u) => u.text === "For my connections")!;
+    await expect(S.reportUpdate(rahul, hidden.id, "never saw it")).rejects.toThrow(/isn't available/);
     // A report hides it from the reporter at once, and the author can't report their own.
     await expect(S.reportUpdate(asha, post.id, "mine")).rejects.toThrow(/isn't available/);
     await S.reportUpdate(rahul, post.id, "spam");
     expect(await S.feedFor(rahul)).toEqual([]);
     expect((await S.feedFor(kunal)).some((u) => u.id === post.id)).toBe(true);
+    // Reported or not, the author still sees their own post.
+    expect((await S.feedFor(asha)).some((u) => u.id === post.id)).toBe(true);
     await S.deleteUpdate(asha, post.id);
     expect((await S.feedFor(kunal)).map((u) => u.text)).toEqual(["For my connections"]);
     // Blocked people's posts never show, and neither do posts from someone who isn't findable by everyone.
