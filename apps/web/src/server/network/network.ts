@@ -54,7 +54,7 @@ export const conns = () => table<ConnRow>("network_connections");
 export const updates = () => table<UpdateRow>("network_updates");
 export const now = () => new Date().toISOString();
 
-const toProfile = (r: ProfileRow): NetworkProfile => ({
+export const toProfile = (r: ProfileRow): NetworkProfile => ({
   publicId: r.public_id,
   name: r.name,
   headline: r.headline,

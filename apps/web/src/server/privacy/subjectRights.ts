@@ -10,6 +10,7 @@ import { MemoryResumeFileStore, resumeFileStore } from "../resume/files";
 import { cancelUnpaidSubscriptions } from "../billing/service";
 import { consentHistory, forgetConsentsInMemory, privacyRequests, recordPrivacyRequest } from "./records";
 import type { Session } from "../auth";
+import { ACCOUNT_DATA } from "./accountData";
 
 /**
  * Data-subject rights: access / portability (GDPR Art. 15, 20; DPDP s.11) and erasure
@@ -31,6 +32,8 @@ export async function buildExport(session: Session) {
     privacyRequests(tenantId),
     resumeFileStore().list(tenantId),
   ]);
+  // Data in tables the tenant row doesn't own (Network, …): each exports its own; one that can't be read says so.
+  const more = Object.fromEntries(await Promise.all(ACCOUNT_DATA.map(async (d) => [d.key, await d.export(tenantId).catch(() => ({ unavailable: true }))] as const)));
   let actionAudit: unknown[] = [];
   let contactMessages: unknown[] = [];
   let account: unknown = { id: tenantId, email: session.email ?? null, name: session.name ?? null };
@@ -62,6 +65,7 @@ export async function buildExport(session: Session) {
     privacyRequests: requests,
     // The files themselves are too large for one JSON response; each downloads from My resumes.
     resumeFiles: resumeFiles.map((f) => ({ ...f, download: `/api/resume-files/${f.id}` })),
+    ...more,
     retention: RETENTION,
   };
 }
@@ -81,7 +85,8 @@ export type EraseResult = { ok: true } | { ok: false; status: 409 | 500; error: 
  * 1. refuse while a subscription would keep charging (the candidate cancels first, so no
  *    orphaned mandate keeps taking money from someone who no longer has an account);
  * 2. record the request (hashed subject) so the erasure itself is provable;
- * 3. delete — the tenant row cascades to every table keyed by it; contact messages are
+ * 3. delete — first the data in tables the tenant row doesn't own (`accountData.ts`: Network); then the tenant row,
+ *    which cascades to every table keyed by it; contact messages are
  *    deleted by tenant id; the sign-in identity is deleted from Supabase Auth;
  * 4. keep only the billing ledger (statutory financial record, no profile data) and the hashed request record.
  */
@@ -99,6 +104,8 @@ export async function eraseAccount(session: Session): Promise<EraseResult> {
 
   const sb = getSupabaseAdmin();
   try {
+    // First, what deleting the tenant row doesn't cascade to. A failure here stops the erasure, so it can be retried whole.
+    for (const d of ACCOUNT_DATA) await d.erase(tenantId);
     if (sb) {
       const contact = await sb.from("contact_messages").delete().eq("tenant_id", tenantId);
       if (contact.error) throw new Error(contact.error.message);
