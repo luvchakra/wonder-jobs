@@ -1,7 +1,7 @@
 "use client";
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GraduationCap, UserCheck, UserPlus, Users } from "lucide-react";
+import { GraduationCap, MessageSquare, UserCheck, UserPlus, Users } from "lucide-react";
 import type { MemberView } from "@/domain/network/network";
 import { networkApi } from "@/services/network/client";
 import { cn } from "@/lib/cn";
@@ -58,7 +58,7 @@ export default function MemberPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader title={m.name} back={{ href: "/app/network", label: "My network" }} />
+      <PageHeader title="Profile" back={{ href: "/app/network", label: "My network" }} />
       <section className="overflow-hidden rounded-[16px] border border-line bg-surface pb-4">
         <div className="wj-gradient-bg h-24" aria-hidden />
         <div className="px-4">
@@ -101,10 +101,15 @@ export default function MemberPage({ params }: { params: Promise<{ id: string }>
                 </Button>
               </>
             )}
-            {m.relation === "connected" && (
-              <span className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line px-4 text-[14px] font-medium text-ink-2">
-                <UserCheck className="size-4 text-success-600" aria-hidden /> Connected
-              </span>
+            {m.relation === "connected" && m.connectionId && (
+              <>
+                <Button href={`/app/network/messages/${encodeURIComponent(m.connectionId)}`} icon={<MessageSquare className="size-4" aria-hidden />}>
+                  Message
+                </Button>
+                <span className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line px-4 text-[14px] font-medium text-ink-2">
+                  <UserCheck className="size-4 text-success-600" aria-hidden /> Connected
+                </span>
+              </>
             )}
           </div>
         </div>
