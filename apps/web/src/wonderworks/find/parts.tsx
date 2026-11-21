@@ -30,11 +30,11 @@ export const historyFor = (items: string[], text: string) => {
 };
 
 /** The last few searches under a box while it has focus: a tap uses one, × forgets it. */
-export function RecentSearches({ items, onPick, onForget }: { items: string[]; onPick: (t: string) => void; onForget: (t: string) => void }) {
+export function RecentSearches({ items, onPick, onForget, underRow = false }: { items: string[]; onPick: (t: string) => void; onForget: (t: string) => void; /** Find's box: below 1024px the Refine and Search row sits under the box, and the list opens under that row, never over the Search button (E2E GJ-020, 2026-11-21: a tap on Search landed on the list). */ underRow?: boolean }) {
   if (!items.length) return null;
   return (
     // Taps here mustn't take the focus from the box first (that would close the list before the tap lands).
-    <ul aria-label="Recent searches" className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-[16px] border border-line bg-surface py-1 shadow-lg" onMouseDown={(e) => e.preventDefault()}>
+    <ul aria-label="Recent searches" className={cn("absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-[16px] border border-line bg-surface py-1 shadow-lg", underRow && "max-lg:top-[calc(100%+3rem)]")} onMouseDown={(e) => e.preventDefault()}>
       {items.map((t) => (
         <li key={t} className="flex items-center">
           <button type="button" onClick={() => onPick(t)} className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-3.5 text-left text-[14px] text-ink hover:bg-bg-soft">
@@ -119,7 +119,8 @@ export function SearchBox({ value, onValue, onClear, placeholder, label, dictati
         )}
         {dictation.supported && <DictateButton listening={dictation.listening} onClick={dictation.toggle} label={dictateLabel} />}
       </div>
-      {focused && <RecentSearches items={history} onPick={onPick} onForget={onForget} />}
+      {/* 3rem = the form's 0.5rem gap and the 2.5rem row (FIND_FORM, FIND_ROW). */}
+      {focused && <RecentSearches items={history} onPick={onPick} onForget={onForget} underRow />}
     </div>
   );
 }
