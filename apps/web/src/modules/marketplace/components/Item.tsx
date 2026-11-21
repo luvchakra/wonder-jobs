@@ -17,6 +17,7 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ClampedText, isLongText } from "@/wonderworks/listing/ListingPage";
 import { MAX_MESSAGE, priceLabel, STAGE_OF, STATUS_LABEL } from "../domain";
+import { NetworkLink } from "@/components/network/parts";
 import { marketplaceManifest } from "../manifest";
 import type { ThreadMessage, ThreadView } from "../threads";
 import { Gallery } from "./Gallery";
@@ -152,6 +153,7 @@ export function MarketplaceItem({ id }: { id: string }) {
                 {t.counterpart} shared <a className="font-medium text-brand-600 hover:underline" href={`mailto:${c.email}`}>{c.email}</a>
               </p>
             ))}
+            <NetworkLink id={t.networkId} />
             {t.youSharedContact ? <p className="text-[12px] text-ink-3">You shared your email.</p> : <Act capability="marketplace.share_contact" label="Share my email" variant="outline" full settings={SETTINGS} review={<>Your account email goes to {t.counterpart}. They can write to you outside WonderWorks, where WonderWorks can&apos;t protect you. You can&apos;t take it back.</>} run={(confirmed) => act({ action: "share", confirmed })} done="Shared" />}
           </div>
         )}

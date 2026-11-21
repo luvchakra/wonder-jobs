@@ -16,6 +16,7 @@ import type { Session } from "../auth";
 import { HiringError } from "../hiring";
 import { recordServerAudit } from "../audit";
 import { blockedBetween } from "../modules/safety";
+import { networkIdsFor } from "../network/links";
 import { newId } from "@/lib/ids";
 import type { Capability } from "@/domain/automation/policy";
 import { cleanMessage, cleanOffer, confirmExpired, LIMITS, looksRisky, mayDo, MARKETPLACE, readTerms, statusAfter, withinLimit, type Offer, type ThreadShape, type ThreadStatus } from "@/modules/marketplace/domain";
@@ -181,7 +182,16 @@ const LIVE_OR_DONE: ThreadStatus[] = ["messaged", "offer", "visit", "done"];
 
 // ---- reading --------------------------------------------------------------------------------------------------------
 
-async function view(s: Session, t: ThreadRow, l: ListingRow): Promise<ThreadView> {
+/** Whether the other side has shared their contact details here: the point from which you know who they are. */
+const revealed = (t: ThreadRow, me: string) => t.shared.some((x) => x.tenant !== me);
+
+/** Network profile ids (public ids only) for the counterparts of these threads, and only of those who have revealed themselves in it. */
+async function networkIdsOf(s: Session, rows: ThreadRow[]): Promise<Map<string, string>> {
+  const who = rows.filter((t) => revealed(t, s.tenantId)).map((t) => other(t, s.tenantId));
+  return who.length ? networkIdsFor(s.tenantId, who) : new Map();
+}
+
+async function view(s: Session, t: ThreadRow, l: ListingRow, ids: Map<string, string> = new Map()): Promise<ThreadView> {
   const me = s.tenantId;
   const side = me === t.buyer_tenant ? "buyer" : "seller";
   const terms = readTerms(l.attrs);
@@ -198,6 +208,8 @@ async function view(s: Session, t: ThreadRow, l: ListingRow): Promise<ThreadView
     may: mayDo(shape(t), me),
     contacts: t.shared.filter((x) => x.tenant !== me).map((x) => ({ email: x.email })),
     youSharedContact: t.shared.some((x) => x.tenant === me),
+    // Never before they have shared: until then the counterpart is as anonymous as this module keeps them.
+    ...(revealed(t, me) && ids.get(other(t, me)) ? { networkId: ids.get(other(t, me)) } : {}),
     ...(t.done_marks.some((m) => m.tenant === me) ? { youMarkedDone: true } : {}),
     createdAt: t.created_at,
     updatedAt: t.updated_at,
@@ -208,20 +220,20 @@ async function view(s: Session, t: ThreadRow, l: ListingRow): Promise<ThreadView
 export async function myThreads(s: Session): Promise<ThreadView[]> {
   const rows = [...(await threads().find({ buyer_tenant: s.tenantId }, { order: "updated_at", desc: true, limit: 200 })), ...(await threads().find({ seller_tenant: s.tenantId }, { order: "updated_at", desc: true, limit: 200 }))].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   const ls = new Map((await listings().findIn("id", [...new Set(rows.map((r) => r.listing_id))])).map((l) => [l.id, l]));
-  const out: ThreadView[] = [];
+  const settled: [ThreadRow, ListingRow][] = [];
   for (const t of rows) {
     const l = ls.get(t.listing_id);
-    if (!l) continue;
-    out.push(await view(s, (await stand(s, t.id)).t, l));
+    if (l) settled.push([(await stand(s, t.id)).t, l]);
   }
-  return out;
+  const ids = await networkIdsOf(s, settled.map(([t]) => t));
+  return Promise.all(settled.map(([t, l]) => view(s, t, l, ids)));
 }
 
 /** One conversation and its messages, for someone on it. */
 export async function thread(s: Session, id: string): Promise<{ thread: ThreadView; messages: ThreadMessage[] }> {
   const { t, l } = await stand(s, id);
   const list = await messages().find({ thread_id: t.id }, { order: "created_at", limit: 500 });
-  return { thread: await view(s, t, l), messages: list.map((m) => ({ id: m.id, mine: m.sender_tenant === s.tenantId, body: m.body, risky: m.sender_tenant !== s.tenantId && m.risky, at: m.created_at })) };
+  return { thread: await view(s, t, l, await networkIdsOf(s, [t])), messages: list.map((m) => ({ id: m.id, mine: m.sender_tenant === s.tenantId, body: m.body, risky: m.sender_tenant !== s.tenantId && m.risky, at: m.created_at })) };
 }
 
 export { stand as standIn };
