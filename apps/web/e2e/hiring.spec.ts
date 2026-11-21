@@ -297,10 +297,7 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     info.skip(!REAL, "Needs live job sources: a local build without Supabase searches sample data");
     const page = people.seeker!.page;
     // The source itself: a search of WonderJobs employers alone returns the job with its company.
-    // This can be the server's first search since it started, which also loads WorksLake's shared data once (measured
-    // 2026-11-21: 16 s for the first search, under 3 s after, the employers source itself 0.6 s), so allow for that here;
-    // this step is about whose job shows, not how fast.
-    const res = await page.request.post("/api/jobs-lake/v1/search", { data: { query: { text: JOB_TITLE, locations: [] }, sourceIds: ["employers"], searchMode: "fast", limit: 20 }, timeout: 60_000 });
+    const res = await page.request.post("/api/jobs-lake/v1/search", { data: { query: { text: JOB_TITLE, locations: [] }, sourceIds: ["employers"], searchMode: "fast", limit: 20 } });
     expect(res.status()).toBe(200);
     const { results } = (await res.json()) as { results: { title: string; company: { name: string } | string }[] };
     const hit = results.find((r) => r.title === JOB_TITLE);
