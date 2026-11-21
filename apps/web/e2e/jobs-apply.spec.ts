@@ -247,7 +247,8 @@ test.describe("JobsApply with the browser helper", () => {
     await expect(fillMore).toBeVisible({ timeout: 15_000 });
     await fillMore.click();
     await expect(employer.locator("input[name=exp_sal]")).toHaveValue("₹60,00,000", { timeout: 15_000 });
-    expect(await employer.locator("input[name=cv]").evaluate((el: HTMLInputElement) => el.files?.length ?? 0)).toBe(1);
+    // The file is attached after the text fields (the helper fetches it first), so wait for it rather than look once.
+    await expect.poll(() => employer.locator("input[name=cv]").evaluate((el: HTMLInputElement) => el.files?.length ?? 0), { timeout: 15_000 }).toBe(1);
     expect(await employer.locator("input[name=cv2]").evaluate((el: HTMLInputElement) => el.files?.length ?? 0)).toBe(0);
 
     await page.goto("/app/career-dna");
@@ -390,8 +391,17 @@ web.describe("JobsApply in WonderWorks", () => {
     // A job a company posted on WonderJobs is applied to on WonderJobs itself: a button, and one tap sends
     // (owner, 2026-10-28). The sample posting isn't a company's open job on this server, so the press is refused
     // and says why; nothing is marked applied.
-    await page.goto(`/app/jobs/${JOB}`);
-    await expect(page.getByText("One tap sends your Career Profile, résumé and saved answers to Razorpay.")).toBeVisible({ timeout: 20_000 });
+    // Which sample job that is comes from this account's own catalog, not a fixed id: a sample job's sources are a
+    // seeded draw over the list of sources, so they move whenever a source is added (they left the Razorpay job).
+    const hosted = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find((k) => k.endsWith(":wj.jobs"));
+      const jobs = Object.values((key ? JSON.parse(localStorage.getItem(key)!).state?.jobs : null) ?? {}) as { id: string; company: string; sourceIds?: string[] }[];
+      const job = jobs.find((j) => j.sourceIds?.includes("employers"));
+      return job ? { id: job.id, company: job.company } : null;
+    });
+    expect(hosted, "the sample catalog holds a job from the WonderWorks employers source").not.toBeNull();
+    await page.goto(`/app/jobs/${hosted!.id}`);
+    await expect(page.getByText(`One tap sends your Career Profile, résumé and saved answers to ${hosted!.company}.`)).toBeVisible({ timeout: 20_000 });
     await page.getByRole("button", { name: "Easy Apply", exact: true }).click();
     await expect(page.getByText("This position is no longer open.")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("button", { name: "Easy Apply", exact: true })).toBeEnabled();
@@ -452,7 +462,7 @@ web.describe("JobsApply in WonderWorks", () => {
   web("admin: JobsApply operations shows adapters, domain policies and counts only", async ({ page }, info) => {
     info.skip(info.project.name !== "chromium", "desktop admin");
     await page.goto("/platform/jobs-apply");
-    await expect(page.getByRole("heading", { name: "JobsApply", exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "WonderWorks helper", exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("cell", { name: /Greenhouse/ }).first()).toBeVisible();
     await expect(page.getByText("Candidate controlled").first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Domain policies" })).toBeVisible();

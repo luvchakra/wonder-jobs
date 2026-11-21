@@ -79,6 +79,9 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   }, [mode, userId]);
 
   useEffect(() => {
+    // The app mounts this twice (the top bar, and the sidebar's foot): only one listens, or each press would open
+    // Ask Wonder and close it again.
+    if (place !== "top") return;
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -87,7 +90,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setCmd]);
+  }, [setCmd, place]);
 
   // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
   const accountMenu = (
