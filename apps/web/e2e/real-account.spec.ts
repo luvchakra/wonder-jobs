@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
-import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { CLEANUP_TIMEOUT_MS, createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
 import { openDescription } from "./utils/jobPage";
 
 /**
@@ -29,8 +29,9 @@ test.describe("Real account — production walk-through", () => {
     info.skip(info.project.name !== "chromium", "Desktop Chromium");
     info.skip(!supabaseConfigured(), "BLOCKED: needs Supabase admin credentials to create a disposable account");
   });
-  test.afterAll(async () => {
-    for (const a of accounts) await deleteTestAccount(a.id);
+  test.afterAll(async ({ browser }) => {
+    test.setTimeout(CLEANUP_TIMEOUT_MS);
+    for (const a of accounts) await removeTestAccount(browser, a);
   });
 
   test("REAL-001 guards: signed-out API is refused, cron needs its secret, admin portals are hidden from candidates", async ({ page, request }) => {

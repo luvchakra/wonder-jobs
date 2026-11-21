@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
-import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { CLEANUP_TIMEOUT_MS, createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
 import { ERASE_PHRASE } from "../src/content/privacy";
 import { openApp } from "./fixtures/sample";
 
@@ -81,12 +81,12 @@ test.describe("Network — two people connect", () => {
     info.skip(info.project.name !== "chromium", "Desktop Chromium");
     info.skip(!LOCAL && !REAL, "BLOCKED: runs on a local build (with or without the Supabase project), not against a deployment");
   });
-  test.afterAll(async () => {
-    // If the journey stopped early, the people who joined still delete their accounts the product's way, which is what
-    // removes their network data; the sweep after it is for the accounts themselves (already gone is fine).
-    if (REAL) for (const p of [people.asha, people.kunal]) await (p ? deleteOwnAccount(p) : Promise.resolve()).catch(() => {});
+  test.afterAll(async ({ browser }) => {
+    test.setTimeout(CLEANUP_TIMEOUT_MS);
     for (const p of Object.values(people)) await p?.ctx.close().catch(() => {});
-    for (const a of accounts) await deleteTestAccount(a.id);
+    // Whoever is still there (the visitor; everyone, if the journey stopped early) is deleted the product's way too,
+    // which is what removes network data.
+    for (const a of accounts) await removeTestAccount(browser, a);
   });
 
   test("NET-001 someone who hasn't joined is asked to join, and both people join from My network profile", async ({ browser }) => {

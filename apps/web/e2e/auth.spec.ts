@@ -1,4 +1,4 @@
-import { test, expect, supabaseConfigured, createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown } from "./fixtures/auth";
+import { test, expect, supabaseConfigured, createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown } from "./fixtures/auth";
 import { uniqueTestEmail } from "./utils/testUser";
 
 test.describe("AUTH — landing and sign-up UI (no account needed)", () => {
@@ -136,7 +136,8 @@ test.describe("AUTH — real account lifecycle (Supabase-backed, disposable)", (
     await expect(page).toHaveURL(/\/sign-in/);
   });
 
-  test("AUTH-017 two accounts on the same browser never see each other's local data", async ({ page }) => {
+  test("AUTH-017 two accounts on the same browser never see each other's local data", async ({ page, browser }) => {
+    test.setTimeout(180_000); // two accounts, each deleted through the product afterwards
     const a = await createTestAccount("isoA");
     const b = await createTestAccount("isoB");
     try {
@@ -154,8 +155,8 @@ test.describe("AUTH — real account lifecycle (Supabase-backed, disposable)", (
       const leaked = await page.evaluate((k) => localStorage.getItem(k), secretKey);
       expect(leaked, "account B's browser storage must not carry account A's namespaced data").toBeNull();
     } finally {
-      await deleteTestAccount(a.id);
-      await deleteTestAccount(b.id);
+      await removeTestAccount(browser, a);
+      await removeTestAccount(browser, b);
     }
   });
 });
