@@ -76,7 +76,10 @@ function NetworkPage() {
     try {
       await networkApi.act(m.connectionId, action);
       toast.success(done);
-      setMine(await networkApi.mine());
+      // Both lists show where each person stands, so both are read again.
+      const [m, p] = await Promise.all([networkApi.mine(), networkApi.people(searched)]);
+      setMine(m);
+      setList(p.people);
     } catch (e) {
       toast.error("That didn't go through", (e as Error).message);
     }
@@ -136,7 +139,7 @@ function NetworkPage() {
               Search
             </Button>
           </form>
-          <h2 className="mb-2 text-[15px] font-semibold text-ink">{searched ? `People matching “${searched}”` : "People you may know"}</h2>
+          <h2 className="mb-2 text-[15px] font-semibold text-ink">{searched ? `People matching “${searched}”` : list?.some((m) => m.relation !== "none") ? "People" : "People you may know"}</h2>
           {list === null ? (
             <PageLoading rows={2} />
           ) : list.length === 0 ? (
