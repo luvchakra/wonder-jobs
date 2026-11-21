@@ -15,7 +15,7 @@ import { planSearch, type Depth, type SearchPlan } from "@/domain/jobslake/plann
 import { PROTOCOL_VERSION, validateOpportunity, type CanonicalOpportunity, type SearchEvent, type SearchRequest, type SearchResponse, type SourceOutcome, type SourceSearchStatus } from "@/domain/jobslake/protocol";
 import { matchesLocations, matchesQuery, titleMatches } from "@/services/jobs/normalize";
 import { ageLabel, mergeDelta, searchKey } from "@/domain/jobslake/cache";
-import { answerFor, lookupAnswers, saveAnswers, type CacheLookup } from "./cache";
+import { answerFor, lookupAnswers, pruneAnswersIfDue, saveAnswers, type CacheLookup } from "./cache";
 import { DestinationBlockedError } from "./safeFetch";
 import { asksSince, isAvailable, listSources, NeedsSetupError, runConnector } from "./registry";
 import { creditsLeft, topUpBelow } from "./paid";
@@ -214,14 +214,14 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   const dataset = req.module ?? "jobs";
   // A gateway-fed source's cached answers end when gateway listings are refreshed (warm.ts): the refresh stamp is part
   // of their cache key, so a search after a refresh asks again and sees the new entries.
-  const stamp = await gatewayRefreshStamp().catch(() => undefined);
-  const sources = (await listSources(dataset)).filter((s) => !only || only.has(s.id)).map((s) => (stamp && isGatewayFed(s) && stamp > (s.updatedAt ?? "") ? { ...s, updatedAt: stamp } : s));
-  const requested = allowedIds(sources, req);
-  const allowed = only ? (requested ?? sources.map((s) => s.id)).filter((id) => only.has(id)) : requested;
-  const [health] = await Promise.all([healthBySource(), loadPlatformKeys()]);
-  // Companies a platform admin banned: their listings are left out of every module's results (owner, 2026-11-01).
-  // A failed read leaves nothing out, and says so in the logs.
-  const [bannedCos, hidden] = await Promise.all([
+  // The opening reads don't depend on each other, so they run together (2026-11-21: one after another they took 4.6 s on
+  // a cold instance and about 1 s on a warm one before any source was asked).
+  const [stamp, allSources, [health], bannedCos, hidden] = await Promise.all([
+    gatewayRefreshStamp().catch(() => undefined),
+    listSources(dataset),
+    Promise.all([healthBySource(), loadPlatformKeys()]),
+    // Companies a platform admin banned: their listings are left out of every module's results (owner, 2026-11-01).
+    // A failed read leaves nothing out, and says so in the logs.
     bannedCompanies().catch((e: unknown) => {
       console.warn(`[jobslake] couldn't read banned companies: ${e instanceof Error ? e.message : e}`);
       return { domains: new Set<string>(), names: new Set<string>() };
@@ -232,6 +232,9 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
       return new Set<string>();
     }),
   ]);
+  const sources = allSources.filter((s) => !only || only.has(s.id)).map((s) => (stamp && isGatewayFed(s) && stamp > (s.updatedAt ?? "") ? { ...s, updatedAt: stamp } : s));
+  const requested = allowedIds(sources, req);
+  const allowed = only ? (requested ?? sources.map((s) => s.id)).filter((id) => only.has(id)) : requested;
   const banned = { ...bannedCos, hidden };
   // No words (owner, 2026-11-01: "just show top 100 entries if no search term is entered"): the module's latest stored
   // listings, newest first. Nothing is fetched and nothing guessed; the place filter and every exclusion still apply.
@@ -266,6 +269,8 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   );
   const toCache: CachedAnswer[] = [];
   let fromCache = 0;
+  // Sources that actually answered now (not a reused answer): only their postings are new to store.
+  const asked = new Set<string>();
 
   interface Attempt {
     jobs: Job[];
@@ -335,6 +340,7 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
 
     // A run records real calls only: fresh cache hits never asked the source, so they leave its health alone.
     const called = results.filter((r) => r.called);
+    if (called.some((r) => !r.error)) asked.add(sourceId);
     const answered = called.filter((r) => !r.error);
     const failed = called.filter((r) => r.error);
     if (called.length) {
@@ -431,29 +437,33 @@ export async function search(req: SearchRequest, opts: SearchOptions): Promise<{
   for (const run of runs) run.duplicates = canon.opportunities.reduce((n, o) => n + o.sourceRecords.filter((r) => r.sourceId === run.sourceId && !r.canonical).length, 0);
   // Run history and the warm pool are bookkeeping around live results the sources already returned:
   // a failed write is logged for operators, never turned into a failed search for the candidate.
-  await bookkeeping("record runs", () => store.recordRuns(runs));
-  if (cacheOn) await bookkeeping("write the search cache", () => saveAnswers(toCache, Date.now(), dataset));
-
-  // Company directory: each employer's or organiser's reported domain, for logos and company details. One directory for
-  // every module (wonderworks/brand/CompanyLogo), so an event's organiser or a seller gets its logo too (owner,
-  // 2026-11-06); listings themselves stay in each module's own dataset.
-  if (valid.length) await bookkeeping("record companies", () => recordCompanies(valid));
+  // Only what a source returned just now is written: a posting served from the search cache was stored when it was
+  // fetched, and storing it again on every search cost 1.3 to 1.5 s for nothing new (2026-11-21).
+  const fresh = valid.filter((o) => o.sourceRecords.some((r) => asked.has(r.sourceId)));
+  // These writes and the warm pool read don't depend on each other, so they run together.
+  const [, , , , warm] = await Promise.all([
+    bookkeeping("record runs", () => store.recordRuns(runs)),
+    cacheOn ? bookkeeping("write the search cache", () => saveAnswers(toCache, dataset)) : undefined,
+    // Company directory: each employer's or organiser's reported domain, for logos and company details. One directory
+    // for every module (wonderworks/brand/CompanyLogo), so an event's organiser or a seller gets its logo too (owner,
+    // 2026-11-06); listings themselves stay in each module's own dataset.
+    fresh.length ? bookkeeping("record companies", () => recordCompanies(fresh)) : undefined,
+    flags.jobsLakeWarmPoolEnabled && fresh.length ? bookkeeping("update the warm pool", () => store.upsertOpportunities(fresh, dataset)) : undefined,
+    flags.jobsLakeWarmPoolEnabled && plan.useWarmPool ? bookkeeping("read the warm pool", () => warmCandidates(req, allowed ? new Set(allowed) : null, !!only)) : undefined,
+  ]);
+  if (flags.jobsLakeWarmPoolEnabled) rememberInPool(store, dataset, fresh);
+  // Old cached answers are dropped after the answer is sent: the search never waits on that delete.
+  const prune = cacheOn ? pruneAnswersIfDue() : null;
+  if (prune) afterResponse(prune);
   // Logos of organisations the directory hasn't got yet, warmed after the answer is sent: the search never waits on it.
   if (valid.length) afterResponse(() => prewarmLogos(valid).then(() => undefined));
 
   let results = answering;
   let warmCount = 0;
-  if (flags.jobsLakeWarmPoolEnabled) {
-    if (valid.length) await bookkeeping("update the warm pool", async () => {
-      await store.upsertOpportunities(valid, dataset);
-      rememberInPool(store, dataset, valid);
-    });
-    if (plan.useWarmPool) {
-      const warm = await bookkeeping("read the warm pool", () => warmCandidates(req, allowed ? new Set(allowed) : null, !!only));
-      const merged = mergeWithWarm(answering, warm ?? []);
-      results = merged.results;
-      warmCount = merged.warm;
-    }
+  if (flags.jobsLakeWarmPoolEnabled && plan.useWarmPool) {
+    const merged = mergeWithWarm(answering, warm ?? []);
+    results = merged.results;
+    warmCount = merged.warm;
   }
   // Postings found closed where they actually live (a board ad whose employer page says "not found"):
   // recorded once in the shared job_origins catalogue, left out of every search after that.
