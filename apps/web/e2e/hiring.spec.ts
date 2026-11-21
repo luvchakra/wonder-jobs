@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
-import { createTestAccount, deleteTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
+import { createTestAccount, removeTestAccount, signInThroughUI, skipOnboardingIfShown, supabaseConfigured, type TestAccount } from "./fixtures/auth";
 import { uniqueTestEmail } from "./utils/testUser";
 
 /** A message in the open conversation: its bubble, not the conversation list's last-message preview of it. */
@@ -70,9 +70,9 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
     info.skip(info.project.name !== "chromium", "Desktop Chromium");
     info.skip(!REAL && !LEGACY, "BLOCKED: invitations need signed-in emails (Supabase admin credentials, or a local build)");
   });
-  test.afterAll(async () => {
+  test.afterAll(async ({ browser }) => {
     for (const p of Object.values(people)) await p?.close().catch(() => {});
-    for (const a of accounts) await deleteTestAccount(a.id);
+    for (const a of accounts) await removeTestAccount(browser, a);
   });
 
   test("HIRE-001 a new account has no workspace, and is hidden from recruiters by default", async ({ browser }) => {

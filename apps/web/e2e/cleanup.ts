@@ -1,4 +1,6 @@
+import { chromium, type FullConfig } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { randomBytes } from "node:crypto";
 
 /**
  * Playwright global setup: before every run, delete the throwaway data earlier runs left in the test
@@ -7,8 +9,10 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  *
  * Only ever touches what the suite itself creates, and only once it's older than two hours (a run still
  * in progress elsewhere keeps its own):
- * - auth users whose address is `wj-e2e-…@example.com` (e2e/utils/testUser.ts), with the product rows
- *   keyed by their id — the same tables e2e/fixtures/auth.ts `deleteTestAccount` clears;
+ * - auth users whose address is `wj-e2e-…@example.com` (e2e/utils/testUser.ts). Each is deleted the way its owner
+ *   would, through the product's own "Delete my account" route (e2e/fixtures/auth.ts `eraseTestAccount`), which knows
+ *   everything an account owns; the setup gives the stale account a new throwaway password to sign in with. Then the
+ *   fixed list of tables below is swept, as the fallback for an account that couldn't be erased that way;
  * - WorksLake sources the admin journeys add, named "Remotive API <ms>", "Credentialed <ms>",
  *   "Audited <ms>" (e2e/jobslake.spec.ts).
  * Nothing else. It does nothing without Supabase admin credentials, and leaves the production project
@@ -43,12 +47,12 @@ export function isStale(createdAt: string | undefined, now = Date.now()): boolea
   return Number.isFinite(t) && now - t > MAX_AGE_MS;
 }
 
-async function staleTestUsers(admin: SupabaseClient): Promise<string[]> {
-  const ids: string[] = [];
+async function staleTestUsers(admin: SupabaseClient): Promise<{ id: string; email: string }[]> {
+  const ids: { id: string; email: string }[] = [];
   for (let page = 1; page <= 50; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw new Error(`listUsers: ${error.message}`);
-    for (const u of data.users) if (u.email && TEST_EMAIL.test(u.email.toLowerCase()) && isStale(u.created_at)) ids.push(u.id);
+    for (const u of data.users) if (u.email && TEST_EMAIL.test(u.email.toLowerCase()) && isStale(u.created_at)) ids.push({ id: u.id, email: u.email });
     if (data.users.length < 1000) break;
   }
   return ids;
@@ -61,6 +65,36 @@ async function deleteUser(admin: SupabaseClient, id: string): Promise<void> {
   await admin.auth.admin.deleteUser(id).catch(() => {});
 }
 
+/** At most this many stale accounts are erased through the product per run (each is a real sign-in); the rest get the sweep. */
+const ERASE_AT_MOST = 20;
+
+/**
+ * Erases stale test accounts through the product, on the server this run tests (it is already up: Playwright starts
+ * the web server before the global setup). Returns how many the product confirmed. Never throws.
+ */
+async function eraseThroughProduct(admin: SupabaseClient, users: { id: string; email: string }[], config: FullConfig | undefined): Promise<number> {
+  const use = (config?.projects.find((p) => p.name === "chromium") ?? config?.projects[0])?.use;
+  if (!use?.baseURL || !users.length) return 0;
+  let erased = 0;
+  const browser = await chromium.launch(use.launchOptions).catch(() => null);
+  if (!browser) return 0;
+  try {
+    const { eraseTestAccount } = await import("./fixtures/auth");
+    for (const u of users.slice(0, ERASE_AT_MOST)) {
+      // Nobody knows a stale account's password any more: it gets a new throwaway one to sign in with, once.
+      const password = `Wj-${randomBytes(9).toString("hex")}!`;
+      const set = await admin.auth.admin.updateUserById(u.id, { password }).catch(() => null);
+      if (!set || set.error) continue;
+      if (await eraseTestAccount(browser, { id: u.id, email: u.email, password }, { baseURL: use.baseURL, proxy: use.proxy })) erased++;
+    }
+  } catch {
+    // The sweep below still runs.
+  } finally {
+    await browser.close().catch(() => {});
+  }
+  return erased;
+}
+
 async function staleTestSources(admin: SupabaseClient): Promise<string[]> {
   const { data, error } = await admin.schema("wonderjobs").from("jobslake_sources").select("id, record, updated_at");
   if (error) return []; // WorksLake tables not migrated in this project: nothing of ours there.
@@ -69,7 +103,7 @@ async function staleTestSources(admin: SupabaseClient): Promise<string[]> {
     .map((row: { id: string }) => row.id);
 }
 
-export default async function cleanup(): Promise<void> {
+export default async function cleanup(config?: FullConfig): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return;
@@ -80,10 +114,11 @@ export default async function cleanup(): Promise<void> {
   const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
   try {
     const users = await staleTestUsers(admin);
-    for (const id of users) await deleteUser(admin, id);
+    const erased = await eraseThroughProduct(admin, users, config);
+    for (const u of users) await deleteUser(admin, u.id);
     const sources = await staleTestSources(admin);
     for (const id of sources) await admin.schema("wonderjobs").from("jobslake_sources").delete().eq("id", id).then(() => {}, () => {});
-    console.log(`[e2e cleanup] removed ${users.length} stale test account(s) and ${sources.length} stale test source(s)`);
+    console.log(`[e2e cleanup] removed ${users.length} stale test account(s) (${erased} through the product's own account deletion) and ${sources.length} stale test source(s)`);
   } catch (e) {
     // Cleanup is housekeeping: report it, don't fail the run over it.
     console.log(`[e2e cleanup] skipped: ${(e as Error).message}`);

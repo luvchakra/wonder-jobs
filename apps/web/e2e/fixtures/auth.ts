@@ -1,7 +1,7 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Browser, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { uniqueTestEmail, testPassword } from "../utils/testUser";
-import { PRIVACY_NOTICE_VERSION } from "../../src/content/privacy";
+import { ERASE_PHRASE, PRIVACY_NOTICE_VERSION } from "../../src/content/privacy";
 import { supabaseUsable } from "../cleanup";
 
 export interface TestAccount {
@@ -60,8 +60,9 @@ async function acceptPrivacyNotice(id: string): Promise<void> {
   }
 }
 
-/** Removes the auth user and whatever product state it wrote, so a test run leaves nothing behind in
- *  the shared project. Access tokens stay valid until they expire, so a page closing after the user is
+/** The fallback after `eraseTestAccount` (use `removeTestAccount`): removes the auth user and the product state in
+ *  the tables listed here, so a test run leaves nothing behind in the shared project even when the account could no
+ *  longer sign in. It knows only these tables; the product's own erasure knows the rest. Access tokens stay valid until they expire, so a page closing after the user is
  *  gone can still flush one last state write; a second sweep catches it. Best-effort: a cleanup failure
  *  must never fail the test it's cleaning up after. */
 export async function deleteTestAccount(id: string): Promise<void> {
@@ -84,6 +85,36 @@ export async function deleteTestAccount(id: string): Promise<void> {
   await sweep();
   await new Promise((r) => setTimeout(r, 2_000));
   await sweep();
+}
+
+/**
+ * Deletes a test account the way its owner would: signed in, through the product's own "Delete my account" route.
+ * That is the path that knows everything an account owns (the tenant row's cascade plus every `ACCOUNT_DATA` entry,
+ * e.g. Network), so cleanup removes what a hand-kept list of tables would miss, and every run exercises real erasure.
+ * True when the product said the account is erased. False when it couldn't be done this way (the account can no
+ * longer sign in, or the product refused): the caller then falls back to `deleteTestAccount`.
+ */
+export async function eraseTestAccount(browser: Browser, account: TestAccount, context?: Parameters<Browser["newContext"]>[0]): Promise<boolean> {
+  // A test's own `browser` already carries the run's base URL and proxy; the global setup's doesn't, and passes them.
+  const ctx = await browser.newContext(context).catch(() => null);
+  if (!ctx) return false;
+  try {
+    const page = await ctx.newPage();
+    await signInThroughUI(page, account);
+    const res = await page.request.post("/api/privacy/erase", { data: { confirm: ERASE_PHRASE } });
+    return res.ok();
+  } catch {
+    return false;
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+}
+
+/** A test's own cleanup: the product's erasure first, then the sweep for whatever is left (or for an account that
+ *  could no longer sign in). Best-effort, like `deleteTestAccount`: it never fails the test it cleans up after. */
+export async function removeTestAccount(browser: Browser, account: TestAccount): Promise<void> {
+  await eraseTestAccount(browser, account);
+  await deleteTestAccount(account.id);
 }
 
 /** Drives the real sign-in form (not an API shortcut) so the assertion is about the actual UI candidates use. */
@@ -127,11 +158,11 @@ interface Fixtures {
 }
 
 export const test = base.extend<Fixtures>({
-  account: async ({}, use) => {
+  account: async ({ browser }, use) => {
     test.skip(!supabaseConfigured(), "No Supabase admin credentials in this environment — account-dependent test is BLOCKED, not run.");
     const account = await createTestAccount();
     await use(account);
-    await deleteTestAccount(account.id);
+    await removeTestAccount(browser, account);
   },
   signedInPage: async ({ page, account }, use) => {
     await signInThroughUI(page, account);
