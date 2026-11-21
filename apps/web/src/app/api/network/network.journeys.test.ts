@@ -768,6 +768,54 @@ describe("posts on the feed", () => {
     expect(await texts(meera)).toEqual(["A disputed post: heron-quay"]);
     await ok(reportPost(meera, id));
     expect(await texts(dev)).toEqual([]);
+    // The author still sees her own post, exactly as before: nothing tells her it was reported (WJ-820).
+    expect(await texts(asha)).toEqual(["A disputed post: heron-quay"]);
+    expect(await item(asha, "A disputed post: heron-quay")).toMatchObject({ mine: true });
+  });
+
+  it("only a post the reporter could be shown can be reported: anything else is 404, the same as a post that isn't there", async () => {
+    const asha = person("asha");
+    const linked = person("linked"); // only people with the link
+    const kunal = person("kunal"); // Asha's connection
+    const rahul = person("rahul"); // a stranger to Asha and to "linked"
+    const ashaId = await join(asha);
+    await join(linked, { findBy: "link" });
+    await join(kunal);
+    await join(rahul);
+    await connected(kunal, asha, ashaId);
+    await ok(post(asha, "Connections only: iris-knot"));
+    await ok(post(asha, "Everyone: jade-loom", "everyone"));
+    await ok(post(linked, "Not findable author: kelp-mast", "everyone"));
+    const idOf = async (who: Actor, text: string) => (await item(who, text))!.id;
+    const connectionsOnly = await idOf(asha, "Connections only: iris-knot");
+    const open = await idOf(asha, "Everyone: jade-loom");
+    const notFindable = await idOf(linked, "Not findable author: kelp-mast");
+    const missing = await reportPost(rahul, "nu_doesnotexist1");
+    expect(missing.status).toBe(404);
+
+    // A stranger knows the ids (say they leaked) but was never shown these two posts.
+    for (const id of [connectionsOnly, notFindable]) {
+      const r = await reportPost(rahul, id);
+      expect(r.status).toBe(404);
+      expect(r.body).toEqual(missing.body);
+    }
+    // Three such attempts hide nothing.
+    for (const who of [rahul, linked]) await reportPost(who, connectionsOnly);
+    expect(await texts(kunal)).toContain("Connections only: iris-knot");
+
+    // A post he is shown, he can report; so can her connection, for the connections-only one.
+    expect((await ok(reportPost(rahul, open))).repeated).toBe(false);
+    expect((await ok(reportPost(kunal, connectionsOnly))).repeated).toBe(false);
+
+    // A blocked pair, either way: neither can report the other's post, though it is addressed to everyone.
+    const dev = person("dev");
+    await join(dev);
+    const devPost = "Dev to everyone: lark-nave";
+    await ok(post(dev, devPost, "everyone"));
+    const devId = await idOf(dev, devPost);
+    await ok(act(dev, ashaId, { action: "block" }));
+    expect((await reportPost(asha, devId)).status).toBe(404);
+    expect((await reportPost(dev, open)).status).toBe(404);
   });
 });
 
