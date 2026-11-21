@@ -9,7 +9,9 @@ import { newId } from "@/lib/ids";
 import type { Session } from "../auth";
 import { HiringError } from "../hiring";
 import { fileReport, reports } from "../modules/safety";
-import { NETWORK, audit, comments, gate, member, now, profiles, reactions, show, tell, updates, type CommentRow, type UpdateRow } from "./network";
+import { decryptFile } from "../resume/files";
+import { MEDIA_ID, mediaKey } from "./media";
+import { NETWORK, audit, comments, gate, media, member, now, profiles, reactions, show, tell, updates, type CommentRow, type UpdateRow } from "./network";
 import { EVERYONE, HIDE_AT, POSTS_A_DAY, dayAgo, isPost, seeable } from "./social";
 
 export interface NetComment {
@@ -22,6 +24,17 @@ export interface NetComment {
   canDelete: boolean;
 }
 
+/** Before migration 0055 the tables aren't there: say so, rather than "Something went wrong". */
+const NOT_YET = /network_reactions|network_comments|reshare_of|schema cache|does not exist/i;
+async function ready<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (e) {
+    if (!(e instanceof HiringError) && NOT_YET.test(e instanceof Error ? e.message : "")) throw new HiringError("Likes and comments aren't switched on yet. Try again later.", 409);
+    throw e;
+  }
+}
+
 const COMMENT_ID = /^nk_[A-Za-z0-9_-]{6,40}$/;
 const COMMENTS_A_DAY = 100;
 
@@ -29,18 +42,18 @@ const COMMENTS_A_DAY = 100;
 export async function react(s: Session, id: string, kind: Reaction | null, confirmed?: boolean): Promise<void> {
   const { u } = await seeable(s, id);
   if (kind === null) {
-    await reactions().remove({ update_id: u.id, tenant_id: s.tenantId });
+    await ready(() => reactions().remove({ update_id: u.id, tenant_id: s.tenantId }));
     return;
   }
   if (!isReaction(kind)) throw new HiringError("That isn't a reaction.", 400);
   await gate(s.tenantId, "network.post", confirmed, "Reacting");
-  await reactions().upsert({ update_id: u.id, tenant_id: s.tenantId, kind, created_at: now() }, ["update_id", "tenant_id"]);
+  await ready(() => reactions().upsert({ update_id: u.id, tenant_id: s.tenantId, kind, created_at: now() }, ["update_id", "tenant_id"]));
 }
 
 /** The comments on a post the member can see, oldest first, without blocked people's and the ones reported away. */
 export async function commentsOn(s: Session, id: string): Promise<NetComment[]> {
   const { ctx, u } = await seeable(s, id);
-  const list = (await comments().find({ update_id: u.id }, { order: "created_at", limit: 300 })).filter((c) => !ctx.hidden.has(c.tenant_id));
+  const list = (await ready(() => comments().find({ update_id: u.id }, { order: "created_at", limit: 300 }))).filter((c) => !ctx.hidden.has(c.tenant_id));
   const flagged = list.length ? await reports().findIn("subject_id", list.map((c) => c.id), { module: NETWORK, subject_kind: "message" }) : [];
   const by = new Map<string, Set<string>>();
   for (const r of flagged) by.set(r.subject_id, (by.get(r.subject_id) ?? new Set()).add(r.reporter_tenant));
@@ -63,7 +76,7 @@ export async function addComment(s: Session, id: string, body: string, confirmed
   const { ctx, u } = await seeable(s, id);
   const text = body.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1000);
   if (!text) throw new HiringError("Write a comment first.", 400);
-  const recent = await comments().find({ tenant_id: s.tenantId }, { order: "created_at", desc: true, limit: COMMENTS_A_DAY });
+  const recent = await ready(() => comments().find({ tenant_id: s.tenantId }, { order: "created_at", desc: true, limit: COMMENTS_A_DAY }));
   if (recent.filter((c) => c.created_at > dayAgo()).length >= COMMENTS_A_DAY) throw new HiringError("You've commented a lot today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Commenting");
   const row: CommentRow = { id: newId("nk"), update_id: u.id, tenant_id: s.tenantId, body: text, created_at: now() };
@@ -109,10 +122,25 @@ export async function resharePost(s: Session, id: string, input: { text?: string
   try {
     await updates().insert(row);
   } catch (e) {
-    if (/reshare_of/.test(e instanceof Error ? e.message : "")) throw new HiringError("Resharing isn't available yet.", 409);
+    if (/reshare_of/.test(e instanceof Error ? e.message : "")) throw new HiringError("Resharing isn't switched on yet. Try again later.", 409);
     throw e;
   }
   await audit(s.tenantId, "network.post", row.id, "POST_PUBLISHED");
   if (target.tenant_id !== s.tenantId) await tell(target.tenant_id, "Someone reshared your post", "/app/network");
 }
 
+/** A photo's bytes, for someone who may see its post; a photo not yet posted only for the member who chose it. */
+export async function readMedia(s: Session, id: string): Promise<{ mime: string; bytes: Buffer } | null> {
+  const m = MEDIA_ID.test(id) ? await media().one({ id }) : undefined;
+  if (!m) return null;
+  if (!m.update_id) {
+    if (m.tenant_id !== s.tenantId) return null;
+  } else {
+    try {
+      await seeable(s, m.update_id);
+    } catch {
+      return null;
+    }
+  }
+  return { mime: m.mime, bytes: decryptFile(mediaKey(m.tenant_id), m.id, m.ciphertext) };
+}

@@ -116,9 +116,13 @@ describe("reshares", () => {
     await expect(E.resharePost(kunal, open.id, {}, true)).rejects.toThrow(/already reshared/);
     // Rahul, Kunal's connection, sees the reshare with the original quoted.
     const r = await postOf(rahul, "Worth a read");
+    expect(r.canReshare).toBe(true); // a repost for connections still reposts the original, which is for everyone
     expect(r.member.name).toBe("Kunal Chakraborty");
     expect(r.reshared).toMatchObject({ text: "For everyone", member: { name: "Asha Rao" } });
     expect((await postOf(asha, "For everyone")).reshares).toBe(1);
+    // Kunal's own feed knows his repost, to undo it.
+    const mineNow = await postOf(kunal, "For everyone");
+    expect(mineNow.myRepost).toBe(r.id);
     // Resharing the reshare quotes the original.
     await E.resharePost(rahul, r.id, { audience: "everyone" }, true);
     const rr = (await S.feedFor(rahul)).find((u) => u.member.id === rahulId)!;
@@ -151,5 +155,16 @@ describe("account data", () => {
     expect(await table("network_comments").find({ update_id: mine.id })).toEqual([]);
     expect(await table("network_reactions").find({ update_id: mine.id })).toEqual([]);
     expect(await table("network_reactions").find({ update_id: his.id })).toEqual([]);
+  });
+});
+
+describe("before migration 0055", () => {
+  it("says likes and comments aren't switched on, rather than failing", async () => {
+    await join(asha, "Asha Rao");
+    await S.publishPost(asha, { text: "Hi", audience: "everyone" }, true);
+    const p = await postOf(asha, "Hi");
+    const spy = vi.spyOn(N, "reactions").mockReturnValue({ upsert: async () => Promise.reject(new Error('relation "wonderjobs.network_reactions" does not exist')) } as never);
+    await expect(E.react(asha, p.id, "like", true)).rejects.toThrow(/aren't switched on yet/);
+    spy.mockRestore();
   });
 });

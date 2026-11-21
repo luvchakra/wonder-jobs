@@ -47,7 +47,8 @@ export type ProfileRow = {
 };
 export type ConnStatus = "pending" | "connected" | "ignored" | "withdrawn" | "removed";
 export type ConnRow = { id: string; pair_key: string; requester: string; recipient: string; status: ConnStatus; how: string; note: string; created_at: string; updated_at: string };
-export type UpdateRow = { id: string; tenant_id: string; kind: string; module: string; text: string; href: string; /** A post's attached listing's title (migration 0053); absent before it is applied. */ about?: string | null; /** The post this one reshares (migration 0055). */ reshare_of?: string | null; created_at: string };
+export type UpdateRow = { id: string; tenant_id: string; kind: string; module: string; text: string; href: string; /** A post's attached listing's title (migration 0053); absent before it is applied. */ about?: string | null; /** The post this one reshares (migration 0055). */ reshare_of?: string | null; /** The attached photos' ids, in order (migration 0056). */ media?: string[] | null; created_at: string };
+export type MediaRow = { id: string; tenant_id: string; update_id: string | null; position: number; mime: string; ciphertext: string; created_at: string };
 export type ReactionRow = { update_id: string; tenant_id: string; kind: string; created_at: string };
 export type CommentRow = { id: string; update_id: string; tenant_id: string; body: string; created_at: string };
 
@@ -56,6 +57,7 @@ export const conns = () => table<ConnRow>("network_connections");
 export const updates = () => table<UpdateRow>("network_updates");
 export const reactions = () => table<ReactionRow>("network_reactions");
 export const comments = () => table<CommentRow>("network_comments");
+export const media = () => table<MediaRow>("network_media");
 export const now = () => new Date().toISOString();
 
 export const toProfile = (r: ProfileRow): NetworkProfile => ({
@@ -180,6 +182,8 @@ export async function dropUpdates(tenant: string): Promise<void> {
     await reactions().remove({ update_id: u.id });
     await comments().remove({ update_id: u.id });
   }
+  // A member's photos are always their own posts' (or not yet posted).
+  await media().remove({ tenant_id: tenant }).catch(() => 0);
   await updates().remove({ tenant_id: tenant });
   await reactions().remove({ tenant_id: tenant });
   await comments().remove({ tenant_id: tenant });

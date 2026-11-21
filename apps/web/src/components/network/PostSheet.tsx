@@ -1,6 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Link2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ImagePlus, Loader2, X } from "lucide-react";
+import { moduleById } from "@/modules/registry";
+import { ListingCard } from "./ListingCard";
 import { networkApi } from "@/services/network/client";
 import { usePostTarget, type PostAbout } from "@/wonderworks/chrome/postTarget";
 import { Avatar } from "@/components/common/Avatar";
@@ -8,6 +10,27 @@ import { Button } from "@/components/common/Button";
 import { Select } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
+
+const MAX_PHOTOS = 4;
+const LONG_SIDE = 2048;
+
+/** The chosen photo shrunk to at most LONG_SIDE px as a JPEG: small enough to send, and drawn afresh, so it carries no metadata. */
+async function shrink(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const k = Math.min(1, LONG_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * k);
+  canvas.height = Math.round(bitmap.height * k);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("This browser can't prepare the photo.");
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.85));
+  if (!blob) throw new Error("This browser can't prepare the photo.");
+  return blob;
+}
+
+type Photo = { key: string; url: string; id?: string };
 
 /**
  * A new network post, opened from the + in any module (owner, 2026-11-21: "use the + icon to create new post"). It
@@ -22,6 +45,45 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
   const [audience, setAudience] = useState<"connections" | "everyone">("connections");
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<{ name: string } | null | undefined>(undefined);
+  // Photos (owner, 2026-11-21): up to four, each sent while the member writes and kept as theirs alone until Post.
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const picker = useRef<HTMLInputElement>(null);
+  const posted = useRef(false);
+  const kept = useRef<Photo[]>([]);
+  useEffect(() => {
+    kept.current = photos;
+  }, [photos]);
+  // Closing without posting takes back what was sent.
+  useEffect(
+    () => () => {
+      for (const p of kept.current) {
+        URL.revokeObjectURL(p.url);
+        if (p.id && !posted.current) void networkApi.discard(p.id).catch(() => {});
+      }
+    },
+    [],
+  );
+  const addPhotos = async (files: File[]) => {
+    for (const file of files.slice(0, MAX_PHOTOS - photos.length)) {
+      const key = Math.random().toString(36).slice(2);
+      try {
+        const blob = await shrink(file);
+        const url = URL.createObjectURL(blob);
+        setPhotos((ps) => [...ps, { key, url }]);
+        const id = await networkApi.upload(blob);
+        setPhotos((ps) => ps.map((p) => (p.key === key ? { ...p, id } : p)));
+      } catch (e) {
+        setPhotos((ps) => ps.filter((p) => p.key !== key));
+        toast.error("Couldn't add that photo", (e as Error).message);
+      }
+    }
+  };
+  const removePhoto = (p: Photo) => {
+    setPhotos((ps) => ps.filter((x) => x.key !== p.key));
+    URL.revokeObjectURL(p.url);
+    if (p.id) void networkApi.discard(p.id).catch(() => {});
+  };
+  const uploading = photos.some((p) => !p.id);
   useEffect(() => {
     networkApi
       .me()
@@ -32,7 +94,8 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
   const post = async () => {
     setBusy(true);
     try {
-      await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}) });
+      await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}), ...(photos.length ? { media: photos.map((p) => p.id!) } : {}) });
+      posted.current = true;
       bump();
       toast.success("Posted", audience === "everyone" ? "Everyone on the network can see it." : "Your connections can see it.");
       onClose();
@@ -58,7 +121,7 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
               <option value="connections">My connections</option>
               <option value="everyone">Everyone on the network</option>
             </Select>
-            <Button loading={busy} disabled={!text.trim()} onClick={post}>
+            <Button loading={busy} disabled={uploading || (!text.trim() && !photos.length)} onClick={post}>
               Post
             </Button>
           </div>
@@ -81,18 +144,49 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
             <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} rows={5} maxLength={1500} placeholder={about ? "Say something about this" : "What do you want to share?"} aria-label="Write a post" className="min-h-28 flex-1 resize-none bg-transparent py-2 text-[15px] text-ink outline-none placeholder:text-ink-4" />
           </div>
           {about && (
-            <div className="flex items-center gap-3 rounded-[14px] border border-line bg-surface-2 p-3">
-              <Link2 className="size-4 shrink-0 text-brand-600" aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-ink-4">Attached</span>
-                <span className="block truncate text-[13.5px] font-medium text-ink">{about.title}</span>
-              </span>
-              <button type="button" aria-label="Remove the attached listing" onClick={() => setAbout(null)} className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink">
+            <div className="relative">
+              <ListingCard page={about.page} fallback={about.title} moduleLabel={moduleById(about.module)?.label ?? ""} link={false} />
+              <button type="button" aria-label="Remove the attached listing" onClick={() => setAbout(null)} className="absolute right-2 top-4 grid size-8 place-items-center rounded-full bg-black/60 text-white hover:bg-black/75">
                 <X className="size-4" aria-hidden />
               </button>
             </div>
           )}
-          <p className="text-right text-[11px] text-ink-4">{text.length} / 1500</p>
+          {photos.length > 0 && (
+            <ul className="grid grid-cols-4 gap-2">
+              {photos.map((p) => (
+                <li key={p.key} className="relative aspect-square overflow-hidden rounded-[12px] bg-surface-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- the member's own photo, from this device */}
+                  <img src={p.url} alt="A photo you added" className="size-full object-cover" />
+                  {!p.id && (
+                    <span className="absolute inset-0 grid place-items-center bg-black/30 text-white">
+                      <Loader2 className="size-5 animate-spin" aria-label="Adding" />
+                    </span>
+                  )}
+                  <button type="button" aria-label="Remove this photo" onClick={() => removePhoto(p)} className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-black/60 text-white">
+                    <X className="size-3.5" aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex items-center justify-between">
+            <input
+              ref={picker}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                e.target.value = "";
+                void addPhotos(files);
+              }}
+            />
+            <button type="button" onClick={() => picker.current?.click()} disabled={photos.length >= MAX_PHOTOS} className="inline-flex min-h-10 items-center gap-1.5 rounded-[10px] px-2 text-[13px] font-semibold text-brand-600 hover:bg-bg-soft disabled:text-ink-4">
+              <ImagePlus className="size-5" aria-hidden /> Photo
+            </button>
+            <p className="text-[11px] text-ink-4">{text.length} / 1500</p>
+          </div>
         </div>
       )}
     </Modal>
