@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { Link2, Loader2, Mail, Share2, Users } from "lucide-react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Link2, Loader2, Mail, MessageSquarePlus, Share2, Users } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { track } from "@/lib/analytics";
@@ -57,10 +57,31 @@ function useSummary(page: string | undefined): { summary: ShareSummary | null; l
  * Share, for every module and every place a listing shows (taken from Jobs' ShareJobButton): an icon button that opens
  * the share sheet. The sheet is mounted only when open — the link and the device's share sheet exist only in the browser.
  */
-export function ShareButton({ label, title, description, build, onShared, className }: { label: string; title: string; description?: string; build: ShareBuilder; onShared?: (via: string) => void; className?: string }) {
+export function ShareButton({ label, title, description, build, onShared, className, post }: { label: string; title: string; description?: string; build: ShareBuilder; onShared?: (via: string) => void; className?: string; /** Also "Post to my network" before Share (owner, 2026-11-21: on listing cards, your own words on top). */ post?: boolean }) {
   const [open, setOpen] = useState(false);
+  const [posting, setPosting] = useState<{ page: string; title: string; module: string } | null>(null);
+  const signedIn = useSyncExternalStore(noChange, () => getClientMode().mode === "user", () => false);
+  const toNetwork = () => {
+    const { page, message } = build(window.location.origin, null);
+    if (page) setPosting(postAbout(page, message.subject));
+  };
   return (
     <>
+      {post && signedIn && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            toNetwork();
+          }}
+          aria-label={`Post to my network: ${label.replace(/^Share /, "")}`}
+          title="Post to my network"
+          className={cn("relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full text-ink-4 transition-colors hover:bg-bg-soft hover:text-brand-600", className)}
+        >
+          <MessageSquarePlus className="size-[17px]" aria-hidden />
+        </button>
+      )}
+      {posting && <PostSheet attach={posting} onClose={() => setPosting(null)} />}
       <button
         type="button"
         onClick={(e) => {
@@ -76,6 +97,10 @@ export function ShareButton({ label, title, description, build, onShared, classN
     </>
   );
 }
+
+const noChange = () => () => {};
+/** What a post carries for a listing's public page: `/s/<module>/…` names its module, `/j/…` is Jobs'. */
+const postAbout = (page: string, title: string) => ({ page, title, module: /^\/s\/([a-z]{2,20})\//.exec(page)?.[1] ?? "jobs" });
 
 const TILE = "flex flex-col items-center gap-1.5 rounded-[14px] px-1 py-2 text-[12px] font-medium text-ink hover:bg-bg-soft";
 const DISC = "flex size-12 items-center justify-center rounded-full text-white";
@@ -185,8 +210,7 @@ function ShareSheet({ title, description, build, onShared, onClose }: { title: s
   const toNetwork = page && getClientMode().mode === "user";
   const [posting, setPosting] = useState(false);
   if (posting && page) {
-    const m = /^\/s\/([a-z]{2,20})\//.exec(page);
-    return <PostSheet attach={{ page, title: message.subject, module: m?.[1] ?? "jobs" }} onClose={() => done("network")} />;
+    return <PostSheet attach={postAbout(page, message.subject)} onClose={() => done("network")} />;
   }
   const network = () => setPosting(true);
 
@@ -318,7 +342,7 @@ export interface ListingShareProps extends ListingShareInput {
  * The Share button on a module's listing card and listing page: `ListingShareInput` says what is shared, and the
  * message is made here, the same in every module.
  */
-export function ListingShare({ module, className, noun, title, facts, lines, details, url }: ListingShareProps) {
+export function ListingShare({ module, className, noun, title, facts, lines, details, url, post }: ListingShareProps & { post?: boolean }) {
   const input = { noun, title, facts, lines, details, url };
   return (
     <ShareButton
@@ -326,6 +350,7 @@ export function ListingShare({ module, className, noun, title, facts, lines, det
       title={`Share this ${input.noun}`}
       description={sheetLine(input.title, input.facts)}
       className={className}
+      post={post}
       onShared={(via) => track("listing_shared", { module, via })}
       build={(origin, summary) => {
         const url = absoluteUrl(origin, input.url);

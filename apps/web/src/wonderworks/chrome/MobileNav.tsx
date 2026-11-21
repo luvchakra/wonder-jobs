@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { MoreHorizontal, Plus, Users } from "lucide-react";
+import { MessageSquarePlus, MoreHorizontal, Plus, Users } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
 import { NETWORK_HREF, isActivePath } from "./nav";
@@ -13,6 +13,7 @@ import { useHydration } from "@/store/hydration";
 
 // The post sheet loads only when the + is pressed.
 const PostSheet = dynamic(() => import("@/components/network/PostSheet").then((m) => m.PostSheet), { ssr: false });
+const NewMessageSheet = dynamic(() => import("@/components/network/NewMessageSheet").then((m) => m.NewMessageSheet), { ssr: false });
 import { useModuleNav, useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
 
@@ -43,24 +44,36 @@ export function MobileNav() {
   const entry = slots.postFor?.(selected) ?? null;
   const onNetwork = pathname === NETWORK_HREF || pathname.startsWith(`${NETWORK_HREF}/`);
   const moduleEntry = entry && !onNetwork && pathname !== entry.href.split("?")[0] ? entry : null;
-  const [create, setCreate] = useState<"choose" | "post" | null>(null);
+  // On Messages, the + also offers a new message to a connection (owner, 2026-11-21).
+  const onMessages = pathname === `${NETWORK_HREF}/messages`;
+  const choose = !!moduleEntry || onMessages;
+  const [create, setCreate] = useState<"choose" | "post" | "message" | null>(null);
   const signedIn = useHydration((h) => h.hydrated) && getClientMode().mode === "user";
   return (
     <>
       {!barShown && signedIn && (
         <button
           type="button"
-          aria-label={moduleEntry ? "Create" : "New post"}
-          title={moduleEntry ? "Create" : "New post"}
-          onClick={() => setCreate(moduleEntry ? "choose" : "post")}
+          aria-label={choose ? "Create" : "New post"}
+          title={choose ? "Create" : "New post"}
+          onClick={() => setCreate(choose ? "choose" : "post")}
           className="wj-gradient-bg fixed bottom-[calc(var(--wj-mobile-nav-h)+5.25rem)] right-5 z-40 grid size-12 place-items-center rounded-full text-white shadow-lg active:scale-95 md:hidden"
         >
           <Plus className="size-6" aria-hidden />
         </button>
       )}
-      {create === "choose" && moduleEntry && (
+      {create === "choose" && choose && (
         <Modal open onClose={() => setCreate(null)} title="Create" size="sm">
           <div className="flex flex-col gap-2 pb-1">
+            {onMessages && (
+              <button type="button" onClick={() => setCreate("message")} className="flex min-h-14 items-center gap-3 rounded-[14px] border border-line bg-surface px-4 text-left hover:bg-bg-soft">
+                <MessageSquarePlus className="size-5 shrink-0 text-brand-600" aria-hidden />
+                <span>
+                  <span className="block text-[14.5px] font-semibold text-ink">New message</span>
+                  <span className="block text-[12px] text-ink-3">To one of your connections</span>
+                </span>
+              </button>
+            )}
             <button type="button" onClick={() => setCreate("post")} className="flex min-h-14 items-center gap-3 rounded-[14px] border border-line bg-surface px-4 text-left hover:bg-bg-soft">
               <Users className="size-5 shrink-0 text-brand-600" aria-hidden />
               <span>
@@ -68,14 +81,17 @@ export function MobileNav() {
                 <span className="block text-[12px] text-ink-3">Your connections, or everyone on the network</span>
               </span>
             </button>
-            <Link href={moduleEntry.href} onClick={() => setCreate(null)} className="flex min-h-14 items-center gap-3 rounded-[14px] border border-line bg-surface px-4 text-left hover:bg-bg-soft">
-              <Plus className="size-5 shrink-0 text-brand-600" aria-hidden />
-              <span className="block text-[14.5px] font-semibold text-ink">{moduleEntry.label}</span>
-            </Link>
+            {moduleEntry && (
+              <Link href={moduleEntry.href} onClick={() => setCreate(null)} className="flex min-h-14 items-center gap-3 rounded-[14px] border border-line bg-surface px-4 text-left hover:bg-bg-soft">
+                <Plus className="size-5 shrink-0 text-brand-600" aria-hidden />
+                <span className="block text-[14.5px] font-semibold text-ink">{moduleEntry.label}</span>
+              </Link>
+            )}
           </div>
         </Modal>
       )}
       {create === "post" && <PostSheet onClose={() => setCreate(null)} />}
+      {create === "message" && <NewMessageSheet onClose={() => setCreate(null)} />}
       {/* The account menu (help, account, sign out) within thumb's reach, above the bar. */}
       {!barShown && (
         <button

@@ -26,6 +26,7 @@ import * as connection from "./connections/[id]/route";
 import * as threads from "./threads/route";
 import * as threadRoute from "./threads/[id]/route";
 import * as updatesRoute from "./updates/route";
+import * as updateRoute from "./updates/[id]/route";
 
 /* ---- helpers ------------------------------------------------------------------------------------------------ */
 let n = 0;
@@ -89,6 +90,8 @@ const share = (who: Actor | null, page: string, title = "Platform Engineer at Ac
 /** `confirmed: null` leaves the field out. */
 const post = (who: Actor | null, text: string, audience?: "connections" | "everyone", confirmed: boolean | null = true) => call(who, updatesRoute.POST, { method: "POST", body: { text, audience, confirmed: confirmed ?? undefined } });
 const reportPost = (who: Actor | null, id: string, reason = "Spam, not about work") => call(who, updatesRoute.POST, { method: "POST", body: { action: "report", id, reason } });
+const engage = (who: Actor | null, id: string, body: object) => call(who, updateRoute.POST, { method: "POST", body, params: { id } });
+const commentsOf = (who: Actor | null, id: string) => call(who, updateRoute.GET, { params: { id } });
 const removePost = (who: Actor | null, id: string) => call(who, updatesRoute.DELETE, { method: "DELETE", path: `/api/network/updates?id=${encodeURIComponent(id)}` });
 type FeedItem = { id: string; text: string; kind: string; mine: boolean; connectionId?: string; member: { id: string; name: string } };
 /** What a member's feed holds, as [text, mine] pairs, newest first. */
@@ -132,6 +135,7 @@ describe("signed out", () => {
       [threads.GET, "GET"],
       [threadRoute.GET, "GET"], [threadRoute.POST, "POST"],
       [updatesRoute.GET, "GET"], [updatesRoute.POST, "POST"], [updatesRoute.DELETE, "DELETE"],
+      [updateRoute.GET, "GET"], [updateRoute.POST, "POST"], [updateRoute.DELETE, "DELETE"],
     ];
     for (const [r, method] of routes) {
       const res = await call(null, r, { method, body: method === "GET" || method === "DELETE" ? undefined : { action: "connect", confirmed: true }, params: { id: ashaId } });
@@ -146,7 +150,7 @@ describe("signed out", () => {
     const { join: path } = await import("node:path");
     const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path(dir, e.name)) : e.name === "route.ts" ? [path(dir, e.name)] : []));
     const found = walk(__dirname).map((f) => f.slice(__dirname.length + 1).replace(/\\/g, "/")).sort();
-    expect(found).toEqual(["connections/[id]/route.ts", "connections/route.ts", "me/route.ts", "people/[id]/photo/route.ts", "people/[id]/route.ts", "people/route.ts", "threads/[id]/route.ts", "threads/route.ts", "updates/route.ts"]);
+    expect(found).toEqual(["connections/[id]/route.ts", "connections/route.ts", "me/route.ts", "people/[id]/photo/route.ts", "people/[id]/route.ts", "people/route.ts", "threads/[id]/route.ts", "threads/route.ts", "updates/[id]/route.ts", "updates/route.ts"]);
   });
 });
 
@@ -557,7 +561,7 @@ describe("updates", () => {
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({ kind: "status:open_to_work", text: "is open to work.", connectionId: id, href: `/app/network/${ashaId}` });
     expect(updates[0].member.id).toBe(ashaId);
-    expect(Object.keys(updates[0]).sort()).toEqual(["at", "connectionId", "href", "id", "kind", "member", "mine", "module", "text"]);
+    expect(Object.keys(updates[0]).sort()).toEqual(["at", "canReshare", "comments", "connectionId", "href", "id", "kind", "member", "mine", "module", "reactions", "reshares", "text"]);
     expect(updates[0].mine).toBe(false);
     // Rahul is on the network but not Asha's connection. Asha's feed shows her own update, marked hers (WJ-818).
     expect((await ok(feed(rahul))).updates).toEqual([]);
@@ -884,5 +888,37 @@ describe("every response", () => {
     // And the ids that do leave are the public ones.
     expect((await ok(mine(asha))).connections.map((c: { id: string }) => c.id).sort()).toEqual([kunalId, rahulId].sort());
     expect(kunalId).toMatch(/^np_/);
+  });
+});
+
+/* ---- reactions, comments, reshares (WJ-829) ------------------------------------------------------------------- */
+describe("reacting, commenting and resharing", () => {
+  it("a connection reacts and comments; a stranger can't reach a connections-only post; a post for everyone is reshared", async () => {
+    const asha = person("asha");
+    const kunal = person("kunal");
+    const rahul = person("rahul");
+    const ashaId = await join(asha);
+    await join(kunal);
+    await join(rahul);
+    await connected(kunal, asha, ashaId);
+    await ok(post(asha, "Just for connections"));
+    await ok(post(asha, "For everyone", "everyone"));
+    const items = (await ok(feed(kunal))).updates as (FeedItem & { canReshare: boolean })[];
+    const closed = items.find((u) => u.text === "Just for connections")!;
+    const open = items.find((u) => u.text === "For everyone")!;
+    await ok(engage(kunal, closed.id, { action: "react", reaction: "celebrate", confirmed: true }));
+    const c = await ok(engage(kunal, closed.id, { action: "comment", body: "Well done", confirmed: true }));
+    expect(c.comment).toMatchObject({ body: "Well done", mine: true });
+    const seen = await ok(commentsOf(asha, closed.id));
+    expect(seen.comments.map((x: { body: string }) => x.body)).toEqual(["Well done"]);
+    expectNoAccountDetails(JSON.stringify(seen), asha, kunal, rahul);
+    expect((await engage(rahul, closed.id, { action: "react", reaction: "like", confirmed: true })).status).toBe(404);
+    expect((await commentsOf(rahul, closed.id)).status).toBe(404);
+    expect((await engage(kunal, closed.id, { action: "reshare", confirmed: true })).status).toBe(400);
+    expect(open.canReshare).toBe(true);
+    await ok(engage(rahul, open.id, { action: "reshare", text: "Worth reading", audience: "everyone", confirmed: true }));
+    const ashaFeed = (await ok(feed(asha))).updates as { text: string; reshares: number; reactions: { total: number } }[];
+    expect(ashaFeed.find((u) => u.text === "For everyone")?.reshares).toBe(1);
+    expect(ashaFeed.find((u) => u.text === "Just for connections")?.reactions.total).toBe(1);
   });
 });

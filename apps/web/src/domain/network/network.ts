@@ -237,3 +237,13 @@ export function suggestionReason(v: Pick<MemberView, "mutual" | "sharedSkills" |
   return "";
 }
 export const suggestionScore = (v: Pick<MemberView, "mutual" | "sharedSkills">) => v.mutual * 3 + v.sharedSkills.length;
+
+/** How a member reacts to a post or update (owner, 2026-11-21: "give option to react, comment and reshare"). One per member per post. */
+export type Reaction = "like" | "celebrate" | "support" | "insightful";
+export const REACTIONS: { id: Reaction; label: string; emoji: string }[] = [
+  { id: "like", label: "Like", emoji: "👍" },
+  { id: "celebrate", label: "Celebrate", emoji: "👏" },
+  { id: "support", label: "Support", emoji: "❤️" },
+  { id: "insightful", label: "Insightful", emoji: "💡" },
+];
+export const isReaction = (v: unknown): v is Reaction => REACTIONS.some((r) => r.id === v);

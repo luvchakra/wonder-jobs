@@ -1,5 +1,5 @@
 "use client";
-import type { MemberView, NetworkProfile, NetworkProfileInput } from "@/domain/network/network";
+import type { MemberView, NetworkProfile, NetworkProfileInput, Reaction } from "@/domain/network/network";
 
 async function call<T>(url: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const res = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body });
@@ -37,8 +37,25 @@ export interface NetUpdate {
   at: string;
   mine: boolean;
   connectionId?: string;
+  reactions: { total: number; top: Reaction[] };
+  myReaction?: Reaction;
+  comments: number;
+  reshares: number;
+  canReshare: boolean;
+  /** A reshare: the post it quotes, or null when that post is gone. */
+  reshared?: NetQuoted | null;
+}
+export type NetQuoted = Pick<NetUpdate, "id" | "member" | "kind" | "module" | "text" | "href" | "about" | "at">;
+export interface NetComment {
+  id: string;
+  member: MemberView;
+  body: string;
+  at: string;
+  mine: boolean;
+  canDelete: boolean;
 }
 const person = (id: string) => `/api/network/people/${encodeURIComponent(id)}`;
+const post = (id: string) => `/api/network/updates/${encodeURIComponent(id)}`;
 
 /** WonderWorks Network, from the browser. Members are addressed by their public id only. */
 export const networkApi = {
@@ -62,5 +79,12 @@ export const networkApi = {
   post: (text: string, audience: "connections" | "everyone", extra: { about?: { page: string; title: string }; module?: string } = {}) => call("/api/network/updates", { method: "POST", json: { text, audience, ...extra, confirmed: true } }),
   deleteUpdate: (id: string) => call(`/api/network/updates?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
   reportUpdate: (id: string, reason: string) => call<{ repeated: boolean }>("/api/network/updates", { method: "POST", json: { action: "report", id, reason } }),
+  comments: (id: string) => call<{ comments: NetComment[] }>(post(id)),
+  // Each is the member's own press, with what goes shown on screen: the press is the confirmation.
+  react: (id: string, reaction: Reaction | null) => call(post(id), { method: "POST", json: { action: "react", reaction, confirmed: true } }),
+  comment: (id: string, body: string) => call<{ comment: NetComment }>(post(id), { method: "POST", json: { action: "comment", body, confirmed: true } }),
+  reshare: (id: string, text: string, audience: "connections" | "everyone") => call(post(id), { method: "POST", json: { action: "reshare", text, audience, confirmed: true } }),
+  deleteComment: (id: string, comment: string) => call(`${post(id)}?comment=${encodeURIComponent(comment)}`, { method: "DELETE" }),
+  reportComment: (id: string, comment: string, reason: string) => call<{ repeated: boolean }>(post(id), { method: "POST", json: { action: "reportComment", comment, reason } }),
   act: (connectionId: string, action: "accept" | "ignore" | "withdraw" | "remove") => call(`/api/network/connections/${encodeURIComponent(connectionId)}`, { method: "POST", json: { action } }),
 };
