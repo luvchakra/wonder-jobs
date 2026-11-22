@@ -13,10 +13,11 @@ import googlePlaces from "./google-places.mjs";
 import hunter from "./hunter.mjs";
 import podcastIndex from "./podcast-index.mjs";
 import reddit from "./reddit.mjs";
+import { facebook, instagram, linkedin } from "./social-search.mjs";
 import youtube from "./youtube.mjs";
 import { ProviderError } from "./shared.mjs";
 
-export const LIVE_PROVIDERS = Object.freeze([googlePlaces, apollo, dataGovIn, youtube, podcastIndex, reddit]);
+export const LIVE_PROVIDERS = Object.freeze([googlePlaces, apollo, dataGovIn, youtube, podcastIndex, reddit, facebook, instagram, linkedin]);
 export const providerById = (id) => LIVE_PROVIDERS.find((p) => p.id === id) ?? null;
 /**
  * Providers asked by the lookup routes, never by a search (WJ-825): Hunter finds and verifies named people for
