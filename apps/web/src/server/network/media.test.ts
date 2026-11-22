@@ -64,3 +64,12 @@ describe("photos on posts", () => {
     expect(await table("network_media").find({ tenant_id: "u-asha" })).toEqual([]);
   });
 });
+
+describe("before migration 0056", () => {
+  it("says photos aren't switched on yet, rather than failing", async () => {
+    await join(asha, "Asha Rao");
+    const spy = vi.spyOn(N, "media").mockReturnValue({ find: async () => Promise.reject(new Error('relation "wonderjobs.network_media" does not exist')) } as never);
+    await expect(uploadMedia(asha, jpeg(), "image/jpeg")).rejects.toThrow(/aren't switched on yet/);
+    spy.mockRestore();
+  });
+});

@@ -19,9 +19,24 @@ const UPLOADS_A_DAY = 60;
 export const mediaKey = (tenant: string) => `network-media:${tenant}`;
 const dayAgo = () => new Date(Date.now() - 864e5).toISOString();
 
+/** Before migration 0056 the photos table isn't there: say so, rather than "Something went wrong". */
+const NOT_YET = /network_media|schema cache|does not exist/i;
+async function ready<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (e) {
+    if (!(e instanceof HiringError) && NOT_YET.test(e instanceof Error ? e.message : "")) throw new HiringError("Photos on posts aren't switched on yet. Try again later.", 409);
+    throw e;
+  }
+}
+
 /** Keep one photo the member chose for a post they are writing. */
 export async function uploadMedia(s: Session, bytes: Buffer, claimed?: string): Promise<{ id: string }> {
   await member(s);
+  return ready(() => keep(s, bytes, claimed));
+}
+
+async function keep(s: Session, bytes: Buffer, claimed?: string): Promise<{ id: string }> {
   const recent = await media().find({ tenant_id: s.tenantId }, { order: "created_at", desc: true, limit: UPLOADS_A_DAY });
   // Photos chosen and never posted go after a day.
   for (const m of recent) if (!m.update_id && m.created_at < dayAgo()) await media().remove({ id: m.id, tenant_id: s.tenantId });
