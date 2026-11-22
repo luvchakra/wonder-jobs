@@ -7,11 +7,13 @@ export const dynamic = "force-dynamic";
 
 /** ?q=: the caller's communities, and public ones to discover (matching the words, when given). */
 export async function GET(req: Request) {
-  const q = (new URL(req.url).searchParams.get("q") ?? "").slice(0, 100);
-  return hiringRoute(req, (s) => listCommunities(s, q));
+  const url = new URL(req.url);
+  const q = (url.searchParams.get("q") ?? "").slice(0, 100);
+  const module = (url.searchParams.get("module") ?? "").slice(0, 20);
+  return hiringRoute(req, (s) => listCommunities(s, q, module));
 }
 
-const Create = z.object({ name: z.string().max(200), about: z.string().max(2000).optional(), rules: z.string().max(4000).optional(), visibility: z.enum(["public", "private"]).optional(), joinPolicy: z.enum(["open", "approval"]).optional(), confirmed: z.boolean().optional() });
+const Create = z.object({ name: z.string().max(200), about: z.string().max(2000).optional(), rules: z.string().max(4000).optional(), visibility: z.enum(["public", "private"]).optional(), joinPolicy: z.enum(["open", "approval"]).optional(), module: z.string().max(20).optional(), confirmed: z.boolean().optional() });
 
 /** Start a community (network.post, checked on the server); the caller becomes its owner. */
 export async function POST(req: Request) {

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Globe2, Lock } from "lucide-react";
+import { MODULES, isLive, moduleById } from "@/modules/registry";
 import { LIMITS, type Community, type CommunityInput } from "@/domain/network/communities";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/common/Button";
@@ -20,6 +21,13 @@ export function CommunityAvatar({ c, size = 44, className }: { c: Pick<Community
   );
 }
 
+/** The module a community or discussion is about, as a small chip; nothing when it names none. */
+export function ModuleChip({ module, className }: { module?: string; className?: string }) {
+  const m = module ? moduleById(module) : undefined;
+  if (!m) return null;
+  return <span className={cn("inline-flex items-center rounded-full bg-brand-50 px-2 py-px text-[10.5px] font-semibold text-brand-700", className)}>{m.label}</span>;
+}
+
 export function PrivacyChip({ c }: { c: Pick<Community, "visibility" | "joinPolicy"> }) {
   const Icon = c.visibility === "private" ? Lock : Globe2;
   return (
@@ -33,7 +41,7 @@ export function PrivacyChip({ c }: { c: Pick<Community, "visibility" | "joinPoli
 
 /** Start or edit a community: name, about, rules, who can read it and how people join. The button is the confirmation. */
 export function CommunitySheet({ start, onClose, save }: { start?: CommunityInput; onClose: () => void; save: (c: CommunityInput) => Promise<void> }) {
-  const [c, setC] = useState<CommunityInput>(start ?? { name: "", about: "", rules: "", visibility: "public", joinPolicy: "open" });
+  const [c, setC] = useState<CommunityInput>(start ?? { name: "", about: "", rules: "", visibility: "public", joinPolicy: "open", module: "" });
   const [busy, setBusy] = useState(false);
   const set = <K extends keyof CommunityInput>(k: K, v: CommunityInput[K]) => setC((x) => ({ ...x, [k]: v }));
   return (
@@ -75,6 +83,16 @@ export function CommunitySheet({ start, onClose, save }: { start?: CommunityInpu
         </Field>
         <Field label="Rules (optional)" htmlFor="cm-rules">
           <Textarea id="cm-rules" rows={3} maxLength={LIMITS.rules} value={c.rules} onChange={(e) => set("rules", e.target.value)} placeholder={"Be kind\nNo recruiting spam"} />
+        </Field>
+        <Field label="Topic (optional)" htmlFor="cm-topic">
+          <Select id="cm-topic" value={c.module ?? ""} onChange={(e) => set("module", e.target.value)}>
+            <option value="">No particular module</option>
+            {MODULES.filter(isLive).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </Select>
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Who can read it" htmlFor="cm-vis">

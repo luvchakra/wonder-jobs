@@ -9,7 +9,7 @@
  * People leave here only as a `MemberView`; blocked people's discussions and replies are hidden from each other.
  */
 import { newId } from "@/lib/ids";
-import { can, cleanBody, cleanCommunity, cleanTitle, LIMITS, type Community, type CommunityInput, type CommunityMember, type CommunityRole, type Discussion, type MemberStatus, type Reply, type ThreadSort } from "@/domain/network/communities";
+import { can, cleanAttached, cleanBody, cleanCommunity, cleanTitle, LIMITS, type Attached, type Community, type CommunityInput, type CommunityMember, type CommunityRole, type Discussion, type MemberStatus, type Reply, type ThreadSort } from "@/domain/network/communities";
 import type { MemberView } from "@/domain/network/network";
 import type { Session } from "../auth";
 import { table } from "../db/table";
@@ -17,9 +17,9 @@ import { HiringError } from "../hiring";
 import { fileReport } from "../modules/safety";
 import { NETWORK, around, audit, gate, member, now, profiles, show, tell, type Around, type ProfileRow } from "./network";
 
-type CommunityRow = { id: string; name: string; about: string; rules: string; visibility: string; join_policy: string; created_by: string | null; created_at: string; updated_at: string };
+type CommunityRow = { id: string; name: string; about: string; rules: string; visibility: string; join_policy: string; created_by: string | null; created_at: string; updated_at: string; /** Migration 0059. */ module?: string | null };
 type CMemberRow = { community_id: string; tenant_id: string; role: CommunityRole; status: MemberStatus; joined_at: string };
-type ThreadRow = { id: string; community_id: string; tenant_id: string; title: string; body: string; pinned: boolean; locked: boolean; reply_count: number; last_activity_at: string; created_at: string; edited_at: string | null };
+type ThreadRow = { id: string; community_id: string; tenant_id: string; title: string; body: string; pinned: boolean; locked: boolean; reply_count: number; last_activity_at: string; created_at: string; edited_at: string | null; /** The listing it carries (migration 0059). */ href?: string | null; about?: string | null; module?: string | null };
 type ReplyRow = { id: string; thread_id: string; parent_id: string | null; tenant_id: string; body: string; deleted: boolean; created_at: string; edited_at: string | null };
 type VoteRow = { subject_id: string; tenant_id: string; created_at: string };
 type MarkRow = { thread_id: string; tenant_id: string; read_at: string | null; following: boolean };
@@ -94,6 +94,7 @@ async function summary(w: Where): Promise<Community> {
     rules: w.c.rules,
     visibility: w.c.visibility === "private" ? "private" : "public",
     joinPolicy: w.c.join_policy === "approval" ? "approval" : "open",
+    module: w.c.module ?? "",
     members: people.length,
     discussions: talks.length,
     me: w.mine && w.mine.status !== "banned" ? { role: w.mine.role, status: w.mine.status } : null,
@@ -103,7 +104,11 @@ async function summary(w: Where): Promise<Community> {
 }
 
 /** The member's communities first, then public ones to discover; a search matches the name and about. */
-export async function listCommunities(s: Session, q = ""): Promise<{ mine: Community[]; discover: Community[] }> {
+/**
+ * The member's communities first, then public ones to discover; a search matches the name and about. Browsing from a
+ * module, communities about that module come first (owner, 2026-11-22: modules in communities).
+ */
+export async function listCommunities(s: Session, q = "", module = ""): Promise<{ mine: Community[]; discover: Community[] }> {
   const ctx = await around(await member(s));
   const memberships = await ready(() => cmembers().find({ tenant_id: s.tenantId }, { limit: 500 }));
   const banned = new Set(memberships.filter((m) => m.status === "banned").map((m) => m.community_id));
@@ -119,7 +124,8 @@ export async function listCommunities(s: Session, q = ""): Promise<{ mine: Commu
   const mine = await Promise.all(own.filter(hit).map((c) => summary(at(c))));
   for (const c of mine) c.unread = c.canRead ? await unreadIn(s.tenantId, c.id) : 0;
   const discover = await Promise.all(open.filter((c) => !mineIds.includes(c.id) && !banned.has(c.id) && hit(c)).slice(0, 30).map((c) => summary(at(c))));
-  return { mine: mine.sort((a, b) => (b.unread ?? 0) - (a.unread ?? 0) || a.name.localeCompare(b.name)), discover: discover.sort((a, b) => b.members - a.members) };
+  const near = (c: Community) => (module && c.module === module ? 0 : 1);
+  return { mine: mine.sort((a, b) => (b.unread ?? 0) - (a.unread ?? 0) || a.name.localeCompare(b.name)), discover: discover.sort((a, b) => near(a) - near(b) || b.members - a.members) };
 }
 
 async function unreadIn(tenant: string, communityId: string): Promise<number> {
@@ -141,7 +147,7 @@ export async function createCommunity(s: Session, input: Partial<CommunityInput>
   const recent = await ready(() => communities().find({ created_by: s.tenantId }, { order: "created_at", desc: true, limit: COMMUNITIES_A_DAY }));
   if (recent.filter((r) => r.created_at > dayAgo()).length >= COMMUNITIES_A_DAY) throw new HiringError("You've started a lot of communities today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Posting");
-  const row: CommunityRow = { id: newId("cm"), name: c.name, about: c.about, rules: c.rules, visibility: c.visibility, join_policy: c.joinPolicy, created_by: s.tenantId, created_at: now(), updated_at: now() };
+  const row: CommunityRow = { id: newId("cm"), name: c.name, about: c.about, rules: c.rules, visibility: c.visibility, join_policy: c.joinPolicy, created_by: s.tenantId, created_at: now(), updated_at: now(), ...(c.module ? { module: c.module } : {}) };
   await communities().insert(row);
   await cmembers().insert({ community_id: row.id, tenant_id: s.tenantId, role: "owner", status: "member", joined_at: now() });
   await audit(s.tenantId, "network.post", row.id, "COMMUNITY_CREATED");
@@ -152,9 +158,9 @@ export async function createCommunity(s: Session, input: Partial<CommunityInput>
 export async function updateCommunity(s: Session, id: string, input: Partial<CommunityInput>): Promise<Community> {
   const w = await place(s, id);
   if (!can.manage(w.role)) throw new HiringError("Only the community's owner can change it.", 403);
-  const c = cleanCommunity({ name: w.c.name, about: w.c.about, rules: w.c.rules, visibility: w.c.visibility as CommunityInput["visibility"], joinPolicy: w.c.join_policy as CommunityInput["joinPolicy"], ...input });
+  const c = cleanCommunity({ name: w.c.name, about: w.c.about, rules: w.c.rules, visibility: w.c.visibility as CommunityInput["visibility"], joinPolicy: w.c.join_policy as CommunityInput["joinPolicy"], module: w.c.module ?? "", ...input });
   if (c.name.length < 3) throw new HiringError("Give the community a name of at least 3 characters.", 400);
-  await communities().update({ id: w.c.id }, { name: c.name, about: c.about, rules: c.rules, visibility: c.visibility, join_policy: c.joinPolicy, updated_at: now() });
+  await communities().update({ id: w.c.id }, { name: c.name, about: c.about, rules: c.rules, visibility: c.visibility, join_policy: c.joinPolicy, updated_at: now(), ...(c.module || w.c.module ? { module: c.module || null } : {}) });
   return getCommunity(s, id);
 }
 
@@ -272,6 +278,7 @@ function toDiscussion(t: ThreadRow, views: Map<string, MemberView>, likes: Map<s
     at: t.created_at,
     ...(t.edited_at ? { editedAt: t.edited_at } : {}),
     lastActivityAt: t.last_activity_at,
+    ...(t.href ? { about: { page: t.href, title: t.about ?? "", module: t.module ?? "" } } : {}),
     unread,
     following: mark?.following ?? false,
     mine: t.tenant_id === me,
@@ -295,17 +302,20 @@ export async function listDiscussions(s: Session, id: string, sort: ThreadSort =
 }
 
 /** Start a discussion: a member's own press, through `network.post`; they follow it. */
-export async function startDiscussion(s: Session, id: string, input: { title: string; body: string }, confirmed?: boolean): Promise<Discussion> {
+export async function startDiscussion(s: Session, id: string, input: { title: string; body: string; about?: { page: string; title: string } | null }, confirmed?: boolean): Promise<Discussion> {
   const w = await place(s, id);
   if (!w.inIt) throw new HiringError("Join this community to start a discussion.", 403);
   const title = cleanTitle(input.title);
   const body = cleanBody(input.body, LIMITS.body);
   if (title.length < 3) throw new HiringError("Give the discussion a title.", 400);
+  // A listing it carries: only a public listing page, its module from the path (as feed posts).
+  const about: Attached | null = input.about ? cleanAttached(input.about) : null;
+  if (input.about && !about) throw new HiringError("Only a listing's public page can go with a discussion.", 400);
   const recent = await threads().find({ tenant_id: s.tenantId }, { order: "created_at", desc: true, limit: THREADS_A_DAY });
   if (recent.filter((t) => t.created_at > dayAgo()).length >= THREADS_A_DAY) throw new HiringError("You've started a lot of discussions today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Posting");
   const at = now();
-  const row: ThreadRow = { id: newId("dt"), community_id: w.c.id, tenant_id: s.tenantId, title, body, pinned: false, locked: false, reply_count: 0, last_activity_at: at, created_at: at, edited_at: null };
+  const row: ThreadRow = { id: newId("dt"), community_id: w.c.id, tenant_id: s.tenantId, title, body, pinned: false, locked: false, reply_count: 0, last_activity_at: at, created_at: at, edited_at: null, ...(about ? { href: about.page, about: about.title, module: about.module } : {}) };
   await threads().insert(row);
   await marks().upsert({ thread_id: row.id, tenant_id: s.tenantId, read_at: at, following: true }, ["thread_id", "tenant_id"]);
   await communities().update({ id: w.c.id }, { updated_at: at });

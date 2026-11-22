@@ -192,3 +192,30 @@ describe("account data", () => {
     for (const t of ["network_community_members", "network_threads", "network_replies", "network_votes", "network_thread_marks"]) expect(await table(t).find({ tenant_id: "u-asha" }), t).toEqual([]);
   });
 });
+
+describe("modules in communities (owner, 2026-11-22)", () => {
+  it("a community may name its module; browsing from that module, its communities come first", async () => {
+    await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    const big = await C.createCommunity(asha, { name: "Everything IAM" }, true);
+    await C.joinCommunity(kunal, big.id);
+    const teach = await C.createCommunity(asha, { name: "Teachers of physics", module: "teaching" }, true);
+    expect(teach.module).toBe("teaching");
+    expect((await C.listCommunities(kunal, "", "teaching")).discover.map((c) => c.name)).toEqual(["Teachers of physics"]);
+    await C.leaveCommunity(kunal, big.id);
+    expect((await C.listCommunities(kunal, "", "teaching")).discover.map((c) => c.name)).toEqual(["Teachers of physics", "Everything IAM"]);
+    expect((await C.createCommunity(asha, { name: "Odd", module: "../x" }, true)).module).toBe("");
+    expect((await C.updateCommunity(asha, teach.id, { module: "" })).module).toBe("");
+  });
+
+  it("a discussion can carry a listing from any module: only a public listing page, its module from the path", async () => {
+    await join(asha, "Asha Rao");
+    const c = await C.createCommunity(asha, { name: "Identity people" }, true);
+    await expect(C.startDiscussion(asha, c.id, { title: "Look", body: "", about: { page: "https://evil.example/x", title: "x" } }, true)).rejects.toThrow(/public page/);
+    const d = await C.startDiscussion(asha, c.id, { title: "Anyone going?", body: "", about: { page: "/s/events/ev_42", title: "  Kubernetes   Day " } }, true);
+    expect(d.about).toEqual({ page: "/s/events/ev_42", title: "Kubernetes Day", module: "events" });
+    const job = await C.startDiscussion(asha, c.id, { title: "Worth applying?", body: "", about: { page: "/j/job_7", title: "IAM Lead" } }, true);
+    expect(job.about?.module).toBe("jobs");
+    expect((await C.readDiscussion(asha, d.id)).discussion.about?.page).toBe("/s/events/ev_42");
+  });
+});

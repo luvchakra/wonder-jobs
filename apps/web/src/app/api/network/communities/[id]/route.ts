@@ -21,7 +21,7 @@ const Act = z.union([
   z.object({ action: z.enum(["join", "leave"]) }),
   z.object({ action: z.literal("member"), member: z.string().max(60), do: z.enum(["approve", "decline", "remove", "ban", "make_moderator", "make_member", "make_owner"]) }),
   // A member's own new discussion (network.post, checked on the server).
-  z.object({ action: z.literal("discuss"), title: z.string().max(400), body: z.string().max(16000), confirmed: z.boolean().optional() }),
+  z.object({ action: z.literal("discuss"), title: z.string().max(400), body: z.string().max(16000), about: z.object({ page: z.string().max(260), title: z.string().max(300) }).nullable().optional(), confirmed: z.boolean().optional() }),
 ]);
 
 /** Join or leave, act on a member (moderators), or start a discussion. */
@@ -34,13 +34,13 @@ export async function POST(req: Request, ctx: Ctx) {
       if (b.action === "leave") return leaveCommunity(s, id);
       if (b.action === "member") return actOnMember(s, id, b.member, b.do);
       if (b.action !== "discuss") return null;
-      return { discussion: await startDiscussion(s, id, { title: b.title, body: b.body }, b.confirmed) };
+      return { discussion: await startDiscussion(s, id, { title: b.title, body: b.body, about: b.about ?? null }, b.confirmed) };
     },
     { schema: Act, write: true },
   );
 }
 
-const Edit = z.object({ name: z.string().max(200).optional(), about: z.string().max(2000).optional(), rules: z.string().max(4000).optional(), visibility: z.enum(["public", "private"]).optional(), joinPolicy: z.enum(["open", "approval"]).optional() });
+const Edit = z.object({ name: z.string().max(200).optional(), about: z.string().max(2000).optional(), rules: z.string().max(4000).optional(), visibility: z.enum(["public", "private"]).optional(), joinPolicy: z.enum(["open", "approval"]).optional(), module: z.string().max(20).optional() });
 
 /** Edit the community: its owner only. */
 export async function PATCH(req: Request, ctx: Ctx) {

@@ -17,6 +17,15 @@ export interface CommunityInput {
   rules: string;
   visibility: Visibility;
   joinPolicy: JoinPolicy;
+  /** The module it's about (owner, 2026-11-22: modules in communities), or "" for none. */
+  module?: string;
+}
+
+/** A listing a discussion carries: a public listing page, its title, and the module it's from. */
+export interface Attached {
+  page: string;
+  title: string;
+  module: string;
 }
 
 export interface Community extends CommunityInput {
@@ -56,6 +65,8 @@ export interface Discussion {
   at: string;
   editedAt?: string;
   lastActivityAt: string;
+  /** The listing it's about, when it carries one. */
+  about?: Attached;
   /** 1 when something in it is new to the viewer (never read, or replies since they last did), else 0. */
   unread: number;
   following: boolean;
@@ -97,7 +108,17 @@ export function cleanCommunity(p: Partial<CommunityInput>): CommunityInput {
     rules: clip(p.rules, LIMITS.rules),
     visibility: p.visibility === "private" ? "private" : "public",
     joinPolicy: p.joinPolicy === "approval" ? "approval" : "open",
+    module: typeof p.module === "string" && /^[a-z]{2,20}$/.test(p.module) ? p.module : "",
   };
+}
+
+/** A listing's public page (`/j/<id>` is Jobs', `/s/<module>/<id>` any other module's): the only thing a discussion can carry. */
+const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-9_.~-]{1,120})$/;
+export function cleanAttached(a: { page?: unknown; title?: unknown } | null | undefined): Attached | null {
+  if (!a || typeof a.page !== "string") return null;
+  const m = PUBLIC_PAGE.exec(a.page);
+  if (!m) return null;
+  return { page: a.page, title: clip(a.title, 140).replace(/\s+/g, " "), module: m[1] ?? "jobs" };
 }
 export const cleanTitle = (t: unknown) => clip(t, LIMITS.title).replace(/\s+/g, " ");
 export const cleanBody = (t: unknown, max: number) => clip(t, max);

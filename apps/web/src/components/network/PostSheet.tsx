@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { moduleById } from "@/modules/registry";
 import { ListingCard } from "./ListingCard";
-import { networkApi, type PostAudience } from "@/services/network/client";
+import { communityApi, networkApi, type PostAudience } from "@/services/network/client";
+import { usePathname } from "next/navigation";
+import type { Community } from "@/domain/network/communities";
 import { AUDIENCE_SEEN } from "./audience";
 import { usePostTarget, type PostAbout } from "@/wonderworks/chrome/postTarget";
 import { Avatar } from "@/components/common/Avatar";
@@ -46,6 +48,24 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
   const [audience, setAudience] = useState<PostAudience>("connections");
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<{ name: string } | null | undefined>(undefined);
+  // Where it goes (owner, 2026-11-22: modules in communities): the member's feed, or one of their communities, as a
+  // discussion with a title. Shown only to members of a community; on a community's own pages it starts there.
+  const pathname = usePathname();
+  const here = /^\/app\/network\/communities\/(cm_[A-Za-z0-9_-]+)/.exec(pathname ?? "")?.[1] ?? "";
+  const [places, setPlaces] = useState<Community[]>([]);
+  const [to, setTo] = useState<string>("feed");
+  const [title, setTitle] = useState("");
+  useEffect(() => {
+    communityApi
+      .list()
+      .then((d) => {
+        const mine = d.mine.filter((c) => c.me?.status === "member");
+        setPlaces(mine);
+        if (here && mine.some((c) => c.id === here)) setTo(here);
+      })
+      .catch(() => setPlaces([]));
+  }, [here]);
+  const place = places.find((c) => c.id === to);
   // Photos (owner, 2026-11-21): up to four, each sent while the member writes and kept as theirs alone until Post.
   const [photos, setPhotos] = useState<Photo[]>([]);
   const picker = useRef<HTMLInputElement>(null);
@@ -95,6 +115,13 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
   const post = async () => {
     setBusy(true);
     try {
+      if (place) {
+        await communityApi.discuss(place.id, title.trim(), text.trim(), about ? { page: about.page, title: about.title } : null);
+        posted.current = false; // photos stay with feed posts; any chosen are taken back on close
+        toast.success(`Posted in ${place.name}`, "It starts a discussion there.");
+        onClose();
+        return;
+      }
       await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}), ...(photos.length ? { media: photos.map((p) => p.id!) } : {}) });
       posted.current = true;
       bump();
@@ -112,18 +139,22 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
     <Modal
       open
       onClose={onClose}
-      title="New post"
-      description="To your network"
+      title={place ? "New discussion" : "New post"}
+      description={place ? `In ${place.name}` : "To your network"}
       size="md"
       footer={
         joined ? (
           <div className="flex w-full flex-wrap items-center justify-end gap-2">
-            <Select value={audience} onChange={(e) => setAudience(e.target.value as PostAudience)} aria-label="Who sees this post" className="mr-auto h-10 w-auto min-w-0">
-              <option value="connections">My connections</option>
-              <option value="everyone">Everyone on the network</option>
-              <option value="only_me">Only me</option>
-            </Select>
-            <Button loading={busy} disabled={uploading || (!text.trim() && !photos.length)} onClick={post}>
+            {place ? (
+              <span className="mr-auto text-[12px] text-ink-3">{place.visibility === "private" ? "Its members can see it" : "Anyone on the network can read it"}</span>
+            ) : (
+              <Select value={audience} onChange={(e) => setAudience(e.target.value as PostAudience)} aria-label="Who sees this post" className="mr-auto h-10 w-auto min-w-0">
+                <option value="connections">My connections</option>
+                <option value="everyone">Everyone on the network</option>
+                <option value="only_me">Only me</option>
+              </Select>
+            )}
+            <Button loading={busy} disabled={uploading || (place ? title.trim().length < 3 : !text.trim() && !photos.length)} onClick={post}>
               Post
             </Button>
           </div>
@@ -141,6 +172,28 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
         </div>
       ) : (
         <div className="flex flex-col gap-3">
+          {places.length > 0 && (
+            <label className="flex items-center gap-2 self-start rounded-full bg-surface-2 py-1 pl-3 pr-1 text-[12.5px] text-ink-2">
+              Post to
+              <select
+                value={to}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  if (!title && about) setTitle(about.title);
+                }}
+                aria-label="Post to"
+                className="max-w-[60vw] truncate rounded-full bg-surface py-1 pl-2 pr-6 text-[12.5px] font-semibold text-ink outline-none"
+              >
+                <option value="feed">My network</option>
+                {places.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {place && <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder="Title" aria-label="Title" className="rounded-[12px] border border-line bg-surface px-3 py-2 text-[15px] font-semibold text-ink outline-none placeholder:text-ink-4 focus:border-brand-300" />}
           <div className="flex items-start gap-3">
             <Avatar name={me.name} size={40} self />
             <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} rows={5} maxLength={1500} placeholder={about ? "Say something about this" : "What do you want to share?"} aria-label="Write a post" className="min-h-28 flex-1 resize-none bg-transparent py-2 text-[15px] text-ink outline-none placeholder:text-ink-4" />
@@ -153,7 +206,8 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
               </button>
             </div>
           )}
-          {photos.length > 0 && (
+          {photos.length > 0 && place && <p className="text-[12px] text-ink-3">Photos go only with posts to My network.</p>}
+          {photos.length > 0 && !place && (
             <ul className="grid grid-cols-4 gap-2">
               {photos.map((p) => (
                 <li key={p.key} className="relative aspect-square overflow-hidden rounded-[12px] bg-surface-2">
@@ -184,9 +238,13 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
                 void addPhotos(files);
               }}
             />
-            <button type="button" onClick={() => picker.current?.click()} disabled={photos.length >= MAX_PHOTOS} className="inline-flex min-h-10 items-center gap-1.5 rounded-[10px] px-2 text-[13px] font-semibold text-brand-600 hover:bg-bg-soft disabled:text-ink-4">
-              <ImagePlus className="size-5" aria-hidden /> Photo
-            </button>
+            {place ? (
+              <span />
+            ) : (
+              <button type="button" onClick={() => picker.current?.click()} disabled={photos.length >= MAX_PHOTOS} className="inline-flex min-h-10 items-center gap-1.5 rounded-[10px] px-2 text-[13px] font-semibold text-brand-600 hover:bg-bg-soft disabled:text-ink-4">
+                <ImagePlus className="size-5" aria-hidden /> Photo
+              </button>
+            )}
             <p className="text-[11px] text-ink-4">{text.length} / 1500</p>
           </div>
         </div>

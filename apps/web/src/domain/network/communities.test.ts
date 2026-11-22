@@ -30,7 +30,7 @@ describe("laying out a long reply tree", () => {
 
 describe("a community's settings", () => {
   it("are trimmed; Private and Moderators approve only when chosen (the route accepts nothing else)", () => {
-    expect(cleanCommunity({ name: "  Bank   CISOs ", about: "x\n\n\n\ny", visibility: "private", joinPolicy: "approval" })).toEqual({ name: "Bank CISOs", about: "x\n\ny", rules: "", visibility: "private", joinPolicy: "approval" });
+    expect(cleanCommunity({ name: "  Bank   CISOs ", about: "x\n\n\n\ny", visibility: "private", joinPolicy: "approval" })).toEqual({ name: "Bank CISOs", about: "x\n\ny", rules: "", visibility: "private", joinPolicy: "approval", module: "" });
     expect(cleanCommunity({ name: "A", visibility: "weird" as never, joinPolicy: "weird" as never })).toMatchObject({ visibility: "public", joinPolicy: "open" });
   });
 });
