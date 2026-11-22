@@ -14,7 +14,7 @@ import { Modal } from "@/components/common/Modal";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { Menu, type MenuItem } from "@/components/network/FeedCard";
-import { CommunityAvatar, CommunitySheet, PrivacyChip } from "@/components/network/community";
+import { CommunityAvatar, CommunitySheet, ModuleChip, PrivacyChip } from "@/components/network/community";
 import { MemberAvatar, memberHref } from "@/components/network/parts";
 
 type Tab = "discussions" | "members" | "about";
@@ -101,6 +101,7 @@ function CommunityPage({ id }: { id: string }) {
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] text-ink-3">
             <PrivacyChip c={c} />
             <span>· {c.members} member{c.members === 1 ? "" : "s"}</span>
+            <ModuleChip module={c.module} />
           </p>
           {c.about && <p className="mt-1.5 line-clamp-3 text-[13.5px] text-ink-2">{c.about}</p>}
         </div>
@@ -157,6 +158,7 @@ function CommunityPage({ id }: { id: string }) {
                             <ThumbsUp className="size-3.5" aria-hidden /> {d.likes}
                           </span>
                           <span>{relativeTime(d.lastActivityAt)}</span>
+                          {d.about && <ModuleChip module={d.about.module} />}
                         </span>
                       </span>
                     </Link>

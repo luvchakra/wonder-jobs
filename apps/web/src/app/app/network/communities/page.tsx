@@ -10,7 +10,8 @@ import { Button } from "@/components/common/Button";
 import { Input } from "@/components/common/Input";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
-import { CommunityAvatar, CommunitySheet, PrivacyChip } from "@/components/network/community";
+import { CommunityAvatar, CommunitySheet, ModuleChip, PrivacyChip } from "@/components/network/community";
+import { useSelectedModule } from "@/wonderworks/chrome/useModuleNav";
 
 /**
  * Communities (owner, 2026-11-22): the member's own first, with what's new in each, then public ones to discover.
@@ -18,16 +19,18 @@ import { CommunityAvatar, CommunitySheet, PrivacyChip } from "@/components/netwo
  */
 export default function CommunitiesPage() {
   const router = useRouter();
+  // Browsing from a module, communities about it come first in Discover.
+  const selected = useSelectedModule();
   const [data, setData] = useState<{ mine: Community[]; discover: Community[] } | null>(null);
   const [failed, setFailed] = useState("");
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const load = useCallback((words = "") => {
     communityApi
-      .list(words)
+      .list(words, selected)
       .then(setData)
       .catch((e) => setFailed((e as Error).message));
-  }, []);
+  }, [selected]);
   useEffect(() => load(), [load]);
 
   if (failed) return <EmptyState icon={<UsersRound className="size-6" aria-hidden />} title="Communities are unavailable" body={failed} action={{ label: "My network", href: "/app/network" }} />;
@@ -85,7 +88,10 @@ export default function CommunitiesPage() {
                         </span>
                       </span>
                       {c.about && <span className="line-clamp-2 text-[13px] text-ink-2">{c.about}</span>}
-                      <PrivacyChip c={c} />
+                      <span className="flex flex-wrap items-center gap-2">
+                        <PrivacyChip c={c} />
+                        <ModuleChip module={c.module} />
+                      </span>
                     </Link>
                   </li>
                 ))}
@@ -116,7 +122,10 @@ function Row({ c }: { c: Community }) {
       <Link href={`/app/network/communities/${c.id}`} className="flex items-center gap-3 px-3.5 py-3 hover:bg-bg-soft">
         <CommunityAvatar c={c} size={40} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14.5px] font-semibold text-ink">{c.name}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="truncate text-[14.5px] font-semibold text-ink">{c.name}</span>
+            <ModuleChip module={c.module} className="shrink-0" />
+          </span>
           <span className="block truncate text-[12px] text-ink-3">
             {c.me?.status === "pending" ? "Request sent" : c.me?.role === "owner" ? "Owner" : c.me?.role === "moderator" ? "Moderator" : "Member"} · {c.members} member{c.members === 1 ? "" : "s"}
           </span>

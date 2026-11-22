@@ -12,6 +12,8 @@ import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { Menu, ReportSheet, type MenuItem } from "@/components/network/FeedCard";
 import { CommunityAvatar } from "@/components/network/community";
+import { ListingCard } from "@/components/network/ListingCard";
+import { moduleById } from "@/modules/registry";
 import { MemberAvatar, memberHref } from "@/components/network/parts";
 
 /**
@@ -166,6 +168,8 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
         ) : (
           d.body && <p className="mt-3 whitespace-pre-line break-words text-[14.5px] leading-relaxed text-ink [overflow-wrap:anywhere]">{d.body}</p>
         )}
+        {/* The listing it's about, from any module, as rich as in the feed. */}
+        {d.about && <ListingCard page={d.about.page} fallback={d.about.title} moduleLabel={moduleById(d.about.module)?.label ?? ""} />}
         <div className="mt-3 flex items-center gap-1 border-t border-line pt-1.5">
           <LikeButton liked={d.liked} likes={d.likes} disabled={!member} onToggle={(on) => like(d.id, on)} />
           <span className="inline-flex min-h-9 items-center gap-1.5 px-2 text-[13px] text-ink-3">

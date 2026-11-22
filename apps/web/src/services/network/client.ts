@@ -140,7 +140,7 @@ export type MemberAction = "approve" | "decline" | "remove" | "ban" | "make_mode
 
 /** Communities and discussions on the network. Each write is the member's own press on a screen that shows what goes. */
 export const communityApi = {
-  list: (q = "") => call<{ mine: Community[]; discover: Community[] }>(`/api/network/communities?q=${encodeURIComponent(q)}`),
+  list: (q = "", module = "") => call<{ mine: Community[]; discover: Community[] }>(`/api/network/communities?q=${encodeURIComponent(q)}${module ? `&module=${encodeURIComponent(module)}` : ""}`),
   create: (input: CommunityInput) => call<{ community: Community }>("/api/network/communities", { method: "POST", json: { ...input, confirmed: true } }),
   get: (id: string, sort: ThreadSort = "active") => call<{ community: Community; discussions: Discussion[] }>(`${cm(id)}?sort=${sort}`),
   update: (id: string, input: Partial<CommunityInput>) => call<{ community: Community }>(cm(id), { method: "PATCH", json: input }),
@@ -149,7 +149,7 @@ export const communityApi = {
   leave: (id: string) => call(cm(id), { method: "POST", json: { action: "leave" } }),
   members: (id: string) => call<{ members: CommunityMember[]; requests: CommunityMember[] }>(`${cm(id)}/members`),
   act: (id: string, member: string, action: MemberAction) => call(cm(id), { method: "POST", json: { action: "member", member, do: action } }),
-  discuss: (id: string, title: string, body: string) => call<{ discussion: Discussion }>(cm(id), { method: "POST", json: { action: "discuss", title, body, confirmed: true } }),
+  discuss: (id: string, title: string, body: string, about: { page: string; title: string } | null = null) => call<{ discussion: Discussion }>(cm(id), { method: "POST", json: { action: "discuss", title, body, about, confirmed: true } }),
   read: (id: string) => call<{ community: Community; discussion: Discussion; replies: Reply[] }>(dz(id)),
   reply: (id: string, body: string, parentId: string | null) => call<{ reply: Reply }>(dz(id), { method: "POST", json: { action: "reply", body, parentId, confirmed: true } }),
   like: (id: string, target: string, on: boolean) => call(dz(id), { method: "POST", json: { action: "like", target, on, confirmed: true } }),
