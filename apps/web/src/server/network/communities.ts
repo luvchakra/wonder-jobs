@@ -9,7 +9,7 @@
  * People leave here only as a `MemberView`; blocked people's discussions and replies are hidden from each other.
  */
 import { newId } from "@/lib/ids";
-import { can, cleanAttached, cleanBody, cleanCommunity, cleanTitle, LIMITS, type Attached, type Community, type CommunityInput, type CommunityMember, type CommunityRole, type Discussion, type MemberStatus, type Reply, type ThreadSort } from "@/domain/network/communities";
+import { can, cleanAttached, cleanBody, cleanCommunity, cleanTitle, LIMITS, type Attached, type Community, type CommunityInput, type CommunityMember, type CommunityRole, type Discussion, type MemberStatus, type Vote, type Reply, type ThreadSort } from "@/domain/network/communities";
 import type { MemberView } from "@/domain/network/network";
 import type { Session } from "../auth";
 import { table } from "../db/table";
@@ -21,7 +21,7 @@ type CommunityRow = { id: string; name: string; about: string; rules: string; vi
 type CMemberRow = { community_id: string; tenant_id: string; role: CommunityRole; status: MemberStatus; joined_at: string };
 type ThreadRow = { id: string; community_id: string; tenant_id: string; title: string; body: string; pinned: boolean; locked: boolean; reply_count: number; last_activity_at: string; created_at: string; edited_at: string | null; /** The listing it carries (migration 0059). */ href?: string | null; about?: string | null; module?: string | null };
 type ReplyRow = { id: string; thread_id: string; parent_id: string | null; tenant_id: string; body: string; deleted: boolean; created_at: string; edited_at: string | null };
-type VoteRow = { subject_id: string; tenant_id: string; created_at: string };
+type VoteRow = { subject_id: string; tenant_id: string; created_at: string; /** +1 or -1 (migration 0060; absent before, a like). */ value?: number };
 type MarkRow = { thread_id: string; tenant_id: string; read_at: string | null; following: boolean };
 
 export const communities = () => table<CommunityRow>("network_communities");
@@ -252,18 +252,20 @@ export async function actOnMember(s: Session, id: string, publicId: string, acti
 
 /* ---- discussions --------------------------------------------------------------------------------------------- */
 
-async function likesFor(ids: string[], me: string, hidden: Set<string>): Promise<Map<string, { n: number; mine: boolean }>> {
-  const out = new Map<string, { n: number; mine: boolean }>();
+type Tally = Map<string, { score: number; mine: Vote }>;
+async function votesFor(ids: string[], me: string, hidden: Set<string>): Promise<Tally> {
+  const out: Tally = new Map();
   if (!ids.length) return out;
   for (const v of await votes().findIn("subject_id", ids, {}, { limit: 20000 })) {
     if (hidden.has(v.tenant_id)) continue;
-    const x = out.get(v.subject_id) ?? { n: 0, mine: false };
-    out.set(v.subject_id, { n: x.n + 1, mine: x.mine || v.tenant_id === me });
+    const value = v.value === -1 ? -1 : 1;
+    const x = out.get(v.subject_id) ?? { score: 0, mine: 0 as Vote };
+    out.set(v.subject_id, { score: x.score + value, mine: v.tenant_id === me ? (value as Vote) : x.mine });
   }
   return out;
 }
 
-function toDiscussion(t: ThreadRow, views: Map<string, MemberView>, likes: Map<string, { n: number; mine: boolean }>, mark: MarkRow | undefined, me: string, unread: number): Discussion {
+function toDiscussion(t: ThreadRow, views: Map<string, MemberView>, likes: Tally, mark: MarkRow | undefined, me: string, unread: number): Discussion {
   return {
     id: t.id,
     communityId: t.community_id,
@@ -273,8 +275,8 @@ function toDiscussion(t: ThreadRow, views: Map<string, MemberView>, likes: Map<s
     pinned: t.pinned,
     locked: t.locked,
     replies: t.reply_count,
-    likes: likes.get(t.id)?.n ?? 0,
-    liked: likes.get(t.id)?.mine ?? false,
+    score: likes.get(t.id)?.score ?? 0,
+    myVote: likes.get(t.id)?.mine ?? 0,
     at: t.created_at,
     ...(t.edited_at ? { editedAt: t.edited_at } : {}),
     lastActivityAt: t.last_activity_at,
@@ -290,14 +292,14 @@ export async function listDiscussions(s: Session, id: string, sort: ThreadSort =
   const w = await place(s, id);
   if (!mayRead(w)) throw new HiringError("Join this community to read its discussions.", 403);
   const rows = (await threads().find({ community_id: w.c.id }, { order: sort === "new" ? "created_at" : "last_activity_at", desc: true, limit: 200 })).filter((t) => !w.ctx.hidden.has(t.tenant_id));
-  const [views, likes, mine] = await Promise.all([viewsOf(w.ctx, rows.map((t) => t.tenant_id)), likesFor(rows.map((t) => t.id), s.tenantId, w.ctx.hidden), rows.length ? marks().findIn("thread_id", rows.map((t) => t.id), { tenant_id: s.tenantId }) : Promise.resolve([] as MarkRow[])]);
+  const [views, likes, mine] = await Promise.all([viewsOf(w.ctx, rows.map((t) => t.tenant_id)), votesFor(rows.map((t) => t.id), s.tenantId, w.ctx.hidden), rows.length ? marks().findIn("thread_id", rows.map((t) => t.id), { tenant_id: s.tenantId }) : Promise.resolve([] as MarkRow[])]);
   const markOf = new Map(mine.map((m) => [m.thread_id, m]));
   const list = rows.map((t) => {
     const m = markOf.get(t.id);
     const fresh = t.tenant_id !== s.tenantId && (!m?.read_at || m.read_at < t.last_activity_at);
     return toDiscussion(t, views, likes, m, s.tenantId, fresh ? 1 : 0);
   });
-  const score = (d: Discussion) => d.likes * 2 + d.replies;
+  const score = (d: Discussion) => d.score * 2 + d.replies;
   return list.sort((a, b) => Number(b.pinned) - Number(a.pinned) || (sort === "top" ? score(b) - score(a) : 0));
 }
 
@@ -344,7 +346,7 @@ export async function readDiscussion(s: Session, threadId: string): Promise<{ co
   const rows = await replies().find({ thread_id: a.t.id }, { order: "created_at", limit: 5000 });
   const mark = await marks().one({ thread_id: a.t.id, tenant_id: s.tenantId });
   const seenAt = mark?.read_at ?? null;
-  const [views, likes] = await Promise.all([viewsOf(a.ctx, [a.t.tenant_id, ...rows.map((r) => r.tenant_id)]), likesFor([a.t.id, ...rows.map((r) => r.id)], s.tenantId, a.ctx.hidden)]);
+  const [views, likes] = await Promise.all([viewsOf(a.ctx, [a.t.tenant_id, ...rows.map((r) => r.tenant_id)]), votesFor([a.t.id, ...rows.map((r) => r.id)], s.tenantId, a.ctx.hidden)]);
   const list: Reply[] = rows.map((r) => {
     const hidden = a.ctx.hidden.has(r.tenant_id);
     const gone = r.deleted || hidden;
@@ -354,8 +356,8 @@ export async function readDiscussion(s: Session, threadId: string): Promise<{ co
       author: gone ? null : (views.get(r.tenant_id) ?? null),
       body: gone ? "" : r.body,
       deleted: r.deleted,
-      likes: gone ? 0 : (likes.get(r.id)?.n ?? 0),
-      liked: likes.get(r.id)?.mine ?? false,
+      score: gone ? 0 : (likes.get(r.id)?.score ?? 0),
+      myVote: likes.get(r.id)?.mine ?? 0,
       at: r.created_at,
       ...(r.edited_at && !gone ? { editedAt: r.edited_at } : {}),
       mine: r.tenant_id === s.tenantId,
@@ -401,7 +403,7 @@ export async function replyTo(s: Session, threadId: string, input: { body: strin
     await tell(f.tenant_id, `New reply in "${a.t.title.slice(0, 60)}"`, href);
   }
   const views = await viewsOf(a.ctx, [s.tenantId]);
-  return { id: row.id, parentId: row.parent_id, author: views.get(s.tenantId) ?? null, body, deleted: false, likes: 0, liked: false, at, mine: true, isNew: false, byOp: s.tenantId === a.t.tenant_id };
+  return { id: row.id, parentId: row.parent_id, author: views.get(s.tenantId) ?? null, body, deleted: false, score: 0, myVote: 0, at, mine: true, isNew: false, byOp: s.tenantId === a.t.tenant_id };
 }
 
 /** Edit the caller's own discussion (title, text) or reply. */
@@ -443,8 +445,8 @@ export async function removePost(s: Session, id: string): Promise<void> {
   await audit(s.tenantId, "network.post", id, "REPLY_REMOVED");
 }
 
-/** Like or unlike a discussion or a reply the caller can read (a member's own press). */
-export async function like(s: Session, id: string, on: boolean, confirmed?: boolean): Promise<void> {
+/** Vote on a discussion or a reply the caller can read: up (+1), down (-1), or take the vote back (0). */
+export async function vote(s: Session, id: string, value: Vote, confirmed?: boolean): Promise<void> {
   let threadId = id;
   if (ID.reply.test(id)) {
     const r = await replies().one({ id });
@@ -452,10 +454,17 @@ export async function like(s: Session, id: string, on: boolean, confirmed?: bool
     threadId = r.thread_id;
   }
   const a = await threadAt(s, threadId);
-  if (!a.inIt) throw new HiringError("Join this community to like posts in it.", 403);
-  if (!on) return void (await votes().remove({ subject_id: id, tenant_id: s.tenantId }));
+  if (!a.inIt) throw new HiringError("Join this community to vote in it.", 403);
+  if (value === 0) return void (await votes().remove({ subject_id: id, tenant_id: s.tenantId }));
   await gate(s.tenantId, "network.post", confirmed, "Reacting");
-  await votes().upsert({ subject_id: id, tenant_id: s.tenantId, created_at: now() }, ["subject_id", "tenant_id"]);
+  try {
+    await votes().upsert({ subject_id: id, tenant_id: s.tenantId, created_at: now(), value }, ["subject_id", "tenant_id"]);
+  } catch (e) {
+    // Before migration 0060 a vote has no value: an upvote is stored as before; a downvote can't be yet.
+    if (!/value|schema cache/i.test(e instanceof Error ? e.message : "")) throw e;
+    if (value === -1) throw new HiringError("Downvotes aren't switched on yet. Try again later.", 409);
+    await votes().upsert({ subject_id: id, tenant_id: s.tenantId, created_at: now() }, ["subject_id", "tenant_id"]);
+  }
 }
 
 export async function follow(s: Session, threadId: string, on: boolean): Promise<void> {

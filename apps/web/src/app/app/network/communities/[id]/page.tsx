@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Suspense, use, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Lock, MessageCircle, MoreHorizontal, Pin, Plus, ThumbsUp, UsersRound } from "lucide-react";
+import { ArrowBigUp, Lock, MessageCircle, MoreHorizontal, Pin, Plus, UsersRound } from "lucide-react";
 import { can, LIMITS, type Community, type CommunityMember, type CommunityRole, type Discussion, type ThreadSort } from "@/domain/network/communities";
 import { communityApi, type MemberAction } from "@/services/network/client";
 import { relativeTime } from "@/lib/format";
@@ -155,7 +155,7 @@ function CommunityPage({ id }: { id: string }) {
                             <MessageCircle className="size-3.5" aria-hidden /> {d.replies}
                           </span>
                           <span className="inline-flex items-center gap-1">
-                            <ThumbsUp className="size-3.5" aria-hidden /> {d.likes}
+                            <ArrowBigUp className="size-3.5" aria-hidden /> {d.score}
                           </span>
                           <span>{relativeTime(d.lastActivityAt)}</span>
                           {d.about && <ModuleChip module={d.about.module} />}

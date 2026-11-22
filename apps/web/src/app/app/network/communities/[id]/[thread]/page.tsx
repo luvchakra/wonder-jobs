@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, Bell, ChevronRight, Lock, MessageCircle, MoreHorizontal, Pin, ThumbsUp } from "lucide-react";
-import { can, layOut, LIMITS, type Community, type Discussion, type Reply, type ReplySort } from "@/domain/network/communities";
+import { ArrowBigDown, ArrowBigUp, ArrowDown, Bell, ChevronRight, Lock, MessageCircle, MoreHorizontal, Pin, Plus } from "lucide-react";
+import { can, layOut, LIMITS, type Community, type Discussion, type Reply, type ReplySort, type Vote } from "@/domain/network/communities";
+import { useBottomBar } from "@/wonderworks/chrome/MobileNav";
 import { communityApi } from "@/services/network/client";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
@@ -71,7 +72,7 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
     return () => clearTimeout(t);
   }, [replies]);
 
-  const order = useCallback((a: Reply, b: Reply) => (sort === "top" ? b.likes - a.likes || a.at.localeCompare(b.at) : a.at.localeCompare(b.at)), [sort]);
+  const order = useCallback((a: Reply, b: Reply) => (sort === "top" ? b.score - a.score || a.at.localeCompare(b.at) : a.at.localeCompare(b.at)), [sort]);
   const laid = useMemo(() => (replies ? layOut(replies, order) : []), [replies, order]);
   const byId = useMemo(() => new Map((replies ?? []).map((r) => [r.id, r])), [replies]);
   // What shows: everything not inside a folded branch.
@@ -105,14 +106,16 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
     });
     setTimeout(() => document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
   };
-  const like = async (target: string, on: boolean) => {
-    const bump = (n: number) => n + (on ? 1 : -1);
-    if (target === d.id) setD({ ...d, liked: on, likes: bump(d.likes) });
-    else setReplies((rs) => rs?.map((r) => (r.id === target ? { ...r, liked: on, likes: bump(r.likes) } : r)) ?? rs);
+  // Upvote / downvote (owner, 2026-11-22): pressing your own vote again takes it back.
+  const castVote = async (target: string, before: Vote, pressed: 1 | -1) => {
+    const next: Vote = before === pressed ? 0 : pressed;
+    const apply = <T extends { score: number; myVote: Vote }>(x: T): T => ({ ...x, myVote: next, score: x.score - before + next });
+    if (target === d.id) setD(apply(d));
+    else setReplies((rs) => rs?.map((r) => (r.id === target ? apply(r) : r)) ?? rs);
     try {
-      await communityApi.like(d.id, target, on);
+      await communityApi.vote(d.id, target, next);
     } catch (e) {
-      toast.error("Couldn't like it", (e as Error).message);
+      toast.error("Couldn't vote", (e as Error).message);
       load();
     }
   };
@@ -128,7 +131,7 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
     try {
       await communityApi.removePost(d.id, target);
       if (target === d.id) router.push(`/app/network/communities/${id}`);
-      else setReplies((rs) => rs?.map((r) => (r.id === target ? { ...r, deleted: true, body: "", author: null, likes: 0 } : r)) ?? rs);
+      else setReplies((rs) => rs?.map((r) => (r.id === target ? { ...r, deleted: true, body: "", author: null, score: 0 } : r)) ?? rs);
     } catch (e) {
       toast.error("Couldn't delete it", (e as Error).message);
     }
@@ -147,7 +150,7 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
   ];
 
   return (
-    <div className="mx-auto max-w-3xl pb-24">
+    <div className="mx-auto max-w-3xl pb-36">
       <Link href={`/app/network/communities/${id}`} className="mb-3 inline-flex items-center gap-2 rounded-full py-1 pr-3 text-[13px] font-medium text-ink-2 hover:text-ink">
         <CommunityAvatar c={community} size={24} />
         {community.name}
@@ -171,7 +174,7 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
         {/* The listing it's about, from any module, as rich as in the feed. */}
         {d.about && <ListingCard page={d.about.page} fallback={d.about.title} moduleLabel={moduleById(d.about.module)?.label ?? ""} />}
         <div className="mt-3 flex items-center gap-1 border-t border-line pt-1.5">
-          <LikeButton liked={d.liked} likes={d.likes} disabled={!member} onToggle={(on) => like(d.id, on)} />
+          <Votes score={d.score} mine={d.myVote} disabled={!member} onVote={(v) => castVote(d.id, d.myVote, v)} />
           <span className="inline-flex min-h-9 items-center gap-1.5 px-2 text-[13px] text-ink-3">
             <MessageCircle className="size-4" aria-hidden /> {d.replies}
           </span>
@@ -195,8 +198,6 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
           <Lock className="size-3.5" aria-hidden /> Locked: new replies are closed.
         </p>
       )}
-      {canReply && <Composer key="top" placeholder={`Add to the discussion`} onSend={(b) => send(b, null)} className="mt-3" />}
-      {!member && <p className="mt-3 rounded-[14px] border border-line bg-surface p-3 text-[13px] text-ink-2">Join {community.name} to reply.</p>}
 
       <div className="mb-2 mt-5 flex flex-wrap items-center gap-2">
         <h2 className="text-[14px] font-semibold text-ink">
@@ -275,7 +276,7 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
                     )}
                     {!r.deleted && !r.hidden && (
                       <div className="-ml-2 mt-0.5 flex items-center gap-0.5">
-                        <LikeButton small liked={r.liked} likes={r.likes} disabled={!member} onToggle={(on) => like(r.id, on)} />
+                        <Votes small score={r.score} mine={r.myVote} disabled={!member} onVote={(v) => castVote(r.id, r.myVote, v)} />
                         {canReply && (
                           <button type="button" onClick={() => setAnswering(answering === r.id ? null : r.id)} className="inline-flex min-h-8 items-center gap-1 rounded-[8px] px-2 text-[12.5px] font-semibold text-ink-3 hover:bg-bg-soft hover:text-ink">
                             <MessageCircle className="size-3.5" aria-hidden /> Reply
@@ -294,10 +295,13 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
       {replies.length === 0 && <p className="rounded-[16px] border border-dashed border-line p-6 text-center text-[13.5px] text-ink-3">No replies yet.</p>}
 
       {newIds.length > 0 && (
-        <button type="button" onClick={nextNew} className="fixed bottom-[calc(var(--wj-mobile-nav-h,0px)+1rem)] left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-white shadow-lg md:bottom-6">
+        <button type="button" onClick={nextNew} className="fixed bottom-[calc(var(--wj-mobile-nav-h,0px)+6.5rem)] left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-white shadow-lg md:bottom-24">
           <ArrowDown className="size-4" aria-hidden /> Next new · {newIds.length}
         </button>
       )}
+      {/* Join the conversation (owner, 2026-11-22): one bar at the bottom that opens the reply box, instead of a box
+          under the post. */}
+      <JoinBar canReply={canReply} member={member} locked={d.locked} community={community} onSend={(b) => send(b, null)} />
       {reporting && (
         <ReportSheet
           title="Report this"
@@ -342,12 +346,62 @@ function Byline({ author, at, editedAt, op }: { author: Discussion["author"]; at
   );
 }
 
-function LikeButton({ liked, likes, disabled, onToggle, small }: { liked: boolean; likes: number; disabled?: boolean; onToggle: (on: boolean) => void; small?: boolean }) {
+/** Up and down arrows with the score between them; pressing your own vote again takes it back. */
+function Votes({ score, mine, disabled, onVote, small }: { score: number; mine: Vote; disabled?: boolean; onVote: (v: 1 | -1) => void; small?: boolean }) {
+  const icon = small ? "size-4" : "size-5";
+  const btn = cn("grid place-items-center rounded-full disabled:opacity-50", small ? "size-8" : "size-9");
   return (
-    <button type="button" disabled={disabled} aria-pressed={liked} onClick={() => onToggle(!liked)} className={cn("inline-flex items-center gap-1.5 rounded-[8px] px-2 font-semibold hover:bg-bg-soft disabled:hover:bg-transparent", small ? "min-h-8 text-[12.5px]" : "min-h-9 text-[13px]", liked ? "text-brand-600" : "text-ink-3")}>
-      <ThumbsUp className={small ? "size-3.5" : "size-4"} fill={liked ? "currentColor" : "none"} aria-hidden />
-      {likes > 0 ? likes : "Like"}
-    </button>
+    <span className={cn("inline-flex items-center rounded-full", mine === 1 ? "bg-brand-50" : mine === -1 ? "bg-danger-100" : "bg-surface-2")}>
+      <button type="button" disabled={disabled} aria-pressed={mine === 1} aria-label="Upvote" onClick={() => onVote(1)} className={cn(btn, mine === 1 ? "text-brand-600" : "text-ink-3 hover:text-brand-600")}>
+        <ArrowBigUp className={icon} fill={mine === 1 ? "currentColor" : "none"} aria-hidden />
+      </button>
+      <span className={cn("min-w-[1.5ch] text-center font-semibold tabular-nums", small ? "text-[12.5px]" : "text-[13px]", mine === 1 ? "text-brand-700" : mine === -1 ? "text-danger-600" : "text-ink-2")} aria-label={`Score ${score}`}>
+        {score}
+      </span>
+      <button type="button" disabled={disabled} aria-pressed={mine === -1} aria-label="Downvote" onClick={() => onVote(-1)} className={cn(btn, mine === -1 ? "text-danger-600" : "text-ink-3 hover:text-danger-600")}>
+        <ArrowBigDown className={icon} fill={mine === -1 ? "currentColor" : "none"} aria-hidden />
+      </button>
+    </span>
+  );
+}
+
+/** The bar at the bottom: "+ Join the conversation", opening the reply box in place; the round + and ⋯ step aside. */
+function JoinBar({ canReply, member, locked, community, onSend }: { canReply: boolean; member: boolean; locked: boolean; community: Community; onSend: (body: string) => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  useBottomBar(true);
+  // Floats just above the bottom bar, clear of its raised Network button.
+  const where = "fixed inset-x-0 bottom-[calc(var(--wj-mobile-nav-h,0px)+1.75rem)] z-30 px-4 md:bottom-4 lg:left-[var(--wj-sidebar-w,0px)]";
+  if (!member)
+    return (
+      <div className={where}>
+        <Link href={`/app/network/communities/${community.id}`} className="mx-auto flex h-12 max-w-3xl items-center gap-2 rounded-full border border-line bg-surface px-4 text-[14px] text-ink-3 shadow-lg">
+          <Plus className="size-5" aria-hidden /> Join {community.name} to take part
+        </Link>
+      </div>
+    );
+  if (!canReply)
+    return (
+      <div className={where}>
+        <p className="mx-auto flex h-12 max-w-3xl items-center gap-2 rounded-full border border-line bg-surface px-4 text-[14px] text-ink-3 shadow-lg">
+          <Lock className="size-4" aria-hidden /> {locked ? "Locked: new replies are closed" : "Replies are closed"}
+        </p>
+      </div>
+    );
+  return (
+    <div className={where}>
+      <div className="mx-auto max-w-3xl">
+        {open ? (
+          <Composer className="shadow-xl" autoFocus placeholder="Join the conversation" onSend={async (b) => {
+            await onSend(b);
+            setOpen(false);
+          }} onCancel={() => setOpen(false)} />
+        ) : (
+          <button type="button" onClick={() => setOpen(true)} className="flex h-12 w-full items-center gap-2 rounded-full border border-line bg-surface px-4 text-left text-[14px] text-ink-3 shadow-lg hover:border-brand-300">
+            <Plus className="size-5" aria-hidden /> Join the conversation
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 

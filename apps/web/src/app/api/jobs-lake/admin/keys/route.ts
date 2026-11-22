@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { jlError, requireAdmin } from "@/server/jobslake/access";
 import { audit } from "@/server/jobslake/core";
 import { json, readJson } from "@/server/jobslake/http";
@@ -9,6 +9,7 @@ import { renderEmailLayout } from "@/server/email/layout";
 import { siteUrl } from "@/lib/siteUrl";
 import { TESTABLE, testPlatformKey } from "@/server/jobslake/keyTest";
 import { readKeyNotes, setKeyNote } from "@/server/jobslake/keyNotes";
+import { keyFamilies, keyRuns, runKeyFamily, startKeyRun, stopKeyRun } from "@/server/jobslake/keyRuns";
 
 export const runtime = "nodejs";
 
@@ -16,8 +17,10 @@ export const runtime = "nodejs";
 export async function GET() {
   const a = await requireAdmin();
   if (a instanceof NextResponse) return a;
-  const [keys, notes] = await Promise.all([platformKeyStatus(), readKeyNotes()]);
-  return json({ keys: keys.map((k) => ({ ...k, testable: TESTABLE.has(k.name) })), notes });
+  const [keys, notes, runs] = await Promise.all([platformKeyStatus(), readKeyNotes(), keyRuns()]);
+  // Keys that work together, and the sources each family's play button runs (keyRuns.ts).
+  const families = await keyFamilies(Object.fromEntries(keys.map((k) => [k.name, k.label])));
+  return json({ keys: keys.map((k) => ({ ...k, testable: TESTABLE.has(k.name) })), notes, families, runs });
 }
 
 /** Set, replace or remove one key. Audited by name only; the value is encrypted and never logged or returned. */
@@ -33,6 +36,21 @@ export async function POST(req: Request) {
     if (!r.ok) return jlError("NOT_FOUND", r.message, 404);
     await audit(a.actor, "platform_key.noted", undefined, { name, cleared: !r.note });
     return json({ ok: true, note: r.note, message: r.note ? "Note saved." : "Note cleared." });
+  }
+  // Play / Stop (owner, 2026-11-22): run every source that uses this key family now, in the background; or stop it.
+  if (body?.action === "run" || body?.action === "stop") {
+    const family = typeof (body as { family?: unknown }).family === "string" ? String((body as { family: string }).family).slice(0, 40) : "";
+    if (body.action === "stop") {
+      const r = await stopKeyRun(family);
+      await audit(a.actor, "platform_key.run_stopped", undefined, { family, ok: r.ok });
+      return r.ok ? json(r) : jlError("INVALID_REQUEST", r.message, 409);
+    }
+    const labels = Object.fromEntries((await platformKeyStatus()).map((k) => [k.name, k.label]));
+    const r = await startKeyRun(family, a.actor, labels);
+    if (!r.ok) return jlError("INVALID_REQUEST", r.message, 409);
+    await audit(a.actor, "platform_key.run_started", undefined, { family, sources: r.run.items.length });
+    after(() => runKeyFamily(family).then(() => undefined, () => undefined));
+    return json({ ok: true, run: r.run, message: `Running ${r.run.items.length} source${r.run.items.length === 1 ? "" : "s"}.` });
   }
   // Email: one test message to the admin who pressed it, through the mailbox set here (or in the deployment).
   if (body?.action === "test_email") {

@@ -129,10 +129,10 @@ describe("discussions", () => {
     await expect(C.replyTo(rahul, d.id, { body: "More" }, true)).rejects.toThrow(/locked/);
     await expect(C.editPost(kunal, r.id, { body: "edited" })).rejects.toThrow(/isn't yours/);
     await C.editPost(rahul, r.id, { body: "Hi everyone" });
-    await C.like(kunal, r.id, true, true);
-    await C.like(asha, r.id, true, true);
+    await C.vote(kunal, r.id, 1, true);
+    await C.vote(asha, r.id, 1, true);
     let read = await C.readDiscussion(rahul, d.id);
-    expect(read.replies[0]).toMatchObject({ body: "Hi everyone", likes: 2, editedAt: expect.any(String) });
+    expect(read.replies[0]).toMatchObject({ body: "Hi everyone", score: 2, editedAt: expect.any(String) });
     expect(read.discussion).toMatchObject({ pinned: true, locked: true });
     await expect(C.removePost(kunal, r.id)).rejects.toThrow(/isn't yours/);
     await C.removePost(asha, r.id); // a moderator removes it: its words go, the reply under it stays
@@ -178,7 +178,7 @@ describe("account data", () => {
     const his = await C.startDiscussion(kunal, c.id, { title: "His", body: "" }, true);
     const r = await C.replyTo(asha, his.id, { body: "Asha's reply" }, true);
     await C.replyTo(kunal, his.id, { body: "Kunal answers", parentId: r.id }, true);
-    await C.like(asha, his.id, true, true);
+    await C.vote(asha, his.id, 1, true);
     expect(await C.exportCommunities("u-asha")).toMatchObject({ discussionsYouStarted: [{ title: "Mine" }], repliesYouWrote: [{ body: "Asha's reply" }] });
     await C.eraseCommunities("u-asha");
     expect((await C.getCommunity(kunal, c.id)).me?.role).toBe("owner");
@@ -217,5 +217,26 @@ describe("modules in communities (owner, 2026-11-22)", () => {
     const job = await C.startDiscussion(asha, c.id, { title: "Worth applying?", body: "", about: { page: "/j/job_7", title: "IAM Lead" } }, true);
     expect(job.about?.module).toBe("jobs");
     expect((await C.readDiscussion(asha, d.id)).discussion.about?.page).toBe("/s/events/ev_42");
+  });
+});
+
+describe("upvote and downvote (owner, 2026-11-22)", () => {
+  it("one vote per member, up or down; pressing it again takes it back; only members vote", async () => {
+    await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    await join(rahul, "Rahul Sen");
+    const c = await C.createCommunity(asha, { name: "Identity people" }, true);
+    await C.joinCommunity(kunal, c.id);
+    const d = await C.startDiscussion(asha, c.id, { title: "Passkeys?", body: "" }, true);
+    await C.vote(asha, d.id, 1, true);
+    await C.vote(kunal, d.id, -1, true);
+    await C.vote(kunal, d.id, -1, true); // still one vote
+    expect((await C.readDiscussion(kunal, d.id)).discussion).toMatchObject({ score: 0, myVote: -1 });
+    await C.vote(kunal, d.id, 1, true);
+    expect((await C.readDiscussion(asha, d.id)).discussion).toMatchObject({ score: 2, myVote: 1 });
+    await C.vote(kunal, d.id, 0);
+    expect((await C.readDiscussion(asha, d.id)).discussion.score).toBe(1);
+    await expect(C.vote(rahul, d.id, 1, true)).rejects.toThrow(/Join this community/);
+    await expect(C.vote(kunal, d.id, -1)).rejects.toThrow(/Check what goes/);
   });
 });

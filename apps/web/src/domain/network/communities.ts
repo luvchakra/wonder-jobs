@@ -49,6 +49,7 @@ export interface CommunityMember {
 }
 
 export type ThreadSort = "active" | "new" | "top";
+export type Vote = -1 | 0 | 1;
 export type ReplySort = "oldest" | "top";
 
 export interface Discussion {
@@ -60,8 +61,10 @@ export interface Discussion {
   pinned: boolean;
   locked: boolean;
   replies: number;
-  likes: number;
-  liked: boolean;
+  /** Upvotes minus downvotes (owner, 2026-11-22: "upvote, downvote"). */
+  score: number;
+  /** The viewer's own vote: +1, -1, or 0 for none. */
+  myVote: Vote;
   at: string;
   editedAt?: string;
   lastActivityAt: string;
@@ -79,8 +82,10 @@ export interface Reply {
   author: MemberView | null;
   body: string;
   deleted: boolean;
-  likes: number;
-  liked: boolean;
+  /** Upvotes minus downvotes (owner, 2026-11-22: "upvote, downvote"). */
+  score: number;
+  /** The viewer's own vote: +1, -1, or 0 for none. */
+  myVote: Vote;
   at: string;
   editedAt?: string;
   mine: boolean;

@@ -122,3 +122,6 @@ export async function testPlatformKey(name: string, fetcher: typeof fetch = fetc
     return { ok: false, message: timeout ? "Unavailable: the provider didn't answer in 10 s." : "Unavailable: couldn't reach the provider." };
   }
 }
+
+/** Keys that work together, by provider (the same pairs Test uses): Adzuna's ID and key, USAJOBS' key and email, … */
+export const KEY_FAMILIES: { id: string; needs: string[] }[] = Object.entries(PROBES).map(([id, p]) => ({ id, needs: p.needs }));

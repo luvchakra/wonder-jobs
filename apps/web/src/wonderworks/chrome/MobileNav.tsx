@@ -105,18 +105,32 @@ export function MobileNav() {
           <MoreHorizontal className="size-6" aria-hidden />
         </button>
       )}
-      {/* The bottom bar (owner, 2026-11-20: five places, Network in the middle, a professional look): a solid bar, the
-          current place marked by a line on top and its colour, and no pill behind the icon. */}
-      <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-xl transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
-        <ul className="grid grid-flow-col auto-cols-fr">
+      {/* The bottom bar (owner, 2026-11-22: "make the bottom bar little more modern. make network tab round and little
+          more different looking to attract attention. and keep continuity between 4 older tabs"): the four places share
+          one look, a soft pill behind the current one's icon; Network, in the middle, is a raised round button in the
+          brand gradient. */}
+      <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="fixed inset-x-0 bottom-0 z-40 rounded-t-[22px] border-t border-line/70 bg-surface/95 shadow-[0_-6px_24px_-12px_rgba(40,20,90,0.18)] backdrop-blur-xl transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
+        <ul className="grid grid-flow-col auto-cols-fr items-end px-1.5">
           {nav.map((item) => {
             const active = isActivePath(pathname, item);
             const Icon = item.icon;
+            if (item.href === NETWORK_HREF)
+              return (
+                <li key={item.href} className="flex min-w-0 justify-center">
+                  <Link href={item.href} aria-current={active ? "page" : undefined} className="group flex h-16 flex-col items-center justify-end gap-1 pb-1.5 text-[11px] leading-none">
+                    <span aria-hidden className={cn("wj-gradient-bg -mt-7 grid size-14 place-items-center rounded-full text-white ring-4 ring-surface transition-transform duration-200 group-active:scale-95", active ? "shadow-[0_8px_22px_-6px_rgba(99,59,255,0.75)]" : "shadow-[0_6px_16px_-6px_rgba(99,59,255,0.55)]")}>
+                      <Icon className="size-6" strokeWidth={2.2} />
+                    </span>
+                    <span className={cn("max-w-full truncate", active ? "font-semibold text-brand-700" : "font-semibold text-brand-600")}>{item.label}</span>
+                  </Link>
+                </li>
+              );
             return (
               <li key={item.href} className="min-w-0">
-                <Link href={item.href} aria-current={active ? "page" : undefined} className={cn("relative flex h-16 flex-col items-center justify-center gap-1 px-0.5 text-[11px] leading-none tracking-[0.01em] transition-colors duration-200", active ? "font-semibold text-brand-600" : "font-medium text-ink-3")}>
-                  <span aria-hidden className={cn("absolute inset-x-4 top-0 h-[3px] rounded-b-full transition-colors duration-200", active ? "bg-brand-600" : "bg-transparent")} />
-                  <Icon className="size-[22px]" strokeWidth={active ? 2.3 : 1.8} aria-hidden />
+                <Link href={item.href} aria-current={active ? "page" : undefined} className={cn("flex h-16 flex-col items-center justify-center gap-1 px-0.5 text-[11px] leading-none tracking-[0.01em] transition-colors duration-200", active ? "font-semibold text-brand-700" : "font-medium text-ink-3")}>
+                  <span aria-hidden className={cn("grid h-8 w-14 place-items-center rounded-full transition-colors duration-200", active ? "bg-brand-100" : "bg-transparent")}>
+                    <Icon className="size-[21px]" strokeWidth={active ? 2.3 : 1.8} />
+                  </span>
                   <span className="max-w-full truncate">{item.label}</span>
                 </Link>
               </li>

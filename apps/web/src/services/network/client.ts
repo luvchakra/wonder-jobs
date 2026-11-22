@@ -152,7 +152,7 @@ export const communityApi = {
   discuss: (id: string, title: string, body: string, about: { page: string; title: string } | null = null) => call<{ discussion: Discussion }>(cm(id), { method: "POST", json: { action: "discuss", title, body, about, confirmed: true } }),
   read: (id: string) => call<{ community: Community; discussion: Discussion; replies: Reply[] }>(dz(id)),
   reply: (id: string, body: string, parentId: string | null) => call<{ reply: Reply }>(dz(id), { method: "POST", json: { action: "reply", body, parentId, confirmed: true } }),
-  like: (id: string, target: string, on: boolean) => call(dz(id), { method: "POST", json: { action: "like", target, on, confirmed: true } }),
+  vote: (id: string, target: string, value: -1 | 0 | 1) => call(dz(id), { method: "POST", json: { action: "vote", target, value, confirmed: true } }),
   edit: (id: string, target: string, body: string, title?: string) => call(dz(id), { method: "POST", json: { action: "edit", target, body, ...(title !== undefined ? { title } : {}) } }),
   report: (id: string, target: string, reason: string) => call<{ repeated: boolean }>(dz(id), { method: "POST", json: { action: "report", target, reason } }),
   follow: (id: string, on: boolean) => call(dz(id), { method: "POST", json: { action: "follow", on } }),
