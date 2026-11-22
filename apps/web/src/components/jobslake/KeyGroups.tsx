@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import type { PlatformKeyStatus } from "@/server/jobslake/platformKeys";
 import type { KeyNote } from "@/server/jobslake/keyNotes";
 import { Button } from "@/components/common/Button";
@@ -32,6 +32,10 @@ export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
   // to this for further filtering and reminders").
   const [tag, setTag] = useState<string | null>(null);
   const [dueOnly, setDueOnly] = useState(false);
+  // Find a key by typing (owner, 2026-11-22: "add search option here to quickly find item"): its name, env name, what it
+  // unlocks, and the admin's own tags and note. Every word must match.
+  const [q, setQ] = useState("");
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const notes = data?.notes ?? {};
   const sections = data ? GROUPS.filter((g) => groups.includes(g.id)).map((g) => ({ g, keys: data.keys.filter((k) => (k.group ?? "sources") === g.id) })).filter((x) => x.keys.length) : [];
   const all = sections.flatMap((x) => x.keys);
@@ -39,12 +43,29 @@ export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
   const isDue = (k: PlatformKeyStatus) => dueOn(notes[k.name]);
   const tags = [...new Set(all.flatMap((k) => notes[k.name]?.tags ?? []))].sort();
   const due = all.filter(isDue).length;
-  const shown = (k: PlatformKeyStatus) => (show === "all" || (show === "missing" ? !k.set : k.set)) && (!tag || (notes[k.name]?.tags ?? []).includes(tag)) && (!dueOnly || isDue(k));
+  const matches = (k: PlatformKeyStatus) => {
+    if (!words.length) return true;
+    const n = notes[k.name];
+    const hay = [k.label, k.name, k.name.replace(/_/g, " "), k.usedBy, ...(n?.tags ?? []), n?.note ?? ""].join(" ").toLowerCase();
+    return words.every((w) => hay.includes(w));
+  };
+  const shown = (k: PlatformKeyStatus) => (show === "all" || (show === "missing" ? !k.set : k.set)) && (!tag || (notes[k.name]?.tags ?? []).includes(tag)) && (!dueOnly || isDue(k)) && matches(k);
   const chip = (on: boolean) => `rounded-full border px-3 py-1 text-[12.5px] font-medium transition-colors ${on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line text-ink-2 hover:bg-bg-soft"}`;
   return (
     <>
       {error && <LoadError error={error} onRetry={reload} />}
       {!data && !error && <Loading />}
+      {data && all.length > 0 && (
+        <div className="relative mb-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-4" aria-hidden />
+          <Input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search keys: name, source, tag or note" aria-label="Search keys" className="h-10 pl-9 pr-9" />
+          {q && (
+            <button type="button" aria-label="Clear search" onClick={() => setQ("")} className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-ink-3 hover:bg-bg-soft">
+              <X className="size-4" aria-hidden />
+            </button>
+          )}
+        </div>
+      )}
       {data && all.length > 0 && (
         <div role="group" aria-label="Show" className="mb-3 flex flex-wrap items-center gap-2">
           {(
@@ -77,7 +98,7 @@ export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
           ))}
         </div>
       )}
-      {data && (show !== "all" || tag || dueOnly) && sections.every((x) => !x.keys.some(shown)) && <p className="mb-4 text-[13px] text-ink-3">No key matches these filters.</p>}
+      {data && (show !== "all" || tag || dueOnly || words.length > 0) && sections.every((x) => !x.keys.some(shown)) && <p className="mb-4 text-[13px] text-ink-3">{words.length ? `No key matches “${q.trim()}”${show !== "all" || tag || dueOnly ? " with these filters" : ""}.` : "No key matches these filters."}</p>}
       {sections.map(({ g, keys }) => {
         const missing = keys.filter((k) => !k.set).length;
         const visible = keys.filter(shown);
