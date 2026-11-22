@@ -5,9 +5,13 @@ import { Link2 } from "lucide-react";
 import { networkApi, type ListingPreview } from "@/services/network/client";
 import { cn } from "@/lib/cn";
 
+/** A listing's public page (`/s/<module>/<id>`), opened by a member, is its signed-in view inside the app (owner,
+ * 2026-11-23: "on clicking, it takes users to logged out page"). */
+export const inAppListing = (page: string) => (page.startsWith("/s/") ? `/app/network/listing/${page.slice(3)}` : page);
+
 function Box({ link, page, className, children }: { link: boolean; page: string; className: string; children: React.ReactNode }) {
   return link ? (
-    <Link href={page} className={className}>
+    <Link href={inAppListing(page)} className={className}>
       {children}
     </Link>
   ) : (
