@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, Bot, ChartNoAxesColumn, Database, Download, KeyRound, LifeBuoy, LogOut, Sparkles, User } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, Bot, ChartNoAxesColumn, Database, Download, KeyRound, LifeBuoy, LogOut, Sparkles, Undo2, User } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FlipAvatar } from "./FlipAvatar";
 import { useCareerStore } from "@/store/career";
@@ -19,7 +19,8 @@ import dynamic from "next/dynamic";
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
-import { NETWORK_HREF } from "./nav";
+import { NETWORK_HREF, appReturnPath } from "./nav";
+import { TINTS } from "@/wonderworks/brand/tiles";
 import { NotificationBell } from "./NotificationBell";
 import { NetworkBar } from "@/components/network/NetworkBell";
 import { useMediaQuery } from "@/lib/motion";
@@ -29,7 +30,7 @@ import { useMenu } from "@/lib/menus";
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      // The phone's floating menu button, and the menu it opens, handle their own clicks.
+      // The sidebar's menu (portalled over the page) handles its own clicks.
       if ((e.target as Element | null)?.closest?.("[data-menu-trigger]")) return;
       if (ref.current && !ref.current.contains(e.target as Node)) onOut();
     };
@@ -99,7 +100,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
 
   // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
   const accountMenu = (
-    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-50" : place === "side" ? "fixed bottom-20 left-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
+    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", place === "side" ? "fixed bottom-20 left-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
       {/* Who's signed in, and their career status (from their applications). */}
       <div className="px-3 pb-2 pt-1.5">
         <p className="truncate text-[13px] font-semibold leading-tight text-ink">{displayName}</p>
@@ -215,9 +216,39 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">
           <FlipAvatar name={displayName} />
         </button>
-        {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
+        {profileOpen && accountMenu}
       </div>
+      {/* Network mode's way out (owner, 2026-11-22): right of the avatar, the module the member came from, back to the
+          page they left. */}
+      {onNetwork && <LeaveNetwork />}
       {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
     </header>
+  );
+}
+
+/** Leaves network mode: the module in use, as its own tile, back to the last page the member had open outside Network
+ * (or the module's first place). Phones only; from 768px the sidebar carries the modules. */
+function LeaveNetwork() {
+  const router = useRouter();
+  const slots = useChromeSlots();
+  const selected = useSelectedModule();
+  const current = slots.useSidebarModules?.().items.find((m) => m.on);
+  const label = current?.label ?? "the app";
+  const Icon = current?.icon ?? Undo2;
+  return (
+    <button
+      type="button"
+      aria-label={`Back to ${label}`}
+      title={`Back to ${label}`}
+      onClick={() => router.push(appReturnPath(slots.tabsFor(selected)[0]?.href ?? "/app"))}
+      className="relative order-[-2] grid size-10 shrink-0 place-items-center rounded-full hover:bg-bg-soft md:hidden"
+    >
+      <span aria-hidden className={cn("grid size-8 place-items-center rounded-[10px]", current ? [TINTS[current.tint].tile, TINTS[current.tint].icon] : "bg-bg-soft text-ink-2")}>
+        <Icon className="size-[18px]" strokeWidth={2} />
+      </span>
+      <span aria-hidden className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full bg-surface text-ink-2 shadow ring-1 ring-line">
+        <Undo2 className="size-2.5" strokeWidth={2.6} />
+      </span>
+    </button>
   );
 }
