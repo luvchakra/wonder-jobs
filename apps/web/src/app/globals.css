@@ -90,6 +90,11 @@
   --wj-mobile-nav-h: calc(4rem + env(safe-area-inset-bottom, 0px) - var(--wj-bottom-hidden, 0px));
 }
 
+/* Network mode (owner, 2026-11-22): on Network's pages there is no bottom bar, so what sat above it rests on the screen's foot. */
+:root[data-network-mode] {
+  --wj-mobile-nav-h: env(safe-area-inset-bottom, 0px);
+}
+
 @theme inline {
   --color-bg: var(--wj-bg);
   --color-bg-soft: var(--wj-bg-soft);

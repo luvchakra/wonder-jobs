@@ -206,18 +206,30 @@ test.describe("Golden journey — mobile navigation", () => {
     await openApp(page, "/app");
   });
 
-  test("GJ-008 the bottom bar shows the five places directly, with no menu drawer or More catch-all", async ({ page }) => {
+  test("GJ-008 the bottom bar shows the four places directly, with Network as its own round button and no menu drawer", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
-    for (const label of ["Find", "Saved", "Network", "Pipeline", "You"]) {
+    for (const label of ["Find", "Saved", "Pipeline", "You"]) {
       await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
     }
-    await expect(bottomBar.getByRole("link")).toHaveCount(5);
+    await expect(bottomBar.getByRole("link")).toHaveCount(4);
+    await expect(page.getByRole("link", { name: "Network", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
     // Help, account and sign-out are in the avatar menu rather than a drawer.
     await page.getByRole("button", { name: "Profile menu" }).click();
     await expect(page.getByRole("menuitem", { name: "Get Help" })).toBeVisible();
     await expect(page.getByRole("menuitem", { name: "Account" }).first()).toBeVisible();
+  });
+
+  test("GJ-008b Network opens network mode without the bottom bar, and the top bar's module icon leads back", async ({ page }) => {
+    await openApp(page, "/app/saved");
+    await page.getByRole("link", { name: "Network", exact: true }).click();
+    await expect(page).toHaveURL(/\/app\/network$/);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Network", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: /^Back to / }).click();
+    await expect(page).toHaveURL(/\/app\/saved$/);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   });
 
   test("GJ-009 a place's own pages are tabs at its top; You lists every settings page as a row", async ({ page }) => {

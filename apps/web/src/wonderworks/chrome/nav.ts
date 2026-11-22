@@ -55,3 +55,23 @@ export function moduleTabs(m: Pick<ModuleManifest, "id" | "routes" | "pipeline">
 export function sectionFor(pathname: string, sections: { title: string; items: NavItem[] }[]) {
   return sections.find((x) => x.items.some((i) => isActivePath(pathname, i)));
 }
+
+/** Network mode's way back (owner, 2026-11-22): the last app page outside Network, kept for this tab only. */
+const RETURN_KEY = "wj.appReturn";
+export function rememberAppPath(path: string) {
+  if (!path.startsWith("/app") || path === NETWORK_HREF || path.startsWith(`${NETWORK_HREF}/`) || path.startsWith(`${NETWORK_HREF}?`)) return;
+  try {
+    sessionStorage.setItem(RETURN_KEY, path);
+  } catch {
+    // Storage blocked (a private window): the way back falls back to the module's first place.
+  }
+}
+export function appReturnPath(fallback: string): string {
+  try {
+    const path = sessionStorage.getItem(RETURN_KEY);
+    if (path && path.startsWith("/app") && !path.startsWith(NETWORK_HREF)) return path;
+  } catch {
+    // As above.
+  }
+  return fallback;
+}
