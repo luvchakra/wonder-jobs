@@ -237,7 +237,7 @@ test.describe("Golden journey — mobile navigation", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
     // My network in the top bar always leads to the feed.
     await page.goto("/app/network/communities");
-    await page.getByRole("link", { name: "My network", exact: true }).click();
+    await page.locator("[data-top-bar]").getByRole("link", { name: "My network", exact: true }).click();
     await expect(page).toHaveURL(/\/app\/network$/);
     // The way back is right of the avatar, and in the quick actions in Network's place.
     await expect(page.getByRole("button", { name: /^Back to / })).toHaveCount(1);

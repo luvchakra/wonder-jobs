@@ -155,10 +155,11 @@ export function MobileNav() {
   ];
   return (
     <>
-      {/* The quick actions: one round up arrow; pressed, the actions rise from it one after another, each with its name. */}
+      {/* The quick actions: one small, plain round up arrow (owner, 2026-11-22: "should not have any colour to it, should
+          be smaller"); pressed, the actions rise from it one after another, each with its name. */}
       {!barShown && (
         <div ref={dial} className="pointer-events-none fixed bottom-[calc(var(--wj-mobile-nav-h)+1rem)] right-4 z-40 flex flex-col items-end gap-3 md:hidden">
-          <div inert={!open} aria-hidden={!open} className="flex flex-col items-end gap-3 pr-1">
+          <div inert={!open} aria-hidden={!open} className="flex flex-col items-end gap-3">
             {actions.map((a, i) => (
               <div
                 key={a.key}
@@ -177,9 +178,9 @@ export function MobileNav() {
             aria-label="Quick actions"
             aria-expanded={open}
             onClick={() => setOpenOn(open ? null : pathname)}
-            className="wj-gradient-bg pointer-events-auto grid size-14 place-items-center rounded-full text-white shadow-[0_8px_22px_-6px_rgba(99,59,255,0.75)] ring-4 ring-surface transition-transform active:scale-95"
+            className="pointer-events-auto mr-0.5 grid size-11 place-items-center rounded-full border border-line bg-surface/95 text-ink-2 shadow-md backdrop-blur transition-transform active:scale-95"
           >
-            <ChevronUp className={cn("size-7 transition-transform duration-200 motion-reduce:transition-none", open && "rotate-180")} strokeWidth={2.4} aria-hidden />
+            <ChevronUp className={cn("size-6 transition-transform duration-200 motion-reduce:transition-none", open && "rotate-180")} strokeWidth={2.4} aria-hidden />
           </button>
         </div>
       )}
