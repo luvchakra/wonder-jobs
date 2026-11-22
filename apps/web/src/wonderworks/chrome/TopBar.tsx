@@ -19,7 +19,7 @@ import dynamic from "next/dynamic";
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
-import { NETWORK_HREF } from "./nav";
+import { NETWORK_HREF, NETWORK_TAB } from "./nav";
 import { LeaveNetwork } from "./LeaveNetwork";
 import { NotificationBell } from "./NotificationBell";
 import { NetworkBar } from "@/components/network/NetworkBell";
@@ -226,9 +226,23 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
       </div>
       {/* Network mode's way out (owner, 2026-11-22): right of the avatar, the module the member came from, back to the
           page they left. */}
-      {onNetwork && <LeaveNetwork />}
+      {/* Outside network mode the same spot opens it (owner, 2026-11-22: "add network icon on the right of avatar icon
+          when not in network mode"). */}
+      {onNetwork ? <LeaveNetwork /> : <OpenNetwork />}
       {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
     </header>
   );
 }
 
+
+/** Opens network mode from the top bar, right of the avatar. Phones only; from 768px the sidebar lists Network. */
+function OpenNetwork() {
+  const Icon = NETWORK_TAB.icon;
+  return (
+    <Link href={NETWORK_HREF} aria-label="Open my network" title="My network" className="order-[-2] grid size-10 shrink-0 place-items-center rounded-full hover:bg-bg-soft md:hidden">
+      <span aria-hidden className="grid size-8 place-items-center rounded-[10px] bg-brand-50 text-brand-600">
+        <Icon className="size-[18px]" strokeWidth={2} />
+      </span>
+    </Link>
+  );
+}
