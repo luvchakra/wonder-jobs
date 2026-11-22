@@ -12,7 +12,7 @@ import { Button } from "@/components/common/Button";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { Menu, ReportSheet, type MenuItem } from "@/components/network/FeedCard";
-import { CommunityAvatar } from "@/components/network/community";
+import { BackButton, CommunityAvatar } from "@/components/network/community";
 import { ListingCard } from "@/components/network/ListingCard";
 import { moduleById } from "@/modules/registry";
 import { MemberAvatar, memberHref } from "@/components/network/parts";
@@ -151,11 +151,14 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="mx-auto max-w-3xl pb-36">
-      <Link href={`/app/network/communities/${id}`} className="mb-3 inline-flex items-center gap-2 rounded-full py-1 pr-3 text-[13px] font-medium text-ink-2 hover:text-ink">
-        <CommunityAvatar c={community} size={24} />
-        {community.name}
-        <ChevronRight className="size-3.5 text-ink-4" aria-hidden />
-      </Link>
+      <div className="mb-3 flex items-center gap-2.5">
+        <BackButton fallback={`/app/network/communities/${id}`} label="Back" />
+        <Link href={`/app/network/communities/${id}`} className="inline-flex min-w-0 items-center gap-2 rounded-full py-1 pr-3 text-[13px] font-medium text-ink-2 hover:text-ink">
+          <CommunityAvatar c={community} size={24} />
+          <span className="truncate">{community.name}</span>
+          <ChevronRight className="size-3.5 shrink-0 text-ink-4" aria-hidden />
+        </Link>
+      </div>
 
       <article className="rounded-[18px] border border-line bg-surface p-4">
         <div className="flex items-start gap-2">

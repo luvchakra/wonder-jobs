@@ -229,6 +229,10 @@ test.describe("Golden journey — mobile navigation", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Network", exact: true })).toHaveCount(0);
     // The way back is in two places: right of the avatar, and in the round buttons under the +.
+    // My network in the top bar always leads to the feed.
+    await page.goto("/app/network/communities");
+    await page.getByRole("link", { name: "My network", exact: true }).click();
+    await expect(page).toHaveURL(/\/app\/network$/);
     await expect(page.getByRole("button", { name: /^Back to / })).toHaveCount(2);
     await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /^Back to / }).last().click();

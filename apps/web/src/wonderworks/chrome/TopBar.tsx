@@ -204,7 +204,13 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
       {/* Network is the same page in every module, so there the bar names it and the module menu steps aside (owner,
           2026-11-21: "move my network to top navbar"). */}
       <div className="order-[-1] flex min-w-0 flex-1 justify-center md:justify-start lg:hidden">
-        {onNetwork ? <h1 className="truncate text-[18px] font-bold text-ink">My network</h1> : hydrated && slots.FindMenu && <slots.FindMenu />}
+        {onNetwork ? (
+          <h1 className="min-w-0 truncate text-[18px] font-bold text-ink">
+            <Link href={NETWORK_HREF} className="rounded-md hover:text-brand-700">
+              My network
+            </Link>
+          </h1>
+        ) : hydrated && slots.FindMenu && <slots.FindMenu />}
       </div>
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted

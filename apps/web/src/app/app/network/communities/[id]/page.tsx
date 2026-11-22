@@ -14,7 +14,7 @@ import { Modal } from "@/components/common/Modal";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { Menu, type MenuItem } from "@/components/network/FeedCard";
-import { CommunityAvatar, CommunitySheet, ModuleChip, PrivacyChip } from "@/components/network/community";
+import { BackButton, CommunityAvatar, CommunitySheet, ModuleChip, PrivacyChip } from "@/components/network/community";
 import { MemberAvatar, memberHref } from "@/components/network/parts";
 
 type Tab = "discussions" | "members" | "about";
@@ -77,6 +77,7 @@ function CommunityPage({ id }: { id: string }) {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title={c.name} back={{ href: "/app/network/communities", label: "Communities" }} className="max-lg:hidden" />
+      <BackButton fallback="/app/network/communities" label="Back" className="mb-3 lg:hidden" />
       <header className="mb-3 overflow-hidden rounded-[18px] border border-line bg-surface">
         <div className="h-16 bg-gradient-to-r from-brand-500/90 via-brand-400/80 to-pink-400/80" aria-hidden />
         <div className="-mt-7 flex items-end gap-3 px-4">
