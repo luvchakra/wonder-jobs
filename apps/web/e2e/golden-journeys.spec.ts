@@ -213,6 +213,7 @@ test.describe("Golden journey — mobile navigation", () => {
     }
     await expect(bottomBar.getByRole("link")).toHaveCount(4);
     await expect(page.getByRole("link", { name: "Network", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
     // Help, account and sign-out are in the avatar menu rather than a drawer.
@@ -227,7 +228,10 @@ test.describe("Golden journey — mobile navigation", () => {
     await expect(page).toHaveURL(/\/app\/network$/);
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Network", exact: true })).toHaveCount(0);
-    await page.getByRole("button", { name: /^Back to / }).click();
+    // The way back is in two places: right of the avatar, and in the round buttons under the +.
+    await expect(page.getByRole("button", { name: /^Back to / })).toHaveCount(2);
+    await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /^Back to / }).last().click();
     await expect(page).toHaveURL(/\/app\/saved$/);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   });

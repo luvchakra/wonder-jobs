@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { MessageSquarePlus, Plus, Users } from "lucide-react";
+import { MessageSquarePlus, MoreHorizontal, Plus, Users } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
 import { NETWORK_HREF, NETWORK_TAB, isActivePath, rememberAppPath } from "./nav";
@@ -16,10 +16,12 @@ const PostSheet = dynamic(() => import("@/components/network/PostSheet").then((m
 const NewMessageSheet = dynamic(() => import("@/components/network/NewMessageSheet").then((m) => m.NewMessageSheet), { ssr: false });
 import { useModuleNav, useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { LeaveNetwork } from "./LeaveNetwork";
 
 /** The bottom bar: the module's four places, nothing else. Each place's own pages are tabs at its top (or rows
- * on You); help, account and sign-out are in the account menu (the top-bar avatar). Network is the round button above
- * the bar, under the +; it opens network mode, where the bar steps away (owner, 2026-11-22). */
+ * on You); help, account and sign-out are in the account menu (the top-bar avatar, or the round ⋯ button). Above the bar,
+ * at the bottom right, three round buttons (owner, 2026-11-22): the +, Network (it opens network mode, where the bar steps
+ * away and the way back takes its place) and ⋯. */
 /** A screen showing its own action bar at the bottom: the floating menu button hides meanwhile, so it never covers it. */
 export function useBottomBar(active = true) {
   const add = useUIStore((s) => s.addBottomBar);
@@ -32,6 +34,8 @@ export function useBottomBar(active = true) {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const menu = useUIStore((s) => s.menu);
+  const setMenu = useUIStore((s) => s.setMenu);
   const barShown = useUIStore((s) => s.bottomBars > 0);
   // Jobs' five places, or the active WonderWorks module's.
   const nav = useModuleNav();
@@ -70,7 +74,7 @@ export function MobileNav() {
           aria-label={choose ? "Create" : "New post"}
           title={choose ? "Create" : "New post"}
           onClick={() => setCreate(choose ? "choose" : "post")}
-          className={cn("wj-gradient-bg fixed right-5 z-40 grid size-12 place-items-center rounded-full text-white shadow-lg active:scale-95 md:hidden", onNetwork ? "bottom-[calc(var(--wj-mobile-nav-h)+1.25rem)]" : "bottom-[calc(var(--wj-mobile-nav-h)+5.25rem)]")}
+          className="wj-gradient-bg fixed bottom-[calc(var(--wj-mobile-nav-h)+9rem)] right-5 z-40 grid size-12 place-items-center rounded-full text-white shadow-lg active:scale-95 md:hidden"
         >
           <Plus className="size-6" aria-hidden />
         </button>
@@ -105,16 +109,31 @@ export function MobileNav() {
       )}
       {create === "post" && <PostSheet onClose={() => setCreate(null)} />}
       {create === "message" && <NewMessageSheet onClose={() => setCreate(null)} />}
-      {/* Network, right under the +: a raised round button in the brand gradient, set apart from the four places. */}
+      {/* Network, right under the +: a raised round button in the brand gradient, set apart from the four places. In
+          network mode the way back to the module takes its place. */}
+      {!barShown && onNetwork && <LeaveNetwork place="fab" />}
       {!barShown && !onNetwork && (
         <Link
           href={NETWORK_HREF}
           aria-label={NETWORK_TAB.label}
           title={NETWORK_TAB.label}
-          className="wj-gradient-bg fixed bottom-[calc(var(--wj-mobile-nav-h)+1rem)] right-4 z-40 grid size-14 place-items-center rounded-full text-white shadow-[0_8px_22px_-6px_rgba(99,59,255,0.75)] ring-4 ring-surface active:scale-95 md:hidden"
+          className="wj-gradient-bg fixed bottom-[calc(var(--wj-mobile-nav-h)+4.75rem)] right-4 z-40 grid size-14 place-items-center rounded-full text-white shadow-[0_8px_22px_-6px_rgba(99,59,255,0.75)] ring-4 ring-surface active:scale-95 md:hidden"
         >
           <NetworkIcon className="size-6" strokeWidth={2.2} aria-hidden />
         </Link>
+      )}
+      {/* The account menu (help, account, sign out) within thumb's reach, at the bottom of the three. */}
+      {!barShown && (
+        <button
+          type="button"
+          data-menu-trigger
+          aria-label="Menu"
+          aria-expanded={menu !== null}
+          onClick={() => setMenu(menu ? null : "fab")}
+          className="fixed bottom-[calc(var(--wj-mobile-nav-h)+1rem)] right-5 z-40 grid size-12 place-items-center rounded-full border border-line bg-surface text-ink shadow-lg active:scale-95 md:hidden"
+        >
+          <MoreHorizontal className="size-6" aria-hidden />
+        </button>
       )}
       {/* The bottom bar (owner, 2026-11-22: "make the bottom bar little more modern"): the four places share one look, a
           soft pill behind the current one's icon. In network mode it isn't there at all. */}
