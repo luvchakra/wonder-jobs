@@ -17,6 +17,7 @@ const NewMessageSheet = dynamic(() => import("@/components/network/NewMessageShe
 import { useModuleNav, useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
 import { LeaveTile, useLeaveNetwork } from "./LeaveNetwork";
+import { NetworkMark } from "@/wonderworks/brand/NetworkMark";
 
 /** The bottom bar: the module's four places, nothing else. Each place's own pages are tabs at its top (or rows
  * on You); help, account and sign-out are in the account menu (the top-bar avatar, or ⋯ in the quick actions). Above the
@@ -66,7 +67,6 @@ export function MobileNav() {
       delete root.dataset.networkMode;
     };
   }, [onNetwork, pathname]);
-  const NetworkIcon = NETWORK_TAB.icon;
   const away = useLeaveNetwork();
   // The quick actions are open on the page they were opened on; going to another page folds them away.
   const [openOn, setOpenOn] = useState<string | null>(null);
@@ -129,7 +129,7 @@ export function MobileNav() {
           label: NETWORK_TAB.label,
           node: (
             <Link href={NETWORK_HREF} aria-label={NETWORK_TAB.label} className={cn("wj-gradient-bg text-white", round)}>
-              <NetworkIcon className="size-6" strokeWidth={2.2} aria-hidden />
+              <NetworkMark className="size-8" />
             </Link>
           ),
         },
