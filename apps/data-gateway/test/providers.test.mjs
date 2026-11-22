@@ -75,7 +75,7 @@ test("without keys every live provider says it needs setup, and a search that na
   const t = await setup({ keys: {}, respond: () => { throw new Error("no provider may be called without its key"); } });
   try {
     const listed = (await t.call("/v1/prospects/sources", { token: t.key, tenant: TENANT })).body.sources;
-    for (const id of ["google_places", "apollo", "data_gov_in", "youtube", "podcast_index", "reddit", "hunter"]) {
+    for (const id of ["google_places", "apollo", "data_gov_in", "youtube", "podcast_index", "reddit", "facebook", "instagram", "linkedin", "hunter"]) {
       const s = listed.find((x) => x.id === id);
       assert.equal(s?.status, "needs_setup", id);
       assert.equal(typeof s.attribution, "string");
