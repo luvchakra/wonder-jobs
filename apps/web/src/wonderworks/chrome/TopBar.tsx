@@ -21,6 +21,7 @@ import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
 import { NETWORK_HREF } from "./nav";
 import { NotificationBell } from "./NotificationBell";
+import { NetworkBar } from "@/components/network/NetworkBell";
 import { useMediaQuery } from "@/lib/motion";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
@@ -207,7 +208,8 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
 
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
           on the badge). Ask Wonder is under You, and ⌘K on a computer. */}
-      <NotificationBell />
+      {/* On My network the bar carries the network's own icons (owner, 2026-11-22): Messages, then a bell for invitations. */}
+      {onNetwork ? <NetworkBar /> : <NotificationBell />}
 
       <div className="relative order-[-3] md:order-none" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">
