@@ -3,12 +3,20 @@ import { z } from "zod";
 import { requireSession } from "@/server/auth";
 import { rateLimit } from "@/server/rateLimit";
 import { eraseAccount } from "@/server/privacy/subjectRights";
+import { erasePreview } from "@/server/privacy/erasePreview";
 import { ERASE_PHRASE } from "@/content/privacy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const Body = z.object({ confirm: z.literal(ERASE_PHRASE) }).strict();
+
+/** What deleting this account will do, in the person's own numbers: shown in the warning before they confirm. */
+export async function GET() {
+  const session = await requireSession();
+  if (session instanceof NextResponse) return session;
+  return NextResponse.json({ preview: await erasePreview(session.tenantId) }, { headers: { "cache-control": "no-store" } });
+}
 
 /** Delete the account and its data (GDPR Art. 17, DPDP s.12). See `eraseAccount` for what is kept and why. */
 export async function POST(req: Request) {
