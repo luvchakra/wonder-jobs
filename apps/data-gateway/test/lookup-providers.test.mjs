@@ -348,7 +348,7 @@ test("every new adapter says unavailable when it times out or answers nonsense, 
 });
 
 test("the new providers are listed with their cost, ask only for their own keys, and are in the OpenAPI document", async () => {
-  assert.deepEqual([...PROVIDER_KEYS].sort(), ["APOLLO_API_KEY", "DATA_GOV_IN_API_KEY", "GOOGLE_PLACES_API_KEY", "HUNTER_API_KEY", "PODCAST_INDEX_KEY", "PODCAST_INDEX_SECRET", "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "YOUTUBE_API_KEY"]);
+  assert.deepEqual([...PROVIDER_KEYS].sort(), ["APOLLO_API_KEY", "BRAVE_SEARCH_API_KEY", "DATA_GOV_IN_API_KEY", "GOOGLE_PLACES_API_KEY", "HUNTER_API_KEY", "PODCAST_INDEX_KEY", "PODCAST_INDEX_SECRET", "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "YOUTUBE_API_KEY"]);
   for (const p of ALL_PROVIDERS) assert.equal(typeof p.cost, "string", p.id);
   const t = await setup({ keys: { HUNTER_API_KEY: "h" } });
   try {
