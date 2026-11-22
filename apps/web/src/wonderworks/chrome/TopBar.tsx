@@ -100,7 +100,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
 
   // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
   const accountMenu = (
-    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4.5rem)] right-4 z-50" : place === "side" ? "fixed bottom-20 left-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
+    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4rem)] right-4 z-50" : place === "side" ? "fixed bottom-20 left-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
       {/* Who's signed in, and their career status (from their applications). */}
       <div className="px-3 pb-2 pt-1.5">
         <p className="truncate text-[13px] font-semibold leading-tight text-ink">{displayName}</p>
