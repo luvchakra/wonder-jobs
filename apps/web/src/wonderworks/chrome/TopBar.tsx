@@ -226,7 +226,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
       </div>
       {/* Network mode's way out (owner, 2026-11-22): right of the avatar, the module the member came from, back to the
           page they left. */}
-      {onNetwork && <LeaveNetwork place="top" />}
+      {onNetwork && <LeaveNetwork />}
       {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
     </header>
   );

@@ -206,14 +206,20 @@ test.describe("Golden journey — mobile navigation", () => {
     await openApp(page, "/app");
   });
 
-  test("GJ-008 the bottom bar shows the four places directly, with Network as its own round button and no menu drawer", async ({ page }) => {
+  test("GJ-008 the bottom bar shows the four places directly; one up arrow opens the quick actions, with no menu drawer", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
     for (const label of ["Find", "Saved", "Pipeline", "You"]) {
       await expect(bottomBar.getByRole("link", { name: label })).toBeVisible();
     }
     await expect(bottomBar.getByRole("link")).toHaveCount(4);
+    // Folded, only the up arrow shows; pressed, Network and ⋯ rise from it; pressed again, they fold away.
+    const quick = page.getByRole("button", { name: "Quick actions" });
+    await expect(page.getByRole("link", { name: "Network", exact: true })).toHaveCount(0);
+    await quick.click();
     await expect(page.getByRole("link", { name: "Network", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
+    await quick.click();
+    await expect(page.getByRole("link", { name: "Network", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Open menu" })).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Menu" })).toHaveCount(0);
     // Help, account and sign-out are in the avatar menu rather than a drawer.
@@ -222,19 +228,22 @@ test.describe("Golden journey — mobile navigation", () => {
     await expect(page.getByRole("menuitem", { name: "Account" }).first()).toBeVisible();
   });
 
-  test("GJ-008b Network opens network mode without the bottom bar, and the top bar's module icon leads back", async ({ page }) => {
+  test("GJ-008b Network opens network mode without the bottom bar, and the module icon leads back", async ({ page }) => {
     await openApp(page, "/app/saved");
+    const quick = page.getByRole("button", { name: "Quick actions" });
+    await quick.click();
     await page.getByRole("link", { name: "Network", exact: true }).click();
     await expect(page).toHaveURL(/\/app\/network$/);
     await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Network", exact: true })).toHaveCount(0);
-    // The way back is in two places: right of the avatar, and in the round buttons under the +.
     // My network in the top bar always leads to the feed.
     await page.goto("/app/network/communities");
     await page.getByRole("link", { name: "My network", exact: true }).click();
     await expect(page).toHaveURL(/\/app\/network$/);
+    // The way back is right of the avatar, and in the quick actions in Network's place.
+    await expect(page.getByRole("button", { name: /^Back to / })).toHaveCount(1);
+    await quick.click();
+    await expect(page.getByRole("link", { name: "Network", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Back to / })).toHaveCount(2);
-    await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /^Back to / }).last().click();
     await expect(page).toHaveURL(/\/app\/saved$/);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
