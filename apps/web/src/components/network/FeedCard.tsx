@@ -302,10 +302,10 @@ export function ReportSheet({ title, who, send, onClose, onDone }: { title: stri
   );
 }
 
-type MenuItem = { label: string; onPick?: () => void; href?: string };
+export type MenuItem = { label: string; onPick?: () => void; href?: string };
 
 /** A small menu: the ⋯ on a post, and Repost's two choices. */
-function Menu({ items, trigger, label, up, className }: { items: MenuItem[]; trigger: (open: boolean) => React.ReactNode; label: string; up?: boolean; className?: string }) {
+export function Menu({ items, trigger, label, up, className }: { items: MenuItem[]; trigger: (open: boolean) => React.ReactNode; label: string; up?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

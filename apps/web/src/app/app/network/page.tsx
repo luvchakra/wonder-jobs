@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessagesSquare, Plus, Search, Settings2, UserCheck, UserPlus, Users, type LucideIcon } from "lucide-react";
+import { MessagesSquare, Plus, Search, Settings2, UserCheck, UserPlus, Users, UsersRound, type LucideIcon } from "lucide-react";
 import type { MemberView, NetworkProfile } from "@/domain/network/network";
 import { networkApi, type MyNetwork, type NetUpdate, type Suggested } from "@/services/network/client";
 import { cn } from "@/lib/cn";
@@ -143,11 +143,12 @@ function NetworkPage() {
         </Button>
       </div>
       {posting && <PostSheet onClose={() => setPosting(false)} />}
-      <nav aria-label="My network" className="mb-4 grid grid-cols-5 gap-1">
+      <nav aria-label="My network" className="-mx-1 mb-4 grid auto-cols-[minmax(68px,1fr)] grid-flow-col gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
         <Shortcut icon={Users} label="People" active={view === "people"} onClick={() => go("people")} />
         <Shortcut icon={UserPlus} label="Invitations" badge={mine?.invitations.length} active={view === "invitations"} onClick={() => go("invitations")} />
         <Shortcut icon={UserCheck} label="Connections" badge={mine?.connections.length} quiet active={view === "connections"} onClick={() => go("connections")} />
         <Shortcut icon={MessagesSquare} label="Messages" href="/app/network/messages" />
+        <Shortcut icon={UsersRound} label="Communities" href="/app/network/communities" />
         <Shortcut icon={Settings2} label="My profile" href="/app/network/profile" />
       </nav>
 

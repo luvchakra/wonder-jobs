@@ -1,6 +1,7 @@
 "use client";
 import type { MemberView, NetworkProfile, NetworkProfileInput, Reaction } from "@/domain/network/network";
 import type { ContactOffer, ContactView } from "@/domain/contact/contact";
+import type { Community, CommunityInput, CommunityMember, Discussion, Reply, ThreadSort } from "@/domain/network/communities";
 
 async function call<T>(url: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const res = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body });
@@ -131,4 +132,30 @@ export const networkApi = {
   shareContact: (connectionId: string, offer: ContactOffer) => call<{ contact: ContactView }>(`/api/network/threads/${encodeURIComponent(connectionId)}/contact`, { method: "POST", json: { ...offer, confirmed: true } }),
   stopContact: (connectionId: string) => call(`/api/network/threads/${encodeURIComponent(connectionId)}/contact`, { method: "DELETE" }),
   act: (connectionId: string, action: "accept" | "ignore" | "withdraw" | "remove") => call(`/api/network/connections/${encodeURIComponent(connectionId)}`, { method: "POST", json: { action } }),
+};
+
+const cm = (id: string) => `/api/network/communities/${encodeURIComponent(id)}`;
+const dz = (id: string) => `/api/network/discussions/${encodeURIComponent(id)}`;
+export type MemberAction = "approve" | "decline" | "remove" | "ban" | "make_moderator" | "make_member" | "make_owner";
+
+/** Communities and discussions on the network. Each write is the member's own press on a screen that shows what goes. */
+export const communityApi = {
+  list: (q = "") => call<{ mine: Community[]; discover: Community[] }>(`/api/network/communities?q=${encodeURIComponent(q)}`),
+  create: (input: CommunityInput) => call<{ community: Community }>("/api/network/communities", { method: "POST", json: { ...input, confirmed: true } }),
+  get: (id: string, sort: ThreadSort = "active") => call<{ community: Community; discussions: Discussion[] }>(`${cm(id)}?sort=${sort}`),
+  update: (id: string, input: Partial<CommunityInput>) => call<{ community: Community }>(cm(id), { method: "PATCH", json: input }),
+  remove: (id: string) => call(cm(id), { method: "DELETE" }),
+  join: (id: string) => call<{ community: Community }>(cm(id), { method: "POST", json: { action: "join" } }),
+  leave: (id: string) => call(cm(id), { method: "POST", json: { action: "leave" } }),
+  members: (id: string) => call<{ members: CommunityMember[]; requests: CommunityMember[] }>(`${cm(id)}/members`),
+  act: (id: string, member: string, action: MemberAction) => call(cm(id), { method: "POST", json: { action: "member", member, do: action } }),
+  discuss: (id: string, title: string, body: string) => call<{ discussion: Discussion }>(cm(id), { method: "POST", json: { action: "discuss", title, body, confirmed: true } }),
+  read: (id: string) => call<{ community: Community; discussion: Discussion; replies: Reply[] }>(dz(id)),
+  reply: (id: string, body: string, parentId: string | null) => call<{ reply: Reply }>(dz(id), { method: "POST", json: { action: "reply", body, parentId, confirmed: true } }),
+  like: (id: string, target: string, on: boolean) => call(dz(id), { method: "POST", json: { action: "like", target, on, confirmed: true } }),
+  edit: (id: string, target: string, body: string, title?: string) => call(dz(id), { method: "POST", json: { action: "edit", target, body, ...(title !== undefined ? { title } : {}) } }),
+  report: (id: string, target: string, reason: string) => call<{ repeated: boolean }>(dz(id), { method: "POST", json: { action: "report", target, reason } }),
+  follow: (id: string, on: boolean) => call(dz(id), { method: "POST", json: { action: "follow", on } }),
+  moderate: (id: string, change: { pinned?: boolean; locked?: boolean }) => call(dz(id), { method: "POST", json: { action: "moderate", ...change } }),
+  removePost: (id: string, target: string) => call(`${dz(id)}?target=${encodeURIComponent(target)}`, { method: "DELETE" }),
 };

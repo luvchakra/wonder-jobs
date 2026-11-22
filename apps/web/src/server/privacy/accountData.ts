@@ -10,6 +10,7 @@ import { eraseContact, exportContact } from "../contact/exchange";
 import { eraseSafety, exportSafety } from "../modules/safety";
 import { eraseMarketplace, exportMarketplace } from "../marketplace/account";
 import { eraseNetwork, exportNetwork } from "../network/account";
+import { eraseCommunities, exportCommunities } from "../network/communities";
 
 export interface AccountData {
   /** The key this data has in the export. */
@@ -20,6 +21,8 @@ export interface AccountData {
 
 export const ACCOUNT_DATA: AccountData[] = [
   { key: "network", export: exportNetwork, erase: eraseNetwork },
+  // Network communities and discussions: owned communities pass on, the person's posts go (WJ-835).
+  { key: "communities", export: exportCommunities, erase: eraseCommunities },
   { key: "marketplace", export: exportMarketplace, erase: eraseMarketplace },
   // Hiring workspaces stay (owner, 2026-11-21): only the person's own part is handed on (hiringAccount.ts).
   { key: "hiring", export: exportHiring, erase: eraseHiring },
