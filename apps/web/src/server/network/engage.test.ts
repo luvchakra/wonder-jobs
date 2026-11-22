@@ -168,3 +168,31 @@ describe("before migration 0055", () => {
     spy.mockRestore();
   });
 });
+
+describe("who sees a post, changed after it went out (owner, 2026-11-22)", () => {
+  it("Only me is the author's alone; the author widens or narrows it later, and reposts follow", async () => {
+    const ashaId = await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    await join(rahul, "Rahul Sen");
+    await connect(kunal, asha, ashaId);
+    await S.publishPost(asha, { text: "Note to self", audience: "only_me" }, true);
+    const mine = await postOf(asha, "Note to self");
+    expect(mine.kind).toBe("post:me");
+    expect((await S.feedFor(kunal)).map((u) => u.text)).not.toContain("Note to self");
+    await expect(E.react(kunal, mine.id, "like", true)).rejects.toThrow(/isn't available/);
+    await expect(E.commentsOn(kunal, mine.id)).rejects.toThrow(/isn't available/);
+    // Widening goes through network.post (asks without the press); narrowing doesn't.
+    await expect(S.setAudience(asha, mine.id, "everyone")).rejects.toThrow(/Check what goes/);
+    await S.setAudience(asha, mine.id, "everyone", true);
+    expect((await postOf(rahul, "Note to self")).canReshare).toBe(true);
+    await E.resharePost(rahul, mine.id, { text: "Look" }, true);
+    // Back to connections: a stranger's repost no longer shows it, Kunal (a connection) still sees the post.
+    await S.setAudience(asha, mine.id, "connections");
+    expect((await postOf(rahul, "Look")).reshared).toBeNull();
+    expect((await S.feedFor(kunal)).map((u) => u.text)).toContain("Note to self");
+    // Only the author changes it.
+    await expect(S.setAudience(kunal, mine.id, "only_me")).rejects.toThrow(/isn't yours/);
+    await S.setAudience(asha, mine.id, "only_me");
+    expect((await S.feedFor(kunal)).map((u) => u.text)).not.toContain("Note to self");
+  });
+});

@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, MoreHorizontal, Repeat2, SendHorizontal, ThumbsUp } from "lucide-react";
+import { ChevronDown, MessageCircle, MoreHorizontal, Repeat2, SendHorizontal, ThumbsUp } from "lucide-react";
 import { REACTIONS, type Reaction } from "@/domain/network/network";
-import { networkApi, type NetComment, type NetQuoted, type NetUpdate } from "@/services/network/client";
+import { audienceOf, networkApi, type NetComment, type NetQuoted, type NetUpdate, type PostAudience } from "@/services/network/client";
+import { AUDIENCE_LABEL, AUDIENCE_SEEN } from "./audience";
 import { ListingCard } from "./ListingCard";
 import { relativeTime } from "@/lib/format";
 import { moduleById } from "@/modules/registry";
@@ -20,7 +21,7 @@ import { MemberAvatar, memberHref } from "./parts";
  * words, or something a connection did, with Like (four reactions), Comment and (for a post addressed to everyone) Reshare. Delete or
  * Report sit under the ⋯.
  */
-const isPost = (kind: string) => kind === "post" || kind === "post:everyone";
+const isPost = (kind: string) => kind === "post" || kind === "post:everyone" || kind === "post:me";
 const emoji = (r: Reaction) => REACTIONS.find((x) => x.id === r)?.emoji ?? "👍";
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
@@ -396,6 +397,19 @@ export function FeedCard({ u: initial, onDelete, onReport, onReshared }: { u: Ne
     }
   };
   const closedPost = post && !u.canReshare;
+  const changeAudience = async (a: PostAudience) => {
+    if (a === audienceOf(u.kind)) return;
+    const before = u;
+    const kind = a === "everyone" ? "post:everyone" : a === "only_me" ? "post:me" : "post";
+    setU({ ...u, kind, canReshare: u.reshared === undefined ? kind === "post:everyone" : u.canReshare });
+    try {
+      await networkApi.setAudience(u.id, a);
+      toast.success("Updated", AUDIENCE_SEEN[a]);
+    } catch (e) {
+      setU(before);
+      toast.error("Couldn't change who sees it", (e as Error).message);
+    }
+  };
   return (
     <li className="rounded-[16px] border border-line bg-surface p-3">
       <div className="flex gap-3">
@@ -407,11 +421,27 @@ export function FeedCard({ u: initial, onDelete, onReport, onReshared }: { u: Ne
             {u.member.name}
           </Link>
           {u.member.headline && <p className="truncate text-[12px] text-ink-3">{u.member.headline}</p>}
-          <p className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3">
             {relativeTime(u.at)}
-            {post && <span>· {u.reshared !== undefined ? "Reposted · " : ""}{u.kind === "post:everyone" ? "Everyone on the network" : "Connections"}</span>}
+            {post && <span>· {u.reshared !== undefined ? "Reposted · " : ""}</span>}
+            {post &&
+              (u.mine ? (
+                // The author changes who sees it, any time (owner, 2026-11-22).
+                <Menu
+                  label="Who can see this"
+                  items={(["everyone", "connections", "only_me"] as PostAudience[]).map((a) => ({ label: `${a === audienceOf(u.kind) ? "✓ " : ""}${AUDIENCE_LABEL[a]}`, onPick: () => changeAudience(a) }))}
+                  trigger={() => (
+                    <span className="inline-flex items-center gap-0.5 rounded-full px-1 font-medium text-ink-2 underline decoration-dotted underline-offset-2 hover:text-ink">
+                      {AUDIENCE_LABEL[audienceOf(u.kind)]}
+                      <ChevronDown className="size-3" aria-hidden />
+                    </span>
+                  )}
+                />
+              ) : (
+                <span>{AUDIENCE_LABEL[audienceOf(u.kind)]}</span>
+              ))}
             {moduleLabel && <span className="rounded-full bg-brand-50 px-2 py-px text-[10.5px] font-semibold text-brand-700">{moduleLabel}</span>}
-          </p>
+          </div>
         </div>
         {menu.length > 0 && (
           <Menu

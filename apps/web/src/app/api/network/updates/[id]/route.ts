@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
 import { addComment, commentsOn, deleteComment, react, reportComment, resharePost } from "@/server/network/engage";
+import { setAudience } from "@/server/network/social";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,9 @@ const Body = z.union([
   // The caller's own comment (network.post, checked on the server), audited without the words.
   z.object({ action: z.literal("comment"), body: z.string().min(1).max(2000), confirmed: z.boolean().optional() }),
   // Reshare a post for everyone, with the caller's own words or none.
-  z.object({ action: z.literal("reshare"), text: z.string().max(4000).optional(), audience: z.enum(["connections", "everyone"]).optional(), confirmed: z.boolean().optional() }),
+  z.object({ action: z.literal("reshare"), text: z.string().max(4000).optional(), audience: z.enum(["connections", "everyone", "only_me"]).optional(), confirmed: z.boolean().optional() }),
+  // Change who sees the caller's own post (widening goes through network.post).
+  z.object({ action: z.literal("audience"), audience: z.enum(["connections", "everyone", "only_me"]), confirmed: z.boolean().optional() }),
   z.object({ action: z.literal("reportComment"), comment: z.string().max(60), reason: z.string().min(3).max(500) }),
 ]);
 
@@ -30,6 +33,7 @@ export async function POST(req: Request, ctx: Ctx) {
     async (s, b) => {
       if (b.action === "react") return react(s, id, b.reaction, b.confirmed);
       if (b.action === "comment") return { comment: await addComment(s, id, b.body, b.confirmed) };
+      if (b.action === "audience") return setAudience(s, id, b.audience, b.confirmed);
       if (b.action === "reshare") return resharePost(s, id, { text: b.text, audience: b.audience }, b.confirmed);
       return reportComment(s, b.comment, b.reason);
     },

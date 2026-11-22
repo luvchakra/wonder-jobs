@@ -67,6 +67,9 @@ export interface NetComment {
   mine: boolean;
   canDelete: boolean;
 }
+/** Who sees a post: the author's connections, everyone on the network, or only the author. */
+export type PostAudience = "connections" | "everyone" | "only_me";
+export const audienceOf = (kind: string): PostAudience => (kind === "post:everyone" ? "everyone" : kind === "post:me" ? "only_me" : "connections");
 const person = (id: string) => `/api/network/people/${encodeURIComponent(id)}`;
 const post = (id: string) => `/api/network/updates/${encodeURIComponent(id)}`;
 
@@ -89,7 +92,7 @@ export const networkApi = {
   send: (connectionId: string, body: string) => call<{ message: NetMessage }>(`/api/network/threads/${encodeURIComponent(connectionId)}`, { method: "POST", json: { body, confirmed: true } }),
   updates: () => call<{ updates: NetUpdate[] }>("/api/network/updates"),
   // The composer shows exactly what is posted and to whom, so Post is the confirmation.
-  post: (text: string, audience: "connections" | "everyone", extra: { about?: { page: string; title: string }; module?: string; media?: string[] } = {}) => call("/api/network/updates", { method: "POST", json: { text, audience, ...extra, confirmed: true } }),
+  post: (text: string, audience: PostAudience, extra: { about?: { page: string; title: string }; module?: string; media?: string[] } = {}) => call("/api/network/updates", { method: "POST", json: { text, audience, ...extra, confirmed: true } }),
   deleteUpdate: (id: string) => call(`/api/network/updates?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
   reportUpdate: (id: string, reason: string) => call<{ repeated: boolean }>("/api/network/updates", { method: "POST", json: { action: "report", id, reason } }),
   /** A post's attached listing as its page shows it now; asked once per page while the app is open. */
@@ -118,7 +121,9 @@ export const networkApi = {
   // Each is the member's own press, with what goes shown on screen: the press is the confirmation.
   react: (id: string, reaction: Reaction | null) => call(post(id), { method: "POST", json: { action: "react", reaction, confirmed: true } }),
   comment: (id: string, body: string) => call<{ comment: NetComment }>(post(id), { method: "POST", json: { action: "comment", body, confirmed: true } }),
-  reshare: (id: string, text: string, audience: "connections" | "everyone") => call(post(id), { method: "POST", json: { action: "reshare", text, audience, confirmed: true } }),
+  reshare: (id: string, text: string, audience: PostAudience) => call(post(id), { method: "POST", json: { action: "reshare", text, audience, confirmed: true } }),
+  // The author picks it from the post's audience menu, which says who will see it: the press is the confirmation.
+  setAudience: (id: string, audience: PostAudience) => call(post(id), { method: "POST", json: { action: "audience", audience, confirmed: true } }),
   deleteComment: (id: string, comment: string) => call(`${post(id)}?comment=${encodeURIComponent(comment)}`, { method: "DELETE" }),
   reportComment: (id: string, comment: string, reason: string) => call<{ repeated: boolean }>(post(id), { method: "POST", json: { action: "reportComment", comment, reason } }),
   contact: (connectionId: string) => call<{ contact: ContactView }>(`/api/network/threads/${encodeURIComponent(connectionId)}/contact`),

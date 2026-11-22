@@ -129,7 +129,13 @@ export type NetQuoted = Pick<NetUpdate, "id" | "member" | "kind" | "module" | "t
 
 /** A post for everyone on the network, not only the author's connections. */
 export const EVERYONE = "post:everyone";
-export const isPost = (kind: string) => kind === "post" || kind === EVERYONE;
+/** A post its author keeps to themselves (owner, 2026-11-22: "add only me option"): nobody else is ever shown it. */
+export const ONLY_ME = "post:me";
+export const isPost = (kind: string) => kind === "post" || kind === EVERYONE || kind === ONLY_ME;
+export type Audience = "connections" | "everyone" | "only_me";
+export const kindFor = (a: Audience | undefined) => (a === "everyone" ? EVERYONE : a === "only_me" ? ONLY_ME : "post");
+/** Whether a connection of the author may see this update: everything but what they keep to themselves. */
+const forConnections = (kind: string) => kind !== ONLY_ME;
 /** A post this many different members reported leaves every feed until an admin looks (the same count Moderation starts from). */
 export const HIDE_AT = 3;
 export const UPDATE_ID = /^nu_[A-Za-z0-9_-]{6,40}$/;
@@ -158,7 +164,7 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
   // Authors of open posts who aren't the member or a connection: only those anyone on the network may find.
   const strangers = [...new Set(open.map((u) => u.tenant_id).filter((t) => t !== s.tenantId && !by.has(t) && !ctx.hidden.has(t)))].slice(0, 200);
   const authors = new Map((strangers.length ? await profiles().findIn("tenant_id", strangers) : []).filter((p) => p.find_by === "everyone").map((p) => [p.tenant_id, p]));
-  const rows = new Map([...theirs, ...own, ...open.filter((u) => u.tenant_id === s.tenantId || by.has(u.tenant_id) || authors.has(u.tenant_id))].map((u) => [u.id, u]));
+  const rows = new Map([...theirs.filter((u) => forConnections(u.kind)), ...own, ...open.filter((u) => u.tenant_id === s.tenantId || by.has(u.tenant_id) || authors.has(u.tenant_id))].map((u) => [u.id, u]));
   const shown = [...rows.values()]
     // The author keeps seeing their own post whatever was reported: nothing tells them it was.
     .filter((u) => u.tenant_id === s.tenantId || !hiddenPost(u.id))
@@ -181,7 +187,7 @@ export async function feedFor(s: Session): Promise<NetUpdate[]> {
   const quoted = new Map<string, NetQuoted>();
   for (const o of originals) {
     const author = ctx.hidden.has(o.tenant_id) ? undefined : rowOf(o.tenant_id);
-    const mayRead = o.tenant_id === s.tenantId || by.has(o.tenant_id) || o.kind === EVERYONE;
+    const mayRead = o.tenant_id === s.tenantId || (by.has(o.tenant_id) && forConnections(o.kind)) || o.kind === EVERYONE;
     if (!author || !mayRead || (o.tenant_id !== s.tenantId && hiddenPost(o.id))) continue;
     quoted.set(o.id, { id: o.id, member: show(ctx, author), kind: o.kind, module: isPost(o.kind) && !o.href ? "" : o.module, text: o.text, href: o.href, ...(o.about ? { about: o.about } : {}), ...(o.media?.length ? { media: o.media } : {}), at: o.created_at });
   }
@@ -235,7 +241,7 @@ export async function seeable(s: Session, id: string): Promise<{ ctx: Around; u:
   const gone = new HiringError("That post isn't available.", 404);
   if (!u || ctx.hidden.has(u.tenant_id)) throw gone;
   if (u.tenant_id === s.tenantId) return { ctx, u };
-  const theirs = ctx.links.get(u.tenant_id)?.status === "connected";
+  const theirs = ctx.links.get(u.tenant_id)?.status === "connected" && forConnections(u.kind);
   if (!theirs && !(u.kind === EVERYONE && (await profiles().one({ tenant_id: u.tenant_id }))?.find_by === "everyone")) throw gone;
   const by = new Set((await reports().find({ module: NETWORK, subject_kind: "message", subject_id: u.id })).map((r) => r.reporter_tenant));
   if (by.has(s.tenantId) || by.size >= HIDE_AT) throw gone;
@@ -250,7 +256,7 @@ const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-
 
 export interface PostInput {
   text: string;
-  audience?: "connections" | "everyone";
+  audience?: Audience;
   /** The listing the member was looking at when they pressed +, if they kept it on the post. */
   about?: { page: string; title: string };
   /** Photos the member chose while writing (`uploadMedia`), in order; up to four. */
@@ -279,7 +285,7 @@ export async function publishPost(s: Session, input: PostInput, confirmed?: bool
   const recent = await updates().find({ tenant_id: me.tenant_id }, { order: "created_at", desc: true, limit: 60 });
   if (recent.filter((u) => isPost(u.kind) && u.created_at > dayAgo()).length >= POSTS_A_DAY) throw new HiringError("You've posted a lot today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Posting");
-  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: input.audience === "everyone" ? EVERYONE : "post", module: fromModule, text, href: m ? page : "", about: about || null, ...(photos.length ? { media: photos } : {}), created_at: now() };
+  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: kindFor(input.audience), module: fromModule, text, href: m ? page : "", about: about || null, ...(photos.length ? { media: photos } : {}), created_at: now() };
   try {
     await updates().insert(row);
   } catch (e) {
@@ -308,6 +314,23 @@ export async function deleteUpdate(s: Session, id: string): Promise<void> {
   await media().remove({ update_id: id, tenant_id: s.tenantId }).catch(() => 0);
 }
 
+/**
+ * Change who sees one of the member's own posts, after it went out (owner, 2026-11-22: "allow changing of visibility
+ * after a post is created"). Widening it is posting again, so it goes through `network.post`; narrowing never needs to.
+ * Reposts of it follow: a repost shows the original only to someone who may now see it.
+ */
+export async function setAudience(s: Session, id: string, audience: Audience, confirmed?: boolean): Promise<void> {
+  await member(s);
+  const u = UPDATE_ID.test(id) ? await updates().one({ id, tenant_id: s.tenantId }) : undefined;
+  if (!u || !isPost(u.kind)) throw new HiringError("That isn't yours to change.", 404);
+  const kind = kindFor(audience);
+  if (kind === u.kind) return;
+  const rank = (k: string) => (k === ONLY_ME ? 0 : k === EVERYONE ? 2 : 1);
+  if (rank(kind) > rank(u.kind)) await gate(s.tenantId, "network.post", confirmed, "Posting");
+  await updates().update({ id, tenant_id: s.tenantId }, { kind });
+  await audit(s.tenantId, "network.post", id, "POST_AUDIENCE_CHANGED");
+}
+
 /** Report someone's post. The author isn't told; the reporter stops seeing it at once. */
 export async function reportUpdate(s: Session, id: string, reason: string): Promise<{ repeated: boolean }> {
   const ctx = await around(await member(s));
@@ -316,7 +339,7 @@ export async function reportUpdate(s: Session, id: string, reason: string): Prom
   if (!u || u.tenant_id === s.tenantId || ctx.hidden.has(u.tenant_id)) throw gone;
   // Only a post the reporter could be shown: a connection's, or one addressed to everyone by an author anyone may find.
   // Otherwise three accounts that learned an id could hide a post none of them was ever shown.
-  const theirs = ctx.links.get(u.tenant_id)?.status === "connected";
+  const theirs = ctx.links.get(u.tenant_id)?.status === "connected" && forConnections(u.kind);
   if (!theirs && !(u.kind === EVERYONE && (await profiles().one({ tenant_id: u.tenant_id }))?.find_by === "everyone")) throw gone;
   const out = await fileReport(NETWORK, s.tenantId, { kind: "message", id: u.id, tenant: u.tenant_id }, reason);
   return { repeated: out.repeated };
