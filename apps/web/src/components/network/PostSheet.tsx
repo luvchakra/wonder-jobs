@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { moduleById } from "@/modules/registry";
 import { ListingCard } from "./ListingCard";
-import { networkApi } from "@/services/network/client";
+import { networkApi, type PostAudience } from "@/services/network/client";
+import { AUDIENCE_SEEN } from "./audience";
 import { usePostTarget, type PostAbout } from "@/wonderworks/chrome/postTarget";
 import { Avatar } from "@/components/common/Avatar";
 import { Button } from "@/components/common/Button";
@@ -42,7 +43,7 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
   const bump = usePostTarget((s) => s.bump);
   const [about, setAbout] = useState<PostAbout | null>(attach ?? onScreen);
   const [text, setText] = useState("");
-  const [audience, setAudience] = useState<"connections" | "everyone">("connections");
+  const [audience, setAudience] = useState<PostAudience>("connections");
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<{ name: string } | null | undefined>(undefined);
   // Photos (owner, 2026-11-21): up to four, each sent while the member writes and kept as theirs alone until Post.
@@ -97,7 +98,7 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
       await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}), ...(photos.length ? { media: photos.map((p) => p.id!) } : {}) });
       posted.current = true;
       bump();
-      toast.success("Posted", audience === "everyone" ? "Everyone on the network can see it." : "Your connections can see it.");
+      toast.success("Posted", AUDIENCE_SEEN[audience]);
       onClose();
     } catch (e) {
       toast.error("Couldn't post", (e as Error).message);
@@ -117,9 +118,10 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
       footer={
         joined ? (
           <div className="flex w-full flex-wrap items-center justify-end gap-2">
-            <Select value={audience} onChange={(e) => setAudience(e.target.value as "connections" | "everyone")} aria-label="Who sees this post" className="mr-auto h-10 w-auto min-w-0">
+            <Select value={audience} onChange={(e) => setAudience(e.target.value as PostAudience)} aria-label="Who sees this post" className="mr-auto h-10 w-auto min-w-0">
               <option value="connections">My connections</option>
               <option value="everyone">Everyone on the network</option>
+              <option value="only_me">Only me</option>
             </Select>
             <Button loading={busy} disabled={uploading || (!text.trim() && !photos.length)} onClick={post}>
               Post

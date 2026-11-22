@@ -14,7 +14,7 @@ const Body = z.union([
   // Share a listing's public page.
   z.object({ page: z.string().max(260), title: z.string().min(1).max(300) }),
   // Post the caller's own words (network.post, checked on the server), audited without the words.
-  z.object({ text: z.string().max(4000), media: z.array(z.string().max(60)).max(4).optional(), audience: z.enum(["connections", "everyone"]).optional(), about: z.object({ page: z.string().max(260), title: z.string().max(300) }).optional(), module: z.string().max(30).optional(), confirmed: z.boolean().optional() }),
+  z.object({ text: z.string().max(4000), media: z.array(z.string().max(60)).max(4).optional(), audience: z.enum(["connections", "everyone", "only_me"]).optional(), about: z.object({ page: z.string().max(260), title: z.string().max(300) }).optional(), module: z.string().max(30).optional(), confirmed: z.boolean().optional() }),
   z.object({ action: z.literal("report"), id: z.string().max(60), reason: z.string().min(3).max(500) }),
 ]);
 

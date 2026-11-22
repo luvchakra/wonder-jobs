@@ -12,7 +12,7 @@ import { fileReport, reports } from "../modules/safety";
 import { decryptFile } from "../resume/files";
 import { MEDIA_ID, mediaKey } from "./media";
 import { NETWORK, audit, comments, gate, media, member, now, profiles, reactions, show, tell, updates, type CommentRow, type UpdateRow } from "./network";
-import { EVERYONE, HIDE_AT, POSTS_A_DAY, dayAgo, isPost, seeable } from "./social";
+import { EVERYONE, HIDE_AT, POSTS_A_DAY, dayAgo, isPost, kindFor, seeable, type Audience } from "./social";
 
 export interface NetComment {
   id: string;
@@ -109,7 +109,7 @@ export async function reportComment(s: Session, commentId: string, reason: strin
  * Reshare a post addressed to everyone on the network, with the member's own words on top (or none), to their
  * connections or to everyone. Resharing a reshare quotes the original. A post for connections can't be reshared.
  */
-export async function resharePost(s: Session, id: string, input: { text?: string; audience?: "connections" | "everyone" }, confirmed?: boolean): Promise<void> {
+export async function resharePost(s: Session, id: string, input: { text?: string; audience?: Audience }, confirmed?: boolean): Promise<void> {
   const { u } = await seeable(s, id);
   const target = u.reshare_of ? (await seeable(s, u.reshare_of)).u : u;
   if (target.kind !== EVERYONE) throw new HiringError("Only a post for everyone on the network can be reshared.", 400);
@@ -118,7 +118,7 @@ export async function resharePost(s: Session, id: string, input: { text?: string
   if (mine.some((x) => x.reshare_of === target.id)) throw new HiringError("You've already reshared this post.", 409);
   if (mine.filter((x) => isPost(x.kind) && x.created_at > dayAgo()).length >= POSTS_A_DAY) throw new HiringError("You've posted a lot today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Resharing");
-  const row: UpdateRow = { id: newId("nu"), tenant_id: s.tenantId, kind: input.audience === "everyone" ? EVERYONE : "post", module: "", text, href: "", reshare_of: target.id, created_at: now() };
+  const row: UpdateRow = { id: newId("nu"), tenant_id: s.tenantId, kind: kindFor(input.audience), module: "", text, href: "", reshare_of: target.id, created_at: now() };
   try {
     await updates().insert(row);
   } catch (e) {
