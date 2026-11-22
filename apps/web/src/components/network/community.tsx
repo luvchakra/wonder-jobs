@@ -1,0 +1,96 @@
+"use client";
+import { useState } from "react";
+import { Globe2, Lock } from "lucide-react";
+import { LIMITS, type Community, type CommunityInput } from "@/domain/network/communities";
+import { cn } from "@/lib/cn";
+import { Button } from "@/components/common/Button";
+import { Field, Input, Select, Textarea } from "@/components/common/Input";
+import { Modal } from "@/components/common/Modal";
+import { toast } from "@/components/feedback/Toast";
+
+const TONES = ["from-brand-500 to-pink-400", "from-sky-500 to-brand-500", "from-emerald-500 to-sky-500", "from-amber-500 to-pink-500", "from-fuchsia-500 to-brand-600", "from-teal-500 to-emerald-500"];
+const toneOf = (id: string) => TONES[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % TONES.length];
+
+/** A community's mark: its first letter on a gradient tile, the same colour every time. */
+export function CommunityAvatar({ c, size = 44, className }: { c: Pick<Community, "id" | "name">; size?: number; className?: string }) {
+  return (
+    <span aria-hidden style={{ width: size, height: size, fontSize: size * 0.42 }} className={cn("grid shrink-0 place-items-center rounded-[28%] bg-gradient-to-br font-semibold text-white", toneOf(c.id), className)}>
+      {c.name.trim().charAt(0).toUpperCase() || "#"}
+    </span>
+  );
+}
+
+export function PrivacyChip({ c }: { c: Pick<Community, "visibility" | "joinPolicy"> }) {
+  const Icon = c.visibility === "private" ? Lock : Globe2;
+  return (
+    <span className="inline-flex items-center gap-1 text-[11.5px] text-ink-3">
+      <Icon className="size-3" aria-hidden />
+      {c.visibility === "private" ? "Private" : "Public"}
+      {c.joinPolicy === "approval" ? " · approval to join" : ""}
+    </span>
+  );
+}
+
+/** Start or edit a community: name, about, rules, who can read it and how people join. The button is the confirmation. */
+export function CommunitySheet({ start, onClose, save }: { start?: CommunityInput; onClose: () => void; save: (c: CommunityInput) => Promise<void> }) {
+  const [c, setC] = useState<CommunityInput>(start ?? { name: "", about: "", rules: "", visibility: "public", joinPolicy: "open" });
+  const [busy, setBusy] = useState(false);
+  const set = <K extends keyof CommunityInput>(k: K, v: CommunityInput[K]) => setC((x) => ({ ...x, [k]: v }));
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={start ? "Edit community" : "New community"}
+      description={start ? undefined : "A place on the network for people who share an interest. You'll be its owner."}
+      size="md"
+      footer={
+        <div className="flex w-full justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            loading={busy}
+            disabled={c.name.trim().length < 3}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await save(c);
+              } catch (e) {
+                toast.error(start ? "Couldn't save" : "Couldn't create it", (e as Error).message);
+                setBusy(false);
+              }
+            }}
+          >
+            {start ? "Save" : "Create"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field label="Name" htmlFor="cm-name">
+          <Input id="cm-name" autoFocus maxLength={LIMITS.name} value={c.name} onChange={(e) => set("name", e.target.value)} placeholder="Identity & access leaders" />
+        </Field>
+        <Field label="What it's about" htmlFor="cm-about">
+          <Textarea id="cm-about" rows={3} maxLength={LIMITS.about} value={c.about} onChange={(e) => set("about", e.target.value)} placeholder="Who it's for and what you talk about" />
+        </Field>
+        <Field label="Rules (optional)" htmlFor="cm-rules">
+          <Textarea id="cm-rules" rows={3} maxLength={LIMITS.rules} value={c.rules} onChange={(e) => set("rules", e.target.value)} placeholder={"Be kind\nNo recruiting spam"} />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Who can read it" htmlFor="cm-vis">
+            <Select id="cm-vis" value={c.visibility} onChange={(e) => set("visibility", e.target.value as CommunityInput["visibility"])}>
+              <option value="public">Anyone on the network</option>
+              <option value="private">Members only</option>
+            </Select>
+          </Field>
+          <Field label="How people join" htmlFor="cm-join">
+            <Select id="cm-join" value={c.joinPolicy} onChange={(e) => set("joinPolicy", e.target.value as CommunityInput["joinPolicy"])}>
+              <option value="open">Anyone can join</option>
+              <option value="approval">Moderators approve</option>
+            </Select>
+          </Field>
+        </div>
+      </div>
+    </Modal>
+  );
+}
