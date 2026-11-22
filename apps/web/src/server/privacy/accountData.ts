@@ -8,6 +8,7 @@ import { eraseHiring, exportHiring } from "../hiringAccount";
 import { eraseCofounders, exportCofounders } from "../cofounders/account";
 import { eraseContact, exportContact } from "../contact/exchange";
 import { eraseSafety, exportSafety } from "../modules/safety";
+import { eraseSent, exportSent } from "../sentAccount";
 import { eraseMarketplace, exportMarketplace } from "../marketplace/account";
 import { eraseNetwork, exportNetwork } from "../network/account";
 import { eraseCommunities, exportCommunities } from "../network/communities";
@@ -31,4 +32,7 @@ export const ACCOUNT_DATA: AccountData[] = [
   { key: "contact", export: exportContact, erase: eraseContact },
   // Reports and blocks in every module (module_reports, module_blocks), not only Network's and Buy, Sell & Rent's.
   { key: "safety", export: exportSafety, erase: eraseSafety },
+  // What the person sent to companies and schools: Easy Apply applications, module requests, bookings (owner,
+  // 2026-11-22: deleted with the account, with a full warning first).
+  { key: "sent", export: exportSent, erase: eraseSent },
 ];
