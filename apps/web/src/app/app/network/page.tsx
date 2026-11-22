@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessagesSquare, Plus, Search, Settings2, UserCheck, UserPlus, Users, UsersRound, type LucideIcon } from "lucide-react";
+import { Plus, Search, Settings2, UserCheck, Users, UsersRound, type LucideIcon } from "lucide-react";
 import type { MemberView, NetworkProfile } from "@/domain/network/network";
 import { networkApi, type MyNetwork, type NetUpdate, type Suggested } from "@/services/network/client";
 import { cn } from "@/lib/cn";
@@ -13,6 +13,8 @@ import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { ConnectSheet, PersonCard, PersonRow, mutualLine } from "@/components/network/parts";
 import { FeedCard, ReportSheet } from "@/components/network/FeedCard";
+import { NetworkBar } from "@/components/network/NetworkBell";
+import { useNetworkInbox } from "@/components/network/inbox";
 import { usePostTarget } from "@/wonderworks/chrome/postTarget";
 import dynamic from "next/dynamic";
 
@@ -61,6 +63,14 @@ function NetworkPage() {
   }, []);
   useEffect(load, [load]);
   const on = !!me;
+  // Answering an invitation from the bell changes the Connections count here too: read it again when that count drops.
+  const invites = useNetworkInbox((st) => st.invitations?.length);
+  const lastInvites = useRef(invites);
+  useEffect(() => {
+    const before = lastInvites.current;
+    lastInvites.current = invites;
+    if (on && before !== undefined && invites !== undefined && invites < before) void networkApi.mine().then(setMine, () => {});
+  }, [invites, on]);
   // A post made from the + (here or in any module) shows at once: the feed is read again.
   const posted = usePostTarget((st) => st.posted);
   const [seenPosted, setSeenPosted] = useState(posted);
@@ -96,6 +106,8 @@ function NetworkPage() {
     if (!m.connectionId) return;
     try {
       await networkApi.act(m.connectionId, action);
+      // The bell's invitation count follows.
+      void useNetworkInbox.getState().load();
       toast.success(done);
       // Every list shows where each person stands, so they are read again.
       const [net, found] = await Promise.all([networkApi.mine(), networkApi.people(searched)]);
@@ -132,9 +144,13 @@ function NetworkPage() {
         title="My network"
         className="max-lg:hidden"
         actions={
-          <Button onClick={() => setPosting(true)} icon={<Plus className="size-4" aria-hidden />}>
-            New post
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* From 1024px there's no top bar: the network's Messages and invitations bell sit here. */}
+            <NetworkBar compact />
+            <Button onClick={() => setPosting(true)} icon={<Plus className="size-4" aria-hidden />}>
+              New post
+            </Button>
+          </div>
         }
       />
       <div className="mb-3 hidden justify-end md:flex lg:hidden">
@@ -143,12 +159,11 @@ function NetworkPage() {
         </Button>
       </div>
       {posting && <PostSheet onClose={() => setPosting(false)} />}
-      <nav aria-label="My network" className="-mx-1 mb-4 grid auto-cols-[minmax(68px,1fr)] grid-flow-col gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
-        <Shortcut icon={Users} label="People" active={view === "people"} onClick={() => go("people")} />
-        <Shortcut icon={UserPlus} label="Invitations" badge={mine?.invitations.length} active={view === "invitations"} onClick={() => go("invitations")} />
-        <Shortcut icon={UserCheck} label="Connections" badge={mine?.connections.length} quiet active={view === "connections"} onClick={() => go("connections")} />
-        <Shortcut icon={MessagesSquare} label="Messages" href="/app/network/messages" />
+      {/* Invitations are on the bell and Messages beside it, in the top bar (owner, 2026-11-22); Communities comes first. */}
+      <nav aria-label="My network" className="mb-4 grid grid-cols-4 gap-1">
         <Shortcut icon={UsersRound} label="Communities" href="/app/network/communities" />
+        <Shortcut icon={Users} label="People" active={view === "people"} onClick={() => go("people")} />
+        <Shortcut icon={UserCheck} label="Connections" badge={mine?.connections.length} quiet active={view === "connections"} onClick={() => go("connections")} />
         <Shortcut icon={Settings2} label="My profile" href="/app/network/profile" />
       </nav>
 
