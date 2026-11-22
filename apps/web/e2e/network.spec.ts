@@ -55,6 +55,33 @@ async function person(browser: Browser, next: string, tag: string, accounts: Tes
 /** Deletes the signed-in account through the product itself ("Delete my account"), as the person would. */
 const deleteOwnAccount = (p: Person) => p.page.request.post("/api/privacy/erase", { data: { confirm: ERASE_PHRASE } });
 
+/**
+ * Deletes the signed-in account from Profile → Your data → Delete account (WJ-838): the warning names this
+ * account's own numbers, "Delete everything" stays off until the phrase is typed (and, when `sent` is true, the
+ * "I understand" box is ticked), and the press lands on the home page.
+ */
+async function deleteThroughDialog(p: Person, expectGone: RegExp[], sent = false): Promise<void> {
+  const { page } = p;
+  await page.goto("/app/profile");
+  await page.getByRole("button", { name: "Delete account", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete your account?" });
+  await expect(dialog.getByText("Also deleted for good")).toBeVisible({ timeout: 20_000 });
+  for (const item of expectGone) await expect(dialog.getByRole("listitem").filter({ hasText: item })).toBeVisible();
+  const understand = dialog.getByRole("checkbox", { name: /I understand the companies, schools and people/ });
+  const go = dialog.getByRole("button", { name: "Delete everything" });
+  await expect(go).toBeDisabled();
+  await dialog.getByRole("textbox").fill(ERASE_PHRASE);
+  if (sent) {
+    await expect(go).toBeDisabled();
+    await understand.check();
+  } else {
+    await expect(understand).toHaveCount(0);
+  }
+  await expect(go).toBeEnabled();
+  await go.click();
+  await page.waitForURL(/\/\?account=deleted$/, { timeout: 30_000 });
+}
+
 /** Joins from My network profile and returns the member's network id (from "See my profile"). */
 async function join(p: Person): Promise<string> {
   const { page } = p;
@@ -126,18 +153,20 @@ test.describe("Network — two people connect", () => {
   test("NET-003 the other sees the request with its note and accepts; each lists the other as a connection", async () => {
     const { asha, kunal } = people as Required<typeof people>;
     await asha.page.goto("/app/network?tab=invitations");
-    await expect(asha.page.getByRole("button", { name: "Invitations · 1" })).toBeVisible({ timeout: 20_000 });
+    // Invitations live on the bell in the top bar (WJ-836); the invitations view lists them under its heading.
+    await expect(asha.page.getByRole("button", { name: "Network notifications, 1 invitation" })).toBeVisible({ timeout: 20_000 });
+    await expect(asha.page.getByRole("heading", { name: "Invitations", exact: true })).toBeVisible();
     await expect(asha.page.getByText(`Worked together · “${NOTE}”`)).toBeVisible();
     await expect(asha.page.locator(`a[href="/app/network/${kunal.id}"]`).first()).toBeVisible();
     await asha.page.getByRole("button", { name: "Accept" }).click();
     await expect(asha.page.getByText(/^You and .+ are connected$/)).toBeVisible();
 
     await asha.page.goto("/app/network?tab=connections");
-    await expect(asha.page.getByRole("button", { name: "Connections · 1" })).toBeVisible({ timeout: 20_000 });
+    await expect(asha.page.getByRole("heading", { name: "Connections · 1" })).toBeVisible({ timeout: 20_000 });
     await expect(asha.page.locator(`a[href="/app/network/${kunal.id}"]`).first()).toBeVisible();
 
     await kunal.page.goto("/app/network?tab=connections");
-    await expect(kunal.page.getByRole("button", { name: "Connections · 1" })).toBeVisible({ timeout: 20_000 });
+    await expect(kunal.page.getByRole("heading", { name: "Connections · 1" })).toBeVisible({ timeout: 20_000 });
     await expect(kunal.page.locator(`a[href="/app/network/${asha.id}"]`).first()).toBeVisible();
     await kunal.page.goto(`/app/network/${asha.id}`);
     await expect(kunal.page.getByText("Connected", { exact: true })).toBeVisible({ timeout: 20_000 });
@@ -204,8 +233,8 @@ test.describe("Network — two people connect", () => {
   test("NET-006 deleting an account takes the person, the connection and the conversation off the network", async () => {
     const { asha, kunal } = people as Required<typeof people>;
     const thread = `/api/network/threads/${conversation.split("/").pop()}`;
-    const erased = await deleteOwnAccount(asha);
-    expect(erased.status(), await erased.text()).toBe(200);
+    // She deletes from the dialog: its warning names her one connection, and she sent nothing, so no extra box.
+    await deleteThroughDialog(asha, [/^1 connection on the network, with your conversations/]);
     // For the other person she is as if she had never been there, and nothing of the conversation is left to read.
     expect((await kunal.page.request.get(`/api/network/people/${asha.id}`)).status()).toBe(404);
     const gone = await kunal.page.request.get(thread);
@@ -219,5 +248,19 @@ test.describe("Network — two people connect", () => {
     await expect(kunal.page.getByText("No connections yet.")).toBeVisible({ timeout: 20_000 });
     // He deletes his too: nothing of either is left behind.
     expect((await deleteOwnAccount(kunal)).status()).toBe(200);
+  });
+
+  test("NET-007 the warning asks for the extra \"I understand\" when the account sent applications or requests", async () => {
+    // The visitor sent nothing a company holds; sending an application needs a company's posted job, which
+    // hiring.spec.ts walks. Here the preview is answered for the dialog with one application and one internship
+    // request, to check the dialog's own contract: both are listed, and the box gates the press. The deletion
+    // itself is real.
+    const { visitor } = people as Required<typeof people>;
+    await visitor.page.route("**/api/privacy/erase", (route) =>
+      route.request().method() === "GET"
+        ? route.fulfill({ json: { preview: { applications: 1, companies: 1, requests: { internships: 1 }, bookings: 0, workspacesHandedOn: 0, workspacesClosed: 0, connections: 0, posts: 0, communitiesHandedOn: 0, communitiesDeleted: 0 } } })
+        : route.fallback(),
+    );
+    await deleteThroughDialog(visitor, [/^1 application you sent with Easy Apply to 1 company/, /^1 request you sent in Internships/], true);
   });
 });
