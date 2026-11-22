@@ -7,9 +7,9 @@ import { isLive, moduleById, type ModuleId } from "@/modules/registry";
 interface UIState {
   commandOpen: boolean;
   setCommandOpen: (v: boolean) => void;
-  /** The account menu: closed, or open from the top-bar avatar. */
-  menu: null | "top";
-  setMenu: (v: null | "top") => void;
+  /** The account menu: closed, or open from the top-bar avatar or the phone's round ⋯ button. */
+  menu: null | "top" | "fab";
+  setMenu: (v: null | "top" | "fab") => void;
   /** Screens with their own bar at the bottom (Application Pack, Refine) showing now: the floating menu button steps aside. */
   bottomBars: number;
   addBottomBar: (d: 1 | -1) => void;
