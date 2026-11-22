@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") ?? "").slice(0, 100);
-  const module = (url.searchParams.get("module") ?? "").slice(0, 20);
-  return hiringRoute(req, (s) => listCommunities(s, q, module));
+  const fromModule = (url.searchParams.get("module") ?? "").slice(0, 20);
+  return hiringRoute(req, (s) => listCommunities(s, q, fromModule));
 }
 
 const Create = z.object({ name: z.string().max(200), about: z.string().max(2000).optional(), rules: z.string().max(4000).optional(), visibility: z.enum(["public", "private"]).optional(), joinPolicy: z.enum(["open", "approval"]).optional(), module: z.string().max(20).optional(), confirmed: z.boolean().optional() });
