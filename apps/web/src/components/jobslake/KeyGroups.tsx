@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
-import { ChevronDown, Search, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, Loader2, Play, Search, Square, X } from "lucide-react";
 import type { PlatformKeyStatus } from "@/server/jobslake/platformKeys";
 import type { KeyNote } from "@/server/jobslake/keyNotes";
+import type { KeyFamily, KeyRun } from "@/server/jobslake/keyRuns";
 import { Button } from "@/components/common/Button";
 import { Input, Textarea } from "@/components/common/Input";
 import { adminFetch, LoadError, Loading, Panel, useAdmin } from "@/components/jobslake/ui";
@@ -25,7 +26,19 @@ export const PLATFORM_GROUPS: KeyGroup[] = ["email", "ai", "push", "runner"];
 
 /** The sections for `groups`, in order, each with its keys and any action (Send a test email, Generate a key pair). */
 export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
-  const { data, error, reload } = useAdmin<{ keys: PlatformKeyStatus[]; notes?: Record<string, KeyNote> }>("keys");
+  const { data, error, reload } = useAdmin<{ keys: PlatformKeyStatus[]; notes?: Record<string, KeyNote>; families?: KeyFamily[]; runs?: Record<string, KeyRun> }>("keys");
+  // Play / Stop (owner, 2026-11-22): each key family's sources, run on the server; the page follows a run while it runs.
+  const families = data?.families ?? [];
+  const runs = data?.runs ?? {};
+  const familyOf = new Map(families.flatMap((f) => f.keys.map((k) => [k, f] as const)));
+  const anyRunning = Object.values(runs).some((r) => r.status === "running");
+  useEffect(() => {
+    if (!anyRunning) return;
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") void reload();
+    }, 3000);
+    return () => clearInterval(t);
+  }, [anyRunning, reload]);
   // Show only the keys still to set (owner, 2026-11-07: "add an easy filter to show fields not set").
   const [show, setShow] = useState<"all" | "missing" | "set">("all");
   // And by the admin's own tags, or the keys whose reminder is due (owner, 2026-11-07: "allow to add some tags and notes
@@ -107,9 +120,32 @@ export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
           <Panel key={g.id} title={`${g.title}${missing ? ` · ${missing} of ${keys.length} not set` : " · all set"}`} className="mb-4">
             <p className="-mt-1 mb-1 text-[12.5px] text-ink-3">{g.hint}</p>
             <ul className="flex flex-col gap-2">
-              {visible.map((k) => (
-                <KeyRow key={k.name} k={k} note={notes[k.name]} allTags={tags} onChanged={reload} />
-              ))}
+              {visible.map((k) => {
+                const f = familyOf.get(k.name);
+                // Keys that make one source of data together sit in one card with one play button, shown once.
+                if (f && f.keys.length > 1) {
+                  if (visible.find((x) => familyOf.get(x.name) === f) !== k) return null;
+                  return (
+                    <li key={f.id} className="rounded-[14px] border border-brand-200 bg-brand-50/40 p-2">
+                      <div className="flex items-start gap-2 px-1.5 pb-2 pt-1">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-semibold text-ink">{f.title} · {f.keys.length} keys, used together</p>
+                          <RunLine f={f} run={runs[f.id]} />
+                        </div>
+                        <RunButton f={f} run={runs[f.id]} onChanged={reload} />
+                      </div>
+                      <ul className="flex flex-col gap-2">
+                        {visible
+                          .filter((x) => familyOf.get(x.name) === f)
+                          .map((x) => (
+                            <KeyRow key={x.name} k={x} note={notes[x.name]} allTags={tags} onChanged={reload} />
+                          ))}
+                      </ul>
+                    </li>
+                  );
+                }
+                return <KeyRow key={k.name} k={k} note={notes[k.name]} allTags={tags} onChanged={reload} family={f} run={f ? runs[f.id] : undefined} />;
+              })}
             </ul>
             {g.id === "email" && <GroupAction action="test_email" label="Send a test email" busyLabel="Sending" />}
             {g.id === "push" && !keys.some((k) => k.set && k.name !== "VAPID_SUBJECT") && <GroupAction action="generate_vapid" label="Generate a key pair" busyLabel="Generating" onDone={reload} />}
@@ -117,6 +153,65 @@ export function KeyGroups({ groups }: { groups: KeyGroup[] }) {
         );
       })}
     </>
+  );
+}
+
+const ago = (iso?: string) => {
+  if (!iso) return "";
+  const m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+};
+const MODULE_NAMES: Record<string, string> = { jobs: "Jobs", internships: "Internships", teaching: "Teaching", events: "Events", services: "Services", therapists: "Therapists", cofounders: "Co-founders", marketplace: "Buy & Sell", scholarships: "Scholarships" };
+
+/** What a family's play button runs, and how its last run went. */
+function RunLine({ f, run }: { f: KeyFamily; run?: KeyRun }) {
+  const modules = [...new Set(f.sources.map((s) => MODULE_NAMES[s.module] ?? s.module))].join(", ");
+  if (!run) return <span className="block text-[11.5px] text-ink-3">Play runs {f.sources.length} source{f.sources.length === 1 ? "" : "s"}: {modules}</span>;
+  const done = run.items.filter((i) => ["ok", "empty", "failed", "skipped"].includes(i.status)).length;
+  const found = run.items.reduce((n, i) => n + (i.retrieved ?? 0), 0);
+  const failed = run.items.filter((i) => i.status === "failed");
+  if (run.status === "running")
+    return (
+      <span className="block text-[11.5px] font-medium text-brand-700">
+        {run.stopRequested ? "Stopping" : "Running"}: {done} of {run.items.length} sources done · {found} listings so far
+      </span>
+    );
+  const label = run.status === "stopped" ? "Stopped" : run.status === "failed" ? "Failed" : "Last run";
+  return (
+    <span className={`block text-[11.5px] ${run.status === "failed" ? "text-danger-600" : "text-ink-3"}`} title={failed.map((i) => `${i.name}: ${i.message ?? "failed"}`).join("\n") || undefined}>
+      {label} {ago(run.finishedAt ?? run.startedAt)}: {found} listings from {run.items.filter((i) => i.status === "ok" || i.status === "empty").length} of {run.items.length} sources
+      {failed.length ? ` · ${failed.length} failed (${failed[0].message ?? "error"})` : ""}
+    </span>
+  );
+}
+
+/** Play runs the family's sources on the server; while it runs, the same button stops it. */
+function RunButton({ f, run, onChanged }: { f: KeyFamily; run?: KeyRun; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const running = run?.status === "running";
+  const press = async () => {
+    setBusy(true);
+    setMsg(null);
+    const r = await adminFetch<{ message: string }>("keys", { method: "POST", body: JSON.stringify({ action: running ? "stop" : "run", family: f.id }) });
+    setBusy(false);
+    if (!r.ok) setMsg(r.error.message);
+    onChanged();
+  };
+  return (
+    <span className="flex shrink-0 flex-col items-end">
+      <button
+        type="button"
+        onClick={() => void press()}
+        disabled={busy || (running && run?.stopRequested)}
+        aria-label={running ? `Stop ${f.title}'s run` : `Run ${f.title}'s ${f.sources.length} source${f.sources.length === 1 ? "" : "s"} now`}
+        title={running ? "Stop" : `Run ${f.sources.length} source${f.sources.length === 1 ? "" : "s"} now`}
+        className={`grid size-9 place-items-center rounded-full text-white shadow-sm transition-colors disabled:opacity-60 ${running ? "bg-danger-600 hover:bg-danger-600/90" : "bg-brand-600 hover:bg-brand-700"}`}
+      >
+        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : running ? <Square className="size-3.5" fill="currentColor" aria-hidden /> : <Play className="ml-0.5 size-4" fill="currentColor" aria-hidden />}
+      </button>
+      {msg && <span className="mt-1 max-w-40 text-right text-[11px] text-danger-600">{msg}</span>}
+    </span>
   );
 }
 
@@ -248,7 +343,7 @@ function KeyNotes({ name, note, allTags, onChanged }: { name: string; note?: Key
   );
 }
 
-function KeyRow({ k, note, allTags, onChanged }: { k: PlatformKeyStatus; note?: KeyNote; allTags: string[]; onChanged: () => void }) {
+function KeyRow({ k, note, allTags, onChanged, family, run }: { k: PlatformKeyStatus; note?: KeyNote; allTags: string[]; onChanged: () => void; /** A key that runs sources on its own: its play button sits on the card. */ family?: KeyFamily; run?: KeyRun }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -289,13 +384,17 @@ function KeyRow({ k, note, allTags, onChanged }: { k: PlatformKeyStatus; note?: 
   // collapsible cards separated").
   return (
     <li className="rounded-[12px] border border-line bg-surface text-[13px]">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left">
-        <span className="min-w-0">
-          <span className="font-medium text-ink">{k.label}</span> <code className="break-all text-[11.5px] text-ink-4">{k.name}</code>
-          <span className={`block truncate text-[12px] font-medium ${k.set ? "text-success-600" : "text-warning-600"}`}>{k.masked}</span>
-        </span>
-        <ChevronDown aria-hidden className={`h-4 w-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      <div className="flex items-center gap-1 pr-2">
+        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2.5 text-left">
+          <span className="min-w-0">
+            <span className="font-medium text-ink">{k.label}</span> <code className="break-all text-[11.5px] text-ink-4">{k.name}</code>
+            <span className={`block truncate text-[12px] font-medium ${k.set ? "text-success-600" : "text-warning-600"}`}>{k.masked}</span>
+            {family && <RunLine f={family} run={run} />}
+          </span>
+          <ChevronDown aria-hidden className={`h-4 w-4 shrink-0 text-ink-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+        {family && <RunButton f={family} run={run} onChanged={onChanged} />}
+      </div>
       {open && (
       <div className="flex flex-col gap-2 border-t border-line px-3 pb-3 pt-2.5">
       <span className="text-[12px] text-ink-3">{k.usedBy}</span>
