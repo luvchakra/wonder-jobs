@@ -435,7 +435,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Plans, payments and your data",
     summary: "Free, Pro and Max, paying with Razorpay, cancelling, and downloading or deleting your data.",
     keywords: ["pro", "max", "free", "plan", "plans", "upgrade", "billing", "payment", "pay", "razorpay", "stripe", "upi", "card", "subscription", "cancel", "refund", "invoice", "export", "download", "delete", "erase", "gdpr", "dpdp", "privacy", "consent", "grievance", "limit", "try a plan", "testing", "your data", "plan & billing"],
-    updated: "2026-11-06",
+    updated: "2026-11-22",
     body: [
       "Plan & billing (avatar menu → Account → Plan & billing) shows your plan and why — for example “Renews 1 Nov 2026 · confirmed by Razorpay”. The plan changes only when Razorpay or Stripe confirms a payment to our server; coming back from the payment page doesn't change it by itself.",
       "WonderWorks has three plans — Free, Pro and Max. A plan sets how much you can use: how many scheduled searches can be on at once and whether they can run daily or Keep watch, how many drafts WonderWorks AI writes a month (your own AI key never counts), how many roles you can search as, how many résumé designs you can use, and whether Apply with Wonder is included. The card lists the numbers and the monthly price of each plan above yours, and those can change over time. When a limit stops you, Wonder says which one and which plan includes it. Nothing you already have is deleted when a plan lapses — limits apply to new use.",
@@ -448,7 +448,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "- Payments: the card lists each payment and failed payment the provider reported.",
       "Your data (avatar menu → Account → Your data):",
       "- Download my data: one JSON file with everything stored for your account — profile, jobs, applications, searches, settings, which AI keys are connected (never the key itself), notification devices, the record of what Wonder did, your contact messages, payments and your notice acceptances. Uploaded résumé files are listed with a link each; download them from My Resume.",
-      "- Delete account: type DELETE MY ACCOUNT to confirm. Your sign-in and data are deleted at once; payment records (kept at least 8 years for tax law) and a one-way hash of the request are all that remain. Cancel an active subscription first.",
+      "- Delete account: before you confirm, it lists what goes with your account in your own numbers: applications you sent with Easy Apply (the companies no longer see them, résumé copy included), requests you sent in other kinds (internship applications, demo class requests, quote requests) and demo class bookings, your network connections and posts, and communities you own with nobody else in them. It also says what passes on without your name: hiring workspaces you own go to the longest-standing member (one with nobody else is kept with its open jobs closed), and communities you own go to their longest-standing moderator or member. If you sent anything, tick that you understand they'll no longer see it, then type DELETE MY ACCOUNT. Your sign-in and data are deleted at once; payment records (kept at least 8 years for tax law) and a one-way hash of the request are all that remain. Cancel an active subscription first.",
       "The first time you sign in, and whenever the privacy notice changes, you're asked to confirm you're 18 or older and accept it. Questions or complaints about your data go to the contact shown under Your data and on the privacy notice.",
     ],
   },

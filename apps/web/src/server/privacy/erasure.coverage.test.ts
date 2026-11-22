@@ -80,6 +80,10 @@ const ERASED_BY: Record<string, string> = {
   network_comments: "network",
   network_media: "network",
   contact_exchanges: "contact",
+  // What the person sent: deleted with the account (owner, 2026-11-22).
+  job_applications: "sent",
+  responses: "sent",
+  bookings: "sent",
   network_communities: "communities",
   network_community_members: "communities",
   network_threads: "communities",
@@ -127,12 +131,7 @@ const KEPT: Record<string, string> = {
  * Account ids that deletion does not reach yet (found 2026-11-21, reported to the shared-layer session). Each line
  * goes when its table gets an `ACCOUNT_DATA` entry or a stated retention rule; the test fails until it is removed here.
  */
-const KNOWN_GAPS = [
-  "job_applications.applicant_tenant", // Easy Apply applications the person sent to companies
-  "responses.responder_tenant", // module responses: an internship application, a teaching demo request, a quote request…
-  "bookings.responder_tenant", // teaching demo bookings
-  "bookings.created_by", // the school member who offered the demo (a company record; not in hiringAccount.ts's AUTHORED)
-];
+const KNOWN_GAPS: string[] = [];
 
 describe("account deletion and the schema", () => {
   const cols = personColumns();
@@ -300,9 +299,9 @@ describe("account deletion, end to end", () => {
     cascadeLikeTheDatabase(asha.tenantId);
 
     const left = tablesNaming(asha.tenantId);
-    // job_applications: her Easy Apply application to Globex (a known gap). Her report of a listing in Jobs' Find goes
-    // with the "safety" entry, which covers every module's reports and blocks.
-    expect(left).toEqual(["job_applications"]);
+    // Nothing names her: her Easy Apply application to Globex goes with the "sent" entry (owner, 2026-11-22), her report
+    // of a listing in Jobs' Find with "safety".
+    expect(left).toEqual([]);
     // The workspace she owned stays with Ravi, and nothing in it names her.
     expect(tablesNaming(ravi.tenantId)).toEqual(expect.arrayContaining(["hiring_orgs", "hiring_members", "employer_jobs"]));
   });
