@@ -25,6 +25,6 @@ describe("the warning before deleting an account (owner, 2026-11-22)", () => {
     await eraseSent(t);
     for (const [name, where] of [["job_applications", { applicant_tenant: t }], ["responses", { responder_tenant: t }], ["bookings", { responder_tenant: t }], ["job_application_files", { application_id: "a1" }]] as const) expect(await table(name).find(where), name).toEqual([]);
     // A booking the person offered as a school member stays the other person's, without their id.
-    expect((await table<{ created_by: string }>("bookings").find({ id: "b2" }))[0].created_by).toBe("former-member");
+    expect((await table<{ id: string; created_by: string }>("bookings").find({ id: "b2" }))[0].created_by).toBe("former-member");
   });
 });

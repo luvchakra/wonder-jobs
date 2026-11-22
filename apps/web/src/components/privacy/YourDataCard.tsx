@@ -163,7 +163,7 @@ function Consequences({ p }: { p: ErasePreview }) {
   const gone: string[] = [
     ...(p.applications ? [`${n(p.applications, "application")} you sent with Easy Apply to ${n(p.companies, "company", "companies")}, with your résumé copy and answers: the companies will no longer see them`] : []),
     ...requests.map(([m, k]) => `${n(k, "request")} you sent in ${moduleById(m)?.label ?? m}: whoever received them will no longer see them`),
-    ...(p.bookings ? [`${n(p.bookings, "demo booking")}: removed for both sides`] : []),
+    ...(p.bookings ? [`${n(p.bookings, "demo class booking")}: removed for both sides`] : []),
     ...(p.connections ? [`${n(p.connections, "connection")} on the network, with your conversations: they won't see you any more`] : []),
     ...(p.posts ? [`${n(p.posts, "post")} and update${p.posts === 1 ? "" : "s"} on the network, with their comments and likes`] : []),
     ...(p.communitiesDeleted ? [`${n(p.communitiesDeleted, "community", "communities")} you own with nobody else in ${p.communitiesDeleted === 1 ? "it" : "them"}, with ${p.communitiesDeleted === 1 ? "its" : "their"} discussions`] : []),
