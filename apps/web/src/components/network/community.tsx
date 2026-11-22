@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Globe2, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Globe2, Lock } from "lucide-react";
 import { MODULES, isLive, moduleById } from "@/modules/registry";
 import { LIMITS, type Community, type CommunityInput } from "@/domain/network/communities";
 import { cn } from "@/lib/cn";
@@ -110,5 +111,22 @@ export function CommunitySheet({ start, onClose, save }: { start?: CommunityInpu
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** A round back arrow at a page's top left (owner, 2026-11-22): to the page the member came from, or, opened from a link
+ * with nothing to go back to, to `fallback` (the page above this one). */
+export function BackButton({ fallback, label, className }: { fallback: string; label: string; className?: string }) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={() => (window.history.length > 1 ? router.back() : router.push(fallback))}
+      className={cn("grid size-9 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink-2 shadow-sm hover:bg-bg-soft hover:text-ink active:scale-95", className)}
+    >
+      <ArrowLeft className="size-[18px]" aria-hidden />
+    </button>
   );
 }
