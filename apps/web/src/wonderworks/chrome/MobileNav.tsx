@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, ChevronUp, MessageSquarePlus, MoreHorizontal, Plus, Users } from "lucide-react";
+import { ChevronUp, MessageSquarePlus, MoreHorizontal, Plus, Undo2, Users } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
 import { NETWORK_HREF, NETWORK_TAB, isActivePath, rememberAppPath } from "./nav";
@@ -121,7 +121,7 @@ export function MobileNav() {
           label: away.label,
           node: (
             <button type="button" aria-label={away.label} onClick={away.leave} className={cn("border border-line bg-surface text-ink", round)}>
-              <ArrowLeft className="size-6" aria-hidden />
+              <Undo2 className="size-6" strokeWidth={2.2} aria-hidden />
             </button>
           ),
         }
