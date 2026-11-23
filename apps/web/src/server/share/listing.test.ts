@@ -10,7 +10,7 @@ import type { Session } from "@/server/auth";
 import { resetTablesForTests } from "@/server/db/table";
 import * as H from "@/server/hiring";
 import * as I from "@/server/internships/applications";
-import { sharedListing } from "./listing";
+import { moduleListing, sharedListing } from "./listing";
 
 const owner: Session = { userId: "u-owner", tenantId: "u-owner", email: "owner@acme.test", name: "Olive Owner" };
 const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
@@ -27,6 +27,16 @@ describe("a listing's public page reads the public record, and only that", () =>
     expect(l).toMatchObject({ module: "internships", noun: "internship", title: "Marketing Intern", url: `/s/internships/ws_${p.id}` });
     const text = [...(l!.facts ?? []), ...(l!.lines ?? []), l!.details].join("\n");
     for (const x of ["Acme", "Duration: 3 months", "Apply by:", "Schedule: Full time", "Skills: Content, Canva", "campus campaigns"]) expect(text).toContain(x);
+  });
+
+  it("gives a member the listing itself, as its module's page shows it, under the id its link carries", async () => {
+    const { org } = await H.createWorkspace(owner, { name: "Acme" });
+    const p = await I.saveInternship(owner, org.id, POSTING as never);
+    await I.setInternshipStatus(owner, org.id, p.id, "open");
+    expect(await moduleListing("internships", `ws_${p.id}`)).toMatchObject({ id: `ws_${p.id}`, title: "Marketing Intern" });
+    expect(await moduleListing("cofounders", `ws_${p.id}`)).toBeNull();
+    await I.setInternshipStatus(owner, org.id, p.id, "closed");
+    expect(await moduleListing("internships", `ws_${p.id}`)).toBeNull();
   });
 
   it("is gone once the listing closes", async () => {
