@@ -117,6 +117,12 @@ export interface Reply {
   why?: string;
 }
 
+/** Which of the six colours a community's mark takes: the same for its id everywhere (the app, its share image). */
+export const COMMUNITY_TONES = 6;
+export const communityTone = (id: string) => [...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % COMMUNITY_TONES;
+/** A community's mark: the first letter of its name. */
+export const communityInitial = (name: string) => name.trim().charAt(0).toUpperCase() || "#";
+
 export const LIMITS = { name: 60, about: 600, rules: 1200, title: 160, body: 8000, reply: 4000 } as const;
 
 export const can = {
