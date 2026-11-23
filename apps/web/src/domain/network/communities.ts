@@ -262,6 +262,8 @@ export function cleanCommunity(p: Partial<CommunityInput>): CommunityInput {
 const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-9_.~-]{1,120})$/;
 export function cleanAttached(a: { page?: unknown; title?: unknown } | null | undefined): Attached | null {
   if (!a || typeof a.page !== "string") return null;
+  // Or another community, shared into a discussion (owner, 2026-11-23); it names no module.
+  if (/^\/app\/network\/communities\/cm_[A-Za-z0-9_-]{6,40}$/.test(a.page)) return { page: a.page, title: clip(a.title, 140).replace(/\s+/g, " "), module: "" };
   const m = PUBLIC_PAGE.exec(a.page);
   if (!m) return null;
   return { page: a.page, title: clip(a.title, 140).replace(/\s+/g, " "), module: m[1] ?? "jobs" };

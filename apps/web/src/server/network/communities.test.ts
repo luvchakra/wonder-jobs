@@ -9,6 +9,8 @@ import type { Session } from "../auth";
 import { resetTablesForTests, table } from "../db/table";
 import * as N from "./network";
 import * as C from "./communities";
+import * as S from "./social";
+import { listingPreview } from "./preview";
 import { layOut } from "@/domain/network/communities";
 import { DEFAULT_TIERS, type NetworkProfileInput } from "@/domain/network/network";
 
@@ -358,5 +360,25 @@ describe("upvote and downvote (owner, 2026-11-22)", () => {
     expect((await C.readDiscussion(asha, d.id)).discussion.score).toBe(1);
     await expect(C.vote(rahul, d.id, 1, true)).rejects.toThrow(/Join this community/);
     await expect(C.vote(kunal, d.id, -1)).rejects.toThrow(/Check what goes/);
+  });
+});
+
+describe("sharing a community", () => {
+  it("shows a public one's card on the open web, never a private one's; a post can carry either", async () => {
+    await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    const pub = await C.createCommunity(asha, { name: "Identity people", about: "IAM practitioners" }, true);
+    const priv = await C.createCommunity(asha, { name: "Bank CISOs", about: "Invite only", visibility: "private" }, true);
+    expect(await C.communityCard(pub.id, true)).toMatchObject({ name: "Identity people", about: "IAM practitioners", members: 1, visibility: "public" });
+    expect(await C.communityCard(priv.id, true)).toBeNull();
+    expect(JSON.stringify(await C.communityCard(pub.id))).not.toContain("u-asha"); // never who is in it
+    expect(await listingPreview(`/app/network/communities/${pub.id}`)).toMatchObject({ title: "Identity people", by: "Community", facts: "Public · 1 member · 0 discussions", image: "" });
+    await S.publishPost(asha, { text: "Come join us", audience: "everyone", about: { page: `/app/network/communities/${pub.id}`, title: "Identity people" } } as never, true);
+    const [post] = await S.feedFor(asha);
+    expect(post).toMatchObject({ href: `/app/network/communities/${pub.id}`, about: "Identity people", module: "" });
+    await expect(S.publishPost(asha, { text: "x", audience: "everyone", about: { page: "/app/network/people", title: "x" } } as never, true)).rejects.toThrow(/community/);
+    // Into a discussion too.
+    const d = await C.startDiscussion(asha, pub.id, { title: "Sister community", body: "", about: { page: `/app/network/communities/${priv.id}`, title: "Bank CISOs" } }, true);
+    expect(d.about).toEqual({ page: `/app/network/communities/${priv.id}`, title: "Bank CISOs", module: "" });
   });
 });

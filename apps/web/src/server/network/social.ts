@@ -253,6 +253,8 @@ export const dayAgo = () => new Date(Date.now() - 864e5).toISOString();
 
 /** A listing a post may carry: only a public listing page, and the module comes from its path (`/j/…` is Jobs'). */
 const PUBLIC_PAGE = /^\/(?:j\/[A-Za-z0-9_.~-]{1,120}|s\/([a-z]{2,20})\/[A-Za-z0-9_.~-]{1,120})$/;
+/** Or a community on the network (owner, 2026-11-23: share a community), which names no module. */
+const COMMUNITY_PAGE = /^\/app\/network\/communities\/cm_[A-Za-z0-9_-]{6,40}$/;
 
 export interface PostInput {
   text: string;
@@ -277,15 +279,16 @@ export async function publishPost(s: Session, input: PostInput, confirmed?: bool
   const photos = await claimMedia(me.tenant_id, input.media ?? []);
   if (!text && !photos.length) throw new HiringError("Write something first.", 400);
   const page = input.about?.page ?? "";
-  const m = page ? PUBLIC_PAGE.exec(page) : null;
-  if (page && !m) throw new HiringError("Only a listing's public page can go with a post.", 400);
-  const about = m ? (input.about?.title ?? "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
+  const community = page ? COMMUNITY_PAGE.test(page) : false;
+  const m = page && !community ? PUBLIC_PAGE.exec(page) : null;
+  if (page && !m && !community) throw new HiringError("Only a listing's public page or a community can go with a post.", 400);
+  const about = m || community ? (input.about?.title ?? "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
   // A post names a module only when it carries that module's listing; the module open when + was pressed says nothing.
   const fromModule = m ? (m[1] ?? "jobs") : "";
   const recent = await updates().find({ tenant_id: me.tenant_id }, { order: "created_at", desc: true, limit: 60 });
   if (recent.filter((u) => isPost(u.kind) && u.created_at > dayAgo()).length >= POSTS_A_DAY) throw new HiringError("You've posted a lot today. Try again tomorrow.", 429);
   await gate(s.tenantId, "network.post", confirmed, "Posting");
-  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: kindFor(input.audience), module: fromModule, text, href: m ? page : "", about: about || null, ...(photos.length ? { media: photos } : {}), created_at: now() };
+  const row: UpdateRow = { id: newId("nu"), tenant_id: me.tenant_id, kind: kindFor(input.audience), module: fromModule, text, href: m || community ? page : "", about: about || null, ...(photos.length ? { media: photos } : {}), created_at: now() };
   try {
     await updates().insert(row);
   } catch (e) {

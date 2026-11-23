@@ -171,6 +171,30 @@ async function unreadIn(tenant: string, communityId: string): Promise<number> {
   return talks.filter((t) => t.tenant_id !== tenant && (!read.get(t.id) || read.get(t.id)! < t.last_activity_at)).length;
 }
 
+/** A community as a card, by its id: what a post about it, or its shared link, shows. */
+export interface CommunityCard {
+  id: string;
+  name: string;
+  about: string;
+  visibility: "public" | "private";
+  module: string;
+  members: number;
+  discussions: number;
+}
+
+/**
+ * A community's card for sharing (owner, 2026-11-23: "add options to share community on the app and social media"):
+ * its name, about, privacy, module and counts, never who is in it. `open`: the open web's view (a shared link opened
+ * by someone not signed in), which only a public community has; on the network a private one shows as it does in
+ * Discover's search (name and about).
+ */
+export async function communityCard(id: string, open = false): Promise<CommunityCard | null> {
+  const c = ID.community.test(id) ? await communities().one({ id }).catch(() => undefined) : undefined;
+  if (!c || (open && c.visibility !== "public")) return null;
+  const [people, talks] = await Promise.all([cmembers().find({ community_id: c.id, status: "member" }, { limit: 10000 }), c.visibility === "public" ? threads().find({ community_id: c.id }, { limit: 5000 }) : Promise.resolve([] as ThreadRow[])]);
+  return { id: c.id, name: c.name, about: c.about, visibility: c.visibility === "private" ? "private" : "public", module: c.module ?? "", members: people.length, discussions: talks.filter((t) => stateOf(t) === "live").length };
+}
+
 export async function getCommunity(s: Session, id: string): Promise<Community> {
   return summary(await place(s, id), true);
 }

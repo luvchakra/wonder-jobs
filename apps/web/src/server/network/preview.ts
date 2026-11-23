@@ -8,6 +8,7 @@ import { shareFacts } from "@/domain/jobs/share";
 import { distinctText, excerpt } from "@/wonderworks/listing/share";
 import { lookupJobs } from "../jobs/recover";
 import { sharedListing } from "../share/listing";
+import { communityCard } from "./communities";
 
 export interface ListingPreview {
   page: string;
@@ -17,14 +18,24 @@ export interface ListingPreview {
   by?: string;
   facts: string;
   summary: string;
-  /** The listing's preview image (its public page's card). */
+  /** The listing's preview image (its public page's card); none for a community. */
   image: string;
 }
+
+/** A community's page in the app: what a post sharing a community carries (owner, 2026-11-23). */
+export const COMMUNITY_PAGE = /^\/app\/network\/communities\/(cm_[A-Za-z0-9_-]{6,40})$/;
 
 const JOB = /^\/j\/([A-Za-z0-9_.~%-]{1,160})$/;
 const LISTING = /^\/s\/([a-z]{2,20})\/([A-Za-z0-9_.~%-]{1,160})$/;
 
 export async function listingPreview(page: string): Promise<ListingPreview | null> {
+  const cm = COMMUNITY_PAGE.exec(page);
+  if (cm) {
+    const c = await communityCard(cm[1]).catch(() => null);
+    if (!c) return null;
+    const facts = [c.visibility === "private" ? "Private" : "Public", `${c.members} member${c.members === 1 ? "" : "s"}`, ...(c.visibility === "public" ? [`${c.discussions} discussion${c.discussions === 1 ? "" : "s"}`] : [])];
+    return { page, module: c.module, title: c.name, by: "Community", facts: facts.join(" · "), summary: excerpt(c.about, 280), image: "" };
+  }
   const j = JOB.exec(page);
   if (j) {
     const [job] = await lookupJobs([decodeURIComponent(j[1])]).catch(() => []);
