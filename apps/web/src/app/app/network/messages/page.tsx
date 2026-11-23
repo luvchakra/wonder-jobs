@@ -8,6 +8,7 @@ import { networkApi } from "@/services/network/client";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
+import { useNetworkMode } from "@/wonderworks/chrome/networkMode";
 import { Avatar } from "@/components/common/Avatar";
 import { EmptyState, PageLoading } from "@/components/common/States";
 
@@ -64,6 +65,8 @@ export default function InboxPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [only, setOnly] = useState<Kind | null>(null);
   const [writing, setWriting] = useState(false);
+  // Opened from a module, Messages stays in that module (no link into My network); from My network, it leads back there.
+  const onNetwork = useNetworkMode();
   useEffect(() => {
     void loadAll().then(setRows);
   }, []);
@@ -76,7 +79,7 @@ export default function InboxPage() {
       {/* Phones start a message from the + (New message); from 768px it is here. */}
       <PageHeader
         title="Messages"
-        back={{ href: "/app/network", label: "My network" }}
+        back={onNetwork ? { href: "/app/network", label: "My network" } : undefined}
         actions={
           <Button onClick={() => setWriting(true)} icon={<MessageSquarePlus className="size-4" aria-hidden />} className="max-md:hidden">
             New message

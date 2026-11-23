@@ -249,6 +249,21 @@ test.describe("Golden journey — mobile navigation", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   });
 
+  test("GJ-008c Messages opens in the mode the member is in", async ({ page }) => {
+    await openApp(page, "/app/saved");
+    const top = page.locator("[data-top-bar]");
+    // From a module: Messages, with the bottom bar still there.
+    await top.getByRole("link", { name: "Messages" }).click();
+    await expect(page).toHaveURL(/\/app\/network\/messages$/);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    // From My network: Messages stays in network mode.
+    await top.getByRole("link", { name: "Open my network" }).click();
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+    await top.getByRole("link", { name: "Messages" }).click();
+    await expect(page).toHaveURL(/\/app\/network\/messages$/);
+    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+  });
+
   test("GJ-009 a place's own pages are tabs at its top; You lists every settings page as a row", async ({ page }) => {
     const bottomBar = page.locator("nav.fixed.inset-x-0.bottom-0");
     await bottomBar.getByRole("link", { name: "Pipeline" }).click();
