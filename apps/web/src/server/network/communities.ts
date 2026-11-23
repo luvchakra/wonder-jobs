@@ -19,9 +19,10 @@ import type { Session } from "../auth";
 import { table } from "../db/table";
 import { HiringError } from "../hiring";
 import { fileReport } from "../modules/safety";
+import { cleanPhoto } from "../modules/photo";
 import { NETWORK, around, audit, gate, member, now, profiles, show, tell, type Around, type ProfileRow } from "./network";
 
-type CommunityRow = { id: string; name: string; about: string; rules: string; visibility: string; join_policy: string; created_by: string | null; created_at: string; updated_at: string; /** Migration 0059. */ module?: string | null; /** Migration 0061: its AutoMod rules (empty: the defaults). */ automod?: Partial<AutoMod> | null };
+type CommunityRow = { id: string; name: string; about: string; rules: string; visibility: string; join_policy: string; created_by: string | null; created_at: string; updated_at: string; /** Migration 0059. */ module?: string | null; /** Migration 0061: its AutoMod rules (empty: the defaults). */ automod?: Partial<AutoMod> | null; /** Migration 0062: when its photo last changed. */ photo_at?: string | null };
 type CMemberRow = { community_id: string; tenant_id: string; role: CommunityRole; status: MemberStatus; joined_at: string; /** Migration 0061. */ perms?: string[] | null; mod_invite?: string[] | null; invited_by?: string | null; banned_until?: string | null };
 type ThreadRow = { id: string; community_id: string; tenant_id: string; title: string; body: string; pinned: boolean; locked: boolean; reply_count: number; last_activity_at: string; created_at: string; edited_at: string | null; /** The listing it carries (migration 0059). */ href?: string | null; about?: string | null; module?: string | null; /** Migration 0061 (absent before: live). */ state?: PostState | null; mod_note?: string | null };
 type ReplyRow = { id: string; thread_id: string; parent_id: string | null; tenant_id: string; body: string; deleted: boolean; created_at: string; edited_at: string | null; state?: PostState | null; mod_note?: string | null };
@@ -38,6 +39,10 @@ export const votes = () => table<VoteRow>("network_votes");
 export const marks = () => table<MarkRow>("network_thread_marks");
 export const creports = () => table<ReportRow>("network_community_reports");
 export const modlog = () => table<LogRow>("network_mod_log");
+type PhotoRow = { community_id: string; mime: string; data: string; created_at: string };
+export const cphotos = () => table<PhotoRow>("network_community_photos");
+/** Where a community's photo is read, with when it changed so a new one is fetched afresh. */
+const photoUrl = (c: Pick<CommunityRow, "id" | "photo_at">) => (c.photo_at ? `/api/network/communities/${c.id}/photo?v=${Date.parse(c.photo_at)}` : undefined);
 
 /** AutoMod's name in the mod log. */
 const AUTOMOD = "automod";
@@ -52,7 +57,7 @@ const REPLIES_A_DAY = 200;
 const dayAgo = () => new Date(Date.now() - 864e5).toISOString();
 
 /** Before migration 0058 the tables aren't there: say so, rather than "Something went wrong". */
-const NOT_YET = /network_communit|network_threads|network_replies|network_votes|network_thread_marks|network_mod_log|schema cache|does not exist/i;
+const NOT_YET = /network_communit|network_threads|network_replies|network_votes|network_thread_marks|network_mod_log|network_community_photos|schema cache|does not exist/i;
 async function ready<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work();
@@ -134,6 +139,7 @@ async function summary(w: Where, full = false): Promise<Community> {
         : null,
     canRead: mayRead(w),
     createdAt: w.c.created_at,
+    ...(photoUrl(w.c) ? { photo: photoUrl(w.c) } : {}),
     ...(full && reviews(w) ? { queue: (await queueRows(w.c.id).catch(() => [])).length } : {}),
     ...(full && may(w, "settings") ? { automod: cleanAutoMod(w.c.automod) } : {}),
   };
@@ -180,6 +186,8 @@ export interface CommunityCard {
   module: string;
   members: number;
   discussions: number;
+  /** When its photo last changed (none: no photo). */
+  photoAt?: string;
 }
 
 /**
@@ -192,7 +200,53 @@ export async function communityCard(id: string, open = false): Promise<Community
   const c = ID.community.test(id) ? await communities().one({ id }).catch(() => undefined) : undefined;
   if (!c || (open && c.visibility !== "public")) return null;
   const [people, talks] = await Promise.all([cmembers().find({ community_id: c.id, status: "member" }, { limit: 10000 }), c.visibility === "public" ? threads().find({ community_id: c.id }, { limit: 5000 }) : Promise.resolve([] as ThreadRow[])]);
-  return { id: c.id, name: c.name, about: c.about, visibility: c.visibility === "private" ? "private" : "public", module: c.module ?? "", members: people.length, discussions: talks.filter((t) => stateOf(t) === "live").length };
+  return { id: c.id, name: c.name, about: c.about, visibility: c.visibility === "private" ? "private" : "public", module: c.module ?? "", members: people.length, discussions: talks.filter((t) => stateOf(t) === "live").length, ...(c.photo_at ? { photoAt: c.photo_at } : {}) };
+}
+
+/* ---- the community's photo (owner, 2026-11-23: "add option to change profile picture of community") ---------- */
+
+/**
+ * Set the community's photo: the owner, or a moderator with Settings. JPEG, PNG or WebP, read from its bytes; the browser
+ * sends it square and small, and it's checked here again (at most 1 MB) with its metadata (where, which camera) removed.
+ */
+export async function setCommunityPhoto(s: Session, id: string, bytes: Buffer, claimed?: string): Promise<Community> {
+  const w = await place(s, id);
+  if (!may(w, "settings")) throw new HiringError("Only the owner, or a moderator who manages settings, can change its photo.", 403);
+  const c = cleanPhoto(bytes, claimed, 1024 * 1024);
+  if ("problem" in c) throw new HiringError(c.problem);
+  const at = now();
+  await ready(() => cphotos().upsert({ community_id: w.c.id, mime: c.mime, data: c.bytes.toString("base64"), created_at: at }, ["community_id"]));
+  await communities().update({ id: w.c.id }, { photo_at: at, updated_at: at });
+  await log(w.c.id, s.tenantId, "photo", { note: "Changed the community's photo" });
+  return getCommunity(s, id);
+}
+
+/** Take the photo away: the letter mark shows again. */
+export async function removeCommunityPhoto(s: Session, id: string): Promise<Community> {
+  const w = await place(s, id);
+  if (!may(w, "settings")) throw new HiringError("Only the owner, or a moderator who manages settings, can change its photo.", 403);
+  await ready(() => cphotos().remove({ community_id: w.c.id }));
+  await communities().update({ id: w.c.id }, { photo_at: null });
+  await log(w.c.id, s.tenantId, "photo", { note: "Removed the community's photo" });
+  return getCommunity(s, id);
+}
+
+/**
+ * The photo itself. On the network, anyone on it sees a community's photo, as its name (a private one's too, as Discover
+ * shows its name); `open` (the open web: its shared page and link preview) only a public community's.
+ */
+export async function communityPhoto(id: string, open = false): Promise<{ mime: string; bytes: Buffer } | null> {
+  if (!ID.community.test(id)) return null;
+  const c = await communities().one({ id }).catch(() => undefined);
+  if (!c || !c.photo_at || (open && c.visibility !== "public")) return null;
+  const p = await cphotos().one({ community_id: id }).catch(() => undefined);
+  return p ? { mime: p.mime, bytes: Buffer.from(p.data, "base64") } : null;
+}
+
+/** On the network: the caller must be on it. */
+export async function memberCommunityPhoto(s: Session, id: string): Promise<{ mime: string; bytes: Buffer } | null> {
+  await member(s);
+  return communityPhoto(id);
 }
 
 export async function getCommunity(s: Session, id: string): Promise<Community> {
@@ -247,6 +301,7 @@ export async function dropCommunity(id: string): Promise<void> {
   for (const t of await threads().find({ community_id: id }, { limit: 5000 })) await dropThread(t.id);
   await creports().remove({ community_id: id }).catch(() => 0);
   await modlog().remove({ community_id: id }).catch(() => 0);
+  await cphotos().remove({ community_id: id }).catch(() => 0);
   await cmembers().remove({ community_id: id });
   await communities().remove({ id });
 }
@@ -848,6 +903,7 @@ const LOG_WORDS: Record<string, string> = {
   made_owner: "Made someone owner",
   settings: "Changed settings",
   automod_rules: "Changed AutoMod",
+  photo: "Changed the photo",
 };
 
 /** The mod log, newest first, for the community's moderators. */

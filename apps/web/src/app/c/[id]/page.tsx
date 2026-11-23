@@ -43,6 +43,10 @@ export default async function SharedCommunityPage({ params }: Props) {
           <article className="overflow-hidden rounded-[20px] border border-line bg-surface">
             <div className="h-20 bg-gradient-to-r from-brand-500/90 via-brand-400/80 to-pink-400/80" aria-hidden />
             <div className="p-5 sm:p-7">
+              {c.photoAt && (
+                // eslint-disable-next-line @next/next/no-img-element -- its own photo, from this site
+                <img src={`/c/${c.id}/photo?v=${Date.parse(c.photoAt)}`} alt="" width={72} height={72} className="-mt-14 mb-3 size-[72px] rounded-[28%] object-cover ring-4 ring-surface" />
+              )}
               <p className="text-[12px] font-semibold uppercase tracking-wide text-brand-600">Community on WonderWorks</p>
               <h1 className="mt-2 text-[26px] font-semibold leading-tight text-ink">{c.name}</h1>
               <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-ink-2">

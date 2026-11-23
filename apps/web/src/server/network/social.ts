@@ -272,7 +272,7 @@ export interface PostInput {
  * the member's own typed and sent words, to their connections or to everyone on the network, from any module, optionally
  * about the listing they were looking at.
  */
-export async function publishPost(s: Session, input: PostInput, confirmed?: boolean): Promise<void> {
+export async function publishPost(s: Session, input: PostInput, confirmed?: boolean): Promise<{ id: string }> {
   const me = await member(s);
   const text = input.text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1500);
   // A post's own photos: the member's, chosen while writing and not yet posted.
@@ -304,6 +304,7 @@ export async function publishPost(s: Session, input: PostInput, confirmed?: bool
   await attachMedia(me.tenant_id, row.id, photos);
   // The audit names the action, never the words.
   await audit(s.tenantId, "network.post", row.id, "POST_PUBLISHED");
+  return { id: row.id };
 }
 
 /** Remove one of the member's own posts or updates. Nobody else's. */

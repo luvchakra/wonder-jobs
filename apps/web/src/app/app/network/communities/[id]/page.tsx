@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Suspense, use, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowBigUp, Bot, Lock, MessageCircle, MoreHorizontal, Pin, Plus, ShieldCheck, UserPlus, UsersRound } from "lucide-react";
+import { ArrowBigUp, Bot, Camera, Loader2, Lock, MessageCircle, MoreHorizontal, Pin, Plus, ShieldCheck, UserPlus, UsersRound } from "lucide-react";
 import { can, hasPerm, LIMITS, type Community, type CommunityMember, type CommunityRole, type Discussion, type ModPerm, type ThreadSort } from "@/domain/network/communities";
 import { communityApi, type MemberAction } from "@/services/network/client";
 import { relativeTime } from "@/lib/format";
@@ -14,7 +14,7 @@ import { Modal } from "@/components/common/Modal";
 import { EmptyState, PageLoading } from "@/components/common/States";
 import { toast } from "@/components/feedback/Toast";
 import { Menu, type MenuItem } from "@/components/network/FeedCard";
-import { BackButton, CommunityAvatar, CommunitySheet, ModuleChip, PrivacyChip } from "@/components/network/community";
+import { BackButton, CommunityAvatar, CommunitySheet, ModuleChip, PrivacyChip, squarePhoto } from "@/components/network/community";
 import { MemberAvatar, memberHref } from "@/components/network/parts";
 import { AddMembersSheet, BanSheet, heldToast, ModTools, PermsSheet, permWords } from "@/components/network/moderation";
 import { ShareButton } from "@/wonderworks/listing/ShareButton";
@@ -38,6 +38,9 @@ function CommunityPage({ id }: { id: string }) {
   const [failed, setFailed] = useState("");
   const [editing, setEditing] = useState(false);
   const [writing, setWriting] = useState(false);
+  // Its photo (owner, 2026-11-23): chosen here, squared and shrunk in the browser, then sent.
+  const pickPhoto = () => (document.getElementById("community-photo") as HTMLInputElement | null)?.click();
+  const [sending, setSending] = useState(false);
   const load = useCallback(() => {
     communityApi
       .get(id, sort)
@@ -67,7 +70,8 @@ function CommunityPage({ id }: { id: string }) {
     }
   };
   const menu: MenuItem[] = [
-    ...(allowed("settings") ? [{ label: "Edit community", onPick: () => setEditing(true) }] : []),
+    ...(allowed("settings") ? [{ label: "Edit community", onPick: () => setEditing(true) }, { label: c.photo ? "Change photo" : "Add a photo", onPick: () => pickPhoto() }] : []),
+    ...(allowed("settings") && c.photo ? [{ label: "Remove photo", onPick: () => act(async () => setC((await communityApi.removePhoto(id)).community), "Photo removed") }] : []),
     ...(role === "moderator" ? [{ label: "Step down as moderator", onPick: () => window.confirm("Stop moderating? You stay a member.") && act(() => communityApi.stepDown(id), "You're a member now") }] : []),
     ...(c.me && c.me.role !== "owner" && c.me.status !== "invited" ? [{ label: c.me.status === "pending" ? "Cancel request" : "Leave community", onPick: () => act(() => communityApi.leave(id), "Done") }] : []),
     ...(can.manage(role)
@@ -89,7 +93,36 @@ function CommunityPage({ id }: { id: string }) {
       <header className="mb-3 overflow-hidden rounded-[18px] border border-line bg-surface">
         <div className="h-16 bg-gradient-to-r from-brand-500/90 via-brand-400/80 to-pink-400/80" aria-hidden />
         <div className="-mt-7 flex items-end gap-3 px-4">
-          <CommunityAvatar c={c} size={60} className="ring-4 ring-surface" />
+          {allowed("settings") ? (
+            <button type="button" onClick={() => pickPhoto()} aria-label={c.photo ? "Change the community's photo" : "Add a photo for the community"} className="relative shrink-0 rounded-[28%]">
+              <CommunityAvatar c={c} size={60} className="ring-4 ring-surface" />
+              <span aria-hidden className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full bg-surface text-ink-2 shadow ring-1 ring-line">
+                {sending ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
+              </span>
+            </button>
+          ) : (
+            <CommunityAvatar c={c} size={60} className="ring-4 ring-surface" />
+          )}
+          <input
+            id="community-photo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/*"
+            hidden
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              setSending(true);
+              try {
+                setC(await communityApi.setPhoto(id, await squarePhoto(file)));
+                toast.success("Photo changed");
+              } catch (err) {
+                toast.error("Couldn't change the photo", (err as Error).message);
+              } finally {
+                setSending(false);
+              }
+            }}
+          />
           <div className="ml-auto flex items-center gap-1.5 pb-1">
             {!c.me ? (
               <Button size="sm" onClick={() => act(() => communityApi.join(id), c.joinPolicy === "approval" ? "Request sent" : `You joined ${c.name}`)}>

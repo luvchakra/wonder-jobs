@@ -4,7 +4,7 @@ import { ImagePlus, Loader2, X } from "lucide-react";
 import { moduleById } from "@/modules/registry";
 import { ListingCard } from "./ListingCard";
 import { communityApi, networkApi, type PostAudience } from "@/services/network/client";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { Community } from "@/domain/network/communities";
 import { AUDIENCE_SEEN } from "./audience";
 import { usePostTarget, type PostAbout } from "@/wonderworks/chrome/postTarget";
@@ -51,6 +51,7 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
   // Where it goes (owner, 2026-11-22: modules in communities): the member's feed, or one of their communities, as a
   // discussion with a title. Shown only to members of a community; on a community's own pages it starts there.
   const pathname = usePathname();
+  const router = useRouter();
   const here = /^\/app\/network\/communities\/(cm_[A-Za-z0-9_-]+)/.exec(pathname ?? "")?.[1] ?? "";
   const [places, setPlaces] = useState<Community[]>([]);
   const [to, setTo] = useState<string>("feed");
@@ -117,16 +118,17 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
     setBusy(true);
     try {
       if (place) {
-        await communityApi.discuss(place.id, title.trim(), text.trim(), about ? { page: about.page, title: about.title } : null);
+        const { discussion } = await communityApi.discuss(place.id, title.trim(), text.trim(), about ? { page: about.page, title: about.title } : null);
         posted.current = false; // photos stay with feed posts; any chosen are taken back on close
-        toast.success(`Posted in ${place.name}`, "It starts a discussion there.");
+        // The toast leads straight to what was just made (owner, 2026-11-23).
+        toast.success(`Posted in ${place.name}`, "It starts a discussion there.", { label: "View discussion", onClick: () => router.push(`/app/network/communities/${place.id}/${discussion.id}`) });
         onClose();
         return;
       }
-      await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}), ...(photos.length ? { media: photos.map((p) => p.id!) } : {}) });
+      const { id: postId } = await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}), ...(photos.length ? { media: photos.map((p) => p.id!) } : {}) });
       posted.current = true;
       bump();
-      toast.success("Posted", AUDIENCE_SEEN[audience]);
+      toast.success("Posted", AUDIENCE_SEEN[audience], { label: "View post", onClick: () => router.push(`/app/network?post=${encodeURIComponent(postId)}`) });
       onClose();
     } catch (e) {
       toast.error("Couldn't post", (e as Error).message);

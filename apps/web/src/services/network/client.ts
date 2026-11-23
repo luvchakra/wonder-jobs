@@ -93,7 +93,7 @@ export const networkApi = {
   send: (connectionId: string, body: string) => call<{ message: NetMessage }>(`/api/network/threads/${encodeURIComponent(connectionId)}`, { method: "POST", json: { body, confirmed: true } }),
   updates: () => call<{ updates: NetUpdate[] }>("/api/network/updates"),
   // The composer shows exactly what is posted and to whom, so Post is the confirmation.
-  post: (text: string, audience: PostAudience, extra: { about?: { page: string; title: string }; module?: string; media?: string[] } = {}) => call("/api/network/updates", { method: "POST", json: { text, audience, ...extra, confirmed: true } }),
+  post: (text: string, audience: PostAudience, extra: { about?: { page: string; title: string }; module?: string; media?: string[] } = {}) => call<{ id: string }>("/api/network/updates", { method: "POST", json: { text, audience, ...extra, confirmed: true } }),
   deleteUpdate: (id: string) => call(`/api/network/updates?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
   reportUpdate: (id: string, reason: string) => call<{ repeated: boolean }>("/api/network/updates", { method: "POST", json: { action: "report", id, reason } }),
   /** A post's attached listing as its page shows it now; asked once per page while the app is open. */
@@ -157,6 +157,15 @@ export const communityApi = {
   setAutoMod: (id: string, rules: Partial<AutoMod>) => call<{ automod: AutoMod }>(cm(id), { method: "POST", json: { action: "automod", rules } }),
   queue: (id: string) => call<{ queue: QueueItem[] }>(`${cm(id)}/mod?view=queue`),
   log: (id: string) => call<{ log: ModLogEntry[] }>(`${cm(id)}/mod?view=log`),
+  setPhoto: async (id: string, photo: Blob) => {
+    const body = new FormData();
+    body.append("file", photo, "community.jpg");
+    const res = await fetch(`${cm(id)}/photo`, { method: "POST", body, credentials: "same-origin" });
+    const out = (await res.json().catch(() => ({}))) as { community?: Community; error?: string };
+    if (!res.ok || !out.community) throw new Error(out.error ?? "Couldn't change the photo.");
+    return out.community;
+  },
+  removePhoto: (id: string) => call<{ community: Community }>(`${cm(id)}/photo`, { method: "DELETE" }),
   review: (threadId: string, target: string, action: "approve" | "remove", reason = "") => call(dz(threadId), { method: "POST", json: { action: "review", target, do: action, reason } }),
   discuss: (id: string, title: string, body: string, about: { page: string; title: string } | null = null) => call<{ discussion: Discussion }>(cm(id), { method: "POST", json: { action: "discuss", title, body, about, confirmed: true } }),
   read: (id: string) => call<{ community: Community; discussion: Discussion; replies: Reply[] }>(dz(id)),

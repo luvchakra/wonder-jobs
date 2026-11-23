@@ -46,6 +46,8 @@ export interface Community extends CommunityInput {
   queue?: number;
   /** For moderators who may change settings: the community's AutoMod rules. */
   automod?: AutoMod;
+  /** Its own photo's address (owner, 2026-11-23), when it has one; else its letter mark shows. */
+  photo?: string;
 }
 
 export interface CommunityMember {
