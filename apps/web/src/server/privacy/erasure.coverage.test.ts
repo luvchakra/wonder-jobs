@@ -90,6 +90,8 @@ const ERASED_BY: Record<string, string> = {
   network_replies: "communities",
   network_votes: "communities",
   network_thread_marks: "communities",
+  network_community_reports: "communities",
+  network_mod_log: "communities",
   marketplace_listings: "marketplace",
   marketplace_photos: "marketplace",
   marketplace_threads: "marketplace",

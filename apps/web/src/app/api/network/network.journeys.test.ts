@@ -34,6 +34,7 @@ import * as contactRoute from "./threads/[id]/contact/route";
 import * as communitiesRoute from "./communities/route";
 import * as communityRoute from "./communities/[id]/route";
 import * as communityMembersRoute from "./communities/[id]/members/route";
+import * as communityModRoute from "./communities/[id]/mod/route";
 import * as discussionRoute from "./discussions/[id]/route";
 
 /* ---- helpers ------------------------------------------------------------------------------------------------ */
@@ -150,6 +151,7 @@ describe("signed out", () => {
       [communitiesRoute.GET, "GET"], [communitiesRoute.POST, "POST"],
       [communityRoute.GET, "GET"], [communityRoute.POST, "POST"], [communityRoute.PATCH, "PATCH"], [communityRoute.DELETE, "DELETE"],
       [communityMembersRoute.GET, "GET"],
+      [communityModRoute.GET, "GET"],
       [discussionRoute.GET, "GET"], [discussionRoute.POST, "POST"], [discussionRoute.DELETE, "DELETE"],
     ];
     for (const [r, method] of routes) {
@@ -165,7 +167,7 @@ describe("signed out", () => {
     const { join: path } = await import("node:path");
     const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path(dir, e.name)) : e.name === "route.ts" ? [path(dir, e.name)] : []));
     const found = walk(__dirname).map((f) => f.slice(__dirname.length + 1).replace(/\\/g, "/")).sort();
-    expect(found).toEqual(["communities/[id]/members/route.ts", "communities/[id]/route.ts", "communities/route.ts", "connections/[id]/route.ts", "connections/route.ts", "discussions/[id]/route.ts", "me/route.ts", "media/[id]/route.ts", "media/route.ts", "people/[id]/photo/route.ts", "people/[id]/route.ts", "people/route.ts", "preview/route.ts", "threads/[id]/contact/route.ts", "threads/[id]/route.ts", "threads/route.ts", "updates/[id]/route.ts", "updates/route.ts"]);
+    expect(found).toEqual(["communities/[id]/members/route.ts", "communities/[id]/mod/route.ts", "communities/[id]/route.ts", "communities/route.ts", "connections/[id]/route.ts", "connections/route.ts", "discussions/[id]/route.ts", "me/route.ts", "media/[id]/route.ts", "media/route.ts", "people/[id]/photo/route.ts", "people/[id]/route.ts", "people/route.ts", "preview/route.ts", "threads/[id]/contact/route.ts", "threads/[id]/route.ts", "threads/route.ts", "updates/[id]/route.ts", "updates/route.ts"]);
   });
 });
 
