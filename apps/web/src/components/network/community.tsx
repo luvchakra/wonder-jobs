@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Globe2, Lock } from "lucide-react";
 import { MODULES, isLive, moduleById } from "@/modules/registry";
-import { LIMITS, type Community, type CommunityInput } from "@/domain/network/communities";
+import { communityInitial, communityTone, LIMITS, type Community, type CommunityInput } from "@/domain/network/communities";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/common/Button";
 import { Field, Input, Select, Textarea } from "@/components/common/Input";
@@ -11,13 +11,13 @@ import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 
 const TONES = ["from-brand-500 to-pink-400", "from-sky-500 to-brand-500", "from-emerald-500 to-sky-500", "from-amber-500 to-pink-500", "from-fuchsia-500 to-brand-600", "from-teal-500 to-emerald-500"];
-const toneOf = (id: string) => TONES[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % TONES.length];
+const toneOf = (id: string) => TONES[communityTone(id)];
 
 /** A community's mark: its first letter on a gradient tile, the same colour every time. */
 export function CommunityAvatar({ c, size = 44, className }: { c: Pick<Community, "id" | "name">; size?: number; className?: string }) {
   return (
     <span aria-hidden style={{ width: size, height: size, fontSize: size * 0.42 }} className={cn("grid shrink-0 place-items-center rounded-[28%] bg-gradient-to-br font-semibold text-white", toneOf(c.id), className)}>
-      {c.name.trim().charAt(0).toUpperCase() || "#"}
+      {communityInitial(c.name)}
     </span>
   );
 }

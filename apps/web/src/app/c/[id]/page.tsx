@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const c = await communityCard(id, true);
   if (!c) return { title: "A community on WonderWorks", robots: { index: false } };
   const description = [`${c.members} member${c.members === 1 ? "" : "s"}`, excerpt(c.about, 160)].filter(Boolean).join(" — ");
-  return { title: `${c.name} · community`, description, robots: { index: false }, openGraph: { title: c.name, description, type: "website", siteName: "WonderWorks" }, twitter: { card: "summary", title: c.name, description } };
+  return { title: `${c.name} · community`, description, robots: { index: false }, openGraph: { title: c.name, description, type: "website", siteName: "WonderWorks" }, twitter: { card: "summary_large_image", title: c.name, description } };
 }
 
 /**
