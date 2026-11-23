@@ -1,7 +1,8 @@
 /**
  * WonderWorks Network's own picture (owner, 2026-11-22: "give a unique picture for network, put the same in both the
- * places"): three people on an orbit, each joined to the member at its centre. Drawn in currentColor, so it sits on the
- * brand gradient in white; used for the top bar's Network icon and the quick actions' Network button.
+ * places"): three people on an orbit, each joined to the member at its centre. Drawn in currentColor: brand purple on
+ * white (owner, 2026-11-23: "invert the colours for network icon"), in the top bar's Network icon and the quick actions'
+ * Network button.
  */
 export function NetworkMark({ className }: { className?: string }) {
   return (

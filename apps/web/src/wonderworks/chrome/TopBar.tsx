@@ -23,7 +23,7 @@ import { NETWORK_HREF } from "./nav";
 import { NetworkMark } from "@/wonderworks/brand/NetworkMark";
 import { LeaveNetwork } from "./LeaveNetwork";
 import { NotificationBell } from "./NotificationBell";
-import { NetworkBar } from "@/components/network/NetworkBell";
+import { MessagesLink, NetworkBar } from "@/components/network/NetworkBell";
 import { useMediaQuery } from "@/lib/motion";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
@@ -195,7 +195,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   }
   if (wide) return null;
   return (
-    <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 lg:hidden items-center gap-2 border-b md:gap-3 border-line bg-surface/85 px-4 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none md:px-6">
+    <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 lg:hidden items-center gap-1 border-b md:gap-3 border-line bg-surface/85 px-3 md:px-6 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none">
       {/* Phones (owner, 2026-10-29): the avatar on the left (it turns over to the WonderWorks mark now and then; there's no
           separate logo), the kind menu in the centre, the bell on the right. Tablet and desktop (owner, 2026-11-06: "design
           the tablet and desktop ui"): the sidebar already carries the logo, so the kind menu starts at the content's left
@@ -217,7 +217,14 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
       {/* The bell opens Notifications, a page with two tabs: what happened, and what needs you (Needs attention, counted
           on the badge). Ask Wonder is under You, and ⌘K on a computer. */}
       {/* On My network the bar carries the network's own icons (owner, 2026-11-22): Messages, then a bell for invitations. */}
-      {onNetwork ? <NetworkBar /> : <NotificationBell />}
+      {onNetwork ? (
+        <NetworkBar />
+      ) : (
+        <div className="flex items-center gap-0.5">
+          <MessagesLink />
+          <NotificationBell />
+        </div>
+      )}
 
       <div className="relative order-[-3] md:order-none" ref={profileRef}>
         <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="flex items-center rounded-full p-1 hover:bg-bg-soft">
@@ -240,7 +247,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
 function OpenNetwork() {
   return (
     <Link href={NETWORK_HREF} aria-label="Open my network" title="My network" className="order-[-2] grid size-10 shrink-0 place-items-center rounded-full hover:bg-bg-soft md:hidden">
-      <span aria-hidden className="wj-gradient-bg grid size-8 place-items-center rounded-full text-white shadow-sm">
+      <span aria-hidden className="grid size-8 place-items-center rounded-full border border-line bg-surface text-brand-600 shadow-sm">
         <NetworkMark className="size-[22px]" />
       </span>
     </Link>
