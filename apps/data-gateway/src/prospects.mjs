@@ -292,6 +292,9 @@ export function channelItem(listing, source) {
     language: language && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(language) ? language.toLowerCase() : null,
     location: { text: listing.location || null, country: countryOf(source) },
     contactUrl: null,
+    // WJ-870: a stored channel row holds no address; only a live provider reads one from the channel's own text.
+    contactEmail: null,
+    contactEmailSource: null,
     description: listing.description ? listing.description.slice(0, 600) : null,
     ...(type === "event" ? { event: { startDate: day(a.startDate), endDate: day(a.endDate), online: a.online === true || a.online === "true" ? true : a.online === false || a.online === "false" ? false : null } } : {}),
     source: sourceOf(source, listing),

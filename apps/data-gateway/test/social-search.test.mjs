@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { facebook, instagram, linkedin, statedAudience, statedNumber, MIN_INSTAGRAM_FOLLOWERS } from "../src/providers/social-search.mjs";
+import { publishedEmail } from "../src/providers/shared.mjs";
 
 const PLAN = { kind: "channel", query: "parenting", categoryWords: [], channelTypes: [], locations: [{ text: "Bangalore", country: "IN", lat: null, lon: null }], languages: [], minAudience: null, employeeRanges: [], industries: [] };
 
@@ -86,4 +87,24 @@ test("nothing is asked without words to search for", async () => {
   const out = await linkedin.search({ ...PLAN, query: "", categoryWords: [], locations: [] }, ctx);
   assert.deepEqual(out, { items: [], next: null });
   assert.equal(ctx.calls.length, 0);
+});
+
+// WJ-870 (owner, 2026-11-23): an enquiry address is returned only where the page wrote one in its own profile text.
+test("a published address is read from the page's own text, and nothing is guessed", async () => {
+  const { items } = await instagram.search(PLAN, ctxFor([
+    { url: "https://www.instagram.com/momsofblr/", title: "Moms of Bangalore (@momsofblr)", description: "25K Followers, 300 Following - Collabs: Hello@MomsOfBlr.in. See Instagram photos" },
+    { url: "https://www.instagram.com/tidyhome/", title: "Tidy Home (@tidyhome)", description: "12K Followers, 10 Following, 90 Posts" },
+  ]));
+  assert.deepEqual(items.map((i) => [i.name, i.contactEmail, i.contactEmailSource]), [
+    ["Moms of Bangalore", "hello@momsofblr.in", "profile text in the search result"],
+    ["Tidy Home", null, null],
+  ]);
+});
+
+test("publishedEmail keeps a real address and drops look-alikes", () => {
+  assert.equal(publishedEmail("Write to Press@Example-Studio.co.uk for features."), "press@example-studio.co.uk");
+  assert.equal(publishedEmail("first a@b.io then c@d.io"), "a@b.io");
+  for (const text of ["no address here", "noreply@studio.com", "me@example.com", "logo@2x.png", "user at site dot com", "@handle", "", null, 42]) {
+    assert.equal(publishedEmail(text), null, String(text));
+  }
 });

@@ -31,6 +31,24 @@ export async function callJson(ctx, url, init = {}) {
 export const str = (v, max) => (typeof v === "string" && v.trim() ? plainText(v).slice(0, max) || null : null);
 export const count = (v) => { const n = typeof v === "number" ? v : typeof v === "string" && /^\d{1,15}$/.test(v) ? Number(v) : NaN; return Number.isInteger(n) && n >= 0 ? n : null; };
 export const list = (v) => (Array.isArray(v) ? v : []);
+/**
+ * WJ-870 (owner, 2026-11-23): an enquiry address a channel itself published in its own public text (a channel's
+ * description, a profile line shown in a search result), or null. Only read from that text: never looked up, guessed or
+ * built from a name. The first plausible address; not a no-reply mailbox, an example or tooling host, or an image
+ * file name that merely looks like one ("logo@2x.png").
+ */
+const EMAIL_IN_TEXT = /[a-z0-9][a-z0-9._%+-]{0,63}@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}/i;
+export function publishedEmail(text) {
+  if (typeof text !== "string") return null;
+  const found = EMAIL_IN_TEXT.exec(text.slice(0, 6000));
+  if (!found) return null;
+  const email = found[0].toLowerCase();
+  if (email.length > 254) return null;
+  const [local, host] = email.split("@");
+  if (/^(no-?reply|do-?not-?reply|postmaster|mailer-daemon|abuse)$/.test(local)) return null;
+  if (/(^|\.)(example\.(com|org|net)|sentry\.io|wixpress\.com)$/.test(host) || /\.(png|jpe?g|gif|webp|svg)$/.test(host)) return null;
+  return email;
+}
 /** A public https link a provider states, or null (never a link with a login in it, never another scheme). */
 export function httpsUrl(v) {
   if (typeof v !== "string" || !v.trim()) return null;

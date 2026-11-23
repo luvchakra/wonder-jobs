@@ -16,7 +16,7 @@
  * when the result states one (never estimated). Nothing is read from the page itself. Terms pending: Brave's Search API
  * terms on storing results and passing them to another product.
  */
-import { ProviderError, callJson, list, placeOf, str, wordsOf } from "./shared.mjs";
+import { ProviderError, callJson, list, placeOf, publishedEmail, str, wordsOf } from "./shared.mjs";
 
 const API = "https://api.search.brave.com/res/v1/web/search";
 /** Brave answers at most 20 results a call and an offset of 0-9 pages. */
@@ -127,10 +127,13 @@ function makeProvider({ id, label, name, site }) {
         seen.add(page.key);
         const title = str(r.title, 300)?.replace(rules.titleCut, "").trim();
         if (!title) continue;
+        // WJ-870: an enquiry address the page wrote in its own profile text, as the search result shows it.
+        const contactEmail = publishedEmail(typeof r.description === "string" ? r.description : null);
         items.push({
           id: `${id}_${page.key}`.slice(0, 120), kind: "channel", channelType: page.channelType, name: title.slice(0, 200), url: page.url,
           topics: [], audience: page.audience ? { value: page.audience.value, unit: page.audience.unit, asOf: at.slice(0, 10) } : null,
-          language: null, location: { text: null, country: null }, contactUrl: null, description: str(r.description, 600),
+          language: null, location: { text: null, country: null }, contactUrl: null,
+          contactEmail, contactEmailSource: contactEmail ? "profile text in the search result" : null, description: str(r.description, 600),
           source: { id, provider: id, name, url: page.url, termsPending: true }, observedAt: at,
         });
       }

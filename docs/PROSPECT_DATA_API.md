@@ -204,6 +204,8 @@ A channel result has the same envelope and these fields in place of the business
   "language": "en",
   "location": { "text": null, "country": "IN" },
   "contactUrl": null,
+  "contactEmail": null,
+  "contactEmailSource": null,
   "description": "...",
   "source": { "id": "youtube", "provider": "youtube", "name": "YouTube Data API", "url": "https://www.youtube.com/@example", "termsPending": true },
   "observedAt": "2026-11-11T13:00:00Z"
