@@ -157,6 +157,15 @@ export const communityApi = {
   setAutoMod: (id: string, rules: Partial<AutoMod>) => call<{ automod: AutoMod }>(cm(id), { method: "POST", json: { action: "automod", rules } }),
   queue: (id: string) => call<{ queue: QueueItem[] }>(`${cm(id)}/mod?view=queue`),
   log: (id: string) => call<{ log: ModLogEntry[] }>(`${cm(id)}/mod?view=log`),
+  setPhoto: async (id: string, photo: Blob) => {
+    const body = new FormData();
+    body.append("file", photo, "community.jpg");
+    const res = await fetch(`${cm(id)}/photo`, { method: "POST", body, credentials: "same-origin" });
+    const out = (await res.json().catch(() => ({}))) as { community?: Community; error?: string };
+    if (!res.ok || !out.community) throw new Error(out.error ?? "Couldn't change the photo.");
+    return out.community;
+  },
+  removePhoto: (id: string) => call<{ community: Community }>(`${cm(id)}/photo`, { method: "DELETE" }),
   review: (threadId: string, target: string, action: "approve" | "remove", reason = "") => call(dz(threadId), { method: "POST", json: { action: "review", target, do: action, reason } }),
   discuss: (id: string, title: string, body: string, about: { page: string; title: string } | null = null) => call<{ discussion: Discussion }>(cm(id), { method: "POST", json: { action: "discuss", title, body, about, confirmed: true } }),
   read: (id: string) => call<{ community: Community; discussion: Discussion; replies: Reply[] }>(dz(id)),

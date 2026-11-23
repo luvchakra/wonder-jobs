@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { brandMarkDataUri } from "@/server/brandMark";
-import { communityCard } from "@/server/network/communities";
+import { communityCard, communityPhoto } from "@/server/network/communities";
 import { communityInitial, communityTone } from "@/domain/network/communities";
 
 export const runtime = "nodejs";
@@ -30,6 +30,8 @@ export default async function SharedCommunityImage({ params }: { params: Promise
   const { id } = await params;
   const c = await communityCard(id, true).catch(() => null);
   const [from, to] = TONES[c ? communityTone(c.id) : 0];
+  // Its own photo when it has one (owner, 2026-11-23), else its letter on its colour.
+  const photo = c?.photoAt ? await communityPhoto(c.id, true).catch(() => null) : null;
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 72, background: "linear-gradient(140deg, #1E1B4B 0%, #312E81 55%, #5B21B6 100%)", color: "#ffffff" }}>
@@ -43,7 +45,11 @@ export default async function SharedCommunityImage({ params }: { params: Promise
         </div>
         {c ? (
           <div style={{ display: "flex", alignItems: "center", gap: 40 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 180, height: 180, borderRadius: 50, background: `linear-gradient(135deg, ${from} 0%, ${to} 100%)`, fontSize: 96, fontWeight: 700, boxShadow: "0 0 0 8px rgba(255,255,255,0.12)" }}>{communityInitial(c.name)}</div>
+            {photo ? (
+              <img src={`data:${photo.mime};base64,${photo.bytes.toString("base64")}`} alt="" width={180} height={180} style={{ width: 180, height: 180, borderRadius: 50, objectFit: "cover", boxShadow: "0 0 0 8px rgba(255,255,255,0.12)" }} />
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 180, height: 180, borderRadius: 50, background: `linear-gradient(135deg, ${from} 0%, ${to} 100%)`, fontSize: 96, fontWeight: 700, boxShadow: "0 0 0 8px rgba(255,255,255,0.12)" }}>{communityInitial(c.name)}</div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
               <span style={{ fontSize: c.name.length > 32 ? 56 : 68, fontWeight: 700, lineHeight: 1.08, letterSpacing: -2 }}>{clip(c.name, 60)}</span>
               <div style={{ display: "flex", gap: 14, marginTop: 26 }}>

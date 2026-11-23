@@ -382,3 +382,27 @@ describe("sharing a community", () => {
     expect(d.about).toEqual({ page: `/app/network/communities/${priv.id}`, title: "Bank CISOs", module: "" });
   });
 });
+
+describe("a community's photo", () => {
+  const jpeg = () => Buffer.concat([Buffer.from([0xff, 0xd8]), Buffer.from([0xff, 0xe1, 0x00, 0x08]), Buffer.from("GPS!!!"), Buffer.from([0xff, 0xdb, 0x00, 0x04, 0x00, 0x00]), Buffer.from([0xff, 0xda, 0x00, 0x02, 0x11, 0x22, 0xff, 0xd9])]);
+  it("its settings moderators set and remove it; the network sees it, the open web only a public one's", async () => {
+    await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    const pub = await C.createCommunity(asha, { name: "Identity people" }, true);
+    const priv = await C.createCommunity(asha, { name: "Bank CISOs", visibility: "private" }, true);
+    await C.joinCommunity(kunal, pub.id);
+    await expect(C.setCommunityPhoto(kunal, pub.id, jpeg(), "image/jpeg")).rejects.toThrow(/owner/);
+    await expect(C.setCommunityPhoto(asha, pub.id, Buffer.from("%PDF-1.4"), "application/pdf")).rejects.toThrow(/JPEG, PNG or WebP/);
+    const after = await C.setCommunityPhoto(asha, pub.id, jpeg(), "image/jpeg");
+    expect(after.photo).toMatch(new RegExp(`^/api/network/communities/${pub.id}/photo\\?v=\\d+$`));
+    const p = await C.memberCommunityPhoto(kunal, pub.id);
+    expect(p?.mime).toBe("image/jpeg");
+    expect(p?.bytes.includes(Buffer.from("GPS!!!"))).toBe(false); // its metadata is gone
+    expect(await C.communityPhoto(pub.id, true)).not.toBeNull();
+    await C.setCommunityPhoto(asha, priv.id, jpeg(), "image/jpeg");
+    expect(await C.memberCommunityPhoto(kunal, priv.id)).not.toBeNull(); // on the network, as its name
+    expect(await C.communityPhoto(priv.id, true)).toBeNull(); // never off it
+    expect((await C.removeCommunityPhoto(asha, pub.id)).photo).toBeUndefined();
+    expect(await C.memberCommunityPhoto(kunal, pub.id)).toBeNull();
+  });
+});
