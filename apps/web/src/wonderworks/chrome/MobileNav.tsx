@@ -16,6 +16,7 @@ const PostSheet = dynamic(() => import("@/components/network/PostSheet").then((m
 const NewMessageSheet = dynamic(() => import("@/components/network/NewMessageSheet").then((m) => m.NewMessageSheet), { ssr: false });
 import { useModuleNav, useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { useNetworkMode } from "./networkMode";
 import { useLeaveNetwork } from "./LeaveNetwork";
 import { NetworkMark } from "@/wonderworks/brand/NetworkMark";
 
@@ -49,7 +50,7 @@ export function MobileNav() {
   const slots = useChromeSlots();
   const selected = useSelectedModule();
   const entry = slots.postFor?.(selected) ?? null;
-  const onNetwork = pathname === NETWORK_HREF || pathname.startsWith(`${NETWORK_HREF}/`);
+  const onNetwork = useNetworkMode();
   const moduleEntry = entry && !onNetwork && pathname !== entry.href.split("?")[0] ? entry : null;
   // On Messages, the + also offers a new message to a connection (owner, 2026-11-21).
   const onMessages = pathname === `${NETWORK_HREF}/messages`;

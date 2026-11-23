@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Bell, Bot, ChartNoAxesColumn, Database, Download, KeyRound, LifeBuoy, LogOut, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FlipAvatar } from "./FlipAvatar";
@@ -19,6 +18,7 @@ import dynamic from "next/dynamic";
 const CommandPalette = dynamic(() => import("./CommandPalette").then((m) => m.CommandPalette), { ssr: false });
 import { useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { useNetworkMode } from "./networkMode";
 import { NETWORK_HREF } from "./nav";
 import { NetworkMark } from "@/wonderworks/brand/NetworkMark";
 import { LeaveNetwork } from "./LeaveNetwork";
@@ -51,8 +51,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   const cmd = useUIStore((s) => s.commandOpen);
   const setCmd = useUIStore((s) => s.setCommandOpen);
   const slots = useChromeSlots();
-  const pathname = usePathname();
-  const onNetwork = pathname === NETWORK_HREF || pathname.startsWith(`${NETWORK_HREF}/`);
+  const onNetwork = useNetworkMode();
   const dna = useCareerStore((s) => s.dna);
   const menu = useUIStore((s) => s.menu);
   const setMenu = useUIStore((s) => s.setMenu);
