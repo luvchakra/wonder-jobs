@@ -3,7 +3,7 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowBigDown, ArrowBigUp, ArrowDown, Bell, ChevronRight, Lock, MessageCircle, MoreHorizontal, Pin, Plus } from "lucide-react";
-import { can, layOut, LIMITS, type Community, type Discussion, type Reply, type ReplySort, type Vote } from "@/domain/network/communities";
+import { can, hasPerm, layOut, LIMITS, type Community, type Discussion, type Reply, type ReplySort, type Vote } from "@/domain/network/communities";
 import { useBottomBar } from "@/wonderworks/chrome/MobileNav";
 import { communityApi } from "@/services/network/client";
 import { relativeTime } from "@/lib/format";
@@ -16,6 +16,7 @@ import { BackButton, CommunityAvatar } from "@/components/network/community";
 import { ListingCard } from "@/components/network/ListingCard";
 import { moduleById } from "@/modules/registry";
 import { MemberAvatar, memberHref } from "@/components/network/parts";
+import { heldToast, RemoveSheet, StateNote } from "@/components/network/moderation";
 
 /**
  * A discussion (owner, 2026-11-22: "discussion threads should be easy to follow even when the discussions are long and
@@ -38,6 +39,8 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
   const [answering, setAnswering] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [reporting, setReporting] = useState<{ id: string; who: string } | null>(null);
+  // A moderator removing someone else's post, with a reason they're told.
+  const [removing, setRemoving] = useState<{ id: string; what: "discussion" | "reply" } | null>(null);
   const newSeen = useRef(0);
 
   const load = useCallback(() => {
@@ -91,6 +94,8 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
   const role = community.me?.status === "member" ? community.me.role : undefined;
   const member = !!role;
   const canReply = member && (!d.locked || can.moderate(role));
+  // Moderators who review posts: pin, lock, approve, remove with a reason.
+  const reviews = hasPerm(role, community.me?.perms, "posts");
 
   const toggle = (rid: string) => setFolded((f) => (f.has(rid) ? new Set([...f].filter((x) => x !== rid)) : new Set([...f, rid])));
   const nextNew = () => {
@@ -121,10 +126,20 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
   };
   const send = async (body: string, parentId: string | null) => {
     const { reply } = await communityApi.reply(d.id, body, parentId);
+    heldToast(reply.state, reply.why);
     setReplies((rs) => [...(rs ?? []), reply]);
-    setD((x) => (x ? { ...x, replies: x.replies + 1, following: true } : x));
+    setD((x) => (x ? { ...x, replies: x.replies + (reply.state ? 0 : 1), following: true } : x));
     setAnswering(null);
     setTimeout(() => document.getElementById(reply.id)?.scrollIntoView({ behavior: "smooth", block: "center" }), 30);
+  };
+  const approve = async (target: string) => {
+    try {
+      await communityApi.review(d.id, target, "approve");
+      toast.success("Approved");
+      load();
+    } catch (e) {
+      toast.error("Couldn't approve it", (e as Error).message);
+    }
   };
   const remove = async (target: string) => {
     if (!window.confirm(target === d.id ? "Delete this discussion and all its replies?" : "Delete this reply? Replies to it stay.")) return;
@@ -144,8 +159,9 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
   };
   const opMenu: MenuItem[] = [
     ...(d.mine ? [{ label: "Edit", onPick: () => setEditing(d.id) }] : []),
-    ...(can.moderate(role) ? [{ label: d.pinned ? "Unpin" : "Pin to top", onPick: () => void communityApi.moderate(d.id, { pinned: !d.pinned }).then(() => setD({ ...d, pinned: !d.pinned })) }, { label: d.locked ? "Unlock replies" : "Lock replies", onPick: () => void communityApi.moderate(d.id, { locked: !d.locked }).then(() => setD({ ...d, locked: !d.locked })) }] : []),
-    ...(d.mine || can.moderate(role) ? [{ label: "Delete", onPick: () => void remove(d.id) }] : []),
+    ...(reviews && d.state && d.state !== "live" ? [{ label: "Approve", onPick: () => void approve(d.id) }] : []),
+    ...(reviews ? [{ label: d.pinned ? "Unpin" : "Pin to top", onPick: () => void communityApi.moderate(d.id, { pinned: !d.pinned }).then(() => setD({ ...d, pinned: !d.pinned })) }, { label: d.locked ? "Unlock replies" : "Lock replies", onPick: () => void communityApi.moderate(d.id, { locked: !d.locked }).then(() => setD({ ...d, locked: !d.locked })) }] : []),
+    ...(d.mine ? [{ label: "Delete", onPick: () => void remove(d.id) }] : reviews && d.state !== "removed" ? [{ label: "Remove…", onPick: () => setRemoving({ id: d.id, what: "discussion" }) }] : []),
     ...(!d.mine && d.author ? [{ label: "Report", onPick: () => setReporting({ id: d.id, who: d.author!.name }) }] : []),
   ];
 
@@ -169,6 +185,7 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
           {opMenu.length > 0 && <Menu label="Discussion options" items={opMenu} trigger={() => <span className="grid size-9 place-items-center rounded-full text-ink-3 hover:bg-bg-soft"><MoreHorizontal className="size-5" aria-hidden /></span>} />}
         </div>
         <Byline author={d.author} at={d.at} editedAt={d.editedAt} op />
+        <StateNote state={d.state} why={d.why} />
         {editing === d.id ? (
           <Editor start={d.body} title={d.title} onCancel={() => setEditing(null)} onSave={(b, t) => save(d.id, b, t)} max={LIMITS.body} />
         ) : (
@@ -226,7 +243,8 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
           const to = replyingTo ? byId.get(replyingTo) : undefined;
           const menu: MenuItem[] = [
             ...(r.mine && !r.deleted ? [{ label: "Edit", onPick: () => setEditing(r.id) }] : []),
-            ...((r.mine || can.moderate(role)) && !r.deleted ? [{ label: "Delete", onPick: () => void remove(r.id) }] : []),
+            ...(reviews && r.state && r.state !== "live" && r.body ? [{ label: "Approve", onPick: () => void approve(r.id) }] : []),
+            ...(r.mine && !r.deleted ? [{ label: "Delete", onPick: () => void remove(r.id) }] : !r.mine && reviews && !r.deleted && r.state !== "removed" ? [{ label: "Remove…", onPick: () => setRemoving({ id: r.id, what: "reply" }) }] : []),
             ...(!r.mine && r.author && !r.deleted ? [{ label: "Report", onPick: () => setReporting({ id: r.id, who: r.author!.name }) }] : []),
           ];
           return (
@@ -272,12 +290,15 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
                   <div className="ml-9">
                     {editing === r.id ? (
                       <Editor start={r.body} onCancel={() => setEditing(null)} onSave={(b) => save(r.id, b)} max={LIMITS.reply} />
-                    ) : r.deleted || r.hidden ? (
-                      <p className="text-[13px] italic text-ink-3">{r.hidden ? "Hidden: you or they blocked the other." : "This reply was deleted."}</p>
+                    ) : r.deleted || r.hidden || (r.state && !r.body) ? (
+                      <p className="text-[13px] italic text-ink-3">{r.hidden ? "Hidden: you or they blocked the other." : r.deleted ? "This reply was deleted." : r.state === "held" ? "Waiting for a moderator's review." : "Removed by the moderators."}</p>
                     ) : (
-                      <p className="whitespace-pre-line break-words text-[14px] leading-relaxed text-ink [overflow-wrap:anywhere]">{r.body}</p>
+                      <>
+                        <p className="whitespace-pre-line break-words text-[14px] leading-relaxed text-ink [overflow-wrap:anywhere]">{r.body}</p>
+                        <StateNote state={r.state} why={r.why} />
+                      </>
                     )}
-                    {!r.deleted && !r.hidden && (
+                    {!r.deleted && !r.hidden && !r.state && (
                       <div className="-ml-2 mt-0.5 flex items-center gap-0.5">
                         <Votes small score={r.score} mine={r.myVote} disabled={!member} onVote={(v) => castVote(r.id, r.myVote, v)} />
                         {canReply && (
@@ -305,6 +326,19 @@ export default function DiscussionPage({ params }: { params: Promise<{ id: strin
       {/* Join the conversation (owner, 2026-11-22): one bar at the bottom that opens the reply box, instead of a box
           under the post. */}
       <JoinBar canReply={canReply} member={member} locked={d.locked} community={community} onSend={(b) => send(b, null)} />
+      {removing && (
+        <RemoveSheet
+          rules={community.rules}
+          what={removing.what}
+          onClose={() => setRemoving(null)}
+          remove={async (reason) => {
+            await communityApi.removePost(d.id, removing.id, reason);
+            setRemoving(null);
+            toast.success("Removed", "Its author is told why.");
+            load();
+          }}
+        />
+      )}
       {reporting && (
         <ReportSheet
           title="Report this"

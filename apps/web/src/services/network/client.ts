@@ -1,7 +1,7 @@
 "use client";
 import type { MemberView, NetworkProfile, NetworkProfileInput, Reaction } from "@/domain/network/network";
 import type { ContactOffer, ContactView } from "@/domain/contact/contact";
-import type { Community, CommunityInput, CommunityMember, Discussion, Reply, ThreadSort } from "@/domain/network/communities";
+import type { AutoMod, Community, CommunityInput, CommunityMember, Discussion, ModLogEntry, ModPerm, QueueItem, Reply, ThreadSort } from "@/domain/network/communities";
 
 async function call<T>(url: string, init?: RequestInit & { json?: unknown }): Promise<T> {
   const res = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, body: init?.json !== undefined ? JSON.stringify(init.json) : init?.body });
@@ -136,7 +136,7 @@ export const networkApi = {
 
 const cm = (id: string) => `/api/network/communities/${encodeURIComponent(id)}`;
 const dz = (id: string) => `/api/network/discussions/${encodeURIComponent(id)}`;
-export type MemberAction = "approve" | "decline" | "remove" | "ban" | "make_moderator" | "make_member" | "make_owner";
+export type MemberAction = "approve" | "decline" | "remove" | "ban" | "unban" | "make_owner";
 
 /** Communities and discussions on the network. Each write is the member's own press on a screen that shows what goes. */
 export const communityApi = {
@@ -147,8 +147,17 @@ export const communityApi = {
   remove: (id: string) => call(cm(id), { method: "DELETE" }),
   join: (id: string) => call<{ community: Community }>(cm(id), { method: "POST", json: { action: "join" } }),
   leave: (id: string) => call(cm(id), { method: "POST", json: { action: "leave" } }),
-  members: (id: string) => call<{ members: CommunityMember[]; requests: CommunityMember[] }>(`${cm(id)}/members`),
-  act: (id: string, member: string, action: MemberAction) => call(cm(id), { method: "POST", json: { action: "member", member, do: action } }),
+  members: (id: string) => call<{ members: CommunityMember[]; requests: CommunityMember[]; invited: CommunityMember[]; banned: CommunityMember[] }>(`${cm(id)}/members`),
+  act: (id: string, member: string, action: MemberAction, opts: { days?: number; reason?: string } = {}) => call(cm(id), { method: "POST", json: { action: "member", member, do: action, ...opts } }),
+  candidates: (id: string, q = "") => call<{ people: MemberView[] }>(`${cm(id)}/members?invite=${encodeURIComponent(q)}`),
+  invite: (id: string, members: string[]) => call<{ invited: number }>(cm(id), { method: "POST", json: { action: "invite", members, confirmed: true } }),
+  setModerator: (id: string, member: string, perms: ModPerm[] | null) => call(cm(id), { method: "POST", json: { action: "moderator", member, perms } }),
+  answerModInvite: (id: string, accept: boolean) => call<{ community: Community }>(cm(id), { method: "POST", json: { action: "mod_invite", accept } }),
+  stepDown: (id: string) => call<{ community: Community }>(cm(id), { method: "POST", json: { action: "step_down" } }),
+  setAutoMod: (id: string, rules: Partial<AutoMod>) => call<{ automod: AutoMod }>(cm(id), { method: "POST", json: { action: "automod", rules } }),
+  queue: (id: string) => call<{ queue: QueueItem[] }>(`${cm(id)}/mod?view=queue`),
+  log: (id: string) => call<{ log: ModLogEntry[] }>(`${cm(id)}/mod?view=log`),
+  review: (threadId: string, target: string, action: "approve" | "remove", reason = "") => call(dz(threadId), { method: "POST", json: { action: "review", target, do: action, reason } }),
   discuss: (id: string, title: string, body: string, about: { page: string; title: string } | null = null) => call<{ discussion: Discussion }>(cm(id), { method: "POST", json: { action: "discuss", title, body, about, confirmed: true } }),
   read: (id: string) => call<{ community: Community; discussion: Discussion; replies: Reply[] }>(dz(id)),
   reply: (id: string, body: string, parentId: string | null) => call<{ reply: Reply }>(dz(id), { method: "POST", json: { action: "reply", body, parentId, confirmed: true } }),
@@ -157,5 +166,5 @@ export const communityApi = {
   report: (id: string, target: string, reason: string) => call<{ repeated: boolean }>(dz(id), { method: "POST", json: { action: "report", target, reason } }),
   follow: (id: string, on: boolean) => call(dz(id), { method: "POST", json: { action: "follow", on } }),
   moderate: (id: string, change: { pinned?: boolean; locked?: boolean }) => call(dz(id), { method: "POST", json: { action: "moderate", ...change } }),
-  removePost: (id: string, target: string) => call(`${dz(id)}?target=${encodeURIComponent(target)}`, { method: "DELETE" }),
+  removePost: (id: string, target: string, reason = "") => call(`${dz(id)}?target=${encodeURIComponent(target)}${reason ? `&reason=${encodeURIComponent(reason)}` : ""}`, { method: "DELETE" }),
 };

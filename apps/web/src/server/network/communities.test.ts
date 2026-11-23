@@ -60,7 +60,7 @@ describe("communities", () => {
     expect((await C.listDiscussions(kunal, c.id)).map((d) => d.title)).toEqual(["Budget season"]);
   });
 
-  it("moderators act on members, only the owner on moderators; a ban keeps them out; the last owner can't just leave", async () => {
+  it("moderators act within their permissions; a ban keeps them out; the last owner can't just leave", async () => {
     await join(asha, "Asha Rao");
     const kunalId = await join(kunal, "Kunal Chakraborty");
     const rahulId = await join(rahul, "Rahul Sen");
@@ -68,16 +68,134 @@ describe("communities", () => {
     await C.joinCommunity(kunal, c.id);
     await C.joinCommunity(rahul, c.id);
     await expect(C.actOnMember(kunal, c.id, rahulId, "remove")).rejects.toThrow(/moderators/);
-    await C.actOnMember(asha, c.id, kunalId, "make_moderator");
-    await expect(C.actOnMember(kunal, c.id, rahulId, "make_moderator")).rejects.toThrow(/owner/);
-    await C.actOnMember(kunal, c.id, rahulId, "ban");
+    // Invited to moderate with Members only: a moderator once they accept.
+    await C.setModerator(asha, c.id, kunalId, ["members"]);
+    expect((await C.getCommunity(kunal, c.id)).me).toMatchObject({ role: "member", modInvite: ["members"] });
+    expect(told.some((t) => t.tenant === "u-kunal" && /invited to moderate/.test(t.title))).toBe(true);
+    expect((await C.answerModInvite(kunal, c.id, true)).me).toMatchObject({ role: "moderator", perms: ["members"] });
+    await expect(C.setModerator(kunal, c.id, rahulId, ["posts"])).rejects.toThrow(/Everything/);
+    await expect(C.updateCommunity(kunal, c.id, { name: "Renamed" })).rejects.toThrow(/settings/);
+    await C.actOnMember(kunal, c.id, rahulId, "ban", { days: 7, reason: "Spam" });
+    expect(told.some((t) => t.tenant === "u-rahul" && /banned from Identity people for 7 days: Spam/.test(t.title))).toBe(true);
     await expect(C.getCommunity(rahul, c.id)).rejects.toThrow(/isn't available/);
-    expect((await C.joinCommunity(kunal, c.id)).me?.role).toBe("moderator");
+    expect((await C.communityMembers(kunal, c.id)).banned.map((m) => m.member.id)).toEqual([rahulId]);
+    await C.actOnMember(kunal, c.id, rahulId, "unban");
+    expect((await C.getCommunity(rahul, c.id)).me).toBeNull();
+    // Settings too, then step down to a member.
+    await C.setModerator(asha, c.id, kunalId, ["members", "settings"]);
+    await C.updateCommunity(kunal, c.id, { name: "Identity folk" });
+    expect((await C.stepDown(kunal, c.id)).me?.role).toBe("member");
     await expect(C.leaveCommunity(asha, c.id)).rejects.toThrow(/only owner/);
-    await expect(C.updateCommunity(kunal, c.id, { name: "Renamed" })).rejects.toThrow(/owner/);
     await C.actOnMember(asha, c.id, kunalId, "make_owner");
     await C.leaveCommunity(asha, c.id);
     expect((await C.getCommunity(kunal, c.id)).me?.role).toBe("owner");
+    const log = await C.modLog(kunal, c.id);
+    expect(log.map((l) => l.action)).toEqual(expect.arrayContaining(["Invited to moderate", "Became a moderator", "Banned", "Lifted a ban", "Stepped down as moderator", "Made someone owner"]));
+  });
+
+  it("a ban for a time ends by itself", async () => {
+    await join(asha, "Asha Rao");
+    const rahulId = await join(rahul, "Rahul Sen");
+    const c = await C.createCommunity(asha, { name: "Identity people" }, true);
+    await C.joinCommunity(rahul, c.id);
+    await C.actOnMember(asha, c.id, rahulId, "ban", { days: 1 });
+    await table<{ community_id: string; tenant_id: string; banned_until: string }>("network_community_members").update({ community_id: c.id, tenant_id: "u-rahul" }, { banned_until: new Date(Date.now() - 1000).toISOString() });
+    expect((await C.getCommunity(rahul, c.id)).me).toBeNull();
+    expect((await C.joinCommunity(rahul, c.id)).me?.status).toBe("member");
+  });
+
+  it("moderators add members only from their connections, who join with one press or decline", async () => {
+    const ashaId = await join(asha, "Asha Rao");
+    const kunalId = await join(kunal, "Kunal Chakraborty");
+    const rahulId = await join(rahul, "Rahul Sen");
+    await N.requestConnection(asha, kunalId, {}, true);
+    const inbox = await N.myNetwork(kunal);
+    await N.actOnConnection(kunal, inbox.invitations[0]!.connectionId!, "accept");
+    const c = await C.createCommunity(asha, { name: "Bank CISOs", visibility: "private", joinPolicy: "approval" }, true);
+    expect((await C.inviteCandidates(asha, c.id)).map((p) => p.id)).toEqual([kunalId]);
+    await expect(C.inviteMembers(rahul, c.id, [kunalId], true)).rejects.toThrow(/moderators/);
+    expect(await C.inviteMembers(asha, c.id, [kunalId, rahulId], true)).toEqual({ invited: 1 }); // Rahul isn't a connection
+    expect(told.some((t) => t.tenant === "u-kunal" && /Asha Rao invited you to join Bank CISOs/.test(t.title))).toBe(true);
+    expect((await C.getCommunity(kunal, c.id)).me).toMatchObject({ status: "invited" });
+    expect((await C.communityMembers(asha, c.id)).invited.map((m) => m.member.id)).toEqual([kunalId]);
+    expect(await C.inviteCandidates(asha, c.id)).toEqual([]);
+    // Joining accepts, though the community approves members.
+    expect((await C.joinCommunity(kunal, c.id)).me?.status).toBe("member");
+    expect(ashaId).toBeTruthy();
+  });
+});
+
+describe("AutoMod and the mod queue", () => {
+  it("erasing an account leaves no report, invitation or log line naming them", async () => {
+    await join(asha, "Asha Rao");
+    const kunalId = await join(kunal, "Kunal Chakraborty");
+    await join(rahul, "Rahul Sen");
+    const c = await C.createCommunity(asha, { name: "Identity people" }, true);
+    for (const x of [kunal, rahul]) await C.joinCommunity(x, c.id);
+    await C.setModerator(asha, c.id, kunalId, ["everything"]);
+    await C.answerModInvite(kunal, c.id, true);
+    const d = await C.startDiscussion(rahul, c.id, { title: "Hello", body: "" }, true);
+    await C.reportPost(kunal, d.id, "Spam");
+    await C.moderate(kunal, d.id, { pinned: true });
+    await C.eraseCommunities("u-kunal");
+    const rows = [...(await table("network_community_reports").find({ community_id: c.id })), ...(await table("network_mod_log").find({ community_id: c.id }))];
+    expect(JSON.stringify(rows)).not.toContain("u-kunal");
+    expect((await C.modLog(asha, c.id)).length).toBeGreaterThan(0); // what was done stays, without who
+  });
+
+  it("holds a new member's link for review; a moderator approves it and it goes live", async () => {
+    await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    const c = await C.createCommunity(asha, { name: "Identity people" }, true);
+    await C.joinCommunity(kunal, c.id);
+    const d = await C.startDiscussion(kunal, c.id, { title: "Cheap licences", body: "Buy at https://example.com" }, true);
+    expect(d.state).toBe("held");
+    expect((await C.listDiscussions(kunal, c.id)).map((x) => x.state)).toEqual(["held"]); // the author sees it, marked
+    await join(rahul, "Rahul Sen");
+    expect(await C.listDiscussions(rahul, c.id)).toEqual([]); // others don't
+    await expect(C.readDiscussion(rahul, d.id)).rejects.toThrow(/isn't available/);
+    const q = await C.modQueue(asha, c.id);
+    expect(q).toMatchObject([{ id: d.id, kind: "discussion", state: "held" }]);
+    expect((await C.getCommunity(asha, c.id)).queue).toBe(1);
+    await C.modReview(asha, d.id, "approve");
+    expect((await C.listDiscussions(rahul, c.id)).map((x) => x.title)).toEqual(["Cheap licences"]);
+    expect(told.some((t) => t.tenant === "u-kunal" && /was approved/.test(t.title))).toBe(true);
+    expect((await C.modLog(asha, c.id)).map((l) => [l.automod, l.action])).toEqual([[false, "Approved"], [true, "Held for review"]]);
+  });
+
+  it("removes posts with a watched word when told to; moderators change its rules", async () => {
+    await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    const c = await C.createCommunity(asha, { name: "Identity people" }, true);
+    await C.joinCommunity(kunal, c.id);
+    await expect(C.setAutoMod(kunal, c.id, { blockedWords: ["casino"] })).rejects.toThrow(/settings/);
+    expect(await C.setAutoMod(asha, c.id, { blockedWords: ["casino"], blockedAction: "remove", newMemberDays: 0 })).toMatchObject({ blockedWords: ["casino"], blockedAction: "remove" });
+    const d = await C.startDiscussion(asha, c.id, { title: "Welcome", body: "" }, true);
+    const r = await C.replyTo(kunal, d.id, { body: "Visit my casino" }, true);
+    expect(r.state).toBe("removed");
+    // The tree keeps its place for others, without the words.
+    expect((await C.readDiscussion(asha, d.id)).replies[0]).toMatchObject({ body: "Visit my casino", state: "removed" }); // a moderator sees it
+    await join(rahul, "Rahul Sen");
+    expect((await C.readDiscussion(rahul, d.id)).replies[0]).toMatchObject({ body: "", author: null, state: "removed" });
+    expect((await C.readDiscussion(rahul, d.id)).discussion.replies).toBe(0);
+  });
+
+  it("holds what enough members report; a moderator removes it with a reason its author is told", async () => {
+    await join(asha, "Asha Rao");
+    await join(kunal, "Kunal Chakraborty");
+    await join(rahul, "Rahul Sen");
+    const c = await C.createCommunity(asha, { name: "Identity people" }, true);
+    for (const x of [kunal, rahul]) await C.joinCommunity(x, c.id);
+    await C.setAutoMod(asha, c.id, { reportsToHold: 2, newMemberDays: 0 });
+    const d = await C.startDiscussion(kunal, c.id, { title: "Off topic", body: "Hello" }, true);
+    await C.reportPost(rahul, d.id, "Off topic");
+    expect((await C.modQueue(asha, c.id))[0]).toMatchObject({ state: "live", reports: 1, reasons: ["Off topic"] });
+    await C.reportPost(asha, d.id, "Spam");
+    expect((await C.modQueue(asha, c.id))[0]).toMatchObject({ state: "held", reports: 2, why: "Reported by 2 members" });
+    await C.removePost(asha, d.id, "Rule 2: stay on topic");
+    expect(told.some((t) => t.tenant === "u-kunal" && /was removed: Rule 2: stay on topic/.test(t.title))).toBe(true);
+    expect((await C.listDiscussions(kunal, c.id))[0]).toMatchObject({ state: "removed", why: "Rule 2: stay on topic" });
+    expect(await C.modQueue(asha, c.id)).toEqual([]);
   });
 });
 
@@ -135,12 +253,14 @@ describe("discussions", () => {
     expect(read.replies[0]).toMatchObject({ body: "Hi everyone", score: 2, editedAt: expect.any(String) });
     expect(read.discussion).toMatchObject({ pinned: true, locked: true });
     await expect(C.removePost(kunal, r.id)).rejects.toThrow(/isn't yours/);
-    await C.removePost(asha, r.id); // a moderator removes it: its words go, the reply under it stays
-    read = await C.readDiscussion(rahul, d.id);
-    expect(read.replies.map((x) => [x.deleted, x.body, x.author?.name ?? null, x.parentId])).toEqual([
-      [true, "", null, null],
-      [false, "Welcome", "Kunal Chakraborty", r.id],
+    await C.removePost(asha, r.id, "Be kind"); // a moderator removes it: others lose its words, the reply under it stays
+    read = await C.readDiscussion(kunal, d.id);
+    expect(read.replies.map((x) => [x.state ?? "live", x.body, x.author?.name ?? null, x.parentId])).toEqual([
+      ["removed", "", null, null],
+      ["live", "Welcome", "Kunal Chakraborty", r.id],
     ]);
+    // Its author still sees it, with why.
+    expect((await C.readDiscussion(rahul, d.id)).replies[0]).toMatchObject({ state: "removed", body: "Hi everyone", why: "Be kind" });
     expect(under.id).toBe(read.replies[1].id);
     await C.removePost(kunal, d.id); // its author removes the discussion with everything in it
     expect(await table("network_replies").find({ thread_id: d.id })).toEqual([]);
