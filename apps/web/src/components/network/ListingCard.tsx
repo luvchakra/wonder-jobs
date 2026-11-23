@@ -46,7 +46,7 @@ export function ListingCard({ page, fallback, moduleLabel, link = true }: { page
     );
   return (
     <Box link={link} page={page} className={cn("mt-2 block overflow-hidden rounded-[14px] border border-line bg-surface", link && "hover:bg-bg-soft")}>
-      {pic && (
+      {pic && p.image && (
         // eslint-disable-next-line @next/next/no-img-element -- the listing's own preview card, from its public page
         <img src={p.image} alt="" loading="lazy" onError={() => setPic(false)} className="aspect-[1.91/1] w-full border-b border-line bg-surface-2 object-cover" />
       )}

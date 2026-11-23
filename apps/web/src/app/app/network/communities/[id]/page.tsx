@@ -17,6 +17,8 @@ import { Menu, type MenuItem } from "@/components/network/FeedCard";
 import { BackButton, CommunityAvatar, CommunitySheet, ModuleChip, PrivacyChip } from "@/components/network/community";
 import { MemberAvatar, memberHref } from "@/components/network/parts";
 import { AddMembersSheet, BanSheet, heldToast, ModTools, PermsSheet, permWords } from "@/components/network/moderation";
+import { ShareButton } from "@/wonderworks/listing/ShareButton";
+import { excerpt } from "@/wonderworks/listing/share";
 
 type Tab = "discussions" | "members" | "about" | "mod";
 const SORTS: { id: ThreadSort; label: string }[] = [
@@ -100,6 +102,27 @@ function CommunityPage({ id }: { id: string }) {
             ) : (
               <span className="rounded-full bg-brand-50 px-3 py-1.5 text-[12.5px] font-semibold text-brand-700">{role === "owner" ? "Owner" : role === "moderator" ? "Moderator" : "Joined"}</span>
             )}
+            {/* Share (owner, 2026-11-23): a post to your network with the community on it, or WhatsApp, X, Facebook,
+                email, a link. A public community's link opens a page anyone can read; a private one's asks to sign in. */}
+            <ShareButton
+              label={`Share ${c.name}`}
+              title="Share this community"
+              description={c.visibility === "public" ? "Anyone with the link sees its name and what it's about" : "Private: the link asks people to sign in, and shows nothing about it until they're in"}
+              post
+              className="size-9 text-ink-3"
+              build={(origin) => {
+                const url = `${origin}${c.visibility === "public" ? `/c/${c.id}` : `/app/network/communities/${c.id}`}`;
+                const line = `Join ${c.name}, a community on WonderWorks${c.members > 1 ? ` with ${c.members} members` : ""}.`;
+                const about = c.about ? excerpt(c.about, 200) : "";
+                const text = [line, about].filter(Boolean).join("\n\n");
+                return {
+                  url,
+                  page: `/app/network/communities/${c.id}`,
+                  title: c.name,
+                  message: { subject: `${c.name} on WonderWorks`, body: `${text}\n\n${url}`, whatsapp: `${text}\n\n${url}`, text, x: line, caption: `${text}\n\n${url}\n\n#WonderWorks #community` },
+                };
+              }}
+            />
             {menu.length > 0 && (
               <Menu label="Community options" items={menu} trigger={() => <span className="grid size-9 place-items-center rounded-full text-ink-3 hover:bg-bg-soft hover:text-ink"><MoreHorizontal className="size-5" aria-hidden /></span>} />
             )}

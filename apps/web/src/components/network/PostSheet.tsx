@@ -61,10 +61,11 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
       .then((d) => {
         const mine = d.mine.filter((c) => c.me?.status === "member");
         setPlaces(mine);
-        if (here && mine.some((c) => c.id === here)) setTo(here);
+        // Sharing this very community goes to the feed, not into itself.
+        if (here && mine.some((c) => c.id === here) && attach?.page !== `/app/network/communities/${here}`) setTo(here);
       })
       .catch(() => setPlaces([]));
-  }, [here]);
+  }, [here, attach?.page]);
   const place = places.find((c) => c.id === to);
   // Photos (owner, 2026-11-21): up to four, each sent while the member writes and kept as theirs alone until Post.
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -201,7 +202,7 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
           {about && (
             <div className="relative">
               <ListingCard page={about.page} fallback={about.title} moduleLabel={moduleById(about.module)?.label ?? ""} link={false} />
-              <button type="button" aria-label="Remove the attached listing" onClick={() => setAbout(null)} className="absolute right-2 top-4 grid size-8 place-items-center rounded-full bg-black/60 text-white hover:bg-black/75">
+              <button type="button" aria-label={about?.page.startsWith("/app/network/communities/") ? "Remove the attached community" : "Remove the attached listing"} onClick={() => setAbout(null)} className="absolute right-2 top-4 grid size-8 place-items-center rounded-full bg-black/60 text-white hover:bg-black/75">
                 <X className="size-4" aria-hidden />
               </button>
             </div>
