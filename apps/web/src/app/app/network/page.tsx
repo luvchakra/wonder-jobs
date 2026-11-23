@@ -33,6 +33,8 @@ function NetworkPage() {
   const params = useSearchParams();
   const router = useRouter();
   const view: View = VIEWS.includes(params.get("tab") as View) ? (params.get("tab") as View) : "feed";
+  // A post just made, opened from its toast (owner, 2026-11-23): scrolled to and marked.
+  const focus = params.get("post") ?? "";
   const [me, setMe] = useState<NetworkProfile | null | undefined>(undefined);
   const [failed, setFailed] = useState<string | null>(null);
   const [mine, setMine] = useState<MyNetwork | null>(null);
@@ -45,6 +47,11 @@ function NetworkPage() {
   const [reporting, setReporting] = useState<NetUpdate | null>(null);
   const [posting, setPosting] = useState(false);
 
+  useEffect(() => {
+    if (!focus || !feed?.some((u) => u.id === focus)) return;
+    const t = setTimeout(() => document.getElementById(`post-${focus}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    return () => clearTimeout(t);
+  }, [focus, feed]);
   const loadFeed = useCallback(() => {
     networkApi
       .updates()
@@ -179,6 +186,7 @@ function NetworkPage() {
                 <FeedCard
                   key={u.id}
                   u={u}
+                  highlight={u.id === focus}
                   onReport={() => setReporting(u)}
                   onReshared={() => setFeed(null)}
                   onDelete={async () => {

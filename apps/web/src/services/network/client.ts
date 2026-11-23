@@ -93,7 +93,7 @@ export const networkApi = {
   send: (connectionId: string, body: string) => call<{ message: NetMessage }>(`/api/network/threads/${encodeURIComponent(connectionId)}`, { method: "POST", json: { body, confirmed: true } }),
   updates: () => call<{ updates: NetUpdate[] }>("/api/network/updates"),
   // The composer shows exactly what is posted and to whom, so Post is the confirmation.
-  post: (text: string, audience: PostAudience, extra: { about?: { page: string; title: string }; module?: string; media?: string[] } = {}) => call("/api/network/updates", { method: "POST", json: { text, audience, ...extra, confirmed: true } }),
+  post: (text: string, audience: PostAudience, extra: { about?: { page: string; title: string }; module?: string; media?: string[] } = {}) => call<{ id: string }>("/api/network/updates", { method: "POST", json: { text, audience, ...extra, confirmed: true } }),
   deleteUpdate: (id: string) => call(`/api/network/updates?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
   reportUpdate: (id: string, reason: string) => call<{ repeated: boolean }>("/api/network/updates", { method: "POST", json: { action: "report", id, reason } }),
   /** A post's attached listing as its page shows it now; asked once per page while the app is open. */
