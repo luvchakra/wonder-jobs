@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { MODULES } from "@/modules/registry";
 import { ModuleIconTile } from "@/wonderworks/brand/tiles";
 import { SharedListingView } from "@/wonderworks/listing/SharedListingView";
 import { BackButton } from "@/components/network/community";
+import { OpenListing } from "@/components/network/OpenListing";
 import { sharedListing } from "@/server/share/listing";
 
 type Props = { params: Promise<{ module: string; id: string }> };
@@ -31,10 +30,8 @@ export default async function NetworkListingPage({ params }: Props) {
         <SharedListingView l={l} tile={m && <ModuleIconTile m={m} />}>
           {m && (
             <div className="mt-6">
-              <Link href={`/app/m/${m.id}`} className="wj-gradient-bg wj-press inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-6 text-[15px] font-semibold text-white shadow-brand hover:brightness-105">
-                Find it in {m.label} <ArrowRight className="size-4" aria-hidden />
-              </Link>
-              <p className="mt-3 text-[12px] text-ink-4">As it reads right now. Search {m.label} to save it, {m.id === "events" ? "RSVP" : "act on it"} and follow it in {m.pipeline.label}.</p>
+              <OpenListing kind={m.id} id={decodeURIComponent(id)} label={`Open in ${m.label}`} />
+              <p className="mt-3 text-[12px] text-ink-4">As it reads right now. Open it in {m.label} to save it, {m.id === "events" ? "RSVP" : "act on it"} and follow it in {m.pipeline.label}.</p>
             </div>
           )}
         </SharedListingView>
