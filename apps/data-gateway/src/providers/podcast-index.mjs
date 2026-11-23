@@ -30,7 +30,7 @@ function podcast(f, at) {
     topics: [...new Set(cats.map((c) => str(c, 60)?.toLowerCase()).filter(Boolean))].slice(0, 8),
     audience: null,
     language: typeof f.language === "string" && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(f.language.trim()) ? f.language.trim().toLowerCase() : null,
-    location: { text: null, country: null }, contactUrl: null, description: str(f.description, 600),
+    location: { text: null, country: null }, contactUrl: null, contactEmail: null, contactEmailSource: null, description: str(f.description, 600),
     ...(count(f.episodeCount) !== null ? { episodes: count(f.episodeCount) } : {}),
     source: { id: "podcast_index", provider: "podcast_index", name: "Podcast Index", url: feed ?? url, termsPending: true }, observedAt: at,
   };

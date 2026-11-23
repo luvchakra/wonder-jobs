@@ -40,7 +40,7 @@ const GOOGLE_PAGE_2 = { places: [{ id: "ChIJ3S-JXmauEmsRUcIaWtf4MzE", displayNam
 const YT_SEARCH = { kind: "youtube#searchListResponse", nextPageToken: "CAUQAA", pageInfo: { totalResults: 2, resultsPerPage: 25 }, items: [{ kind: "youtube#searchResult", id: { kind: "youtube#channel", channelId: "UC_x5XG1OV2P6uZZ5FSM9Ttw" }, snippet: { channelId: "UC_x5XG1OV2P6uZZ5FSM9Ttw", title: "Example Home Organising" } }, { kind: "youtube#searchResult", id: { kind: "youtube#channel", channelId: "UCaaaaaaaaaaaaaaaaaaaaaa" }, snippet: { title: "Quiet Corner" } }] };
 const YT_CHANNELS = { kind: "youtube#channelListResponse", items: [
   { kind: "youtube#channel", id: "UCaaaaaaaaaaaaaaaaaaaaaa", snippet: { title: "Quiet Corner", description: "", publishedAt: "2020-01-01T00:00:00Z" }, statistics: { viewCount: "900", hiddenSubscriberCount: true, videoCount: "4" } },
-  { kind: "youtube#channel", id: "UC_x5XG1OV2P6uZZ5FSM9Ttw", snippet: { title: "Example Home Organising", description: "Tidy homes, <i>calm</i> routines. Write to jane@example.com", customUrl: "@examplehome", publishedAt: "2019-05-01T00:00:00Z", defaultLanguage: "en", country: "IN" }, statistics: { viewCount: "5400000", subscriberCount: "120000", hiddenSubscriberCount: false, videoCount: "210" }, topicDetails: { topicCategories: ["https://en.wikipedia.org/wiki/Lifestyle_(sociology)", "https://en.wikipedia.org/wiki/Hobby"] } },
+  { kind: "youtube#channel", id: "UC_x5XG1OV2P6uZZ5FSM9Ttw", snippet: { title: "Example Home Organising", description: "Tidy homes, <i>calm</i> routines. Enquiries: Hello@TidyHomes.in", customUrl: "@examplehome", publishedAt: "2019-05-01T00:00:00Z", defaultLanguage: "en", country: "IN" }, statistics: { viewCount: "5400000", subscriberCount: "120000", hiddenSubscriberCount: false, videoCount: "210" }, topicDetails: { topicCategories: ["https://en.wikipedia.org/wiki/Lifestyle_(sociology)", "https://en.wikipedia.org/wiki/Hobby"] } },
 ] };
 // Podcast Index /search/byterm: { status, feeds: [feed_search], count, query, description }.
 const PODCASTS = { status: "true", feeds: [
@@ -241,7 +241,7 @@ const channels = (url, init) => {
   return json({}, 404);
 };
 
-test("YouTube channels and podcasts come back as public outlets: audience where the API states it, never an owner's name or email", async () => {
+test("YouTube channels and podcasts come back as public outlets: audience where the API states it, never an owner's name, and an email only where the channel published one (WJ-870)", async () => {
   const t = await setup({ respond: channels });
   try {
     const r = await t.search({ kind: "channel", query: "Home Organising", filters: { languages: ["en"] }, locations: [{ country: "IN" }], providers: ["youtube", "podcast_index"], limit: 50 });
@@ -256,12 +256,16 @@ test("YouTube channels and podcasts come back as public outlets: audience where 
     const today = new Date().toISOString().slice(0, 10);
     assert.deepEqual({ ...yt, observedAt: null, description: null }, {
       id: "youtube_UC_x5XG1OV2P6uZZ5FSM9Ttw", kind: "channel", channelType: "youtube_channel", name: "Example Home Organising", url: "https://www.youtube.com/@examplehome",
-      topics: ["lifestyle", "hobby"], audience: { value: 120000, unit: "subscribers", asOf: today }, language: "en", location: { text: null, country: "IN" }, contactUrl: null, description: null,
+      topics: ["lifestyle", "hobby"], audience: { value: 120000, unit: "subscribers", asOf: today }, language: "en", location: { text: null, country: "IN" }, contactUrl: null,
+      // WJ-870: the address the channel wrote in its own description, with where it was published.
+      contactEmail: "hello@tidyhomes.in", contactEmailSource: "channel description", description: null,
       source: { id: "youtube", provider: "youtube", name: "YouTube Data API", url: "https://www.youtube.com/@examplehome", termsPending: true }, observedAt: null,
     });
     assert.ok(!yt.description.includes("<"), "markup is removed");
     const hidden = r.body.results.find((c) => c.id === "youtube_UCaaaaaaaaaaaaaaaaaaaaaa");
     assert.equal(hidden.audience, null, "a hidden subscriber count is null, never guessed");
+    assert.equal(hidden.contactEmail, null, "a channel that published no address has none, never a guessed one");
+    assert.equal(hidden.contactEmailSource, null);
     assert.equal(hidden.url, "https://www.youtube.com/channel/UCaaaaaaaaaaaaaaaaaaaaaa");
 
     // Podcast Index: the four headers it documents, and what a feed states. It states no audience size.
@@ -275,7 +279,7 @@ test("YouTube channels and podcasts come back as public outlets: audience where 
     const pod = r.body.results.find((c) => c.channelType === "podcast");
     assert.deepEqual({ ...pod, observedAt: null }, {
       id: "podcast_index_75075", kind: "channel", channelType: "podcast", name: "The Tidy Home Show", url: "https://tidyhome.example.org/", topics: ["leisure", "home", "garden"], audience: null, language: "en-us",
-      location: { text: null, country: null }, contactUrl: null, description: "Weekly talk about organising a family home.", episodes: 132,
+      location: { text: null, country: null }, contactUrl: null, contactEmail: null, contactEmailSource: null, description: "Weekly talk about organising a family home.", episodes: 132,
       source: { id: "podcast_index", provider: "podcast_index", name: "Podcast Index", url: "https://feeds.example.org/tidy.xml", termsPending: true }, observedAt: null,
     });
     assert.equal(r.body.results.filter((c) => c.channelType === "podcast").length, 1, "a dead feed and one in another language are left out");
