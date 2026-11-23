@@ -238,7 +238,10 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
                 void addPhotos(files);
               }}
             />
-            {place ? (
+            {/* A post carrying a listing from a module shows the listing's own picture, so it takes no photos (owner,
+                2026-11-23: "don't show the photo option when sharing some content from other modules"); removing the
+                listing (×) brings Photo back. */}
+            {place || about ? (
               <span />
             ) : (
               <button type="button" onClick={() => picker.current?.click()} disabled={photos.length >= MAX_PHOTOS} className="inline-flex min-h-10 items-center gap-1.5 rounded-[10px] px-2 text-[13px] font-semibold text-brand-600 hover:bg-bg-soft disabled:text-ink-4">

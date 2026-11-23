@@ -128,7 +128,7 @@ export function MobileNav() {
           key: "network",
           label: NETWORK_TAB.label,
           node: (
-            <Link href={NETWORK_HREF} aria-label={NETWORK_TAB.label} className={cn("wj-gradient-bg text-white", round)}>
+            <Link href={NETWORK_HREF} aria-label={NETWORK_TAB.label} className={cn("border border-line bg-surface text-brand-600", round)}>
               <NetworkMark className="size-8" />
             </Link>
           ),

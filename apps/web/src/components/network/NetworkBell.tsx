@@ -15,11 +15,19 @@ import { MemberAvatar, memberHref, mutualLine } from "./parts";
 export function NetworkBar({ compact }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-0.5">
-      <Link href="/app/network/messages" aria-label="Messages" title="Messages" className={cn("flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
-        <MessagesSquare className="size-5" aria-hidden />
-      </Link>
+      <MessagesLink compact={compact} />
       <NetworkBell compact={compact} />
     </div>
+  );
+}
+
+/** Messages, in the same spot on the top bar in and out of network mode (owner, 2026-11-23: "messages icon should also
+ * appear at same place in non network mode"). */
+export function MessagesLink({ compact }: { compact?: boolean }) {
+  return (
+    <Link href="/app/network/messages" aria-label="Messages" title="Messages" className={cn("flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
+      <MessagesSquare className="size-5" aria-hidden />
+    </Link>
   );
 }
 
