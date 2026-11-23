@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { ChevronUp, MessageSquarePlus, MoreHorizontal, Plus, Users } from "lucide-react";
+import { ArrowLeft, ChevronUp, MessageSquarePlus, MoreHorizontal, Plus, Users } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
 import { NETWORK_HREF, NETWORK_TAB, isActivePath, rememberAppPath } from "./nav";
@@ -16,7 +16,7 @@ const PostSheet = dynamic(() => import("@/components/network/PostSheet").then((m
 const NewMessageSheet = dynamic(() => import("@/components/network/NewMessageSheet").then((m) => m.NewMessageSheet), { ssr: false });
 import { useModuleNav, useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
-import { LeaveTile, useLeaveNetwork } from "./LeaveNetwork";
+import { useLeaveNetwork } from "./LeaveNetwork";
 import { NetworkMark } from "@/wonderworks/brand/NetworkMark";
 
 /** The bottom bar: the module's four places, nothing else. Each place's own pages are tabs at its top (or rows
@@ -119,8 +119,8 @@ export function MobileNav() {
           key: "back",
           label: away.label,
           node: (
-            <button type="button" aria-label={away.label} onClick={away.leave} className={cn("border border-line bg-surface", round)}>
-              <LeaveTile Icon={away.Icon} tint={away.tint} size="md" />
+            <button type="button" aria-label={away.label} onClick={away.leave} className={cn("border border-line bg-surface text-ink", round)}>
+              <ArrowLeft className="size-6" aria-hidden />
             </button>
           ),
         }
