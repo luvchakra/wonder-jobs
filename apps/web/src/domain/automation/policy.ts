@@ -10,6 +10,7 @@ export const CAPABILITIES = [
   "deduplicate",
   "analyze_jobs",
   "rank_opportunities",
+  "ai_match",
   "generate_resume",
   "generate_cover_letter",
   "interview_practice",
@@ -54,6 +55,8 @@ export const CAPABILITY_META: Record<Capability, CapabilityMeta> = {
   deduplicate: { key: "deduplicate", label: "Deduplicate", description: "Collapse the same role posted on several platforms.", risk: "low", external: false, default: "automatic" },
   analyze_jobs: { key: "analyze_jobs", label: "Analyze jobs", description: "Read postings and extract requirements, seniority and signals.", risk: "low", external: false, default: "automatic" },
   rank_opportunities: { key: "rank_opportunities", label: "Rank opportunities", description: "Order matches by fit with your Career Profile and goals.", risk: "low", external: false, default: "automatic" },
+  // Owner, 2026-11-25: "can you use ai to do the matching". A read only — it reorders results, never acts; Off keeps the rules' ranking.
+  ai_match: { key: "ai_match", label: "Check search results with AI", description: "After you search for words or as a role, an AI reads the leading results and says how relevant each is, with a one-line reason; ones it finds unrelated sink. Off keeps Wonder's own ranking.", risk: "low", external: false, default: "automatic" },
   // "Ask me" by default: each draft is a paid AI call, made when the candidate wants one (owner decision, 2026-10-09).
   generate_resume: { key: "generate_resume", label: "Generate resume", description: "Tailor a resume version for a specific role.", risk: "medium", external: false, default: "ask" },
   generate_cover_letter: { key: "generate_cover_letter", label: "Generate cover letter", description: "Draft a cover letter you can edit before use.", risk: "medium", external: false, default: "ask" },

@@ -31,7 +31,7 @@ const Body = z.object({
  */
 /** A draft that repeats its own instructions is never returned. Extraction is exempt: its reply follows the JSON shape its instructions spell out. */
 function repeatsInstructions(promptId: PromptId, text: string, system: string) {
-  return promptId !== "career_history" && leaksInstructions(text, system);
+  return promptId !== "career_history" && promptId !== "match_jobs" && leaksInstructions(text, system);
 }
 
 export async function POST(req: Request) {
