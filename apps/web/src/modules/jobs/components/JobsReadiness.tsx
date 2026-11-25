@@ -286,7 +286,8 @@ export function WantedRole({ className }: { className?: string }) {
 }
 
 /** “126 found so far in 9 sources” — the running search's own counts. */
-export const foundSoFar = (found: number, sources: number) => `${found.toLocaleString("en-IN")} found so far in ${sources} ${sources === 1 ? "source" : "sources"}`;
+/** The postings the sources sent so far, duplicates across sites included: what was checked, not how many jobs there are. */
+export const foundSoFar = (found: number, sources: number) => `${found.toLocaleString("en-IN")} ${found === 1 ? "posting" : "postings"} checked in ${sources} ${sources === 1 ? "source" : "sources"}`;
 
 /** Which "Search as" a search ran as: the role's name, My profile for the Career Profile, nothing for typed words. */
 export const searchedAs = (c: { role?: { title: string }; origin?: "profile" | "words" }): string | null => c.role?.title ?? (c.origin === "profile" ? "My profile" : null);

@@ -93,7 +93,8 @@ interface JobsState {
   /** Each Find mode's own Refine settings, kept between sessions (findMode.ts). */
   refine: Partial<Record<FindMode, RefineSettings>>;
   /** Find's slider: that mode's filters, with its own Refine settings back. */
-  switchFindMode: (mode: FindMode) => void;
+  /** `words`: keep these in the box in the new mode ("See all N in Full Time Jobs"), instead of the mode's own. */
+  switchFindMode: (mode: FindMode, words?: string) => void;
   /** Part Time's search words, kept while Full Time is on screen (and across reloads), so coming back shows them again. */
   partTimeQuery: string;
   setSourceEnabled: (id: string, enabled: boolean) => void;
@@ -333,14 +334,14 @@ export const useJobsStore = create<JobsState>()(
       setSort: (sort) => set((s) => withRefine(s, s.filters, sort)),
       refine: {},
       partTimeQuery: "",
-      switchFindMode: (mode) =>
+      switchFindMode: (mode, keepWords) =>
         set((s) => {
           const kept = s.refine[mode] ?? refineDefaults(mode);
           const { sort, ...narrowing } = kept;
           // Leaving Part Time keeps its words; coming back puts them in the box again.
           const leaving = findModeOf(s.filters);
           const partTimeQuery = leaving === "part_time" ? s.filters.query : s.partTimeQuery;
-          const words = mode === "part_time" ? { query: partTimeQuery } : {};
+          const words = keepWords !== undefined ? { query: keepWords } : mode === "part_time" ? { query: partTimeQuery } : {};
           return { ...withRefine(s, { ...s.filters, ...FIND_MODE_PATCH[mode], ...narrowing, ...words }, sort), partTimeQuery };
         }),
       setSourceEnabled: (id, enabled) => set((s) => ({ sources: s.sources.map((x) => (x.id === id ? { ...x, enabled, chosen: true } : x)) })),
