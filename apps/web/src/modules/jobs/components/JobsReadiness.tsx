@@ -17,7 +17,7 @@ import { WonderSearching } from "@/components/brand/WonderSearching";
 import { Chip, Input } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { relativeTime } from "@/lib/format";
-import { wantedLine } from "@/modules/jobs/searchAs";
+import { changeHref, wantedLine } from "@/modules/jobs/searchAs";
 import type { CareerRole } from "@/domain/career/roles";
 import { cn } from "@/lib/cn";
 import { track } from "@/lib/analytics";
@@ -281,7 +281,7 @@ export function WantedRole({ className, as }: { className?: string; /** The role
           {role || "No role yet"}
         </p>
       </div>
-      <Link href="/app/career-dna?from=find&focus=role" className="inline-flex min-h-8 shrink-0 items-center self-center rounded-full px-3 text-[14px] font-semibold text-brand-600 hover:bg-brand-50">
+      <Link href={changeHref(as?.id)} className="inline-flex min-h-8 shrink-0 items-center self-center rounded-full px-3 text-[14px] font-semibold text-brand-600 hover:bg-brand-50">
         Change
       </Link>
     </div>

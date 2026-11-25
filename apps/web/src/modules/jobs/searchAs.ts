@@ -19,3 +19,8 @@ export function wantedLine(goal: string, role?: Pick<CareerRole, "title" | "quer
   const title = role.title.trim();
   return query && query.toLowerCase() !== title.toLowerCase() ? `${title} · ${query}` : title;
 }
+
+/** Change on the Looking for pill: the profile searched with, opened on Career Profile (a role's, or My profile's Role you want). */
+export function changeHref(roleId?: string): string {
+  return roleId ? `/app/career-dna?from=find&role=${encodeURIComponent(roleId)}` : "/app/career-dna?from=find&focus=role";
+}
