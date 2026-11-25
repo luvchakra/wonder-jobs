@@ -11,6 +11,8 @@ import { Badge } from "@/components/common/Badge";
 import { Chip, Field, Input, Textarea } from "@/components/common/Input";
 import { ResumeImport } from "@/components/career/ResumeImport";
 import { RolesCard } from "@/components/career/RolesCard";
+import { ProfileItem } from "@/components/career/ProfileItem";
+import { MAIN_PROFILE, openedProfile, profileAnchor } from "@/components/career/profiles";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
 import { MissingRoles } from "@/components/career/MissingRoles";
 import { RememberedAnswers } from "@/components/career/RememberedAnswers";
@@ -58,6 +60,19 @@ export default function CareerDNAPage() {
     const changed = profileChanged(now.dna, arrived.current.dna) || JSON.stringify(now.roles ?? []) !== arrived.current.roles;
     router.push(changed ? "/app/jobs?refresh=1" : "/app/jobs");
   };
+
+  // Which profile is open: the one Find's Change came from (?role=), else My profile. Opening one closes the others.
+  const roles = useCareerStore((s) => s.roles ?? []);
+  const [openProfile, setOpenProfile] = useState<string | null>(() => openedProfile(params.get("role"), useCareerStore.getState().roles ?? []));
+  const toggleProfile = (id: string) => setOpenProfile((o) => (o === id ? null : id));
+  // Arriving for a role: it in view, under the Save bar.
+  useEffect(() => {
+    const id = openedProfile(params.get("role"), roles);
+    if (id === MAIN_PROFILE) return;
+    document.getElementById(profileAnchor(id))?.scrollIntoView({ block: "start" });
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Change on Find's Looking for: the page from its top (Back to Find, the title, Role you want all in view),
   // with the cursor at the end of the role to go on typing.
@@ -145,8 +160,10 @@ export default function CareerDNAPage() {
           </div>
         </details>
 
-        {/* Who you are and what you want, in one card: every job is matched against this and searched for with it. */}
-        <Card padding="sm">
+        {/* Your profiles: My profile (who you are and what you want: every job is matched against it) and each role you'd
+            search as. One is open at a time; Find's Change opens the one it searched as. */}
+        <Card className="p-0" aria-label="Your profiles">
+          <ProfileItem id={MAIN_PROFILE} title="My profile" hint={draft.careerGoal.trim() || "Name the role you want"} open={openProfile === MAIN_PROFILE} onToggle={() => toggleProfile(MAIN_PROFILE)}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Role you want" htmlFor="goal" hint="What Wonder searches for, e.g. “Director, identity and access management”.">
               <Input id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} />
@@ -215,6 +232,8 @@ export default function CareerDNAPage() {
               </li>
             </ul>
           </div>
+          </ProfileItem>
+          <RolesCard profiles={{ open: openProfile, onToggle: toggleProfile }} />
         </Card>
 
         {/* Everything else, one tap down. */}
@@ -226,9 +245,6 @@ export default function CareerDNAPage() {
               setImportRev((n) => n + 1);
             }}
           />
-          <MoreRow title="Other roles you'd take" hint={draft.careerGoal.trim() ? "Search as each of them with one tap" : "Add roles once you've named the one you want"}>
-            <RolesCard bare />
-          </MoreRow>
           <MoreRow title="Work history, education and contact" hint={`${historyOf(draft).experience.length} roles — what résumés are built from`}>
             <CareerHistoryEditor key={`${dna.updatedAt}-${importRev}`} value={historyOf(draft)} onChange={(h) => set("history", h)} />
           </MoreRow>

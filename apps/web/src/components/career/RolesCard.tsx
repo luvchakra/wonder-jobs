@@ -16,6 +16,7 @@ import { Field, Input, Select, Textarea } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
+import { ProfileItem } from "./ProfileItem";
 
 const refKey = (r?: BaseResumeRef) => (r ? `${r.kind}:${r.id}` : "");
 const refOf = (k: string): BaseResumeRef | undefined => {
@@ -43,7 +44,8 @@ function useResumeChoices() {
  * when the candidate picks one under "Search as".
  */
 /** `bare`: no card, title or intro — for use inside a section that already has them. */
-export function RolesCard({ bare = false }: { bare?: boolean } = {}) {
+/** `profiles`: each role as one of Career Profile's profiles, opened and closed by the page (one open at a time). */
+export function RolesCard({ bare = false, profiles }: { bare?: boolean; profiles?: { open: string | null; onToggle: (id: string) => void } } = {}) {
   const roles = useCareerStore((s) => s.roles ?? []);
   const addRole = useCareerStore((s) => s.addRole);
   const updateRole = useCareerStore((s) => s.updateRole);
@@ -54,6 +56,44 @@ export function RolesCard({ bare = false }: { bare?: boolean } = {}) {
   const { plan, limits, plans } = usePlan();
   const atLimit = !canAddRole(roles, limits.roles);
   const label = (r: CareerRole) => (r.baseResume ? (choices.find((c) => c.key === refKey(r.baseResume))?.label ?? "A résumé that was deleted — choose another") : "Your base résumé");
+
+  const actions = (r: CareerRole) => (
+    <div className="flex shrink-0 gap-1">
+      <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} href={`/app/jobs?role=${encodeURIComponent(r.id)}`} aria-label={`Search as ${r.title}`}>
+        Search
+      </Button>
+      <Button size="sm" variant="ghost" icon={<Pencil className="size-3.5" aria-hidden />} aria-label={`Edit ${r.title}`} onClick={() => setEditing(r)}>
+        Edit
+      </Button>
+      <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" aria-hidden />} aria-label={`Delete ${r.title}`} onClick={() => setConfirmDelete(r)} />
+    </div>
+  );
+  const dialogs = <RoleDialogs editing={editing} setEditing={setEditing} confirmDelete={confirmDelete} setConfirmDelete={setConfirmDelete} roles={roles} choices={choices} addRole={addRole} updateRole={updateRole} removeRole={removeRole} />;
+
+  if (profiles) {
+    return (
+      <>
+        {roles.map((r) => {
+          const search = roleSearch(r, defaultSearchQuery);
+          return (
+            <ProfileItem key={r.id} id={r.id} title={r.title} hint={search.query ? `Searches for “${search.query}”` : "Add search terms"} open={profiles.open === r.id} onToggle={() => profiles.onToggle(r.id)}>
+              <p className="text-[13px] text-ink-2">Goal: {search.careerGoal}</p>
+              <p className="mb-3 text-[13px] text-ink-3">Résumé: {label(r)}</p>
+              {actions(r)}
+            </ProfileItem>
+          );
+        })}
+        <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+          <p className="min-w-0 flex-1 text-[12px] text-ink-3">{roles.length ? "Another kind of job you'd take?" : "Open to another kind of job? Add it with its own search terms, goal and résumé."}</p>
+          <Button size="sm" variant="outline" icon={<Plus className="size-3.5" aria-hidden />} disabled={atLimit} onClick={() => setEditing("new")}>
+            Add a role
+          </Button>
+          {atLimit && plan !== "max" && <PlanGate className="w-full" reason={`${plans[plan].label} includes ${limits.roles} role${limits.roles === 1 ? "" : "s"}.`} needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.roles > roles.length)} plans={plans} />}
+        </div>
+        {dialogs}
+      </>
+    );
+  }
 
   const Wrap = bare ? "div" : Card;
   return (
@@ -88,15 +128,7 @@ export function RolesCard({ bare = false }: { bare?: boolean } = {}) {
                     <p className="text-[12px] text-ink-3">Searches for {search.query ? `“${search.query}”` : "— add search terms"} · goal: {search.careerGoal}</p>
                     <p className="text-[12px] text-ink-4">Résumé: {label(r)}</p>
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} href={`/app/jobs?role=${encodeURIComponent(r.id)}`} aria-label={`Search as ${r.title}`}>
-                      Search
-                    </Button>
-                    <Button size="sm" variant="ghost" icon={<Pencil className="size-3.5" aria-hidden />} aria-label={`Edit ${r.title}`} onClick={() => setEditing(r)}>
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" aria-hidden />} aria-label={`Delete ${r.title}`} onClick={() => setConfirmDelete(r)} />
-                  </div>
+                  {actions(r)}
                 </div>
               </li>
             );
@@ -104,6 +136,15 @@ export function RolesCard({ bare = false }: { bare?: boolean } = {}) {
         </ul>
       )}
 
+      {dialogs}
+    </Wrap>
+  );
+}
+
+/** Add/Edit and the delete confirmation, shared by both layouts. */
+function RoleDialogs({ editing, setEditing, confirmDelete, setConfirmDelete, roles, choices, addRole, updateRole, removeRole }: { editing: CareerRole | "new" | null; setEditing: (r: CareerRole | "new" | null) => void; confirmDelete: CareerRole | null; setConfirmDelete: (r: CareerRole | null) => void; roles: CareerRole[]; choices: { key: string; label: string }[]; addRole: (input: RoleInput) => unknown; updateRole: (id: string, input: RoleInput) => unknown; removeRole: (id: string) => unknown }) {
+  return (
+    <>
       {editing && (
         <RoleEditor
           key={editing === "new" ? "new" : editing.id}
@@ -148,7 +189,7 @@ export function RolesCard({ bare = false }: { bare?: boolean } = {}) {
       >
         <p className="text-[14px] text-ink-2">Your past searches and the jobs they found are kept. Scheduled searches set up as this role keep running with the terms and goal they were saved with.</p>
       </Modal>
-    </Wrap>
+    </>
   );
 }
 
