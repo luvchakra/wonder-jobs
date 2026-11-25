@@ -9,6 +9,7 @@ import { JOB_SOURCES, reconcileSources } from "@/domain/jobs/sources";
 import { computeMatch } from "@/services/jobs/matching";
 import { blendAiFit, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { roleKey, scopeForJob } from "@/services/jobs/roleScope";
+import { applyAiRelevance, relevanceKey, type AiRelevance } from "@/domain/jobs/aiMatch";
 import type { CareerDNA } from "@/domain/career/types";
 import type { LearnedSignal } from "@/domain/career/learning";
 import type { CareerRole } from "@/domain/career/roles";
@@ -35,6 +36,8 @@ interface JobsState {
   quality: Record<string, JobQuality>;
   /** A model's fit read per job (domain/jobs/aiFit.ts), blended into the rule-based match within a fixed band. */
   aiFits: Record<string, AiFit>;
+  /** The AI relevance check per job (domain/jobs/aiMatch.ts), for the words it was read against. */
+  aiRelevance: Record<string, AiRelevance>;
   saved: Record<string, string>; // jobId → savedAt
   rejected: Record<string, string>;
   /** Postings found to have closed on the employer's or board's own site (jobId → when and why). They leave the
@@ -87,6 +90,7 @@ interface JobsState {
   restoreBeforeRun: (runId: string) => boolean;
   setMatches: (matches: JobMatch[]) => void;
   setAiFits: (fits: Record<string, AiFit>) => void;
+  setAiRelevance: (reads: Record<string, AiRelevance>) => void;
   setQuality: (quality: JobQuality[]) => void;
   save: (jobId: string) => void;
   unsave: (jobId: string) => void;
@@ -125,10 +129,12 @@ const PERSISTED_ASIDE = 150;
 const matchScope = (f: JobFilters, dna: { preferredLocations: string[] }) => ({ preferredLocations: placesOnly(f.locations ?? (f.skipProfile ? [] : dna.preferredLocations)) ?? [], minSalary: f.minSalary });
 
 /** A job's match: a job a role's search found is judged on that role's words and goal (its AI read keyed to the role); others on the search shown. */
-function scoreJob(job: CanonicalJob, ai: AiFit | undefined, c: { dna: CareerDNA; learnedSignals: LearnedSignal[]; searchQuery: string | undefined; scope: ReturnType<typeof matchScope>; roles: CareerRole[] | undefined }): JobMatch {
+function scoreJob(job: CanonicalJob, ai: AiFit | undefined, rel: AiRelevance | undefined, c: { dna: CareerDNA; learnedSignals: LearnedSignal[]; searchQuery: string | undefined; scope: ReturnType<typeof matchScope>; roles: CareerRole[] | undefined }): JobMatch {
   const role = scopeForJob(job, c.roles);
   const m = computeMatch(job, { dna: c.dna, learnedSignals: c.learnedSignals, ...c.scope, ...(role ? { searchQuery: role.query, careerGoal: role.careerGoal, forRole: true } : { searchQuery: c.searchQuery }) });
-  return blendAiFit(m, ai, profileKey(c.dna, roleKey(role)));
+  // The AI relevance check, for the words the job is judged on (the role's, or those typed).
+  const words = role ? role.query : c.searchQuery;
+  return applyAiRelevance(blendAiFit(m, ai, profileKey(c.dna, roleKey(role))), rel, words ? relevanceKey(words) : undefined);
 }
 
 /** New filters or sort, and what they set in Refine kept for their mode (the same object while nothing in it changed). */
@@ -169,6 +175,7 @@ export const useJobsStore = create<JobsState>()(
       matches: {},
       quality: {},
       aiFits: {},
+      aiRelevance: {},
       saved: {},
       rejected: {},
       closed: {},
@@ -207,21 +214,21 @@ export const useJobsStore = create<JobsState>()(
         set({ loaded: true });
       },
       rescore: () => {
-        const { jobs, order, loaded, aiFits } = get();
+        const { jobs, order, loaded, aiFits, aiRelevance } = get();
         if (!loaded) return;
         const { dna, learnedSignals } = useCareerStore.getState();
         const roles = useCareerStore.getState().roles;
         const searchQuery = wordsQuery(get().searchedFor);
         const scope = matchScope(get().filters, dna);
         const matches: Record<string, JobMatch> = {};
-        for (const id of order) matches[id] = scoreJob(jobs[id], aiFits[id], { dna, learnedSignals, searchQuery, scope, roles });
+        for (const id of order) matches[id] = scoreJob(jobs[id], aiFits[id], aiRelevance[id], { dna, learnedSignals, searchQuery, scope, roles });
         set({ matches });
       },
       scoreOne: (id) => {
-        const { jobs, matches, aiFits } = get();
+        const { jobs, matches, aiFits, aiRelevance } = get();
         if (!jobs[id] || matches[id]) return;
         const { dna, learnedSignals, roles } = useCareerStore.getState();
-        const m = scoreJob(jobs[id], aiFits[id], { dna, learnedSignals, searchQuery: wordsQuery(get().searchedFor), scope: matchScope(get().filters, dna), roles });
+        const m = scoreJob(jobs[id], aiFits[id], aiRelevance[id], { dna, learnedSignals, searchQuery: wordsQuery(get().searchedFor), scope: matchScope(get().filters, dna), roles });
         set((s) => ({ matches: { ...s.matches, [id]: m } }));
       },
       replaceCatalog: (list, searchedFor = "") =>
@@ -284,6 +291,7 @@ export const useJobsStore = create<JobsState>()(
       },
       setMatches: (list) => set((s) => ({ matches: { ...s.matches, ...Object.fromEntries(list.map((m) => [m.jobId, m])) } })),
       setAiFits: (fits) => set((s) => ({ aiFits: { ...s.aiFits, ...fits } })),
+      setAiRelevance: (reads) => set((s) => ({ aiRelevance: { ...s.aiRelevance, ...reads } })),
       setQuality: (list) => set((s) => ({ quality: { ...s.quality, ...Object.fromEntries(list.map((q) => [q.jobId, q])) } })),
       save: (jobId) => {
         track("job_saved", { jobId });
@@ -374,7 +382,7 @@ export const useJobsStore = create<JobsState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; savedEasyApply?: boolean; skipProfile?: boolean };
         // Each mode's Refine settings, and the last-used mode's applied to the filters (before WJ-355 only Hide Pipeline was kept).
-        return { ...current, ...p, aiFits: p.aiFits ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, applyOpenedAt: p.applyOpenedAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, aiRelevance: p.aiRelevance ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, applyOpenedAt: p.applyOpenedAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
       },
       // The best of the last discovery persists too, so the product remembers real jobs between sessions.
       partialize: (s) => {
@@ -397,15 +405,15 @@ export const useJobsStore = create<JobsState>()(
  * recomputed only when what it's made from changed.
  */
 const memoCatalog = memoOnInputs(
-  (jobs: JobsState["jobs"], order: string[], matches: JobsState["matches"], quality: JobsState["quality"], aiFits: JobsState["aiFits"], saved: JobsState["saved"], beforeWords: JobsState["beforeWords"], wordsCatalog: JobsState["wordsCatalog"]) =>
-    buildPersistedCatalog({ jobs, order, matches, quality, aiFits, saved, beforeWords, wordsCatalog }),
+  (jobs: JobsState["jobs"], order: string[], matches: JobsState["matches"], quality: JobsState["quality"], aiFits: JobsState["aiFits"], aiRelevance: JobsState["aiRelevance"], saved: JobsState["saved"], beforeWords: JobsState["beforeWords"], wordsCatalog: JobsState["wordsCatalog"]) =>
+    buildPersistedCatalog({ jobs, order, matches, quality, aiFits, aiRelevance, saved, beforeWords, wordsCatalog }),
 );
-const persistedCatalog = (s: JobsState) => memoCatalog(s.jobs, s.order, s.matches, s.quality, s.aiFits, s.saved, s.beforeWords, s.wordsCatalog);
+const persistedCatalog = (s: JobsState) => memoCatalog(s.jobs, s.order, s.matches, s.quality, s.aiFits, s.aiRelevance, s.saved, s.beforeWords, s.wordsCatalog);
 
 /** A job kept short in storage; the trailing "…" tells the job page it has only the start. */
 const storedJob = (j: CanonicalJob) => ((j.description?.length ?? 0) > PERSISTED_DESCRIPTION ? { ...j, description: shortened(j.description, PERSISTED_DESCRIPTION) } : j);
 
-function buildPersistedCatalog(s: Pick<JobsState, "jobs" | "order" | "matches" | "quality" | "aiFits" | "saved" | "beforeWords" | "wordsCatalog">) {
+function buildPersistedCatalog(s: Pick<JobsState, "jobs" | "order" | "matches" | "quality" | "aiFits" | "aiRelevance" | "saved" | "beforeWords" | "wordsCatalog">) {
   // Every saved job is kept, in the results or not — saving it is how the candidate said to keep it.
   const keep = bestIds(s.order, (id) => s.matches[id]?.score ?? 0, PERSISTED_CATALOG, Object.keys(s.saved));
   const order = s.order.filter((id) => keep.has(id));
@@ -414,6 +422,8 @@ function buildPersistedCatalog(s: Pick<JobsState, "jobs" | "order" | "matches" |
   const matches = pick(s.matches, kept);
   const quality = pick(s.quality, kept);
   const aiFits = Object.fromEntries(order.filter((id) => s.aiFits?.[id]).map((id) => [id, s.aiFits[id]]));
+  // Only for the jobs kept, like the fit reads.
+  const aiRelevance = Object.fromEntries(order.filter((id) => s.aiRelevance?.[id]).map((id) => [id, s.aiRelevance[id]]));
   // The profile's results set aside while typed words are searched: kept too, so clearing the words after
   // the phone reloads the tab brings them back instead of searching again.
   const beforeWords = trimAside(s.beforeWords);
@@ -421,7 +431,7 @@ function buildPersistedCatalog(s: Pick<JobsState, "jobs" | "order" | "matches" |
   // them after the app is reopened instead of asking to search again.
   const words = trimAside(s.wordsCatalog);
   const wordsCatalog = words && s.wordsCatalog ? { ...words, searchedFor: s.wordsCatalog.searchedFor } : undefined;
-  return { jobs, order, matches, quality, aiFits, beforeWords, wordsCatalog };
+  return { jobs, order, matches, quality, aiFits, aiRelevance, beforeWords, wordsCatalog };
 }
 
 /** A set-aside list kept in storage: its best PERSISTED_ASIDE jobs, descriptions shortened. */

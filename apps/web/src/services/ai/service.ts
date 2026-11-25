@@ -81,6 +81,11 @@ export interface AIService {
    * description was translated in its first part only.
    */
   translate(input: { job: JobTexts; language: string; runId?: string }): Promise<{ texts: JobTexts | null; byModel: boolean; clipped: boolean }>;
+  /**
+   * The AI relevance check (`match_jobs`): the model's raw reply for a search's leading postings, checked by
+   * `domain/jobs/aiMatch.ts::parseAiMatch` before anything changes. Empty when no model is connected.
+   */
+  matchJobs(input: { prompt: string; runId?: string }): Promise<{ text: string; byModel: boolean }>;
   usage(): AIUsageRecord[];
 }
 
@@ -191,6 +196,11 @@ export class TemplateAIService implements AIService {
   async practice({ job, dna, kind, transcript, runId }: GenerateArtifactInput & { kind: "interview_quiz" | "interview_flashcards" | "mock_interview" | "mock_review"; transcript?: string }) {
     const context = [contextFor(dna, job), historyFacts(dna), transcript !== undefined ? `\nINTERVIEW TRANSCRIPT SO FAR\n${transcript || "(none yet — ask the opening question)"}` : ""].filter(Boolean).join("\n");
     const res = await this.runFull("interview_practice", kind, context, "", runId, { extract: true, maxTokens: kind === "mock_interview" ? 300 : 4096 });
+    return { text: res.text, byModel: !(res.model === "wonder-1" && res.text === "") };
+  }
+
+  async matchJobs({ prompt, runId }: { prompt: string; runId?: string }) {
+    const res = await this.runFull("ranking", "match_jobs", prompt, "", runId, { extract: true, maxTokens: 3000 });
     return { text: res.text, byModel: !(res.model === "wonder-1" && res.text === "") };
   }
 

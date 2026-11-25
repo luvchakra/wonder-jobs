@@ -11,6 +11,7 @@ import { ProviderError } from "@/domain/ai/types";
 import { computeMatch, computeQuality } from "@/services/jobs/matching";
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { roleKey, searchWordsOf, type RoleScope } from "@/services/jobs/roleScope";
+import { AI_MATCH_TOP, aiMatchPrompt, applyAiRelevance, parseAiMatch, relevanceKey, type AiRelevance } from "@/domain/jobs/aiMatch";
 import type { CareerDNA } from "@/domain/career/types";
 import type { AIService } from "@/services/ai/service";
 import { useCareerStore } from "@/store/career";
@@ -30,6 +31,29 @@ export interface ExecutorDeps {
 }
 
 const CHUNK = 96;
+
+/**
+ * The AI relevance check for a search's leading postings (domain/jobs/aiMatch.ts). Runs only when `ai_match`
+ * resolves to "run": "ask" can't be answered in the middle of a search and "skip" is Off, so both leave the rules'
+ * ranking as it is, as does no model, an unusable reply or any error (it fails closed).
+ */
+export async function aiRelevanceFor(gate: "run" | "ask" | "skip", ai: Pick<AIService, "matchJobs">, jobs: CanonicalJob[], matches: JobMatch[], search: { words: string; goal?: string; role?: string }): Promise<Record<string, AiRelevance> | null> {
+  if (gate !== "run") return null;
+  const byId = new Map(jobs.map((j) => [j.id, j]));
+  const top = [...matches].sort((a, b) => b.score - a.score).slice(0, AI_MATCH_TOP).map((m) => byId.get(m.jobId)).filter((j): j is CanonicalJob => !!j);
+  if (!top.length) return null;
+  try {
+    const { text, byModel } = await ai.matchJobs({ prompt: aiMatchPrompt(search, top.map(jobForAi)) });
+    if (!byModel) return null;
+    const rows = parseAiMatch(text, top.map((j) => j.id));
+    if (!rows) return null;
+    const key = relevanceKey(search.words);
+    const at = new Date().toISOString();
+    return Object.fromEntries(rows.map((r) => [r.id, { score: r.score, reason: r.reason, key, at }]));
+  } catch {
+    return null;
+  }
+}
 
 /** The model's fit read for the 30 leading postings (by rule score), or null — the rules' scores then stand. */
 async function aiFitsFor(jobs: CanonicalJob[], matches: JobMatch[], dna: CareerDNA, role?: RoleScope): Promise<Record<string, AiFit> | null> {
@@ -161,6 +185,18 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
           for (let i = 0; i < matches.length; i++) matches[i] = blendAiFit(matches[i], fits[matches[i].jobId], profile);
           useJobsStore.getState().setAiFits(fits);
           ctx.addEvidence({ label: "Read by AI", value: String(Object.keys(fits).length), tone: "info" });
+        }
+        // The AI relevance check, for a search of words or a role's: only when `ai_match` resolves to run.
+        const words = typedQuery(ctx.run.config);
+        if (words) {
+          const started = Date.now();
+          const reads = await aiRelevanceFor(ctx.policy("ai_match"), deps.ai(ctx.run.id), jobs, matches, { words, goal: role?.careerGoal, role: role?.title });
+          if (reads) {
+            const key = relevanceKey(words);
+            for (let i = 0; i < matches.length; i++) matches[i] = applyAiRelevance(matches[i], reads[matches[i].jobId], key);
+            useJobsStore.getState().setAiRelevance(reads);
+            ctx.addEvidence({ label: "Checked by AI", value: `${Object.keys(reads).length} in ${((Date.now() - started) / 1000).toFixed(1)} s`, tone: "info" });
+          }
         }
       }
       matchCache.set(ctx.run.id, matches);
