@@ -15,6 +15,7 @@ import type { StageKey } from "@/domain/workflow/stages";
 import type { CanonicalJob, Job, JobMatch, JobQuality, JobSource } from "@/domain/jobs/types";
 import { computeMatch, computeQuality, deduplicate } from "@/services/jobs/matching";
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
+import { roleKey, searchWordsOf } from "@/services/jobs/roleScope";
 import { aiRankJobs } from "@/server/ai/rank";
 import { breadthEvidence, phrasingEvidence, searchRequestFor, sourceEvidence, toCanonicalJob } from "@/domain/jobslake/wonderjobs";
 import { MAX_VARIANTS, ruleVariants } from "@/domain/jobs/variants";
@@ -150,14 +151,16 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const minSalary = ctx.get<number>("minSalary");
       const careerGoal = ctx.get<string>("careerGoal");
       const learnedSignals = snapshot.career.learnedSignals;
-      const searchQuery = ctx.run.config.origin === "words" && !ctx.run.config.role ? ctx.run.config.searchCriteria.query : undefined;
-      matches = canonical.map((j) => computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals, searchQuery }));
+      // A role's search is judged on the role's words, as a typed one is on its own.
+      const searchQuery = searchWordsOf(ctx.run.config);
+      const role = ctx.run.config.role ? { title: ctx.run.config.role.title, query: ctx.run.config.searchCriteria.query, careerGoal: careerGoal ?? ctx.run.config.role.title } : undefined;
+      matches = canonical.map((j) => computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals, searchQuery, forRole: !!role }));
       // A model reads the leading postings against the profile; its score nudges the rules' within a band.
       const byId = new Map(canonical.map((j) => [j.id, j]));
       const top = [...matches].filter((m) => m.score >= 20).sort((a, b) => b.score - a.score).slice(0, 30).map((m) => byId.get(m.jobId)!).filter(Boolean);
-      const scores = top.length ? await aiRankJobs({ profile: profileForAi(dna), jobs: top.map(jobForAi) }) : null;
+      const scores = top.length ? await aiRankJobs({ profile: profileForAi(dna, role), jobs: top.map(jobForAi) }) : null;
       if (scores?.length) {
-        const profile = profileKey(dna);
+        const profile = profileKey(dna, roleKey(role));
         const at = new Date().toISOString();
         const fits: Record<string, AiFit> = Object.fromEntries(scores.map((x) => [x.id, { score: x.score, reason: x.reason, flags: x.flags, profile, at }]));
         matches = matches.map((m) => blendAiFit(m, fits[m.jobId], profile));

@@ -8,6 +8,10 @@ import type { CanonicalJob, JobFilters, JobMatch, JobQuality, JobSort, JobSource
 import { JOB_SOURCES, reconcileSources } from "@/domain/jobs/sources";
 import { computeMatch } from "@/services/jobs/matching";
 import { blendAiFit, profileKey, type AiFit } from "@/domain/jobs/aiFit";
+import { roleKey, scopeForJob } from "@/services/jobs/roleScope";
+import type { CareerDNA } from "@/domain/career/types";
+import type { LearnedSignal } from "@/domain/career/learning";
+import type { CareerRole } from "@/domain/career/roles";
 import type { RejectionReason } from "@/domain/career/learning";
 import { useCareerStore } from "./career";
 import type { InteractionRecord } from "@/domain/career/learning";
@@ -120,6 +124,13 @@ const PERSISTED_ASIDE = 150;
 /** What a job is scored against for place and pay: the mode's Refine (as every search is), not the Career Profile's. */
 const matchScope = (f: JobFilters, dna: { preferredLocations: string[] }) => ({ preferredLocations: placesOnly(f.locations ?? (f.skipProfile ? [] : dna.preferredLocations)) ?? [], minSalary: f.minSalary });
 
+/** A job's match: a job a role's search found is judged on that role's words and goal (its AI read keyed to the role); others on the search shown. */
+function scoreJob(job: CanonicalJob, ai: AiFit | undefined, c: { dna: CareerDNA; learnedSignals: LearnedSignal[]; searchQuery: string | undefined; scope: ReturnType<typeof matchScope>; roles: CareerRole[] | undefined }): JobMatch {
+  const role = scopeForJob(job, c.roles);
+  const m = computeMatch(job, { dna: c.dna, learnedSignals: c.learnedSignals, ...c.scope, ...(role ? { searchQuery: role.query, careerGoal: role.careerGoal, forRole: true } : { searchQuery: c.searchQuery }) });
+  return blendAiFit(m, ai, profileKey(c.dna, roleKey(role)));
+}
+
 /** New filters or sort, and what they set in Refine kept for their mode (the same object while nothing in it changed). */
 function withRefine(s: JobsState, filters: JobFilters, sort: JobSort): Pick<JobsState, "filters" | "sort" | "refine"> {
   const mode = findModeOf(filters);
@@ -199,18 +210,18 @@ export const useJobsStore = create<JobsState>()(
         const { jobs, order, loaded, aiFits } = get();
         if (!loaded) return;
         const { dna, learnedSignals } = useCareerStore.getState();
+        const roles = useCareerStore.getState().roles;
         const searchQuery = wordsQuery(get().searchedFor);
-        const profile = profileKey(dna);
-        const matches: Record<string, JobMatch> = {};
         const scope = matchScope(get().filters, dna);
-        for (const id of order) matches[id] = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery, ...scope }), aiFits[id], profile);
+        const matches: Record<string, JobMatch> = {};
+        for (const id of order) matches[id] = scoreJob(jobs[id], aiFits[id], { dna, learnedSignals, searchQuery, scope, roles });
         set({ matches });
       },
       scoreOne: (id) => {
         const { jobs, matches, aiFits } = get();
         if (!jobs[id] || matches[id]) return;
-        const { dna, learnedSignals } = useCareerStore.getState();
-        const m = blendAiFit(computeMatch(jobs[id], { dna, learnedSignals, searchQuery: wordsQuery(get().searchedFor), ...matchScope(get().filters, dna) }), aiFits[id], profileKey(dna));
+        const { dna, learnedSignals, roles } = useCareerStore.getState();
+        const m = scoreJob(jobs[id], aiFits[id], { dna, learnedSignals, searchQuery: wordsQuery(get().searchedFor), scope: matchScope(get().filters, dna), roles });
         set((s) => ({ matches: { ...s.matches, [id]: m } }));
       },
       replaceCatalog: (list, searchedFor = "") =>
