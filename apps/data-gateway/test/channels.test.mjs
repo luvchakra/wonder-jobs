@@ -67,7 +67,7 @@ test("with no keys, a channel search returns events and forums from stored data,
     assert.equal(ev.body.results.length, 1);
     const e = ev.body.results[0];
     assert.deepEqual({ ...e, id: null, observedAt: null, source: { ...e.source, id: null } }, {
-      id: null, kind: "channel", channelType: "event", name: "CityJS Pune", url: "https://pune.cityjsconf.example/", topics: [], audience: null, language: "en", location: { text: "Pune, India", country: null }, contactUrl: null, description: null,
+      id: null, kind: "channel", channelType: "event", name: "CityJS Pune", url: "https://pune.cityjsconf.example/", topics: [], audience: null, language: "en", location: { text: "Pune, India", country: null }, contactUrl: null, contactEmail: null, contactEmailSource: null, description: null,
       event: { startDate: `${year}-02-04`, endDate: `${year}-02-06`, online: false },
       source: { id: null, provider: "stored", name: "confs.tech conference data (tech-conferences/conference-data, MIT License)", url: "https://pune.cityjsconf.example/", termsPending: true }, observedAt: null,
     });

@@ -102,7 +102,18 @@ export interface ModuleState {
 }
 
 /** A listing the person has seen: kept with a save or response, else from the last search. */
-export const findListing = (s: Pick<ModuleState, "items" | "lastRun">, id: string): unknown => s.items[id] ?? s.lastRun?.results.find((r) => r.id === id);
+export const findListing = (s: Pick<ModuleState, "items" | "lastRun">, id: string): unknown => s.items[id] ?? s.lastRun?.results.find((r) => r.id === id) ?? opened.get(id);
+
+/**
+ * Listings opened from a post or a shared link (owner, 2026-11-23: "take user to the details page of this entry
+ * directly"): kept in memory for this visit only, never stored or synced, so a module's own page shows one that isn't in
+ * the person's saves or last search. Saving it there keeps it as any save does.
+ */
+const opened = new Map<string, unknown>();
+export function rememberOpened(listing: { id: string }): void {
+  opened.set(listing.id, listing);
+  if (opened.size > 50) opened.delete(opened.keys().next().value!);
+}
 
 /**
  * Modules whose searches are never stored: the last search, its results and the recent searches then live in memory for

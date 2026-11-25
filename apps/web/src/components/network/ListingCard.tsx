@@ -5,9 +5,13 @@ import { Link2 } from "lucide-react";
 import { networkApi, type ListingPreview } from "@/services/network/client";
 import { cn } from "@/lib/cn";
 
+/** A listing's public page (`/s/<module>/<id>`), opened by a member, is its signed-in view inside the app (owner,
+ * 2026-11-23: "on clicking, it takes users to logged out page"). */
+export const inAppListing = (page: string) => (page.startsWith("/s/") ? `/app/network/listing/${page.slice(3)}` : page);
+
 function Box({ link, page, className, children }: { link: boolean; page: string; className: string; children: React.ReactNode }) {
   return link ? (
-    <Link href={page} className={className}>
+    <Link href={inAppListing(page)} className={className}>
       {children}
     </Link>
   ) : (
@@ -42,7 +46,7 @@ export function ListingCard({ page, fallback, moduleLabel, link = true }: { page
     );
   return (
     <Box link={link} page={page} className={cn("mt-2 block overflow-hidden rounded-[14px] border border-line bg-surface", link && "hover:bg-bg-soft")}>
-      {pic && (
+      {pic && p.image && (
         // eslint-disable-next-line @next/next/no-img-element -- the listing's own preview card, from its public page
         <img src={p.image} alt="" loading="lazy" onError={() => setPic(false)} className="aspect-[1.91/1] w-full border-b border-line bg-surface-2 object-cover" />
       )}

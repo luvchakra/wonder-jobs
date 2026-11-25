@@ -23,7 +23,8 @@ export const useToasts = create<ToastState>((set) => ({
   push: (t) => {
     const id = newId("toast");
     set((s) => ({ toasts: [...s.toasts, { ...t, id }].slice(-4) }));
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })), t.tone === "error" ? 8000 : 4500);
+    // A toast with something to tap stays longer, so there's time to tap it (owner, 2026-11-23).
+    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })), t.action ? 10000 : t.tone === "error" ? 8000 : 4500);
   },
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
 }));
@@ -48,7 +49,14 @@ export function Toaster() {
             <p className="text-sm font-semibold text-ink">{t.title}</p>
             {t.body && <p className="mt-0.5 text-[13px] text-ink-3">{t.body}</p>}
             {t.action && (
-              <button type="button" onClick={t.action.onClick} className="mt-2 text-[13px] font-semibold text-brand-600 hover:underline">
+              <button
+                type="button"
+                onClick={() => {
+                  t.action!.onClick();
+                  dismiss(t.id);
+                }}
+                className="mt-2 text-[13px] font-semibold text-brand-600 hover:underline"
+              >
                 {t.action.label}
               </button>
             )}

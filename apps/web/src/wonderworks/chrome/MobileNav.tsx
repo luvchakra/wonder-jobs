@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { MessageSquarePlus, Plus, Users } from "lucide-react";
+import { ChevronUp, MessageSquarePlus, MoreHorizontal, Plus, Undo2, Users } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
 import { NETWORK_HREF, NETWORK_TAB, isActivePath, rememberAppPath } from "./nav";
@@ -16,10 +16,15 @@ const PostSheet = dynamic(() => import("@/components/network/PostSheet").then((m
 const NewMessageSheet = dynamic(() => import("@/components/network/NewMessageSheet").then((m) => m.NewMessageSheet), { ssr: false });
 import { useModuleNav, useSelectedModule } from "./useModuleNav";
 import { useChromeSlots } from "./slots";
+import { useNetworkMode } from "./networkMode";
+import { useLeaveNetwork } from "./LeaveNetwork";
+import { NetworkMark } from "@/wonderworks/brand/NetworkMark";
 
 /** The bottom bar: the module's four places, nothing else. Each place's own pages are tabs at its top (or rows
- * on You); help, account and sign-out are in the account menu (the top-bar avatar). Network is the round button above
- * the bar, under the +; it opens network mode, where the bar steps away (owner, 2026-11-22). */
+ * on You); help, account and sign-out are in the account menu (the top-bar avatar, or ⋯ in the quick actions). Above the
+ * bar, at the bottom right, one round up-arrow button opens the quick actions (owner, 2026-11-22: "by default just show
+ * one up arrow kind of icon, on click open up these icons in animated way, also wrap up the icons again if not used"):
+ * the +, Network (it opens network mode, where the bar steps away and the way back takes its place) and ⋯. */
 /** A screen showing its own action bar at the bottom: the floating menu button hides meanwhile, so it never covers it. */
 export function useBottomBar(active = true) {
   const add = useUIStore((s) => s.addBottomBar);
@@ -32,6 +37,8 @@ export function useBottomBar(active = true) {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const menu = useUIStore((s) => s.menu);
+  const setMenu = useUIStore((s) => s.setMenu);
   const barShown = useUIStore((s) => s.bottomBars > 0);
   // Jobs' five places, or the active WonderWorks module's.
   const nav = useModuleNav();
@@ -43,7 +50,7 @@ export function MobileNav() {
   const slots = useChromeSlots();
   const selected = useSelectedModule();
   const entry = slots.postFor?.(selected) ?? null;
-  const onNetwork = pathname === NETWORK_HREF || pathname.startsWith(`${NETWORK_HREF}/`);
+  const onNetwork = useNetworkMode();
   const moduleEntry = entry && !onNetwork && pathname !== entry.href.split("?")[0] ? entry : null;
   // On Messages, the + also offers a new message to a connection (owner, 2026-11-21).
   const onMessages = pathname === `${NETWORK_HREF}/messages`;
@@ -61,19 +68,122 @@ export function MobileNav() {
       delete root.dataset.networkMode;
     };
   }, [onNetwork, pathname]);
-  const NetworkIcon = NETWORK_TAB.icon;
-  return (
-    <>
-      {!barShown && signedIn && (
+  const away = useLeaveNetwork();
+  // The quick actions are open on the page they were opened on; going to another page folds them away.
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === pathname;
+  const fold = () => setOpenOn(null);
+  const dial = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    // Left alone for a few seconds, or tapped away from, they fold away again.
+    const idle = setTimeout(() => setOpenOn(null), 6000);
+    const outside = (e: PointerEvent) => {
+      if (!dial.current?.contains(e.target as Node)) setOpenOn(null);
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenOn(null);
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      clearTimeout(idle);
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+  const round = "grid size-12 shrink-0 place-items-center rounded-full shadow-lg active:scale-95";
+  const actions: { key: string; label: string; node: React.ReactNode }[] = [
+    ...(signedIn
+      ? [
+          {
+            key: "create",
+            label: choose ? "Create" : "New post",
+            node: (
+              <button
+                type="button"
+                aria-label={choose ? "Create" : "New post"}
+                onClick={() => {
+                  fold();
+                  setCreate(choose ? "choose" : "post");
+                }}
+                className={cn("wj-gradient-bg text-white", round)}
+              >
+                <Plus className="size-6" aria-hidden />
+              </button>
+            ),
+          },
+        ]
+      : []),
+    onNetwork
+      ? {
+          key: "back",
+          label: away.label,
+          node: (
+            <button type="button" aria-label={away.label} onClick={away.leave} className={cn("border border-line bg-surface text-ink", round)}>
+              <Undo2 className="size-6" strokeWidth={2.2} aria-hidden />
+            </button>
+          ),
+        }
+      : {
+          key: "network",
+          label: NETWORK_TAB.label,
+          node: (
+            <Link href={NETWORK_HREF} aria-label={NETWORK_TAB.label} className={cn("border border-line bg-surface text-brand-600", round)}>
+              <NetworkMark className="size-8" />
+            </Link>
+          ),
+        },
+    {
+      key: "menu",
+      label: "Menu",
+      node: (
         <button
           type="button"
-          aria-label={choose ? "Create" : "New post"}
-          title={choose ? "Create" : "New post"}
-          onClick={() => setCreate(choose ? "choose" : "post")}
-          className={cn("wj-gradient-bg fixed right-5 z-40 grid size-12 place-items-center rounded-full text-white shadow-lg active:scale-95 md:hidden", onNetwork ? "bottom-[calc(var(--wj-mobile-nav-h)+1.25rem)]" : "bottom-[calc(var(--wj-mobile-nav-h)+5.25rem)]")}
+          data-menu-trigger
+          aria-label="Menu"
+          aria-expanded={menu !== null}
+          onClick={() => {
+            fold();
+            setMenu(menu ? null : "fab");
+          }}
+          className={cn("border border-line bg-surface text-ink", round)}
         >
-          <Plus className="size-6" aria-hidden />
+          <MoreHorizontal className="size-6" aria-hidden />
         </button>
+      ),
+    },
+  ];
+  return (
+    <>
+      {/* The quick actions: one small, plain round up arrow (owner, 2026-11-22: "should not have any colour to it, should
+          be smaller"); pressed, the actions rise from it one after another, each with its name. */}
+      {!barShown && (
+        <div ref={dial} className="pointer-events-none fixed bottom-[calc(var(--wj-mobile-nav-h)+1rem)] right-4 z-40 flex flex-col items-end gap-3 md:hidden">
+          <div inert={!open} aria-hidden={!open} className="flex flex-col items-end gap-3">
+            {actions.map((a, i) => (
+              <div
+                key={a.key}
+                style={{ transitionDelay: `${(open ? actions.length - 1 - i : i) * 45}ms` }}
+                className={cn("flex items-center gap-2.5 transition-all duration-200 ease-out motion-reduce:transition-none", open ? "pointer-events-auto translate-y-0 scale-100 opacity-100" : "translate-y-4 scale-75 opacity-0")}
+              >
+                <span aria-hidden className="rounded-full bg-surface/95 px-2.5 py-1 text-[12.5px] font-semibold text-ink shadow-md ring-1 ring-line/70 backdrop-blur">
+                  {a.label}
+                </span>
+                {a.node}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            aria-label="Quick actions"
+            aria-expanded={open}
+            onClick={() => setOpenOn(open ? null : pathname)}
+            className="pointer-events-auto mr-0.5 grid size-11 place-items-center rounded-full border border-line bg-surface/95 text-ink-2 shadow-md backdrop-blur transition-transform active:scale-95"
+          >
+            <ChevronUp className={cn("size-6 transition-transform duration-200 motion-reduce:transition-none", open && "rotate-180")} strokeWidth={2.4} aria-hidden />
+          </button>
+        </div>
       )}
       {create === "choose" && choose && (
         <Modal open onClose={() => setCreate(null)} title="Create" size="sm">
@@ -105,17 +215,6 @@ export function MobileNav() {
       )}
       {create === "post" && <PostSheet onClose={() => setCreate(null)} />}
       {create === "message" && <NewMessageSheet onClose={() => setCreate(null)} />}
-      {/* Network, right under the +: a raised round button in the brand gradient, set apart from the four places. */}
-      {!barShown && !onNetwork && (
-        <Link
-          href={NETWORK_HREF}
-          aria-label={NETWORK_TAB.label}
-          title={NETWORK_TAB.label}
-          className="wj-gradient-bg fixed bottom-[calc(var(--wj-mobile-nav-h)+1rem)] right-4 z-40 grid size-14 place-items-center rounded-full text-white shadow-[0_8px_22px_-6px_rgba(99,59,255,0.75)] ring-4 ring-surface active:scale-95 md:hidden"
-        >
-          <NetworkIcon className="size-6" strokeWidth={2.2} aria-hidden />
-        </Link>
-      )}
       {/* The bottom bar (owner, 2026-11-22: "make the bottom bar little more modern"): the four places share one look, a
           soft pill behind the current one's icon. In network mode it isn't there at all. */}
       {!onNetwork && (

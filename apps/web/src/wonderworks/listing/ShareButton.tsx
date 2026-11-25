@@ -34,7 +34,9 @@ const SUMMARY_WAIT_MS = 2500;
  * for it: at most `SUMMARY_WAIT_MS` (owner, 2026-11-03: Share "is taking a long time to load"). A summary that arrives
  * later still replaces the message.
  */
-function useSummary(page: string | undefined): { summary: ShareSummary | null; loading: boolean } {
+function useSummary(given: string | undefined): { summary: ShareSummary | null; loading: boolean } {
+  // Only a listing's public page has a summary; anything else (a community) shares its own words at once.
+  const page = given && /^\/(?:j|s)\//.test(given) ? given : undefined;
   const [got, setGot] = useState<{ page?: string; summary: ShareSummary | null } | null>(null);
   const [waited, setWaited] = useState<string | null>(null);
   useEffect(() => {
@@ -102,7 +104,7 @@ export function ShareButton({ label, title, description, build, onShared, classN
 
 const noChange = () => () => {};
 /** What a post carries for a listing's public page: `/s/<module>/…` names its module, `/j/…` is Jobs'. */
-const postAbout = (page: string, title: string) => ({ page, title, module: /^\/s\/([a-z]{2,20})\//.exec(page)?.[1] ?? "jobs" });
+const postAbout = (page: string, title: string) => ({ page, title, module: page.startsWith("/j/") ? "jobs" : (/^\/s\/([a-z]{2,20})\//.exec(page)?.[1] ?? "") });
 
 const TILE = "flex flex-col items-center gap-1.5 rounded-[14px] px-1 py-2 text-[12px] font-medium text-ink hover:bg-bg-soft";
 const DISC = "flex size-12 items-center justify-center rounded-full text-white";

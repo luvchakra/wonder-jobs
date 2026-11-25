@@ -1,32 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ExternalLink, Sparkles } from "lucide-react";
+import { redirect } from "next/navigation";
+import { authConfigured } from "@/lib/auth/config";
+import { getSession } from "@/server/auth";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { MarketingNav } from "@/components/landing/MarketingNav";
 import { MarketingFooter } from "@/components/landing/Sections";
 import { MODULES } from "@/modules/registry";
 import { ModuleIconTile } from "@/wonderworks/brand/tiles";
 import { distinctText, excerpt } from "@/wonderworks/listing/share";
+import { SharedListingView, present } from "@/wonderworks/listing/SharedListingView";
 import { sharedListing } from "@/server/share/listing";
 
-
-/**
- * The original link's words: "Original posting on <source>" for a named source, or the site's own name when the source is
- * our gateway (its name is ours, not the listing's: "Original page on tapahtumat.hel.fi").
- */
-function originalLabel(url: string, source: string | undefined): string {
-  if (source && !/WorksLake/i.test(source)) return `Original posting on ${source}`;
-  try {
-    return `Original page on ${new URL(url).hostname.replace(/^www\./, "")}`;
-  } catch {
-    return "Original posting";
-  }
-}
 
 export const runtime = "nodejs";
 
 type Props = { params: Promise<{ module: string; id: string }> };
-
-const present = (list: (string | null | undefined | false | 0)[] | undefined) => (list ?? []).filter((x): x is string => !!x);
 
 /** The one thing a visitor does next, in each kind's own words (the same actions the in-app help names). */
 const ACTION: Record<string, string> = {
@@ -37,12 +26,6 @@ const ACTION: Record<string, string> = {
   events: "RSVP",
   marketplace: "Message the seller",
 };
-
-/** "Languages: English, Hindi" → a label and its value; a line with no label is all value. */
-function split(line: string): [string | null, string] {
-  const at = line.indexOf(": ");
-  return at > 0 && at <= 28 ? [line.slice(0, at), line.slice(at + 2)] : [null, line];
-}
 
 /** The preview card's words: the headline facts first, then as much of the description as fits. */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -61,47 +44,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  */
 export default async function SharedListingPage({ params }: Props) {
   const { module, id } = await params;
+  // Someone signed in sees it inside the app instead, without the sign-up asks (owner, 2026-11-23).
+  if (authConfigured() && (await getSession().then(() => true, () => false))) redirect(`/app/network/listing/${encodeURIComponent(module)}/${encodeURIComponent(id)}`);
   const l = await sharedListing(module, id);
   const m = l ? MODULES.find((x) => x.id === l.module) : undefined;
   const action = l ? (ACTION[l.module] ?? "Open") : "";
   const next = l ? encodeURIComponent(`/app/m/${l.module}`) : "";
-  const lines = present(l?.lines).map(split);
-  const about = l ? distinctText(l.title, l.details) : "";
   return (
     <div className="bg-white text-ink">
       <MarketingNav />
       <main id="main" className="mx-auto max-w-3xl px-4 pb-16 pt-24 sm:px-6">
         {l ? (
           <>
-            <article className="rounded-[20px] border border-line bg-surface p-5 sm:p-7">
-              <div className="flex items-center gap-2.5">
-                {m && <ModuleIconTile m={m} />}
-                <p className="text-[12px] font-semibold uppercase tracking-wide text-brand-600">{l.noun}</p>
-              </div>
-              <h1 className="mt-3 text-[26px] font-semibold leading-tight text-ink">{l.title}</h1>
-              {present(l.facts).length > 0 && <p className="mt-2 text-[15px] text-ink-2">{present(l.facts).join(" · ")}</p>}
-              {lines.length > 0 && (
-                <dl className="mt-4 divide-y divide-line rounded-[14px] border border-line text-[14px]">
-                  {lines.map(([k, v]) => (
-                    <div key={`${k}${v}`} className="grid gap-0.5 px-4 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-3">
-                      {k && <dt className="text-ink-3">{k}</dt>}
-                      <dd className={k ? "font-medium text-ink" : "text-ink-2 sm:col-span-2"}>{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-              {about && (
-                <>
-                  <h2 className="mt-5 text-[15px] font-semibold text-ink">About</h2>
-                  <p className="mt-1 whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{about}</p>
-                </>
-              )}
-              {l.originalUrl && /^https?:\/\//i.test(l.originalUrl) && (
-                <a href={l.originalUrl} target="_blank" rel="noreferrer noopener" className="mt-4 inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-brand-600 hover:underline">
-                  {l.originalLabel ?? originalLabel(l.originalUrl, l.source)} <ExternalLink className="size-4" aria-hidden />
-                </a>
-              )}
-              {l.credit && <p className="mt-2 text-[12px] text-ink-4">{l.credit}</p>}
+            <SharedListingView l={l} tile={m && <ModuleIconTile m={m} />}>
               <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Link href={`/sign-up?next=${next}`} className="wj-gradient-bg wj-press inline-flex h-12 items-center justify-center gap-2 rounded-[12px] px-6 text-[15px] font-semibold text-white shadow-brand hover:brightness-105">
                   {action} — it&apos;s free <ArrowRight className="size-4" aria-hidden />
@@ -111,7 +66,7 @@ export default async function SharedListingPage({ params }: Props) {
                 </Link>
               </div>
               <p className="mt-3 text-[12px] text-ink-4">As it reads right now. Create a free account to {action.toLowerCase()}, save it and keep track of it.</p>
-            </article>
+            </SharedListingView>
 
             {m && (
               <section className="mt-6 rounded-[20px] border border-line bg-surface-2 p-5 sm:p-6" aria-labelledby="how">

@@ -653,7 +653,7 @@ WonderArk's Discovery module reads WorksLake through the gateway's `/v1/prospect
 
 ### 14.1 Channels: where an offering's consumers already are (2026-11-12, WJ-823)
 
-`kind: "channel"` returns named public outlets and gatherings. A channel record holds the outlet's public name, link, topics, language, country, and an audience size only where the source states one (with its date). It never holds a personal email or a private person's profile; a podcast's author and a YouTube channel's owner are not returned. A solo creator's public channel is treated as an outlet (owner decision `prospects-solo-creators`).
+`kind: "channel"` returns named public outlets and gatherings. A channel record holds the outlet's public name, link, topics, language, country, and an audience size only where the source states one (with its date). It never holds a private person's profile; a podcast's author and a YouTube channel's owner are not returned. Since 2026-11-23 (owner, WJ-870) a live channel result may carry `contactEmail`: only an enquiry address the channel itself wrote in its own public text (a YouTube channel's description, the profile line of a Facebook, Instagram or LinkedIn page as the search result shows it), with `contactEmailSource` saying where. No address is looked up, guessed or read from another page; podcasts, Reddit communities and stored channel rows carry none. A solo creator's public channel is treated as an outlet (owner decision `prospects-solo-creators`).
 
 | Source | Channel type | Outside use | State | Notes |
 |---|---|---|---|---|

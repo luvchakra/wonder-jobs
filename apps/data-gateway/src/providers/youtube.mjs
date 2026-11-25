@@ -6,15 +6,22 @@
  *
  * A channel is a public outlet: its name, link, topics, country and language as the channel states them, and its
  * subscriber count as YouTube publishes it (rounded to three figures, null when the channel hides it). Never an owner's
- * name or email. Terms pending: YouTube's developer policies (III.E.4) allow keeping statistics 30 days at most and
+ * name. WJ-870 (owner, 2026-11-23): an enquiry address the channel wrote in its own description is returned as
+ * contactEmail, marked "channel description"; no address is looked up anywhere else. Terms pending: YouTube's developer policies (III.E.4) allow keeping statistics 30 days at most and
  * require showing YouTube as the source; they restrict passing API data on (III.G.1), which the owner confirms.
  */
-import { callJson, count, countryOf, list, str, wordsOf } from "./shared.mjs";
+import { callJson, count, countryOf, list, publishedEmail, str, wordsOf } from "./shared.mjs";
 
 const API = "https://www.googleapis.com/youtube/v3/";
 /** A topic as YouTube states it (a Wikipedia link, "https://en.wikipedia.org/wiki/Lifestyle_(sociology)"), as words. */
 function topicOf(link) {
   try { const last = decodeURIComponent(new URL(link).pathname.split("/").pop() ?? ""); return str(last.replace(/_/g, " ").replace(/\s*\(.*\)$/, ""), 60)?.toLowerCase() ?? null; } catch { return null; }
+}
+
+/** WJ-870: the address the channel published in its own description, with where it was published. */
+function contactOf(description) {
+  const contactEmail = publishedEmail(description);
+  return { contactEmail, contactEmailSource: contactEmail ? "channel description" : null };
 }
 
 function channel(c, at) {
@@ -29,7 +36,7 @@ function channel(c, at) {
     topics: [...new Set(list(c.topicDetails?.topicCategories).map(topicOf).filter(Boolean))].slice(0, 8),
     audience: subscribers !== null ? { value: subscribers, unit: "subscribers", asOf: at.slice(0, 10) } : null,
     language: typeof c.snippet.defaultLanguage === "string" && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(c.snippet.defaultLanguage) ? c.snippet.defaultLanguage.toLowerCase() : null,
-    location: { text: null, country }, contactUrl: null, description: str(c.snippet.description, 600),
+    location: { text: null, country }, contactUrl: null, ...contactOf(c.snippet.description), description: str(c.snippet.description, 600),
     source: { id: "youtube", provider: "youtube", name: "YouTube Data API", url, termsPending: true }, observedAt: at,
   };
 }

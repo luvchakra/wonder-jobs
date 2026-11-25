@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Globe2, Lock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Globe2, Lock } from "lucide-react";
 import { MODULES, isLive, moduleById } from "@/modules/registry";
-import { LIMITS, type Community, type CommunityInput } from "@/domain/network/communities";
+import { communityInitial, communityTone, LIMITS, type Community, type CommunityInput } from "@/domain/network/communities";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/common/Button";
 import { Field, Input, Select, Textarea } from "@/components/common/Input";
@@ -10,13 +11,18 @@ import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 
 const TONES = ["from-brand-500 to-pink-400", "from-sky-500 to-brand-500", "from-emerald-500 to-sky-500", "from-amber-500 to-pink-500", "from-fuchsia-500 to-brand-600", "from-teal-500 to-emerald-500"];
-const toneOf = (id: string) => TONES[[...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % TONES.length];
+const toneOf = (id: string) => TONES[communityTone(id)];
 
-/** A community's mark: its first letter on a gradient tile, the same colour every time. */
-export function CommunityAvatar({ c, size = 44, className }: { c: Pick<Community, "id" | "name">; size?: number; className?: string }) {
+/** A community's mark: its own photo when it has one, else its first letter on a gradient tile, the same colour every time. */
+export function CommunityAvatar({ c, size = 44, className }: { c: Pick<Community, "id" | "name"> & { photo?: string }; size?: number; className?: string }) {
+  if (c.photo)
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- a small photo read through the app's own route
+      <img src={c.photo} alt="" aria-hidden width={size} height={size} style={{ width: size, height: size }} className={cn("shrink-0 rounded-[28%] bg-surface-2 object-cover", className)} />
+    );
   return (
     <span aria-hidden style={{ width: size, height: size, fontSize: size * 0.42 }} className={cn("grid shrink-0 place-items-center rounded-[28%] bg-gradient-to-br font-semibold text-white", toneOf(c.id), className)}>
-      {c.name.trim().charAt(0).toUpperCase() || "#"}
+      {communityInitial(c.name)}
     </span>
   );
 }
@@ -111,4 +117,38 @@ export function CommunitySheet({ start, onClose, save }: { start?: CommunityInpu
       </div>
     </Modal>
   );
+}
+
+/** A round back arrow at a page's top left (owner, 2026-11-22): to the page the member came from, or, opened from a link
+ * with nothing to go back to, to `fallback` (the page above this one). */
+export function BackButton({ fallback, label, className }: { fallback: string; label: string; className?: string }) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={() => (window.history.length > 1 ? router.back() : router.push(fallback))}
+      className={cn("grid size-9 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink-2 shadow-sm hover:bg-bg-soft hover:text-ink active:scale-95", className)}
+    >
+      <ArrowLeft className="size-[18px]" aria-hidden />
+    </button>
+  );
+}
+
+/** The chosen photo as a square JPEG of at most 512 px, cut from its middle and drawn afresh, so it carries no metadata. */
+export async function squarePhoto(file: File, side = 512): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const cut = Math.min(bitmap.width, bitmap.height);
+  const out = Math.min(side, cut);
+  const canvas = document.createElement("canvas");
+  canvas.width = out;
+  canvas.height = out;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("This browser can't prepare the photo.");
+  ctx.drawImage(bitmap, (bitmap.width - cut) / 2, (bitmap.height - cut) / 2, cut, cut, 0, 0, out, out);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.88));
+  if (!blob) throw new Error("This browser can't prepare the photo.");
+  return blob;
 }

@@ -348,7 +348,7 @@ export function Menu({ items, trigger, label, up, className }: { items: MenuItem
   );
 }
 
-export function FeedCard({ u: initial, onDelete, onReport, onReshared }: { u: NetUpdate; onDelete: () => void; onReport: () => void; onReshared: () => void }) {
+export function FeedCard({ u: initial, onDelete, onReport, onReshared, highlight }: { u: NetUpdate; onDelete: () => void; onReport: () => void; onReshared: () => void; /** The post just made, opened from its toast: marked for a moment. */ highlight?: boolean }) {
   const [u, setU] = useState(initial);
   const [open, setOpen] = useState(false);
   const [resharing, setResharing] = useState(false);
@@ -411,7 +411,7 @@ export function FeedCard({ u: initial, onDelete, onReport, onReshared }: { u: Ne
     }
   };
   return (
-    <li className="rounded-[16px] border border-line bg-surface p-3">
+    <li id={`post-${u.id}`} className={cn("scroll-mt-24 rounded-[16px] border bg-surface p-3 transition-[box-shadow,border-color] duration-700", highlight ? "border-brand-400 shadow-[0_0_0_4px_rgba(124,58,237,0.18)]" : "border-line")}>
       <div className="flex gap-3">
         <Link href={memberHref(u.member.id)} aria-label={u.member.name}>
           <MemberAvatar m={u.member} size={44} />

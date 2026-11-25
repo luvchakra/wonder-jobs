@@ -29,7 +29,7 @@ function community(d, at) {
     topics: [],
     audience: subscribers !== null ? { value: subscribers, unit: "members", asOf: at.slice(0, 10) } : null,
     language: typeof d.lang === "string" && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(d.lang) ? d.lang.toLowerCase() : null,
-    location: { text: null, country: null }, contactUrl: null, description: str(d.public_description, 600) ?? str(d.title, 200),
+    location: { text: null, country: null }, contactUrl: null, contactEmail: null, contactEmailSource: null, description: str(d.public_description, 600) ?? str(d.title, 200),
     source: { id: "reddit", provider: "reddit", name: "Reddit", url, termsPending: true }, observedAt: at,
   };
 }

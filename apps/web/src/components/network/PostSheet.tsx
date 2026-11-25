@@ -4,7 +4,7 @@ import { ImagePlus, Loader2, X } from "lucide-react";
 import { moduleById } from "@/modules/registry";
 import { ListingCard } from "./ListingCard";
 import { communityApi, networkApi, type PostAudience } from "@/services/network/client";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { Community } from "@/domain/network/communities";
 import { AUDIENCE_SEEN } from "./audience";
 import { usePostTarget, type PostAbout } from "@/wonderworks/chrome/postTarget";
@@ -51,6 +51,7 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
   // Where it goes (owner, 2026-11-22: modules in communities): the member's feed, or one of their communities, as a
   // discussion with a title. Shown only to members of a community; on a community's own pages it starts there.
   const pathname = usePathname();
+  const router = useRouter();
   const here = /^\/app\/network\/communities\/(cm_[A-Za-z0-9_-]+)/.exec(pathname ?? "")?.[1] ?? "";
   const [places, setPlaces] = useState<Community[]>([]);
   const [to, setTo] = useState<string>("feed");
@@ -61,10 +62,11 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
       .then((d) => {
         const mine = d.mine.filter((c) => c.me?.status === "member");
         setPlaces(mine);
-        if (here && mine.some((c) => c.id === here)) setTo(here);
+        // Sharing this very community goes to the feed, not into itself.
+        if (here && mine.some((c) => c.id === here) && attach?.page !== `/app/network/communities/${here}`) setTo(here);
       })
       .catch(() => setPlaces([]));
-  }, [here]);
+  }, [here, attach?.page]);
   const place = places.find((c) => c.id === to);
   // Photos (owner, 2026-11-21): up to four, each sent while the member writes and kept as theirs alone until Post.
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -116,16 +118,17 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
     setBusy(true);
     try {
       if (place) {
-        await communityApi.discuss(place.id, title.trim(), text.trim(), about ? { page: about.page, title: about.title } : null);
+        const { discussion } = await communityApi.discuss(place.id, title.trim(), text.trim(), about ? { page: about.page, title: about.title } : null);
         posted.current = false; // photos stay with feed posts; any chosen are taken back on close
-        toast.success(`Posted in ${place.name}`, "It starts a discussion there.");
+        // The toast leads straight to what was just made (owner, 2026-11-23).
+        toast.success(`Posted in ${place.name}`, "It starts a discussion there.", { label: "View discussion", onClick: () => router.push(`/app/network/communities/${place.id}/${discussion.id}`) });
         onClose();
         return;
       }
-      await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}), ...(photos.length ? { media: photos.map((p) => p.id!) } : {}) });
+      const { id: postId } = await networkApi.post(text.trim(), audience, { ...(about ? { about: { page: about.page, title: about.title } } : {}), ...(about?.module ? { module: about.module } : {}), ...(photos.length ? { media: photos.map((p) => p.id!) } : {}) });
       posted.current = true;
       bump();
-      toast.success("Posted", AUDIENCE_SEEN[audience]);
+      toast.success("Posted", AUDIENCE_SEEN[audience], { label: "View post", onClick: () => router.push(`/app/network?post=${encodeURIComponent(postId)}`) });
       onClose();
     } catch (e) {
       toast.error("Couldn't post", (e as Error).message);
@@ -201,7 +204,7 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
           {about && (
             <div className="relative">
               <ListingCard page={about.page} fallback={about.title} moduleLabel={moduleById(about.module)?.label ?? ""} link={false} />
-              <button type="button" aria-label="Remove the attached listing" onClick={() => setAbout(null)} className="absolute right-2 top-4 grid size-8 place-items-center rounded-full bg-black/60 text-white hover:bg-black/75">
+              <button type="button" aria-label={about?.page.startsWith("/app/network/communities/") ? "Remove the attached community" : "Remove the attached listing"} onClick={() => setAbout(null)} className="absolute right-2 top-4 grid size-8 place-items-center rounded-full bg-black/60 text-white hover:bg-black/75">
                 <X className="size-4" aria-hidden />
               </button>
             </div>
@@ -238,7 +241,10 @@ export function PostSheet({ attach, onClose }: { /** A listing to attach instead
                 void addPhotos(files);
               }}
             />
-            {place ? (
+            {/* A post carrying a listing from a module shows the listing's own picture, so it takes no photos (owner,
+                2026-11-23: "don't show the photo option when sharing some content from other modules"); removing the
+                listing (×) brings Photo back. */}
+            {place || about ? (
               <span />
             ) : (
               <button type="button" onClick={() => picker.current?.click()} disabled={photos.length >= MAX_PHOTOS} className="inline-flex min-h-10 items-center gap-1.5 rounded-[10px] px-2 text-[13px] font-semibold text-brand-600 hover:bg-bg-soft disabled:text-ink-4">

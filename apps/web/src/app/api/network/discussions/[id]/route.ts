@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { hiringRoute } from "@/server/hiringRoute";
-import { editPost, follow, moderate, readDiscussion, removePost, replyTo, reportPost, vote } from "@/server/network/communities";
+import { editPost, follow, moderate, modReview, readDiscussion, removePost, replyTo, reportPost, vote } from "@/server/network/communities";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +21,8 @@ const Act = z.union([
   z.object({ action: z.literal("report"), target: z.string().max(60), reason: z.string().min(3).max(500) }),
   z.object({ action: z.literal("follow"), on: z.boolean() }),
   z.object({ action: z.literal("moderate"), pinned: z.boolean().optional(), locked: z.boolean().optional() }),
+  // The mod queue: approve, or remove with a reason the author is told.
+  z.object({ action: z.literal("review"), target: z.string().max(60), do: z.enum(["approve", "remove"]), reason: z.string().max(400).optional() }),
 ]);
 
 export async function POST(req: Request, ctx: Ctx) {
@@ -33,14 +35,16 @@ export async function POST(req: Request, ctx: Ctx) {
       if (b.action === "edit") return editPost(s, b.target, { title: b.title, body: b.body });
       if (b.action === "report") return reportPost(s, b.target, b.reason);
       if (b.action === "follow") return follow(s, id, b.on);
+      if (b.action === "review") return modReview(s, b.target, b.do, b.reason ?? "");
       return moderate(s, id, { pinned: b.pinned, locked: b.locked });
     },
     { schema: Act, write: true },
   );
 }
 
-/** ?target=: remove the discussion, or a reply in it (its author or a moderator). */
+/** ?target=: remove the discussion, or a reply in it (its author, or a moderator with ?reason= the author is told). */
 export async function DELETE(req: Request) {
-  const target = (new URL(req.url).searchParams.get("target") ?? "").slice(0, 60);
-  return hiringRoute(req, (s) => removePost(s, target), { write: true });
+  const url = new URL(req.url);
+  const target = (url.searchParams.get("target") ?? "").slice(0, 60);
+  return hiringRoute(req, (s) => removePost(s, target, (url.searchParams.get("reason") ?? "").slice(0, 400)), { write: true });
 }
