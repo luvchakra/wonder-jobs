@@ -17,6 +17,8 @@ import { WonderSearching } from "@/components/brand/WonderSearching";
 import { Chip, Input } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { relativeTime } from "@/lib/format";
+import { wantedLine } from "@/modules/jobs/searchAs";
+import type { CareerRole } from "@/domain/career/roles";
 import { cn } from "@/lib/cn";
 import { track } from "@/lib/analytics";
 import { SearchingBanner } from "@/wonderworks/find/parts";
@@ -266,14 +268,15 @@ function NoteBody({ note }: { note: RelevanceNote }) {
  * The role Wonder searches for, said up front with one tap to change it: Change opens the Career Profile
  * at "Role you want" (Back to Find there searches again when it changed).
  */
-export function WantedRole({ className }: { className?: string }) {
-  const role = useCareerStore((s) => s.dna.careerGoal.trim());
+export function WantedRole({ className, as }: { className?: string; /** The role searched as ("Search as"), shown in the profile's place. */ as?: CareerRole }) {
+  const goal = useCareerStore((s) => s.dna.careerGoal);
+  const role = wantedLine(goal, as);
   // One pill: the role and Change (the label is for screen readers). As tall as Part Time's search box,
   // so switching modes doesn't move what's below.
   return (
     <div className={cn("mb-2 flex h-10 items-center gap-2 rounded-full border border-line bg-surface pl-4 pr-1 shadow-xs sm:gap-3", className)}>
       <div className="min-w-0 flex-1">
-        <p className="wj-sr-only">Looking for</p>
+        <p className="wj-sr-only">{as ? `Searching as ${as.title}` : "Looking for"}</p>
         <p className={cn("truncate text-[15px] leading-5 first-letter:uppercase", role ? "text-ink" : "text-ink-3")} title={role || undefined}>
           {role || "No role yet"}
         </p>

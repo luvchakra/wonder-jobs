@@ -13,6 +13,8 @@ import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/modules/jobs/components/JobsBoard";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
+import { roleArrival } from "@/modules/jobs/searchAs";
+import { switchFindMode } from "@/lib/switchFindMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/modules/jobs/components/JobsReadiness";
 
 /**
@@ -29,6 +31,13 @@ function JobsHome() {
   const search = useJobSearch({ auto: !explicit });
   const attention = useHomeAttention();
 
+  const mode = useJobsStore((s) => findModeOf(s.filters));
+  // Opened from a role's Search (?role=): that role, picked in Full Time (where the search below runs it).
+  const [picked, setPicked] = useState<{ mode: FindMode; role: string | null | false } | undefined>(() => (params.get("role") ? { mode: "full_time", role: params.get("role")! } : undefined));
+  // The words in the box as last seen (below: clearing them brings the profile's list back).
+  const query = useJobsStore((s) => s.filters.query);
+  const typedBefore = useRef(query.trim());
+  const leftForRole = useRef(false);
   // Arriving with something to search (Ask Wonder's "Find …", a role's "Search", an old Find link):
   // search it once, then drop it from the address so a reload doesn't search again.
   const asked = useRef(false);
@@ -39,28 +48,39 @@ function JobsHome() {
     const refresh = params.get("refresh");
     if (!words && !roleId && !refresh) return;
     asked.current = true;
-    if (roleId) void search.searchAsRole(roleId);
+    // A role's Search: Full Time, with the role picked under "Search as" (and on Looking for) for what follows.
+    const arrival = roleArrival(roleId, findModeOf(useJobsStore.getState().filters), roles);
+    if (arrival) {
+      if (arrival.leavePartTime) {
+        // Leaving Part Time empties its box: that isn't "the words were cleared", so the profile's list and search don't replace the role's.
+        leftForRole.current = true;
+        switchFindMode("full_time");
+      }
+      void search.searchAsRole(arrival.roleId);
+    } else if (roleId) void search.searchAsRole(roleId);
     else if (words) void search.searchWords(words);
     else void search.searchNow();
     router.replace("/app/jobs");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, from the address the page was opened with
   }, [params, search, router]);
   // "Search as" picks a role without searching; Refine's Search runs it. undefined = nothing picked yet,
   // null = My profile, false = none (Part Time only, and its start: only the words typed).
   // The role picked under "Search as", for the mode it was picked in (switching Full Time / Part Time in the top bar forgets it).
-  const mode = useJobsStore((s) => findModeOf(s.filters));
-  const [picked, setPicked] = useState<{ mode: FindMode; role: string | null | false } | undefined>(undefined);
-  const pickedRole = picked && picked.mode === mode ? picked.role : undefined;
+  // A role since deleted counts as nothing picked.
+  const pickedRole = picked && picked.mode === mode && (typeof picked.role !== "string" || roles.some((r) => r.id === picked.role)) ? picked.role : undefined;
   const setPickedRole = (role: string | null | false | undefined) => setPicked(role === undefined ? undefined : { mode, role });
 
   // Clearing the typed words brings back the profile's results and view as they were before the words
   // were searched — not what's left of the words' results. (After a reload nothing is kept: search again.)
-  const query = useJobsStore((s) => s.filters.query);
   const fitBeforeWords = useRef<JobFilters["minFit"] | undefined>(undefined);
-  const typedBefore = useRef(query.trim());
   useEffect(() => {
     const was = typedBefore.current;
     typedBefore.current = query.trim();
     if (typedBefore.current || !was) return;
+    if (leftForRole.current) {
+      leftForRole.current = false;
+      return;
+    }
     const t = setTimeout(() => {
       const s = useJobsStore.getState();
       // Part Time never falls back to the profile's results.
@@ -118,7 +138,7 @@ function JobsHome() {
         header={search.active ? <SearchStatusLine search={search} monitoring={attention.isMonitoring} /> : null}
         // Full Time: what Wonder searches for, with one tap to change it, in the search box's place at the start of the
         // filter bar, so from 1024px it shares the row with Refine, Location, Salary and Search (owner, 2026-11-06).
-        lead={mode === "full_time" ? <WantedRole className="mb-0" /> : undefined}
+        lead={mode === "full_time" ? <WantedRole className="mb-0" as={typeof searchAs === "string" ? roles.find((r) => r.id === searchAs) : undefined} /> : undefined}
         // "Search as" is the first thing in Refine; Looking for is on the page, how many and from where above the jobs.
         refineTop={roles.length > 0 ? <RoleChips roles={roles} current={searchAs} onPick={pickSearchAs} busy={false} allowNone={mode === "part_time"} /> : undefined}
         // A role picked under "Search as" counts as one Refine setting; Clear goes back to My profile (Part Time: none).
