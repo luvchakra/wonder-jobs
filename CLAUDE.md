@@ -159,7 +159,7 @@ Never show a candidate anything WonderWorks didn't actually find, compute or rec
   - `npx vitest run <touched paths>`
   - plus a local production build when build config changes.
   - CI runs the full `npm run check`.
-- **E2E runs nightly at 03:00 IST, not on PRs** (`.github/workflows/e2e-nightly.yml`).
+- **E2E runs nightly at 03:00 IST, not on PRs** (`.github/workflows/e2e-nightly.yml`). Its part against the live site runs on Mondays only (owner, 2026-11-25: the live site's CPU allowance); Run workflow runs it any day.
   - Run specific specs (`npm run e2e -- e2e/<spec>.ts --project=chromium`) only for risky changes: sign-in, permissions, migrations, payments, cross-feature flows. Or trigger the nightly on the branch.
   - Otherwise, a quick look at the changed screen is enough.
 - **Pre-launch, E2E may use production** (`E2E_ALLOW_PRODUCTION=true`). Tests create and delete only their own `wj-e2e-*` data. At launch, set it to `"false"` and move E2E to a separate project.

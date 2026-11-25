@@ -88,12 +88,18 @@ jobs:
           PART_SPECS: ${{ matrix.part.specs }}
           INPUT_SPECS: ${{ inputs.specs }}
           NEEDS_SUPABASE: ${{ matrix.part.supabase }}
+          AGAINST_PRODUCTION: ${{ matrix.part.production }}
           SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           HAS_SERVICE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY != '' }}
         run: |
           for s in $INPUT_SPECS; do
             case "$s" in *[!A-Za-z0-9_./-]*) echo "::error::Not a spec path: $s"; exit 1 ;; esac
           done
+          # The live site's part runs on Mondays only when scheduled (owner, 2026-11-25: fewer calls to the live site,
+          # whose CPU allowance paused it once); every other part stays nightly, and Run workflow runs it any day.
+          if [ "$AGAINST_PRODUCTION" = "true" ] && [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$(TZ=Asia/Kolkata date +%u)" != "1" ]; then
+            echo "The production part runs on Mondays (IST) when scheduled."; echo "run=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           specs="$PART_SPECS"
           if [ -n "$INPUT_SPECS" ]; then
             if [ -z "$PART_SPECS" ]; then specs="$INPUT_SPECS"; else
