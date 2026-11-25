@@ -10,6 +10,7 @@ import type { CanonicalJob, JobMatch, JobQuality } from "@/domain/jobs/types";
 import { ProviderError } from "@/domain/ai/types";
 import { computeMatch, computeQuality } from "@/services/jobs/matching";
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
+import { roleKey, searchWordsOf, type RoleScope } from "@/services/jobs/roleScope";
 import type { CareerDNA } from "@/domain/career/types";
 import type { AIService } from "@/services/ai/service";
 import { useCareerStore } from "@/store/career";
@@ -31,15 +32,15 @@ export interface ExecutorDeps {
 const CHUNK = 96;
 
 /** The model's fit read for the 30 leading postings (by rule score), or null — the rules' scores then stand. */
-async function aiFitsFor(jobs: CanonicalJob[], matches: JobMatch[], dna: CareerDNA): Promise<Record<string, AiFit> | null> {
+async function aiFitsFor(jobs: CanonicalJob[], matches: JobMatch[], dna: CareerDNA, role?: RoleScope): Promise<Record<string, AiFit> | null> {
   const byId = new Map(jobs.map((j) => [j.id, j]));
   const top = [...matches].filter((m) => m.score >= 20).sort((a, b) => b.score - a.score).slice(0, 30).map((m) => byId.get(m.jobId)).filter((j): j is CanonicalJob => !!j);
   if (!top.length) return null;
   try {
-    const res = await fetch("/api/ai/rank", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ profile: profileForAi(dna), jobs: top.map(jobForAi) }) });
+    const res = await fetch("/api/ai/rank", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ profile: profileForAi(dna, role), jobs: top.map(jobForAi) }) });
     const data = (await res.json().catch(() => null)) as { scores?: { id: string; score: number; reason: string; flags?: AiFit["flags"] }[] | null } | null;
     if (!res.ok || !data?.scores?.length) return null;
-    const profile = profileKey(dna);
+    const profile = profileKey(dna, roleKey(role));
     const at = new Date().toISOString();
     return Object.fromEntries(data.scores.map((x) => [x.id, { score: x.score, reason: x.reason, flags: x.flags ?? [], profile, at }]));
   } catch {
@@ -146,16 +147,17 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const matches: JobMatch[] = [];
       ctx.setProgress(0, jobs.length);
       for (let i = 0; i < jobs.length; i += CHUNK) {
-        for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals, searchQuery: typedQuery(ctx.run.config) }));
+        for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals, searchQuery: typedQuery(ctx.run.config), forRole: !!ctx.run.config.role }));
         ctx.setProgress(matches.length, jobs.length);
         await ctx.sleep(0);
         await ctx.checkpoint();
       }
       // A model reads the leading postings against the profile; its score nudges the rules' within a band.
       if (getClientMode().mode === "user") {
-        const fits = await aiFitsFor(jobs, matches, dna);
+        const role = runRole(ctx.run.config);
+        const fits = await aiFitsFor(jobs, matches, dna, role);
         if (fits) {
-          const profile = profileKey(dna);
+          const profile = profileKey(dna, roleKey(role));
           for (let i = 0; i < matches.length; i++) matches[i] = blendAiFit(matches[i], fits[matches[i].jobId], profile);
           useJobsStore.getState().setAiFits(fits);
           ctx.addEvidence({ label: "Read by AI", value: String(Object.keys(fits).length), tone: "info" });
@@ -425,8 +427,14 @@ const qualityCache = new Map<string, JobQuality[]>();
 const rankedCache = new Map<string, string[]>();
 
 /** The candidate's own words, when the run searched for them — what matching judges each posting on first. */
-export function typedQuery(config: { origin?: "profile" | "words"; role?: unknown; searchCriteria: { query: string } }): string | undefined {
-  return config.origin === "words" && !config.role && config.searchCriteria.query.trim() ? config.searchCriteria.query : undefined;
+/** The words a search's jobs are judged on: what was typed, or a role's search words (a role is searched by its words). */
+export function typedQuery(config: { origin?: "profile" | "words"; searchCriteria: { query: string } }): string | undefined {
+  return searchWordsOf(config);
+}
+
+/** The role a run searched as, with the words and goal it ran with. */
+function runRole(config: { role?: { title: string }; careerGoal?: string; searchCriteria: { query: string } }): RoleScope | undefined {
+  return config.role ? { title: config.role.title, query: config.searchCriteria.query, careerGoal: config.careerGoal ?? config.role.title } : undefined;
 }
 
 /** Rehydrate working memory for a rerun from the parent run's caches, when available. */
@@ -490,7 +498,7 @@ function showArriving(ctx: StageContext, jobs: CanonicalJob[], first: boolean) {
   if (first) store.replaceCatalog(list, catalogKey(ctx.run.config));
   else store.appendCatalog(list);
   const { dna, learnedSignals } = useCareerStore.getState();
-  const opts = { dna, preferredLocations: ctx.get<string[]>("preferredLocations"), minSalary: ctx.get<number>("minSalary"), careerGoal: ctx.get<string>("careerGoal"), learnedSignals, searchQuery: typedQuery(ctx.run.config) };
+  const opts = { dna, preferredLocations: ctx.get<string[]>("preferredLocations"), minSalary: ctx.get<number>("minSalary"), careerGoal: ctx.get<string>("careerGoal"), learnedSignals, searchQuery: typedQuery(ctx.run.config), forRole: !!role };
   store.setMatches(list.map((j) => computeMatch(j, opts)));
 }
 

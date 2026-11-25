@@ -73,8 +73,8 @@ const UP = 15;
 const DOWN = 20;
 
 /** Changes when what the fit depends on changes: the role wanted, the headline, level and skills. */
-export function profileKey(dna: Pick<CareerDNA, "careerGoal" | "headline" | "seniority" | "skills">): string {
-  const s = [dna.careerGoal, dna.headline, dna.seniority, dna.skills.map((k) => k.name).join(",")].join("|").toLowerCase();
+export function profileKey(dna: Pick<CareerDNA, "careerGoal" | "headline" | "seniority" | "skills">, role = ""): string {
+  const s = [dna.careerGoal, dna.headline, dna.seniority, dna.skills.map((k) => k.name).join(","), role].join("|").toLowerCase();
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return `p${(h >>> 0).toString(36)}`;
@@ -100,6 +100,8 @@ export function jobForAi(j: CanonicalJob) {
 }
 
 /** What the model is shown about the candidate — their own profile facts, no contact details. */
-export function profileForAi(dna: CareerDNA) {
-  return { roleWanted: dna.careerGoal.slice(0, 160), headline: dna.headline.slice(0, 160), level: dna.seniority, years: dna.yearsExperience, skills: dna.skills.slice(0, 25).map((s) => s.name), industries: dna.industries.slice(0, 8), locations: dna.preferredLocations.slice(0, 6) };
+export function profileForAi(dna: CareerDNA, role?: { title: string; query: string; careerGoal: string }) {
+  // Searching as a role: the role is what's wanted (its name, search words and goal), not the profile's own goal.
+  const wanted = role ? `${role.title}: ${role.query}${role.careerGoal && role.careerGoal !== role.title ? ` — ${role.careerGoal}` : ""}` : dna.careerGoal;
+  return { roleWanted: wanted.slice(0, 200), headline: dna.headline.slice(0, 160), level: dna.seniority, years: dna.yearsExperience, skills: dna.skills.slice(0, 25).map((s) => s.name), industries: dna.industries.slice(0, 8), locations: dna.preferredLocations.slice(0, 6) };
 }
