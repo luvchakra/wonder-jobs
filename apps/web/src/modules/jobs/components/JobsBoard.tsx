@@ -16,6 +16,9 @@ import { EASY_APPLY_SOURCE, JobFiltersBar, SortMenu, type SourceSearch } from "@
 import { savedTextMatches } from "@/domain/jobs/savedText";
 import { FilteredBreakdown, CLEAR_FILTERS_PATCH } from "@/modules/jobs/components/FilteredBreakdown";
 import { applyJobFilters } from "@/domain/jobs/filterExplain";
+import { findModeOf } from "@/domain/jobs/findMode";
+import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
+import { alsoInOtherMode, otherModeCopy, otherModeFilters } from "@/domain/jobs/otherMode";
 import { placesOnly } from "@/domain/jobs/searchScope";
 import { fieldTerms } from "@/services/jobs/matching";
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
@@ -29,6 +32,8 @@ import { cardStatus } from "@/domain/applications/cardStatus";
 import type { Tone } from "@/components/common/Badge";
 
 const PAGE = 24;
+/** How many of the other mode's jobs show under the list ("Also full-time"); "See all" opens the rest. */
+const ALSO_SHOWN = 3;
 
 /**
  * The job list: search box, cards, compare, "Why was this filtered". The jobs come first on the page;
@@ -50,6 +55,7 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
   const setFilters = useJobsStore((s) => s.setFilters);
   const sort = useJobsStore((s) => s.sort);
   const sources = useJobsStore((s) => s.sources);
+  const refine = useJobsStore((s) => s.refine);
   const applications = useApplicationsStore((s) => s.applications);
   const now = useNow();
   const [limit, setLimit] = useState(PAGE);
@@ -121,6 +127,15 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
   // A job taken out of the Pipeline is back in Find like a saved one: an old posting isn't hidden as too old.
   const kept = useMemo(() => (savedOnly ? saved : { ...removedFromPipeline, ...saved }), [savedOnly, saved, removedFromPipeline]);
   const filterResult = useMemo(() => applyJobFilters(listed, jobs, matches, rejected, kept, effective, hour, field, inPipeline), [listed, jobs, matches, rejected, kept, effective, hour, field, inPipeline]);
+  // The same words' jobs in the other mode (Part Time's full-time ones, Full Time's part-time ones), from the
+  // catalog on screen: counted with that mode's own filters, so "See all" opens exactly these.
+  const also = useMemo(() => {
+    if (savedOnly || !query.trim()) return null;
+    const f = otherModeFilters({ ...(JSON.parse(filtersKey) as typeof filters), query }, refine);
+    const places = placesOnly(f.locations ?? (f.skipProfile ? undefined : sourceSearch?.places));
+    const there = applyJobFilters(listed, jobs, matches, rejected, kept, { ...f, onlySaved: false, locations: places?.length ? places : undefined }, hour, field, inPipeline);
+    return alsoInOtherMode(findModeOf(effective), there, jobs);
+  }, [savedOnly, query, filtersKey, refine, sourceSearch?.places, listed, jobs, matches, rejected, kept, hour, field, inPipeline, effective]);
   const results = useMemo(() => {
     const list = savedOnly && query.trim() ? filterResult.visibleIds.filter((id) => savedTextMatches(jobs[id], query)) : [...filterResult.visibleIds];
     // A job just taken out of the Pipeline (the last day) leads Find, so the candidate sees where it went.
@@ -139,7 +154,8 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
 
   const visible = results.slice(0, limit);
   // Size and H-1B filings for the companies on screen, one request per page of new ones.
-  const briefs = useCompanyBriefs(useMemo(() => visible.flatMap((id) => (jobs[id] ? [jobs[id]] : [])), [visible, jobs]));
+  const alsoShown = useMemo(() => also?.ids.slice(0, ALSO_SHOWN) ?? [], [also]);
+  const briefs = useCompanyBriefs(useMemo(() => [...visible, ...alsoShown].flatMap((id) => (jobs[id] ? [jobs[id]] : [])), [visible, alsoShown, jobs]));
   // "Showing 14 jobs for “iam director” in Mumbai from 2 sources" — every number from what's on screen.
   const isSearching = !!searching;
   // What the catalog on screen was searched for ("" = the Career Profile's own search).
@@ -170,6 +186,15 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
     const i = deriveSearchIntent(typed);
     return !i.query && i.locations.length ? i.locations : undefined;
   }, [typed]);
+  const showAlso = !!also?.ids.length && !isSearching && !partTimeIdle;
+  const alsoCopy = also ? otherModeCopy(findModeOf(effective), also, query) : null;
+  const seeAllThere = () => {
+    if (!also) return;
+    // The other mode, with these words and this catalog: nothing is searched again.
+    useJobsStore.getState().switchFindMode(also.mode, useJobsStore.getState().filters.query);
+    setLimit(PAGE);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   // The jobs on screen are checked against their own sites; closed ones leave the list.
   useLinkCheck(visible);
   const closed = useJobsStore((s) => s.closed);
@@ -212,6 +237,9 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
       ) : results.length === 0 ? (
         searching && !savedOnly ? (
           searching
+        ) : showAlso && filterResult.hiddenByReason.other_mode ? (
+          // The words' jobs are there, only in the other mode: say so, never offer to search again.
+          <EmptyState icon={<Search className="size-5" aria-hidden />} title={alsoCopy!.emptyTitle} body={alsoCopy!.emptyBody} />
         ) : filterResult.hiddenTotal > 0 && !savedOnly ? (
           <FilteredBreakdown
             result={filterResult}
@@ -287,6 +315,29 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
           )}
           <ShowMore left={results.length - visible.length} shown={visible.length} onClick={() => setLimit((l) => l + PAGE)} />
         </>
+      )}
+      {showAlso && (
+        <section className="mt-6" aria-label={alsoCopy!.divider}>
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className="shrink-0 text-[13px] font-semibold text-ink-2">{alsoCopy!.divider}</h2>
+            <span className="h-px flex-1 bg-line" aria-hidden />
+          </div>
+          <ResultsGrid label={alsoCopy!.divider}>
+            {alsoShown.map((id) => {
+              const t = jobTypeOf(jobs[id]);
+              return (
+                <li key={id}>
+                  <JobResult id={id} job={jobs[id]} match={matches[id]} brief={briefs.get(jobBriefKey(jobs[id]))} saved={!!saved[id]} onToggleSave={toggleSave} status={t ? JOB_TYPE_LABEL[t] : undefined} statusTone="neutral" compareSelected={false} />
+                </li>
+              );
+            })}
+          </ResultsGrid>
+          <div className="mt-3 flex justify-center">
+            <Button size="sm" variant="outline" onClick={seeAllThere}>
+              {alsoCopy!.seeAll}
+            </Button>
+          </div>
+        </section>
       )}
       {footer}
       {/* What's hidden and why — below the jobs, so nothing stands between the candidate and the first one. */}
