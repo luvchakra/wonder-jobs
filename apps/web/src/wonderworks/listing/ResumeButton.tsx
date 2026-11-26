@@ -12,6 +12,7 @@ import { usePlan } from "@/lib/usePlan";
 import { track } from "@/lib/analytics";
 import { toast } from "@/components/feedback/Toast";
 import { cn } from "@/lib/cn";
+import type { CareerDNA } from "@/domain/career/types";
 
 type Phase = { kind: "idle" } | { kind: "generating"; progress: number } | { kind: "ready"; resume: GeneratedResume };
 
@@ -38,8 +39,9 @@ export interface ResumeTarget {
  * Word file built in this browser. Nothing calls a model; Automation → Draft a tailored résumé set to Off still wins.
  * A résumé already made for this job is offered for download straight away.
  */
-export function ResumeButton({ target: job, primary = false, noun = "job", onMade }: { target: ResumeTarget; primary?: boolean; /** "job", "internship": what the note under it says it's for. */ noun?: string; /** A résumé was just made for it (Jobs: the job enters Pipeline → Preparing). */ onMade?: () => void }) {
-  const dna = useCareerStore((s) => s.dna);
+export function ResumeButton({ target: job, primary = false, noun = "job", onMade, profile, builtFor, chooser }: { target: ResumeTarget; primary?: boolean; /** "job", "internship": what the note under it says it's for. */ noun?: string; /** A résumé was just made for it (Jobs: the job enters Pipeline → Preparing). */ onMade?: () => void; /** The profile to build from, when the module has more than one (Jobs: the role that found the job); default the Career Profile. */ profile?: CareerDNA; /** Which of the module's profiles that is, kept with the saved résumé. */ builtFor?: { id: string; title: string }; /** One line above the button naming the profile, with a way to pick another (the module's). */ chooser?: React.ReactNode }) {
+  const careerDna = useCareerStore((s) => s.dna);
+  const dna = profile ?? careerDna;
   const chosen = useCareerStore((s) => s.resumeTemplateId);
   const saveResume = useCareerStore((s) => s.saveResume);
   const updateResume = useCareerStore((s) => s.updateResume);
@@ -86,7 +88,7 @@ export function ResumeButton({ target: job, primary = false, noun = "job", onMad
         templateVersion: result.template.version,
         document: result.document,
         pageCount: result.layout.pages.length,
-        target: { jobId: job.id, title: job.title, company: job.company },
+        target: { jobId: job.id, title: job.title, company: job.company, ...(builtFor ? { builtFor } : {}) },
       });
       onMade?.();
       track("custom_resume_generated", {
@@ -147,6 +149,7 @@ export function ResumeButton({ target: job, primary = false, noun = "job", onMad
     const small = "inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-line bg-surface px-3 text-[13px] font-medium text-ink wj-press hover:bg-surface-2";
     return (
       <div className="flex flex-col gap-2">
+        {chooser}
         <button type="button" onClick={() => void generate()} className={cn(base, plain)}>
           <RefreshCw className="size-4" aria-hidden /> Re-generate Resume
         </button>
@@ -192,9 +195,17 @@ export function ResumeButton({ target: job, primary = false, noun = "job", onMad
       </div>
     );
   }
-  return (
+  const button = (
     <button type="button" onClick={() => void generate()} className={cn(base, plain)}>
       Generate Customized Resume
     </button>
+  );
+  return chooser ? (
+    <div className="flex flex-col gap-2">
+      {chooser}
+      {button}
+    </div>
+  ) : (
+    button
   );
 }

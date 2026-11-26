@@ -32,3 +32,14 @@ export function newProfileTitle(roles: { title: string }[]): string {
     if (!taken.has(t.toLowerCase())) return t;
   }
 }
+
+/**
+ * The profile a job's résumé, cover letter and answers are drafted from (owner, 2026-11-26: "when it generated the
+ * custom resume, it still picked the other profile"): the role whose search found the job, else My profile. A role's
+ * own fields as in `effectiveProfile`, and its Role you want as the résumé's headline. Work history, education,
+ * contact and strengths are the whole Career Profile's.
+ */
+export function draftingProfile(dna: CareerDNA, role?: Pick<CareerRole, "title" | "query" | "goal" | "seniority" | "skills" | "preferredLocations" | "workModes" | "minSalary">): CareerDNA {
+  if (!role) return dna;
+  return { ...effectiveProfile(dna, role), headline: role.goal.trim() || role.title.trim() };
+}

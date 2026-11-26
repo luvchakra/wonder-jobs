@@ -23,7 +23,8 @@ import { useAutomationStore } from "@/store/automation";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { useResumeFilesStore } from "@/store/resumeFiles";
-import { baseResumeFor } from "@/domain/career/roles";
+import { baseResumeFor, roleFor } from "@/domain/career/roles";
+import { draftingProfile } from "@/domain/career/profiles";
 import {
   buildPack,
   exportPackZip,
@@ -97,6 +98,8 @@ export default function ApplyWithWonderPage({
   // A job found by one of the candidate's role searches offers that role's résumé first.
   const foundAs = job?.foundAs;
   const { ref: baseResume, role: baseRole } = useMemo(() => baseResumeFor(roles, foundAs, accountBase), [roles, foundAs, accountBase]);
+  // The form's answers come from the profile whose search found the job (its own goal, level and skills), else My profile.
+  const jobDna = useMemo(() => draftingProfile(dna, roleFor(roles, foundAs)), [dna, roles, foundAs]);
   const resumeFiles = useResumeFilesStore((s) => s.files);
   const resumeFilesStatus = useResumeFilesStore((s) => s.status);
   const loadResumeFiles = useResumeFilesStore((s) => s.load);
@@ -314,7 +317,7 @@ export default function ApplyWithWonderPage({
     (a) => a.type === "cover_letter" && a.versions.length,
   );
   const choice = resumeOptions.find((o) => o.key === effectiveResumeKey);
-  const draftProfile = buildApplicationProfile(dna, {
+  const draftProfile = buildApplicationProfile(jobDna, {
     accountEmail: email ?? undefined,
   });
   const readiness = applyReadiness({
@@ -364,7 +367,7 @@ export default function ApplyWithWonderPage({
       const pack = await buildPack({
         app,
         job,
-        dna,
+        dna: jobDna,
         accountEmail: email ?? undefined,
         memory: answerMemory,
         resume:
@@ -496,7 +499,7 @@ export default function ApplyWithWonderPage({
       );
     const text = await ai().answerApplicationQuestion({
       job,
-      dna,
+      dna: jobDna,
       question,
       metric,
     });

@@ -15,7 +15,7 @@ export interface SavedResume {
   /** The candidate's own name for it — the file name employers see (no extension). Unset: a name from the template. */
   name?: string;
   /** Set when generated for a job's application. */
-  target?: { jobId: string; title: string; company: string; applicationId?: string };
+  target?: { jobId: string; title: string; company: string; applicationId?: string; /** The profile it was built from, when not the default one (a module's role). */ builtFor?: { id: string; title: string } };
 }
 
 export const MAX_SAVED_RESUMES = 20;

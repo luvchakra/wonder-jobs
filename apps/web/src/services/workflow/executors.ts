@@ -11,7 +11,8 @@ import { ProviderError } from "@/domain/ai/types";
 import { computeMatch, computeQuality } from "@/services/jobs/matching";
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { roleKey, searchWordsOf, type RoleScope } from "@/services/jobs/roleScope";
-import { effectiveProfile } from "@/domain/career/profiles";
+import { draftingProfile, effectiveProfile } from "@/domain/career/profiles";
+import { roleFor } from "@/domain/career/roles";
 import { AI_MATCH_TOP, aiMatchPrompt, applyAiRelevance, parseAiMatch, relevanceKey, type AiRelevance } from "@/domain/jobs/aiMatch";
 import type { CareerDNA } from "@/domain/career/types";
 import type { AIService } from "@/services/ai/service";
@@ -292,6 +293,8 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       for (const [i, jobId] of targets.entries()) {
         const job = jobs.get(jobId);
         if (!job) continue;
+        // Drafted from the profile whose search found the job, else My profile.
+        const jobDna = draftingProfile(dna, roleFor(useCareerStore.getState().roles, job.foundAs));
         const app = apps.create(jobId, "preparing");
         if (app.status !== "preparing") {
           // Already further along (e.g. submitted) — never regress an application.
@@ -304,16 +307,16 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         useApplicationsStore.getState().setStatus(app.id, "preparing");
         try {
           if (wantResume) {
-            const resume = await ai.generateResume({ job, dna, runId: ctx.run.id });
+            const resume = await ai.generateResume({ job, dna: jobDna, runId: ctx.run.id });
             await ctx.checkpoint();
             useApplicationsStore.getState().addVersion(app.id, "resume", { provenance: "AI_GENERATED", content: resume, note: "Tailored by Wonder" });
           }
           if (wantCover) {
-            const cover = await ai.generateCoverLetter({ job, dna, runId: ctx.run.id });
+            const cover = await ai.generateCoverLetter({ job, dna: jobDna, runId: ctx.run.id });
             await ctx.checkpoint();
             useApplicationsStore.getState().addVersion(app.id, "cover_letter", { provenance: "AI_GENERATED", content: cover, note: "Drafted by Wonder" });
           }
-          const answers = await ai.generateScreeningAnswers({ job, dna, runId: ctx.run.id });
+          const answers = await ai.generateScreeningAnswers({ job, dna: jobDna, runId: ctx.run.id });
           await ctx.checkpoint();
           useApplicationsStore.getState().addVersion(app.id, "answers", { provenance: "AI_GENERATED", content: answers, note: "Drafted by Wonder" });
           useApplicationsStore.getState().setStatus(app.id, "ready_for_review", { type: "prepared", title: "Application prepared", detail: "Resume, cover letter and answers drafted by Wonder" });
