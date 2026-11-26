@@ -1,0 +1,51 @@
+# Search coverage, weekly, on this runner (owner, 2026-11-26: "how do i ensure job search can serve all kind of users" →
+# "yes build the coverage page"). Runs about 150 Jobs searches (30 kinds of work × 5 places) through the app's own
+# WorksLake search (apps/web/scripts/search-coverage.mjs → src/server/jobslake/coverage.ts) and saves the report that
+# Admin → Sources → Search coverage shows. The site is never called, so it costs no Vercel CPU.
+#
+# Same repository secrets as the gateway collection: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SECRET_ENCRYPTION_KEY.
+# Without them it says so and stops.
+name: Search coverage
+
+on:
+  schedule:
+    - cron: "23 22 * * 0" # Mondays 03:53 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: search-coverage
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      RUNNER_READY: ${{ secrets.SUPABASE_URL != '' && secrets.SUPABASE_SERVICE_ROLE_KEY != '' && secrets.SECRET_ENCRYPTION_KEY != '' }}
+    steps:
+      - name: Secrets
+        if: env.RUNNER_READY != 'true'
+        run: echo "::warning::Search coverage needs the repository secrets SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and SECRET_ENCRYPTION_KEY (the same as Gateway collection). Nothing run."
+      - uses: actions/checkout@v4
+        if: env.RUNNER_READY == 'true'
+      - uses: actions/setup-node@v4
+        if: env.RUNNER_READY == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: env.RUNNER_READY == 'true'
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: Probe
+        if: env.RUNNER_READY == 'true'
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SECRET_ENCRYPTION_KEY: ${{ secrets.SECRET_ENCRYPTION_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.SITE_URL || 'https://works.wonderapps.biz' }}
+          WJ_COVERAGE_BUDGET_MIN: "40"
+        run: node apps/web/scripts/search-coverage.mjs

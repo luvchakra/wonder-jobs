@@ -7,8 +7,8 @@ import type { SourceOutcome } from "./protocol";
 export interface SourceRun {
   id: string;
   sourceId: string;
-  /** What started it: a candidate search, an admin test/playground search, a scheduled refresh, or a developer's API-key search. */
-  trigger: "search" | "test" | "playground" | "refresh" | "api";
+  /** What started it: a candidate search, an admin test/playground search, a scheduled refresh, a developer's API-key search, or the weekly coverage probes. */
+  trigger: "search" | "test" | "playground" | "refresh" | "api" | "coverage";
   requestId?: string;
   startedAt: string;
   durationMs: number;
