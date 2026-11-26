@@ -12,7 +12,7 @@ import { JOB_SOURCES } from "@/domain/jobs/sources";
 import { PROTOCOL_VERSION, type SourceStatus } from "@/domain/jobslake/protocol";
 import { PARTNER_PRESETS, PARTNER_STATUS_REASON } from "@/domain/jobslake/partners";
 import type { Depth } from "@/domain/jobslake/planner";
-import { CAREER_BOARDS, finish, JAZZHR_COMPANIES, placesToSearch, SMARTRECRUITERS_COMPANIES, SOURCE_FETCHERS, type SearchCriteria } from "@/server/jobs/providers";
+import { CAREER_BOARDS, WORKDAY_BOARDS, finish, JAZZHR_COMPANIES, placesToSearch, SMARTRECRUITERS_COMPANIES, SOURCE_FETCHERS, type SearchCriteria } from "@/server/jobs/providers";
 import { fetchAtsBoard, fetchAtsBoards, type AtsBoard } from "./ats";
 import { fetchFeed, fetchJsonApi, fetchMcp, fetchPartner, fetchStructured, type CustomFetchResult } from "./custom";
 import { readCredential } from "./credentials";
@@ -42,6 +42,7 @@ function builtin(p: Pick<SourceRecord, "id" | "name" | "provider" | "category" |
 
 const boardsOf = (ats: "greenhouse" | "lever" | "ashby"): AtsBoard[] => CAREER_BOARDS.filter((b) => b.ats === ats).map((b) => ({ platform: b.ats, slug: b.slug, company: b.company, domain: b.domain }));
 const companies = (ats: "greenhouse" | "lever" | "ashby") => boardsOf(ats).map((b) => b.company).join(", ");
+const workdayBoards = (): AtsBoard[] => WORKDAY_BOARDS.map((b) => ({ platform: "workday", slug: b.slug, company: b.company, domain: b.domain }));
 const JSEARCH_TERMS = "terms pending: JSearch collects Google for Jobs listings; neither Google nor the boards have agreed; confirm JSearch/RapidAPI terms on storing and showing results";
 const legacyNote = (id: string) => JOB_SOURCES.find((s) => s.id === id)?.note ?? "";
 
@@ -49,6 +50,7 @@ export const BUILTIN_SOURCES: SourceRecord[] = [
   builtin({ id: "greenhouse", name: "Greenhouse", provider: "Greenhouse", category: "ats", accessStrategy: "official_api", geography: ["global"], legacySourceId: "careers", capabilities: ATS_CAPS, description: `Greenhouse Job Board API — career sites of ${companies("greenhouse")}.` }),
   builtin({ id: "lever", name: "Lever", provider: "Lever", category: "ats", accessStrategy: "official_api", geography: ["global"], legacySourceId: "careers", capabilities: ATS_CAPS, description: `Lever Postings API — career sites of ${companies("lever")}.` }),
   builtin({ id: "ashby", name: "Ashby", provider: "Ashby", category: "ats", accessStrategy: "official_api", geography: ["global"], legacySourceId: "careers", capabilities: ATS_CAPS, description: `Ashby Job Posting API — career sites of ${companies("ashby")}.` }),
+  builtin({ id: "workday", name: "Workday career sites", provider: "Workday", category: "ats", accessStrategy: "official_api", geography: ["global"], legacySourceId: "careers", capabilities: ATS_CAPS, statusReason: "terms pending: Workday tenant terms (the public jobs endpoint each career site's own page reads)", description: `Workday career sites (public jobs endpoint) — ${WORKDAY_BOARDS.map((b) => b.company).join(", ")}.` }),
   builtin({ id: "smartrecruiters", name: "SmartRecruiters career sites", provider: "SmartRecruiters", category: "ats", accessStrategy: "official_api", geography: ["IN", "global"], legacySourceId: "smartrecruiters", capabilities: ATS_CAPS, description: `SmartRecruiters public Posting API — career sites of ${SMARTRECRUITERS_COMPANIES.map((c) => c.company).join(", ")}.` }),
   builtin({ id: "jazzhr", name: "JazzHR career sites", provider: "JazzHR", category: "ats", accessStrategy: "official_api", geography: ["IN", "global", "remote"], legacySourceId: "jazzhr", capabilities: ATS_CAPS, description: `JazzHR public job feed — career sites of ${JAZZHR_COMPANIES.join(", ")}.` }),
   builtin({ id: "themuse", name: "The Muse", provider: "The Muse", category: "aggregator", accessStrategy: "official_api", geography: ["global", "IN"], legacySourceId: "themuse", capabilities: FEED_CAPS, description: legacyNote("themuse") }),
@@ -140,7 +142,7 @@ export async function isAvailable(s: SourceRecord): Promise<boolean> {
       if (sourceModule(s) === "marketplace") return marketplaceSourceAvailable(s);
       if (sourceModule(s) === "scholarships") return scholarshipSourceAvailable(s);
       if (sourceModule(s) !== "jobs") return internshipSourceAvailable(s);
-      return (fixtureJobsOn() && s.id !== "employers") || ["greenhouse", "lever", "ashby"].includes(s.id) || (SOURCE_FETCHERS[s.id]?.available() ?? false);
+      return (fixtureJobsOn() && s.id !== "employers") || ["greenhouse", "lever", "ashby", "workday"].includes(s.id) || (SOURCE_FETCHERS[s.id]?.available() ?? false);
     case "ats_board":
     case "feed":
     case "structured":
@@ -197,8 +199,8 @@ export async function runConnector(s: SourceRecord, c: SearchCriteria, depth: De
       if (sourceModule(s) !== "jobs") return runInternshipSource(s, c, depth, (m) => new NeedsSetupError(m));
       // WonderJobs employers stays real under the fixture: its listings are the test's own jobs, posted in a hiring workspace.
       if (fixtureJobsOn() && s.id !== "employers") return { jobs: await fixtureJobs(s, c, BUILTIN_SOURCES), warnings: [] };
-      if (s.id === "greenhouse" || s.id === "lever" || s.id === "ashby") {
-        const r = await fetchAtsBoards(boardsOf(s.id), c, depth);
+      if (s.id === "greenhouse" || s.id === "lever" || s.id === "ashby" || s.id === "workday") {
+        const r = await fetchAtsBoards(s.id === "workday" ? workdayBoards() : boardsOf(s.id), c, depth);
         return { jobs: r.jobs, warnings: r.failures.map((f) => `${f.slug}: ${f.message}`) };
       }
       const f = SOURCE_FETCHERS[s.id];

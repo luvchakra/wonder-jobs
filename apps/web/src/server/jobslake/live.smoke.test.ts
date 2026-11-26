@@ -28,6 +28,7 @@ describe.skipIf(!live)("WorksLake against live sources", () => {
     ["smartrecruiters", "BoschGroup", "Bosch"],
     ["workable", "huggingface", "Hugging Face"],
     ["lever", "spotify", "Spotify"],
+    ["workday", "travelers.wd5.External", "Travelers"],
   ] as const)("reads a real %s board", async (platform, slug, company) => {
     const jobs = await fetchAtsBoard({ platform, slug, company }, { query: "", locations: [] }, "shallow");
     console.log(platform, jobs.length, jobs[0]?.title, jobs[0]?.applyUrl);

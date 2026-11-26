@@ -1,6 +1,6 @@
 /**
- * ATS board connectors (Greenhouse, Lever, Ashby, SmartRecruiters, Workable) — each reads the
- * platform's public, documented job-board API for one company board.
+ * ATS board connectors (Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Workday) — each reads the
+ * platform's public job-board API for one company board (Workday: the endpoint its own career page reads).
  *
  * Unlike the legacy "careers" fetcher, a board that can't be read is an error here, not an empty
  * list: an admin testing a new board must see "Lever returned 404", not "0 jobs".
@@ -9,7 +9,7 @@
  * `gh:`/`lv:`/`ab:` external ids), so saved jobs, applications and the extension still resolve.
  */
 import type { Job } from "@/domain/jobs/types";
-import type { AtsPlatform } from "@/domain/jobslake/detect";
+import { parseWorkdaySlug, type AtsPlatform } from "@/domain/jobslake/detect";
 import { corePhrase, htmlToText, titleMatches, type RawPosting } from "@/services/jobs/normalize";
 import type { Depth } from "@/domain/jobslake/planner";
 import { finish, getJson, rawFromAshby, rawFromGreenhouse, rawFromLever, type AshbyJob, type GreenhouseJob, type LeverJob, type SearchCriteria } from "@/server/jobs/providers";
@@ -36,6 +36,65 @@ interface SrDetail { jobAd?: { sections?: Record<string, { text?: string }> } }
 
 /* ---- Workable ---- */
 interface WkJob { title: string; shortcode: string; url: string; application_url?: string; published_on?: string; created_at?: string; city?: string; state?: string; country?: string; telecommuting?: boolean; description?: string; employment_type?: string; department?: string; function?: string; industry?: string; experience?: string }
+
+/* ---- Workday ---- */
+interface WdListing { title: string; externalPath: string; locationsText?: string; postedOn?: string; remoteType?: string; bulletFields?: string[] }
+interface WdDetail { jobPostingInfo?: { title?: string; jobDescription?: string; location?: string; additionalLocations?: string[]; startDate?: string; postedOn?: string; timeType?: string; jobReqId?: string; remoteType?: string; externalUrl?: string; country?: { descriptor?: string } } }
+/** Workday pages 20 at a time; a big tenant (Marsh McLennan has ~2,000 jobs) is read only up to the depth's cap. */
+const WD_PAGE = 20;
+/** One detail call per posting (description, real date, every place): fewer than other boards, as one search reads many tenants. */
+const WD_DETAIL: Record<Depth, number> = { shallow: 3, normal: 6, deep: 12 };
+
+/**
+ * Workday's list gives only a relative date ("Posted Today", "Posted 3 Days Ago", "Posted 30+ Days Ago"). Turns the
+ * exact ones into a date; "30+" says only "older than 30 days", so it gives none rather than a made-up one.
+ */
+export function workdayPostedAt(text: string | undefined, now = Date.now()): string | undefined {
+  const t = (text ?? "").toLowerCase();
+  const day = 86_400_000;
+  if (/\btoday\b/.test(t)) return new Date(now).toISOString();
+  if (/\byesterday\b/.test(t)) return new Date(now - day).toISOString();
+  const m = t.match(/(\d+)\s+days?\s+ago/);
+  return m && !t.includes("+") ? new Date(now - Number(m[1]) * day).toISOString() : undefined;
+}
+
+async function workdayRaw(b: AtsBoard, q: string, depth: Depth): Promise<RawPosting[]> {
+  const w = parseWorkdaySlug(b.slug);
+  if (!w) throw new Error("Not a Workday site (expected <tenant>.<wdN>.<site>)");
+  const base = `https://${w.tenant}.${w.host}.myworkdayjobs.com`;
+  const api = `${base}/wday/cxs/${w.tenant}/${w.site}`;
+  const searchText = corePhrase(q);
+  const listings: WdListing[] = [];
+  for (let offset = 0; offset < LIST_CAP[depth]; offset += WD_PAGE) {
+    const page = await getJson<{ total?: number; jobPostings?: WdListing[] }>(`${api}/jobs`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ appliedFacets: {}, limit: WD_PAGE, offset, searchText }) });
+    const got = page.jobPostings ?? [];
+    listings.push(...got);
+    if (got.length < WD_PAGE || (page.total !== undefined && offset + WD_PAGE >= page.total)) break;
+  }
+  const hits = listings.filter((j) => j.externalPath && titleMatches(j.title, q)).slice(0, LIST_CAP[depth]);
+  const details = await Promise.all(hits.map((j, i) => (i < WD_DETAIL[depth] ? getJson<WdDetail>(`${api}${j.externalPath}`).catch(() => null) : Promise.resolve(null))));
+  return hits.map((j, i) => {
+    const d = details[i]?.jobPostingInfo;
+    const places = d ? [d.location, ...(d.additionalLocations ?? [])].filter((p): p is string => !!p) : [];
+    const remote = /remote/i.test(d?.remoteType ?? j.remoteType ?? "");
+    const where = places.length ? places.join(" / ") : j.locationsText && !/^\d+ locations?$/i.test(j.locationsText) ? j.locationsText : d?.country?.descriptor ?? "";
+    return {
+      externalId: `wd:${w.tenant}:${d?.jobReqId ?? j.bulletFields?.[0] ?? j.externalPath}`,
+      title: d?.title || j.title,
+      company: b.company,
+      companyDomain: b.domain,
+      location: [where, remote ? "Remote" : ""].filter(Boolean).join(" · "),
+      remote,
+      description: d?.jobDescription ?? `${j.title} — ${b.company}`,
+      tags: [d?.timeType, d?.remoteType ?? j.remoteType].filter((t): t is string => !!t),
+      postedAt: d?.startDate ?? workdayPostedAt(j.postedOn),
+      applyUrl: d?.externalUrl || `${base}/${w.site}${j.externalPath}`,
+      jobType: d?.timeType,
+      employerSite: true,
+      applyPath: "employer_site" as const,
+    };
+  });
+}
 
 async function boardRaw(b: AtsBoard, c: SearchCriteria, depth: Depth): Promise<RawPosting[]> {
   const q = c.query;
@@ -81,6 +140,8 @@ async function boardRaw(b: AtsBoard, c: SearchCriteria, depth: Depth): Promise<R
         };
       });
     }
+    case "workday":
+      return workdayRaw(b, q, depth);
     case "workable": {
       const acct = await getJson<{ name?: string; jobs?: WkJob[] }>(`https://www.workable.com/api/accounts/${encodeURIComponent(b.slug)}?details=true`);
       return (acct.jobs ?? [])

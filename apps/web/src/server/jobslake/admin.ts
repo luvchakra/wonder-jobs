@@ -57,7 +57,7 @@ export const PartnerConnectionInput = z.object({
 });
 
 const ConfigInput = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("ats_board"), platform: z.enum(["greenhouse", "lever", "ashby", "smartrecruiters", "workable"]), slug: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/), company: text(120), domain: z.string().trim().max(120).optional() }),
+  z.object({ kind: z.literal("ats_board"), platform: z.enum(["greenhouse", "lever", "ashby", "smartrecruiters", "workable", "workday"]), slug: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/), company: text(120), domain: z.string().trim().max(120).optional() }),
   z.object({ kind: z.literal("json_api"), api: z.object({ endpoint: text(500), queryParam: param.optional(), locationParam: param.optional(), credentialHeader: header.optional(), credentialPrefix: z.string().max(20).optional(), auth: Auth.optional(), mapping: Mapping }) }),
   /** Only for the built-in partner portals: the connection their partnership hands over. */
   z.object({ kind: z.literal("partnership"), connection: PartnerConnectionInput }),
