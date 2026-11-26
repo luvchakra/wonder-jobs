@@ -38,7 +38,7 @@ export function useResumeChoices() {
  * opens to the same form as My profile (`ProfileFields`, edits kept in `drafts` until Save changes), renames from the
  * pencil beside its name, and has Search and Delete. Add a role starts a new profile from My profile's fields.
  */
-export function RolesCard({ open, onToggle, onOpen, drafts, setDraft, follow, choices }: { open: string | null; onToggle: (id: string) => void; onOpen: (id: string) => void; drafts: Record<string, ProfileFieldsValue>; setDraft: (id: string, patch: Partial<ProfileFieldsValue>) => void; follow: ProfileFieldsValue; choices: { key: string; label: string }[] }) {
+export function RolesCard({ open, onToggle, onOpen, onSearch, drafts, setDraft, typed, setTyped, follow, choices }: { open: string | null; /** Each role's add-skill box text, by role id. */ typed: Record<string, string>; setTyped: (id: string, text: string) => void; /** Search as this profile: the page saves what's unsaved first. */ onSearch: (id: string) => void; onToggle: (id: string) => void; onOpen: (id: string) => void; drafts: Record<string, ProfileFieldsValue>; setDraft: (id: string, patch: Partial<ProfileFieldsValue>) => void; follow: ProfileFieldsValue; choices: { key: string; label: string }[] }) {
   const roles = useCareerStore((s) => s.roles ?? []);
   const dna = useCareerStore((s) => s.dna);
   const addRole = useCareerStore((s) => s.addRole);
@@ -101,9 +101,9 @@ export function RolesCard({ open, onToggle, onOpen, drafts, setDraft, follow, ch
               )
             }
           >
-            <ProfileFields id={r.id} value={v} onChange={(patch) => setDraft(r.id, patch)} follow={follow} derivedWords={defaultSearchQuery({ headline: r.title, careerGoal: v.goal })} choices={choices} />
+            <ProfileFields id={r.id} value={v} onChange={(patch) => setDraft(r.id, patch)} typedSkill={typed[r.id] ?? ""} onTypedSkill={(t) => setTyped(r.id, t)} follow={follow} derivedWords={defaultSearchQuery({ headline: r.title, careerGoal: v.goal })} choices={choices} />
             <div className="mt-4 flex gap-2">
-              <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} href={`/app/jobs?role=${encodeURIComponent(r.id)}`} aria-label={`Search as ${r.title}`}>
+              <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} onMouseDown={(e) => e.preventDefault() /* keep the skill box's text as typed: a chip added on blur would move this button from under the press */} onClick={() => onSearch(r.id)} aria-label={`Search as ${r.title}`}>
                 Search
               </Button>
               <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" aria-hidden />} onClick={() => setConfirmDelete(r)}>
