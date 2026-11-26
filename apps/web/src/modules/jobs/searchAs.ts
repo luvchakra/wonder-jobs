@@ -24,3 +24,14 @@ export function wantedLine(goal: string, role?: Pick<CareerRole, "title" | "quer
 export function changeHref(roleId?: string): string {
   return roleId ? `/app/career-dna?from=find&role=${encodeURIComponent(roleId)}` : "/app/career-dna?from=find&focus=role";
 }
+
+/**
+ * The profile Full Time's Search runs as: the one picked under "Search as", else the one the last search ran as, the
+ * same one the Looking for pill shows (owner, 2026-11-26: "even though reinsurance is selected when i return to the
+ * app later, when i click on the search button, it search for different profile"). A role since deleted is My
+ * profile (null). Part Time is left to its own rule (only words typed).
+ */
+export function fullTimeSearchAs(picked: string | null | false | undefined, lastRoleId: string | undefined, roles: Pick<CareerRole, "id">[]): string | null {
+  const known = (id: string | null | false | undefined) => (typeof id === "string" && roles.some((r) => r.id === id) ? id : null);
+  return picked !== undefined ? known(picked) : known(lastRoleId);
+}

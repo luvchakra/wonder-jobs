@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changeHref, roleArrival, wantedLine } from "./searchAs";
+import { changeHref, fullTimeSearchAs, roleArrival, wantedLine } from "./searchAs";
 
 const reinsurance = { id: "r1", title: "Reinsurance", query: "Insurance operations", goal: "Senior management" };
 
@@ -23,5 +23,21 @@ describe("searching as a Career Profile role", () => {
   it("opens the profile searched with from Change", () => {
     expect(changeHref("r1")).toBe("/app/career-dna?from=find&role=r1");
     expect(changeHref()).toBe("/app/career-dna?from=find&focus=role");
+  });
+});
+
+describe("Full Time's Search runs as the profile the Looking for pill shows", () => {
+  const roles = [{ id: "re" }];
+  it("after a reload (nothing picked), it's the role the last search ran as", () => {
+    expect(fullTimeSearchAs(undefined, "re", roles)).toBe("re");
+  });
+  it("a role picked under Search as wins; My profile picked is My profile", () => {
+    expect(fullTimeSearchAs("re", undefined, roles)).toBe("re");
+    expect(fullTimeSearchAs(null, "re", roles)).toBeNull();
+  });
+  it("a deleted role, or none, is My profile", () => {
+    expect(fullTimeSearchAs(undefined, "gone", roles)).toBeNull();
+    expect(fullTimeSearchAs("gone", undefined, roles)).toBeNull();
+    expect(fullTimeSearchAs(undefined, undefined, roles)).toBeNull();
   });
 });
