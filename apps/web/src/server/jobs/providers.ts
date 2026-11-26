@@ -386,6 +386,38 @@ const jazzhr: SourceFetcher = {
   },
 };
 
+/* ---------- Company career sites on Workday ---------- */
+/**
+ * Insurers, reinsurers and brokers on Workday (owner, 2026-11-26: "check why it's not able to look for job in insurance
+ * domain"). Slug "<tenant>.<wdN>.<site>" (WorksLake's Workday board). Each checked live 2026-11-26 by the Jobs session
+ * (the site's jobs endpoint answered with jobs). Terms pending: Workday tenant terms.
+ */
+export const WORKDAY_BOARDS: { slug: string; company: string; domain: string }[] = [
+  // Reinsurers and specialty (re)insurers
+  { slug: "everestre.wd5.External", company: "Everest", domain: "everestglobal.com" },
+  { slug: "rgare.wd1.Careers", company: "RGA", domain: "rgare.com" },
+  { slug: "msreinsurance.wd502.MSReinsuranceCareers", company: "MS Reinsurance", domain: "msreinsurance.com" },
+  { slug: "msamlin.wd3.MSAmlinCareers", company: "MS Amlin", domain: "msamlin.com" },
+  { slug: "axiscapital.wd1.axiscareers", company: "AXIS Capital", domain: "axiscapital.com" },
+  { slug: "archgroup.wd1.Careers", company: "Arch Capital Group", domain: "archgroup.com" },
+  { slug: "markelcorp.wd5.GlobalCareers", company: "Markel", domain: "markel.com" },
+  { slug: "hiscox.wd3.Hiscox_External_Site", company: "Hiscox", domain: "hiscox.com" },
+  // Insurers
+  { slug: "aig.wd1.aig", company: "AIG", domain: "aig.com" },
+  { slug: "travelers.wd5.External", company: "Travelers", domain: "travelers.com" },
+  { slug: "thehartford.wd5.Careers_External", company: "The Hartford", domain: "thehartford.com" },
+  { slug: "allstate.wd5.allstate_careers", company: "Allstate", domain: "allstate.com" },
+  { slug: "corebridgefinancial.wd1.CorebridgeFinancial", company: "Corebridge Financial", domain: "corebridgefinancial.com" },
+  { slug: "nationalindemnity.wd5.BHHC", company: "Berkshire Hathaway Homestate Companies", domain: "bhhc.com" },
+  { slug: "manulife.wd3.MFCJH_Jobs", company: "Manulife", domain: "manulife.com" },
+  { slug: "prudential.wd3.PRUDENTIAL", company: "Prudential plc", domain: "prudentialplc.com" },
+  { slug: "swisslife.wd3.Swiss_Life_International_Division_Career_Site", company: "Swiss Life International", domain: "swisslife.com" },
+  // Brokers
+  { slug: "mmc.wd1.MMC", company: "Marsh McLennan", domain: "marshmclennan.com" },
+  { slug: "bbinsurance.wd1.Careers", company: "Brown & Brown", domain: "bbinsurance.com" },
+  { slug: "hubinternational.wd1.HUBInternational", company: "HUB International", domain: "hubinternational.com" },
+];
+
 /* ---------- Company career sites (Greenhouse / Lever / Ashby) ---------- */
 /** Boards verified to be public. Extend freely; unknown slugs are skipped gracefully. */
 export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: string; company: string; domain: string }[] = [

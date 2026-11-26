@@ -6,7 +6,7 @@
 import type { AccessStrategy, SourceCategory } from "./protocol";
 import { PARTNER_PRESETS } from "./partners";
 
-export type AtsPlatform = "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable";
+export type AtsPlatform = "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "workday";
 
 export const ATS_META: Record<AtsPlatform, { name: string; boardUrl: (slug: string) => string; apiNote: string }> = {
   greenhouse: { name: "Greenhouse", boardUrl: (s) => `https://boards.greenhouse.io/${s}`, apiNote: "Greenhouse Job Board API (public, documented)" },
@@ -14,7 +14,27 @@ export const ATS_META: Record<AtsPlatform, { name: string; boardUrl: (slug: stri
   ashby: { name: "Ashby", boardUrl: (s) => `https://jobs.ashbyhq.com/${s}`, apiNote: "Ashby Job Posting API (public, documented)" },
   smartrecruiters: { name: "SmartRecruiters", boardUrl: (s) => `https://jobs.smartrecruiters.com/${s}`, apiNote: "SmartRecruiters Posting API (public, documented)" },
   workable: { name: "Workable", boardUrl: (s) => `https://apply.workable.com/${s}`, apiNote: "Workable account jobs API (public)" },
+  // A Workday board's slug is "<tenant>.<wdN>.<site>" (workdaySlug), e.g. "travelers.wd5.External".
+  workday: { name: "Workday", boardUrl: (s) => { const w = parseWorkdaySlug(s); return w ? `https://${w.tenant}.${w.host}.myworkdayjobs.com/${w.site}` : "https://www.myworkdayjobs.com"; }, apiNote: "Workday career site's public jobs endpoint (the one its own page reads; terms pending: Workday tenant terms)" },
 };
+
+/** A Workday career site: the tenant, its data-centre host (wd1, wd5, wd103…) and the site name, as in
+ * https://<tenant>.<host>.myworkdayjobs.com/<site>. Kept in one board slug, "<tenant>.<host>.<site>". */
+export interface WorkdaySite {
+  tenant: string;
+  host: string;
+  site: string;
+}
+const WD_TENANT = /^[a-z0-9][a-z0-9-]{0,62}$/;
+const WD_HOST = /^wd\d{1,4}$/;
+const WD_SITE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
+export const workdaySlug = (w: WorkdaySite) => `${w.tenant}.${w.host}.${w.site}`;
+export function parseWorkdaySlug(slug: string): WorkdaySite | undefined {
+  const [tenant, host, ...rest] = slug.split(".");
+  const site = rest.join(".");
+  const t = tenant?.toLowerCase();
+  return t && WD_TENANT.test(t) && host && WD_HOST.test(host) && WD_SITE.test(site) ? { tenant: t, host, site } : undefined;
+}
 
 export type Detection =
   | {
@@ -49,7 +69,6 @@ const KNOWN_UNSUPPORTED: { test: RegExp; provider: string }[] = [
   { test: /\.teamtailor\.com$/, provider: "Teamtailor" },
   { test: /\.recruitee\.com$/, provider: "Recruitee" },
   { test: /\.jobs\.personio\.(de|com)$/, provider: "Personio" },
-  { test: /(^|\.)myworkdayjobs\.com$/, provider: "Workday" },
   { test: /(^|\.)icims\.com$/, provider: "iCIMS" },
   { test: /(^|\.)successfactors\.(com|eu)$/, provider: "SAP SuccessFactors" },
   { test: /(^|\.)taleo\.net$/, provider: "Oracle Taleo" },
@@ -61,7 +80,9 @@ const SLUG = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 function board(platform: AtsPlatform, slug: string | undefined): Detection {
   if (!slug || !SLUG.test(slug)) return { kind: "invalid", message: `That looks like ${ATS_META[platform].name}, but the URL doesn't name a company board. Use the board's main page, e.g. ${ATS_META[platform].boardUrl("company")}.` };
-  return { kind: "ats_board", platform, slug, provider: ATS_META[platform].name, category: "ats", accessStrategy: "official_api", capabilities: CAPABILITIES, authRequired: false, boardUrl: ATS_META[platform].boardUrl(slug) };
+  // Workday publishes no API for this endpoint: it is the data the career site's own page reads, so "structured", not an
+  // official API — which also keeps it off the developer API's default sources (developer.ts::apiSourceIds) while its terms are pending.
+  return { kind: "ats_board", platform, slug, provider: ATS_META[platform].name, category: "ats", accessStrategy: platform === "workday" ? "structured" : "official_api", capabilities: CAPABILITIES, authRequired: false, boardUrl: ATS_META[platform].boardUrl(slug) };
 }
 
 export function detectSource(raw: string): Detection {
@@ -86,6 +107,14 @@ export function detectSource(raw: string): Detection {
   if (host.endsWith("smartrecruiters.com")) return board("smartrecruiters", host.startsWith("api.") ? parts[2] : parts[0]);
   if (host === "apply.workable.com") return board("workable", parts[0] === "j" ? undefined : parts[0]);
   if (host.endsWith(".workable.com") && host !== "www.workable.com") return board("workable", host.split(".")[0]);
+  if (host.endsWith(".myworkdayjobs.com")) {
+    // <tenant>.<wdN>.myworkdayjobs.com/[<locale>/]<site>[/job/…], or the endpoint /wday/cxs/<tenant>/<site>/…
+    const [tenant, wd] = host.split(".");
+    const path = parts[0] === "wday" ? parts.slice(3) : parts;
+    const site = /^[a-z]{2}-[A-Z]{2}$/.test(path[0] ?? "") ? path[1] : path[0];
+    const w = tenant && wd && site ? parseWorkdaySlug(`${tenant}.${wd}.${site}`) : undefined;
+    return w ? board("workday", workdaySlug(w)) : { kind: "invalid", message: "That looks like Workday, but the URL doesn't name a career site. Use the site's main page, e.g. https://company.wd5.myworkdayjobs.com/External." };
+  }
 
   const partner = PARTNERSHIP.find((p) => p.test.test(host));
   if (partner) {

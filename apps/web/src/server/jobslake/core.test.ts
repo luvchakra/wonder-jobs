@@ -135,7 +135,7 @@ describe("WorksLake core search", () => {
   it("respects the candidate's own source choices (legacy ids map onto WorksLake sources)", async () => {
     connector.mockResolvedValue({ jobs: [], warnings: [] });
     await search(req({ sourceIds: ["careers"] }), { trigger: "search" });
-    expect(connector.mock.calls.map((c) => c[0].id).sort()).toEqual(["ashby", "greenhouse", "lever"]);
+    expect(connector.mock.calls.map((c) => c[0].id).sort()).toEqual(["ashby", "greenhouse", "lever", "workday"]);
   });
 
   it("partnership sources are never searched", async () => {

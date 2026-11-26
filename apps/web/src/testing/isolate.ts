@@ -9,5 +9,6 @@
 const CREDENTIAL = /SUPABASE|DATABASE_URL|POSTGRES|STRIPE|RESEND|SENDGRID|SMTP|VAPID|CRON_SECRET|GATEWAY_|JOBSLAKE_|WONDERJOBS_|_API_KEY$|_SECRET$|_TOKEN$|_PASSWORD$|_KEY$/;
 
 for (const name of Object.keys(process.env)) {
-  if (CREDENTIAL.test(name)) delete process.env[name];
+  // JOBSLAKE_LIVE only opts into the live smoke test (live.smoke.test.ts); it holds no credential.
+  if (CREDENTIAL.test(name) && name !== "JOBSLAKE_LIVE") delete process.env[name];
 }
