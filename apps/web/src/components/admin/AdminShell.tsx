@@ -60,6 +60,7 @@ export const ADMIN_MENUS: AdminMenu[] = [
       { href: `${LAKE}/sources`, label: "All sources" },
       { href: `${LAKE}/keys`, label: "Source keys" },
       { href: `${LAKE}/data-db`, label: "DDBs" },
+      { href: `${LAKE}/search-coverage`, label: "Search coverage" },
     ],
   },
   {
