@@ -11,8 +11,9 @@ import { ProviderError } from "@/domain/ai/types";
 import { computeMatch, computeQuality } from "@/services/jobs/matching";
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { roleKey, searchWordsOf, type RoleScope } from "@/services/jobs/roleScope";
-import { draftingProfile, effectiveProfile } from "@/domain/career/profiles";
+import { effectiveProfile } from "@/domain/career/profiles";
 import { roleFor } from "@/domain/career/roles";
+import { jobProfile, loadRoleFile } from "@/lib/useRoleFile";
 import { AI_MATCH_TOP, aiMatchPrompt, applyAiRelevance, parseAiMatch, relevanceKey, type AiRelevance } from "@/domain/jobs/aiMatch";
 import type { CareerDNA } from "@/domain/career/types";
 import type { AIService } from "@/services/ai/service";
@@ -293,8 +294,15 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       for (const [i, jobId] of targets.entries()) {
         const job = jobs.get(jobId);
         if (!job) continue;
-        // Drafted from the profile whose search found the job, else My profile.
-        const jobDna = draftingProfile(dna, roleFor(useCareerStore.getState().roles, job.foundAs));
+        // Drafted from the profile whose search found the job, else My profile; a role with its own résumé is that
+        // résumé's person, and nothing is drafted when the file can't be read (never someone else's details).
+        const role = roleFor(useCareerStore.getState().roles, job.foundAs);
+        const jobDna = jobProfile(dna, role, await loadRoleFile(role));
+        if (!jobDna) {
+          ctx.addEvidence({ label: `${job.title} · ${job.company}`, value: `Not prepared: ${role?.title ?? "its role"}'s résumé couldn't be read`, tone: "warning" });
+          ctx.setProgress(i + 1, targets.length);
+          continue;
+        }
         const app = apps.create(jobId, "preparing");
         if (app.status !== "preparing") {
           // Already further along (e.g. submitted) — never regress an application.

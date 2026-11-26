@@ -25,6 +25,8 @@ import { useJobsStore } from "@/store/jobs";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { baseResumeFor, roleFor } from "@/domain/career/roles";
 import { draftingProfile } from "@/domain/career/profiles";
+import { jobProfile, useRoleFile } from "@/lib/useRoleFile";
+import { EMPTY_DNA } from "@/domain/career/types";
 import {
   buildPack,
   exportPackZip,
@@ -98,8 +100,13 @@ export default function ApplyWithWonderPage({
   // A job found by one of the candidate's role searches offers that role's résumé first.
   const foundAs = job?.foundAs;
   const { ref: baseResume, role: baseRole } = useMemo(() => baseResumeFor(roles, foundAs, accountBase), [roles, foundAs, accountBase]);
-  // The form's answers come from the profile whose search found the job (its own goal, level and skills), else My profile.
-  const jobDna = useMemo(() => draftingProfile(dna, roleFor(roles, foundAs)), [dna, roles, foundAs]);
+  // The form's answers come from the profile whose search found the job (its own goal, level and skills), else My
+  // profile. A role with its own résumé is that résumé's person: its name and contact, never the account's; while the
+  // file is unread (or unreadable) the form's details are missing and asked for, not filled from someone else.
+  const jobRole = useMemo(() => roleFor(roles, foundAs), [roles, foundAs]);
+  const jobRoleFile = useRoleFile(jobRole);
+  const ownPerson = jobRoleFile.state !== "none";
+  const jobDna = useMemo(() => jobProfile(dna, jobRole, jobRoleFile) ?? draftingProfile(EMPTY_DNA, jobRole), [dna, jobRole, jobRoleFile]);
   const resumeFiles = useResumeFilesStore((s) => s.files);
   const resumeFilesStatus = useResumeFilesStore((s) => s.status);
   const loadResumeFiles = useResumeFilesStore((s) => s.load);
@@ -318,7 +325,7 @@ export default function ApplyWithWonderPage({
   );
   const choice = resumeOptions.find((o) => o.key === effectiveResumeKey);
   const draftProfile = buildApplicationProfile(jobDna, {
-    accountEmail: email ?? undefined,
+    accountEmail: ownPerson ? undefined : (email ?? undefined),
   });
   const readiness = applyReadiness({
     profile: draftProfile,
@@ -368,7 +375,7 @@ export default function ApplyWithWonderPage({
         app,
         job,
         dna: jobDna,
-        accountEmail: email ?? undefined,
+        accountEmail: ownPerson ? undefined : (email ?? undefined),
         memory: answerMemory,
         resume:
           choice.kind === "saved" && choice.saved

@@ -39,7 +39,7 @@ export interface ResumeTarget {
  * Word file built in this browser. Nothing calls a model; Automation → Draft a tailored résumé set to Off still wins.
  * A résumé already made for this job is offered for download straight away.
  */
-export function ResumeButton({ target: job, primary = false, noun = "job", onMade, profile, builtFor, chooser }: { target: ResumeTarget; primary?: boolean; /** "job", "internship": what the note under it says it's for. */ noun?: string; /** A résumé was just made for it (Jobs: the job enters Pipeline → Preparing). */ onMade?: () => void; /** The profile to build from, when the module has more than one (Jobs: the role that found the job); default the Career Profile. */ profile?: CareerDNA; /** Which of the module's profiles that is, kept with the saved résumé. */ builtFor?: { id: string; title: string }; /** One line above the button naming the profile, with a way to pick another (the module's). */ chooser?: React.ReactNode }) {
+export function ResumeButton({ target: job, primary = false, noun = "job", onMade, profile, builtFor, chooser, unavailable }: { target: ResumeTarget; primary?: boolean; /** "job", "internship": what the note under it says it's for. */ noun?: string; /** A résumé was just made for it (Jobs: the job enters Pipeline → Preparing). */ onMade?: () => void; /** The profile to build from, when the module has more than one (Jobs: the role that found the job); default the Career Profile. */ profile?: CareerDNA; /** Which of the module's profiles that is, kept with the saved résumé. */ builtFor?: { id: string; title: string }; /** One line above the button naming the profile, with a way to pick another (the module's). */ chooser?: React.ReactNode; /** Why nothing can be built right now (the module's profile isn't ready): said instead of building. */ unavailable?: string }) {
   const careerDna = useCareerStore((s) => s.dna);
   const dna = profile ?? careerDna;
   const chosen = useCareerStore((s) => s.resumeTemplateId);
@@ -53,6 +53,10 @@ export function ResumeButton({ target: job, primary = false, noun = "job", onMad
   const templateId = templateForResume(chosen, limits.resumeTemplates);
 
   const generate = async () => {
+    if (unavailable) {
+      toast.error("Can't make this résumé yet", unavailable);
+      return;
+    }
     if (policy.generate_resume === "off") {
       toast.info("Turned off in Automation", "Turn on Draft a tailored résumé in You → Automation to make one here.");
       return;
