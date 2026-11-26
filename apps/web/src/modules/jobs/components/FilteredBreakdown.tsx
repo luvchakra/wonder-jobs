@@ -6,6 +6,7 @@ import { Badge } from "@/components/common/Badge";
 import type { FilterReason, FilterResult } from "@/domain/jobs/filterExplain";
 import { FILTER_REASON_LABEL } from "@/domain/jobs/filterExplain";
 import { useUIStore } from "@/store/ui";
+import { preferencesHide } from "@/domain/jobs/showHidden";
 
 /** The exact patch that clears every preference-driven filter without touching search text — matches
  *  `JobFiltersBar`'s own internal "Clear filters" so "Show me anyway" behaves identically. */
@@ -38,7 +39,7 @@ const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_
  * an explanation the candidate can act on. Always pairs the two required actions: relax everything at
  * once, or go make the underlying preference change deliberately.
  */
-export function FilteredBreakdown({ result, onShowAnyway, onFix, variant = "compact", search }: { result: FilterResult; onShowAnyway: () => void; /** Lifts one filter (the main reason) — kept in this mode's Refine. */ onFix?: (patch: Record<string, unknown>) => void; variant?: "compact" | "empty"; search?: { label: string | null; run: () => void; /** Only places were typed ("Singapore"). */ places?: string[] } }) {
+export function FilteredBreakdown({ result, onShowAnyway, onFix, variant = "compact", search, reveal }: { result: FilterResult; onShowAnyway: () => void; /** Lifts one filter (the main reason) — kept in this mode's Refine. */ onFix?: (patch: Record<string, unknown>) => void; variant?: "compact" | "empty"; search?: { label: string | null; run: () => void; /** Only places were typed ("Singapore"). */ places?: string[] }; /** Compact: "Show N hidden" shows them under the card, a view choice (domain/jobs/showHidden.ts). */ reveal?: { label: string | null; on: boolean; toggle: () => void } }) {
   if (result.hiddenTotal === 0) return null;
   // How many "Show me anyway" would bring back; the button shows only when that's some.
   const revealable = result.hiddenTotal - KEPT_HIDDEN.reduce((n, r) => n + (result.hiddenByReason[r] ?? 0), 0);
@@ -150,14 +151,25 @@ export function FilteredBreakdown({ result, onShowAnyway, onFix, variant = "comp
         ))}
       </span>
       <span className="ml-auto flex items-center gap-2">
-        {revealable > 0 && (
-          <button type="button" onClick={onShowAnyway} title={showAnywayNote || undefined} className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
-            Show me anyway
-          </button>
+        {reveal ? (
+          reveal.label && (
+            <button type="button" aria-pressed={reveal.on} onClick={reveal.toggle} className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
+              {reveal.on ? "Hide them again" : reveal.label}
+            </button>
+          )
+        ) : (
+          revealable > 0 && (
+            <button type="button" onClick={onShowAnyway} title={showAnywayNote || undefined} className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
+              Show me anyway
+            </button>
+          )
         )}
-        <Link href="/app/career-dna?from=find" className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
-          Update Career Profile preferences
-        </Link>
+        {/* Only when the preferences are what hides them: the other mode, the Pipeline or the words aren't preferences. */}
+        {(!reveal || preferencesHide(result)) && (
+          <Link href="/app/career-dna?from=find" className="inline-flex min-h-9 items-center font-medium text-brand-600 hover:underline">
+            Update Career Profile preferences
+          </Link>
+        )}
       </span>
     </div>
   );

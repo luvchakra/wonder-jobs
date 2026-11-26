@@ -50,6 +50,8 @@ export interface FilterResult {
   hiddenByReason: Partial<Record<FilterReason, number>>;
   hiddenTotal: number;
   totalCatalog: number;
+  /** Each hidden job's reason (the first filter it fails), for "Show hidden" (domain/jobs/showHidden.ts). */
+  hiddenReason: Record<string, FilterReason>;
   /** How well each visible job answers the search text (0..1), when there is one — what "Best match" sorts by first. */
   relevance?: Record<string, number>;
 }
@@ -116,6 +118,7 @@ export function applyJobFilters(
   const visibleIds: string[] = [];
   const scores: Record<string, number> = {};
   const hiddenByReason: Partial<Record<FilterReason, number>> = {};
+  const hiddenReason: Record<string, FilterReason> = {};
   let totalCatalog = 0;
 
   for (const id of order) {
@@ -123,12 +126,15 @@ export function applyJobFilters(
     if (!j) continue; // not a catalog gap the candidate can act on — the id is simply stale
     totalCatalog++;
     const reason = firstFailedReason(j, matches[id], rejected[id], !!saved[id], filters, query, now, (r) => (scores[id] = r), field, inPipeline.has(id));
-    if (reason) hiddenByReason[reason] = (hiddenByReason[reason] ?? 0) + 1;
+    if (reason) {
+      hiddenByReason[reason] = (hiddenByReason[reason] ?? 0) + 1;
+      hiddenReason[id] = reason;
+    }
     else visibleIds.push(id);
   }
 
   const hiddenTotal = totalCatalog - visibleIds.length;
-  return { visibleIds, hiddenByReason, hiddenTotal, totalCatalog, ...(query ? { relevance: scores } : {}) };
+  return { visibleIds, hiddenByReason, hiddenTotal, totalCatalog, hiddenReason, ...(query ? { relevance: scores } : {}) };
 }
 
 /**
