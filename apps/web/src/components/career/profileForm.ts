@@ -34,3 +34,26 @@ export function roleInputOf(title: string, v: ProfileFieldsValue): RoleInput {
 
 /** Whether a form's fields differ from what's saved. */
 export const fieldsChanged = (a: ProfileFieldsValue, b: ProfileFieldsValue) => JSON.stringify({ ...a, places: places(a.places), searchWords: a.searchWords.trim() }) !== JSON.stringify({ ...b, places: places(b.places), searchWords: b.searchWords.trim() });
+
+/**
+ * The skills with what was typed in the add box put in (owner, 2026-11-26: "clicking outside should add the new
+ * skill"): commas separate several, each trimmed; empty ones and ones already there (any case) are skipped. New
+ * skills start as ordinary ones (level 3).
+ */
+export function addSkills(skills: CareerDNA["skills"], typed: string): CareerDNA["skills"] {
+  const out = [...skills];
+  for (const raw of typed.split(",")) {
+    const name = raw.trim().replace(/\s+/g, " ").slice(0, 80);
+    if (name && !out.some((s) => s.name.toLowerCase() === name.toLowerCase())) out.push({ name, level: 3 });
+  }
+  return out.length === skills.length ? skills : out;
+}
+
+/** A profile's form with the skill still typed in its add box put in, as Save changes and Search save it. A role
+ * whose skills follow My profile's starts from those (`follow`), as its chips show. */
+export function withTypedSkill(v: ProfileFieldsValue, typed: string | undefined, follow?: ProfileFieldsValue): ProfileFieldsValue {
+  if (!typed?.trim()) return v;
+  const shown = v.skills.length ? v.skills : (follow?.skills ?? []);
+  const skills = addSkills(shown, typed);
+  return skills === shown ? v : { ...v, skills };
+}

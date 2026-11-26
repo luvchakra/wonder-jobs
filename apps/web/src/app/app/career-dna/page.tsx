@@ -12,7 +12,7 @@ import { Chip, Field, Input, Textarea } from "@/components/common/Input";
 import { ResumeImport } from "@/components/career/ResumeImport";
 import { RolesCard, useResumeChoices } from "@/components/career/RolesCard";
 import { ProfileFields, type ProfileFieldsValue } from "@/components/career/ProfileFields";
-import { fieldsChanged, mainFields, refKey, refOf, roleFieldsOf, roleInputOf, withMainFields } from "@/components/career/profileForm";
+import { fieldsChanged, mainFields, refKey, refOf, roleFieldsOf, roleInputOf, withMainFields, withTypedSkill } from "@/components/career/profileForm";
 import { ProfileItem } from "@/components/career/ProfileItem";
 import { MAIN_PROFILE, openedProfile, profileAnchor } from "@/components/career/profiles";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
@@ -53,14 +53,23 @@ export default function CareerDNAPage() {
   const [roleDrafts, setRoleDrafts] = useState<Record<string, ProfileFieldsValue>>({});
   const storedRoles = useCareerStore((s) => s.roles ?? []);
   const changedRoles = storedRoles.filter((r) => roleDrafts[r.id] && fieldsChanged(roleDrafts[r.id], roleFieldsOf(r)));
-  const dirty = profileChanged(draft, dna) || mainResume !== refKey(baseResume) || changedRoles.length > 0;
+  // What's still typed in each profile's add-skill box ("main" for My profile): saved with the rest, so nothing typed is lost.
+  const [typedSkills, setTypedSkills] = useState<Record<string, string>>({});
+  const typing = Object.values(typedSkills).some((t) => t.trim());
+  const dirty = profileChanged(draft, dna) || mainResume !== refKey(baseResume) || changedRoles.length > 0 || typing;
   const choices = useResumeChoices();
   /** Saves every profile with edits: My profile (and its résumé), then each changed role. */
   const saveAll = () => {
-    updateDNA(draft);
+    const main = withMainFields(draft, withTypedSkill(mainValue, typedSkills.main));
+    updateDNA(main);
     if (mainResume !== refKey(baseResume)) setBaseResume(refOf(mainResume));
-    for (const r of changedRoles) useCareerStore.getState().updateRole(r.id, roleInputOf(r.title, roleDrafts[r.id]));
+    for (const r of storedRoles) {
+      const v = withTypedSkill(roleDrafts[r.id] ?? roleFieldsOf(r), typedSkills[r.id], mainFields(main));
+      if (fieldsChanged(v, roleFieldsOf(r))) useCareerStore.getState().updateRole(r.id, roleInputOf(r.title, v));
+    }
     setRoleDrafts({});
+    setTypedSkills({});
+    return main;
   };
   // The saved profile can change under an untouched form (it loads from your account, or another tab
   // saves): follow it then, but never over edits not yet saved.
@@ -77,6 +86,11 @@ export default function CareerDNAPage() {
   // first), Find searches again with it.
   const fromFind = params.get("from") === "find";
   const arrived = useRef({ dna, roles: JSON.stringify(useCareerStore.getState().roles ?? []) });
+  // Search as a role: what's unsaved (a skill typed but not yet added goes in as its box loses focus) is saved first.
+  const searchAs = (id: string) => {
+    if (dirty) saveAll();
+    router.push(`/app/jobs?role=${encodeURIComponent(id)}`);
+  };
   const backToFind = () => {
     if (dirty) saveAll();
     const now = useCareerStore.getState();
@@ -237,9 +251,9 @@ export default function CareerDNAPage() {
               )
             }
           >
-            <ProfileFields id="main" value={mainValue} onChange={setMain} derivedWords={profileSearchQuery({ ...draft, searchWords: undefined })} choices={choices} />
+            <ProfileFields id="main" value={mainValue} onChange={setMain} typedSkill={typedSkills.main ?? ""} onTypedSkill={(t) => setTypedSkills((x) => ({ ...x, main: t }))} derivedWords={profileSearchQuery({ ...draft, searchWords: undefined })} choices={choices} />
           </ProfileItem>
-          <RolesCard open={openProfile} onToggle={toggleProfile} onOpen={setOpenProfile} drafts={roleDrafts} setDraft={(id, patch) => setRoleDrafts((d) => ({ ...d, [id]: { ...(d[id] ?? roleFieldsOf(roles.find((r) => r.id === id)!)), ...patch } }))} follow={mainValue} choices={choices} />
+          <RolesCard open={openProfile} onToggle={toggleProfile} onOpen={setOpenProfile} onSearch={searchAs} typed={typedSkills} setTyped={(id, t) => setTypedSkills((x) => ({ ...x, [id]: t }))} drafts={roleDrafts} setDraft={(id, patch) => setRoleDrafts((d) => ({ ...d, [id]: { ...(d[id] ?? roleFieldsOf(roles.find((r) => r.id === id)!)), ...patch } }))} follow={mainValue} choices={choices} />
         </Card>
 
         {/* What every profile shares: who you are today. Skills, places and pay are each profile's own, above. */}

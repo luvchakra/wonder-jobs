@@ -1,9 +1,7 @@
 "use client";
-import { useState } from "react";
-import { X } from "lucide-react";
 import type { CareerDNA } from "@/domain/career/types";
 import { Chip, Field, Input, Select } from "@/components/common/Input";
-import { cn } from "@/lib/cn";
+import { SkillsInput } from "./SkillsInput";
 
 /**
  * One profile's own fields (owner, 2026-11-26: "all profiles should have similar options to select"), in the same order
@@ -34,8 +32,7 @@ const MODES: { value: CareerDNA["workModes"][number]; label: string }[] = [
   { value: "onsite", label: "On-site" },
 ];
 
-export function ProfileFields({ id, value, onChange, follow, derivedWords, choices }: { id: string; value: ProfileFieldsValue; onChange: (patch: Partial<ProfileFieldsValue>) => void; /** My profile's own values, for a role: what each empty field follows. */ follow?: ProfileFieldsValue; /** The words searched when Search words is empty. */ derivedWords: string; choices: { key: string; label: string }[] }) {
-  const [newSkill, setNewSkill] = useState("");
+export function ProfileFields({ id, value, onChange, typedSkill, onTypedSkill, follow, derivedWords, choices }: { id: string; value: ProfileFieldsValue; onChange: (patch: Partial<ProfileFieldsValue>) => void; typedSkill: string; onTypedSkill: (text: string) => void; /** My profile's own values, for a role: what each empty field follows. */ follow?: ProfileFieldsValue; /** The words searched when Search words is empty. */ derivedWords: string; choices: { key: string; label: string }[] }) {
   const skills = value.skills.length ? value.skills : (follow?.skills ?? []);
   const modes = value.workModes.length ? value.workModes : (follow?.workModes ?? []);
   const setSkills = (next: CareerDNA["skills"]) => onChange({ skills: next });
@@ -90,31 +87,7 @@ export function ProfileFields({ id, value, onChange, follow, derivedWords, choic
         <p className="text-[13px] font-medium text-ink-2">
           Skills <span className="font-normal text-ink-3">· {follow && !value.skills.length ? "same as My profile until you change them; " : ""}tap one to mark it a strength (weighs more)</span>
         </p>
-        <ul className="mt-2 flex flex-wrap gap-1.5">
-          {skills.map((s, i) => (
-            <li key={s.name} className={cn("inline-flex items-center rounded-full border text-[13px]", s.level >= 4 ? "border-brand-400 bg-brand-50" : "border-line bg-surface")}>
-              <button type="button" aria-pressed={s.level >= 4} aria-label={`${s.name}${s.level >= 4 ? ", a strength" : ""}`} onClick={() => setSkills(skills.map((x, j) => (j === i ? { ...x, level: (x.level >= 4 ? 3 : 5) as 3 | 5 } : x)))} className={cn("py-1 pl-3 pr-1 font-medium", s.level >= 4 ? "text-brand-700" : "text-ink")}>
-                {s.name}
-              </button>
-              <button type="button" aria-label={`Remove ${s.name}`} onClick={() => setSkills(skills.filter((_, j) => j !== i))} className="flex size-7 items-center justify-center rounded-full text-ink-4 hover:text-ink">
-                <X className="size-3.5" aria-hidden />
-              </button>
-            </li>
-          ))}
-          <li>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const name = newSkill.trim();
-                if (!name || skills.some((s) => s.name.toLowerCase() === name.toLowerCase())) return;
-                setSkills([...skills, { name, level: 3 }]);
-                setNewSkill("");
-              }}
-            >
-              <Input value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="+ Add a skill" aria-label="New skill" className="h-9 w-36 rounded-full" />
-            </form>
-          </li>
-        </ul>
+        <SkillsInput skills={skills} onChange={setSkills} typed={typedSkill} onTyped={onTypedSkill} />
       </div>
     </div>
   );
