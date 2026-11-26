@@ -327,6 +327,10 @@ export function corePhrase(query: string): string {
  * Whole words only, both ways: a term matches when the posting carries it or one of its spellings.
  */
 export const TERM_SYNONYMS: Record<string, string[]> = {
+  // Insurance (owner, 2026-11-26: a role searching "Insurance operations" ranked TA and IT operations jobs first): the
+  // field's own words place a posting in it. Not "policy" or "risk": too common outside insurance.
+  insurance: ["insurer", "insurers", "reinsurance", "reinsurer", "underwriting", "underwriter", "claims", "actuarial", "actuary", "broking", "insurtech", "property and casualty", "property & casualty", "bancassurance", "lloyd's"],
+  reinsurance: ["reinsurer", "reinsurers", "retrocession", "facultative", "treaty underwriting"],
   iam: ["identity and access management", "identity & access management", "identity access management", "identity management", "access management", "identity"],
   identity: ["iam", "identity and access management", "identity & access management"],
   iga: ["identity governance", "identity governance and administration"],

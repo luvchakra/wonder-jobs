@@ -71,22 +71,32 @@ export interface Relevance {
   inTitle: boolean;
   matched: string[];
   missing: string[];
+  /** Role/field words found only in the description: the posting names them in passing, not as what the job is. */
+  onlyInBody: string[];
 }
+
+/**
+ * Perks that name a field without being in it: "health insurance" in a benefits list doesn't make a job an
+ * insurance job (owner, 2026-11-26). Removed from the description before it's searched.
+ */
+const PERKS = /\b(?:health|medical|dental|vision|disability|accident|travel|pet|group|employee|private|life and disability)(?:\s*(?:,|and|&|\/)\s*(?:health|medical|dental|vision|life|disability|accident))*\s+insurances?\b|\binsurances?\s+(?:coverage|benefits?|plans?|premiums?|allowance|cover)\b/gi;
+export const withoutPerks = (text: string) => text.replace(PERKS, " ");
 
 export function relevance(job: Searchable, query: string): Relevance {
   const terms = searchTerms(query);
-  if (!terms.length) return { score: 1, complete: true, inTitle: true, matched: [], missing: [] };
+  if (!terms.length) return { score: 1, complete: true, inTitle: true, matched: [], missing: [], onlyInBody: [] };
   const text = {
     title: job.title,
     head: `${job.skills.join(" · ")} · ${job.tags.join(" · ")}`,
     requirements: job.requirements.join(" · "),
     where: `${job.company} · ${job.location}`,
-    description: job.description ?? "",
+    description: withoutPerks(job.description ?? ""),
   };
   let got = 0;
   let total = 0;
   const matched: string[] = [];
   const missing: string[] = [];
+  const onlyInBody: string[] = [];
   let coreInTitle = 0;
   const cores = terms.filter((t) => t.core).length;
   for (const t of terms) {
@@ -99,13 +109,14 @@ export function relevance(job: Searchable, query: string): Relevance {
       got += t.weight * w;
       matched.push(t.word);
       if (t.core && (field?.key === "title" || near === 0.85)) coreInTitle++;
+      if (t.core && field?.key === "description") onlyInBody.push(t.word);
     } else missing.push(t.word);
   }
   const complete = terms.every((t) => !t.core || matched.includes(t.word)) && (cores > 0 || matched.length > 0);
   const inTitle = cores > 0 ? coreInTitle === cores : matched.length > 0 && terms.every((t) => hasTermOrSynonym(text.title, t.word));
   // The words in the title in the order typed ("product manager", not "manager, product") is the best answer there is.
   const phrase = cores > 1 && inTitle && hasTermOrSynonym(text.title, terms.filter((t) => t.core).map((t) => t.word).join(" ")) ? 0.1 : 0;
-  return { score: Math.min(1, got / total + phrase), complete, inTitle, matched, missing };
+  return { score: Math.min(1, got / total + phrase), complete, inTitle, matched, missing, onlyInBody };
 }
 
 /** Whether the posting answers the search at all: every role/field word somewhere (level words alone: in the title). */
