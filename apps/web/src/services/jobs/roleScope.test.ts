@@ -57,3 +57,32 @@ describe("scoring a role's search", () => {
     expect(profileKey(dna, "")).toBe(profileKey(dna));
   });
 });
+
+// The owner's case (2026-11-26): "Insurance operations" ranked TA and IT operations jobs at 76 and 72.
+describe("a role's words are the search, not any one of them", () => {
+  const r = roleScope(reinsurance);
+  const skills = ["Product Management", "Growth", "Agile", "Strategy", "Roadmap", "Automation"].map((name) => ({ name, level: 4 as const }));
+  const ctx = { dna: { ...dna, skills, seniority: "senior" as const }, searchQuery: r.query, careerGoal: r.careerGoal, forRole: true };
+  const perks = "Benefits: health insurance, dental & vision insurance, a learning budget.";
+  const ta = job({ id: "ta", title: "Senior Specialist, TA Operations (Fixed-term)", company: "Delivery Hero", location: "Berlin", workMode: "hybrid", seniority: "senior", tags: ["Product Management", "Growth", "Agile"], description: `Run talent acquisition operations: roadmap, automation, strategy. ${perks}` });
+  const it_ = job({ id: "it", title: "Sr. Manager of IT & Operations", company: "Osano", seniority: "senior", tags: ["Strategy", "Automation"], description: `Lead IT and business operations. Group insurance coverage included.` });
+  const claims = job({ id: "cl", title: "Claims Operations Manager", company: "Acme General", seniority: "senior", description: "Run claims operations for our property and casualty book." });
+  const atInsurer = job({ id: "ai", title: "Operations Manager", company: "Coalition Insurance", seniority: "senior", description: "Run operations for the underwriting teams." });
+  const inPassing = job({ id: "ip", title: "Operations Lead", seniority: "senior", description: "Run operations for our fintech partners, including an insurance marketplace." });
+
+  it("a job with only “operations”, insurance named only as a perk, is a low fit", () => {
+    expect(computeMatch(ta, ctx).score).toBeLessThanOrEqual(54);
+    expect(computeMatch(it_, ctx).score).toBeLessThanOrEqual(54);
+    expect(computeMatch(ta, ctx).fit).toBe("low_fit");
+  });
+
+  it("insurance work in the title, or at an insurer, leads", () => {
+    const top = Math.max(computeMatch(ta, ctx).score, computeMatch(it_, ctx).score);
+    expect(computeMatch(claims, ctx).score).toBeGreaterThan(top + 10);
+    expect(computeMatch(atInsurer, ctx).score).toBeGreaterThan(top + 10);
+  });
+
+  it("insurance only in passing in the description is at most a stretch", () => {
+    expect(computeMatch(inPassing, ctx).score).toBeLessThanOrEqual(64);
+  });
+});
