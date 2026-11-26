@@ -8,7 +8,8 @@ import { buildApplicationProfile, missingProfileFields } from "@/domain/jobs-app
 import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/pack";
 import { describeDecision } from "@/domain/jobs/decision";
 import { resumeOptionsFor } from "@/domain/jobs-apply/resumeOptions";
-import { baseResumeFor } from "@/domain/career/roles";
+import { baseResumeFor, roleFor } from "@/domain/career/roles";
+import { draftingProfile } from "@/domain/career/profiles";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
@@ -101,7 +102,8 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
     track("application_preparation_started", { applicationId: app.id, artifact: type });
     try {
       const svc = ai();
-      const input = { job, dna };
+      // Drafted from the profile whose search found the job (its goal, level and skills), else My profile.
+      const input = { job, dna: draftingProfile(dna, roleFor(roles, job.foundAs)) };
       let content = "";
       // One provider request is the whole job, so the UI shows one honest "drafting…" state for it
       // rather than a list of sub-steps that never actually ran separately.
