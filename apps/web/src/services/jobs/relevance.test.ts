@@ -31,3 +31,12 @@ describe("relevance to what the candidate typed", () => {
     expect(answersSearch(post({ title: "Engineer", company: "Canonical", location: "Remote" }), "canonical")).toBe(true);
   });
 });
+
+describe("perks don't place a job in a field", () => {
+  const j = { title: "Operations Lead", company: "Co", location: "Remote", skills: [], tags: [], requirements: [] };
+  it("health, dental & vision or group insurance coverage aren't the insurance field", async () => {
+    const { relevance } = await import("./relevance");
+    for (const d of ["We offer health insurance.", "Medical, dental & vision insurance.", "Group insurance coverage included.", "Insurance benefits from day one."]) expect(relevance({ ...j, description: d }, "insurance operations").complete).toBe(false);
+    expect(relevance({ ...j, description: "We are a life insurance company." }, "insurance operations")).toMatchObject({ complete: true, onlyInBody: ["insurance"] });
+  });
+});

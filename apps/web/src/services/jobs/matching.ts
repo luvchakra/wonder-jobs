@@ -190,7 +190,11 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   // A role below the level the candidate is after is never "strong": one level down is worth considering at
   // most, two or more is a stretch — the right field can't make an analyst role a fit for a director.
   const levelCeiling = delta <= -2 ? 64 : delta === -1 ? 79 : 96;
-  const ceiling = Math.min(openTo === false ? 74 : 96, levelCeiling, !field.length || inTitle.length || inHead.length ? 96 : inBody.length ? 64 : 54);
+  // A typed or role search: every one of its words must be in the posting for more than a low fit, and in its title,
+  // tags, skills or requirements for more than a stretch. One word ("operations") in the title isn't the search
+  // ("insurance operations"), and a word only in passing in the description doesn't make it the job (owner, 2026-11-26).
+  const answered = !typed ? 96 : !typed.complete ? 54 : typed.onlyInBody.length ? 64 : 96;
+  const ceiling = Math.min(openTo === false ? 74 : 96, levelCeiling, answered, !field.length || inTitle.length || inHead.length ? 96 : inBody.length ? 64 : 54);
   const score = Math.round(Math.max(20, Math.min(ceiling, raw * 100 - learned.points)));
 
   const reasons: AlignmentReason[] = [
