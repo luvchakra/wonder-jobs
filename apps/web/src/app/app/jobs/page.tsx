@@ -13,7 +13,7 @@ import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/modules/jobs/components/JobsBoard";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
-import { roleArrival } from "@/modules/jobs/searchAs";
+import { fullTimeSearchAs, roleArrival } from "@/modules/jobs/searchAs";
 import { switchFindMode } from "@/lib/switchFindMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/modules/jobs/components/JobsReadiness";
 
@@ -59,7 +59,11 @@ function JobsHome() {
       void search.searchAsRole(arrival.roleId);
     } else if (roleId) void search.searchAsRole(roleId);
     else if (words) void search.searchWords(words);
-    else void search.searchNow();
+    else {
+      // Back from Career Profile after a change: search again as the profile the last search ran as.
+      const lastRole = fullTimeSearchAs(undefined, search.last?.config.role?.id, roles);
+      void (lastRole && findModeOf(useJobsStore.getState().filters) === "full_time" ? search.searchAsRole(lastRole) : search.searchNow());
+    }
     router.replace("/app/jobs");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, from the address the page was opened with
   }, [params, search, router]);
@@ -104,9 +108,7 @@ function JobsHome() {
           ? pickedRole
           : false
         : false
-      : pickedRole !== undefined
-        ? pickedRole
-        : (search.active?.config.role?.id ?? search.last?.config.role?.id ?? null);
+      : fullTimeSearchAs(pickedRole, search.active?.config.role?.id ?? search.last?.config.role?.id, roles);
   const pickSearchAs = (id: string | null | false) => {
     setPickedRole(id);
     if (mode === "part_time") useJobsStore.getState().setFilters({ query: id === false ? "" : roleWords(id) });
@@ -178,8 +180,9 @@ function JobsHome() {
           // The profile's places, not "Remote" (a work mode — Refine's Work mode).
           places: placesOnly(search.readiness.locations) ?? [],
           runPlaces: (places) => {
-            // A picked "Search as" role only searches here, when the candidate taps Search.
-            const searched = typeof pickedRole === "string" ? search.searchAsRole(pickedRole, places) : search.searchNow({ locations: places });
+            // Search runs as the profile the Looking for pill shows: one picked under "Search as", else the one the last
+            // search ran as (kept after a reload), so the two never disagree.
+            const searched = typeof searchAs === "string" ? search.searchAsRole(searchAs, places) : search.searchNow({ locations: places });
             setPickedRole(undefined);
             void searched.then((run) => {
               if (run) window.scrollTo({ top: 0, behavior: "smooth" });
