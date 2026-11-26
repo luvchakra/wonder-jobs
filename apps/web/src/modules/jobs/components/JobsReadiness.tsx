@@ -18,6 +18,7 @@ import { Chip, Input } from "@/components/common/Input";
 import { toast } from "@/components/feedback/Toast";
 import { relativeTime } from "@/lib/format";
 import { changeHref, wantedLine } from "@/modules/jobs/searchAs";
+import { DEFAULT_PROFILE_NAME, profileNameOf } from "@/domain/career/profileName";
 import type { CareerRole } from "@/domain/career/roles";
 import { cn } from "@/lib/cn";
 import { track } from "@/lib/analytics";
@@ -293,12 +294,13 @@ export function WantedRole({ className, as }: { className?: string; /** The role
 export const foundSoFar = (found: number, sources: number) => `${found.toLocaleString("en-IN")} ${found === 1 ? "posting" : "postings"} checked in ${sources} ${sources === 1 ? "source" : "sources"}`;
 
 /** Which "Search as" a search ran as: the role's name, My profile for the Career Profile, nothing for typed words. */
-export const searchedAs = (c: { role?: { title: string }; origin?: "profile" | "words" }): string | null => c.role?.title ?? (c.origin === "profile" ? "My profile" : null);
+export const searchedAs = (c: { role?: { title: string }; origin?: "profile" | "words" }, profileName = DEFAULT_PROFILE_NAME): string | null => c.role?.title ?? (c.origin === "profile" ? profileName : null);
 
 export function SearchStatusLine({ search, monitoring = false }: { search: JobSearch; monitoring?: boolean }) {
   // "Search again" repeats what was searched — the candidate's own words or role stay theirs.
   const { active, last, widened } = search;
   const sources = useJobsStore((s) => s.sources);
+  const profileName = useCareerStore((s) => profileNameOf(s.dna));
   if (active) {
     const stage = active.currentStage ? STAGES[active.currentStage] : undefined;
     const counts = active.stages.find((s) => s.key === "search")?.counts;
@@ -329,7 +331,7 @@ export function SearchStatusLine({ search, monitoring = false }: { search: JobSe
             ) : null}
             <p className="break-words text-[13px] leading-[18px] text-ink-2">
               {active.config.searchCriteria.query.trim() ? `For “${active.config.searchCriteria.query}”` : latestLabel(active.config)}{where.length ? ` in ${where.join(", ")}` : ""}
-              {searchedAs(active.config) && <span className="font-medium text-brand-700"> · as {searchedAs(active.config)}</span>}
+              {searchedAs(active.config, profileName) && <span className="font-medium text-brand-700"> · as {searchedAs(active.config, profileName)}</span>}
             </p>
           </Link>
       </SearchingBanner>
@@ -412,6 +414,7 @@ export function JobsEmpty({ search }: { search: JobSearch }) {
  * tapping the chip that's on turns it off; Full Time always has one picked. `current` false = none picked.
  */
 export function RoleChips({ roles, current, onPick, busy, allowNone = false }: { roles: { id: string; title: string }[]; current: string | null | false; onPick: (roleId: string | null | false) => void; busy: boolean; allowNone?: boolean }) {
+  const profileName = useCareerStore((s) => profileNameOf(s.dna));
   const pick = (id: string | null) => {
     if (current === id && !allowNone) return;
     onPick(current === id ? false : id);
@@ -420,7 +423,7 @@ export function RoleChips({ roles, current, onPick, busy, allowNone = false }: {
     <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]" role="group" aria-label="Search as">
       <span className="shrink-0 text-[12px] font-medium text-ink-3">Search as</span>
       <Chip active={current === null} isDefault onClick={() => pick(null)} className="h-8 shrink-0 px-3 text-[12px]" disabled={busy}>
-        My profile
+        {profileName}
       </Chip>
       {roles.map((r) => (
         <Chip key={r.id} active={current === r.id} onClick={() => pick(r.id)} className="h-8 shrink-0 px-3 text-[12px]" disabled={busy}>
