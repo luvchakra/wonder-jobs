@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { detectSource, parseWorkdaySlug, workdaySlug } from "@/domain/jobslake/detect";
 import { fetchAtsBoard, workdayPostedAt } from "./ats";
+import { apiSourceIds } from "./developer";
 
 // Shapes as Travelers' Workday site answered on 2026-11-26 (WJ-872).
 const LIST = {
@@ -23,9 +24,15 @@ describe("Workday career sites", () => {
         expect(d.platform).toBe("workday");
         expect(d.slug).toBe("travelers.wd5.External");
         expect(d.boardUrl).toBe("https://travelers.wd5.myworkdayjobs.com/External");
+        expect(d.accessStrategy).toBe("structured");
       }
     }
     expect(detectSource("https://travelers.wd5.myworkdayjobs.com/").kind).toBe("invalid");
+  });
+
+  it("stays off the developer API's default sources while its terms are pending", () => {
+    expect(apiSourceIds({}, undefined)).not.toContain("workday");
+    expect(apiSourceIds({}, undefined)).toContain("greenhouse");
   });
 
   it("keeps a site in one slug and refuses anything else", () => {

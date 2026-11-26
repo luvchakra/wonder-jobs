@@ -80,7 +80,9 @@ const SLUG = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 function board(platform: AtsPlatform, slug: string | undefined): Detection {
   if (!slug || !SLUG.test(slug)) return { kind: "invalid", message: `That looks like ${ATS_META[platform].name}, but the URL doesn't name a company board. Use the board's main page, e.g. ${ATS_META[platform].boardUrl("company")}.` };
-  return { kind: "ats_board", platform, slug, provider: ATS_META[platform].name, category: "ats", accessStrategy: "official_api", capabilities: CAPABILITIES, authRequired: false, boardUrl: ATS_META[platform].boardUrl(slug) };
+  // Workday publishes no API for this endpoint: it is the data the career site's own page reads, so "structured", not an
+  // official API — which also keeps it off the developer API's default sources (developer.ts::apiSourceIds) while its terms are pending.
+  return { kind: "ats_board", platform, slug, provider: ATS_META[platform].name, category: "ats", accessStrategy: platform === "workday" ? "structured" : "official_api", capabilities: CAPABILITIES, authRequired: false, boardUrl: ATS_META[platform].boardUrl(slug) };
 }
 
 export function detectSource(raw: string): Detection {
