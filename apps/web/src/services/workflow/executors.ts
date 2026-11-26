@@ -11,6 +11,7 @@ import { ProviderError } from "@/domain/ai/types";
 import { computeMatch, computeQuality } from "@/services/jobs/matching";
 import { blendAiFit, blendAiQuality, jobForAi, profileForAi, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { roleKey, searchWordsOf, type RoleScope } from "@/services/jobs/roleScope";
+import { effectiveProfile } from "@/domain/career/profiles";
 import { AI_MATCH_TOP, aiMatchPrompt, applyAiRelevance, parseAiMatch, relevanceKey, type AiRelevance } from "@/domain/jobs/aiMatch";
 import type { CareerDNA } from "@/domain/career/types";
 import type { AIService } from "@/services/ai/service";
@@ -164,7 +165,9 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
 
     match: async (ctx) => {
       const jobs = canonicalCache.get(ctx.run.id) ?? [];
-      const { dna, learnedSignals } = useCareerStore.getState();
+      const { learnedSignals } = useCareerStore.getState();
+      // A role's search is scored with the role's own level and skills where set.
+      const dna = runProfile(ctx.run.config);
       const preferredLocations = ctx.get<string[]>("preferredLocations");
       const minSalary = ctx.get<number>("minSalary");
       const careerGoal = ctx.get<string>("careerGoal");
@@ -468,6 +471,12 @@ export function typedQuery(config: { origin?: "profile" | "words"; searchCriteri
   return searchWordsOf(config);
 }
 
+/** The profile a run scores with: My profile, or the role it searched as over it (domain/career/profiles.ts). */
+function runProfile(config: { role?: { id: string } }) {
+  const { dna, roles } = useCareerStore.getState();
+  return effectiveProfile(dna, config.role ? roles?.find((r) => r.id === config.role!.id) : undefined);
+}
+
 /** The role a run searched as, with the words and goal it ran with. */
 function runRole(config: { role?: { title: string }; careerGoal?: string; searchCriteria: { query: string } }): RoleScope | undefined {
   return config.role ? { title: config.role.title, query: config.searchCriteria.query, careerGoal: config.careerGoal ?? config.role.title } : undefined;
@@ -533,7 +542,8 @@ function showArriving(ctx: StageContext, jobs: CanonicalJob[], first: boolean) {
   const store = useJobsStore.getState();
   if (first) store.replaceCatalog(list, catalogKey(ctx.run.config));
   else store.appendCatalog(list);
-  const { dna, learnedSignals } = useCareerStore.getState();
+  const { learnedSignals } = useCareerStore.getState();
+  const dna = runProfile(ctx.run.config);
   const opts = { dna, preferredLocations: ctx.get<string[]>("preferredLocations"), minSalary: ctx.get<number>("minSalary"), careerGoal: ctx.get<string>("careerGoal"), learnedSignals, searchQuery: typedQuery(ctx.run.config), forRole: !!role };
   store.setMatches(list.map((j) => computeMatch(j, opts)));
 }

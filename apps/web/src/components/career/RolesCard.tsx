@@ -1,31 +1,26 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { canAddRole, roleProblem, roleSearch, type CareerRole, type RoleInput } from "@/domain/career/roles";
+import { canAddRole, roleProblem, roleSearch, type CareerRole } from "@/domain/career/roles";
+import { newProfileTitle, prefilledRole } from "@/domain/career/profiles";
 import { planThatAllows } from "@/domain/billing/plans";
 import { usePlan } from "@/lib/usePlan";
 import { PlanGate } from "@/components/billing/PlanGate";
-import type { BaseResumeRef } from "@/domain/resume/files";
 import { getTemplate } from "@/domain/resume/templates";
 import { defaultSearchQuery } from "@/services/jobs/normalize";
 import { useCareerStore } from "@/store/career";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { Button } from "@/components/common/Button";
-import { Card } from "@/components/common/Card";
-import { Field, Input, Select, Textarea } from "@/components/common/Input";
+import { Input } from "@/components/common/Input";
 import { Modal } from "@/components/common/Modal";
 import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
 import { ProfileItem } from "./ProfileItem";
+import { ProfileFields, type ProfileFieldsValue } from "./ProfileFields";
+import { refKey, roleFieldsOf, roleInputOf } from "./profileForm";
 
-const refKey = (r?: BaseResumeRef) => (r ? `${r.kind}:${r.id}` : "");
-const refOf = (k: string): BaseResumeRef | undefined => {
-  const [kind, id] = k.split(":");
-  return (kind === "upload" || kind === "saved") && id ? { kind, id } : undefined;
-};
-
-/** The résumés a role can use, labelled the way Resume Studio shows them. */
-function useResumeChoices() {
+/** The résumés a profile can use, labelled the way Resume Studio shows them. */
+export function useResumeChoices() {
   const files = useResumeFilesStore((s) => s.files);
   const load = useResumeFilesStore((s) => s.load);
   const saved = useCareerStore((s) => s.savedResumes);
@@ -39,132 +34,107 @@ function useResumeChoices() {
 }
 
 /**
- * Career Profile → Roles: the different jobs the candidate is open to, each a way to search with its own
- * terms, goal and résumé. Saved straight away (they're not part of the profile form above), and used only
- * when the candidate picks one under "Search as".
+ * The candidate's roles, as profiles beside My profile (owner, 2026-11-26: "make all profile options equivalent"): each
+ * opens to the same form as My profile (`ProfileFields`, edits kept in `drafts` until Save changes), renames from the
+ * pencil beside its name, and has Search and Delete. Add a role starts a new profile from My profile's fields.
  */
-/** `bare`: no card, title or intro — for use inside a section that already has them. */
-/** `profiles`: each role as one of Career Profile's profiles, opened and closed by the page (one open at a time). */
-export function RolesCard({ bare = false, profiles }: { bare?: boolean; profiles?: { open: string | null; onToggle: (id: string) => void } } = {}) {
+export function RolesCard({ open, onToggle, onOpen, drafts, setDraft, follow, choices }: { open: string | null; onToggle: (id: string) => void; onOpen: (id: string) => void; drafts: Record<string, ProfileFieldsValue>; setDraft: (id: string, patch: Partial<ProfileFieldsValue>) => void; follow: ProfileFieldsValue; choices: { key: string; label: string }[] }) {
   const roles = useCareerStore((s) => s.roles ?? []);
+  const dna = useCareerStore((s) => s.dna);
   const addRole = useCareerStore((s) => s.addRole);
   const updateRole = useCareerStore((s) => s.updateRole);
   const removeRole = useCareerStore((s) => s.removeRole);
-  const choices = useResumeChoices();
-  const [editing, setEditing] = useState<CareerRole | "new" | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; title: string; problem?: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CareerRole | null>(null);
   const { plan, limits, plans } = usePlan();
   const atLimit = !canAddRole(roles, limits.roles);
-  const label = (r: CareerRole) => (r.baseResume ? (choices.find((c) => c.key === refKey(r.baseResume))?.label ?? "A résumé that was deleted — choose another") : "Your base résumé");
 
-  const actions = (r: CareerRole) => (
-    <div className="flex shrink-0 gap-1">
-      <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} href={`/app/jobs?role=${encodeURIComponent(r.id)}`} aria-label={`Search as ${r.title}`}>
-        Search
-      </Button>
-      <Button size="sm" variant="ghost" icon={<Pencil className="size-3.5" aria-hidden />} aria-label={`Edit ${r.title}`} onClick={() => setEditing(r)}>
-        Edit
-      </Button>
-      <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" aria-hidden />} aria-label={`Delete ${r.title}`} onClick={() => setConfirmDelete(r)} />
-    </div>
-  );
-  const dialogs = <RoleDialogs editing={editing} setEditing={setEditing} confirmDelete={confirmDelete} setConfirmDelete={setConfirmDelete} roles={roles} choices={choices} addRole={addRole} updateRole={updateRole} removeRole={removeRole} />;
+  const rename = (role: CareerRole, title: string) => {
+    // The name only: the role's other fields stay as saved (any unsaved edits stay in the form).
+    const input = { ...roleInputOf(role.title, roleFieldsOf(role)), title };
+    const problem = roleProblem(input, roles.filter((r) => r.id !== role.id));
+    if (problem) return setRenaming({ id: role.id, title, problem });
+    updateRole(role.id, input);
+    setRenaming(null);
+  };
 
-  if (profiles) {
-    return (
-      <>
-        {roles.map((r) => {
-          const search = roleSearch(r, defaultSearchQuery);
-          return (
-            <ProfileItem key={r.id} id={r.id} title={r.title} hint={search.query ? `Searches for “${search.query}”` : "Add search terms"} open={profiles.open === r.id} onToggle={() => profiles.onToggle(r.id)}>
-              <p className="text-[13px] text-ink-2">Goal: {search.careerGoal}</p>
-              <p className="mb-3 text-[13px] text-ink-3">Résumé: {label(r)}</p>
-              {actions(r)}
-            </ProfileItem>
-          );
-        })}
-        <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-          <p className="min-w-0 flex-1 text-[12px] text-ink-3">{roles.length ? "Another kind of job you'd take?" : "Open to another kind of job? Add it with its own search terms, goal and résumé."}</p>
-          <Button size="sm" variant="outline" icon={<Plus className="size-3.5" aria-hidden />} disabled={atLimit} onClick={() => setEditing("new")}>
-            Add a role
-          </Button>
-          {atLimit && plan !== "max" && <PlanGate className="w-full" reason={`${plans[plan].label} includes ${limits.roles} role${limits.roles === 1 ? "" : "s"}.`} needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.roles > roles.length)} plans={plans} />}
-        </div>
-        {dialogs}
-      </>
-    );
-  }
-
-  const Wrap = bare ? "div" : Card;
-  return (
-    <Wrap aria-labelledby={bare ? undefined : "roles-title"}>
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        {!bare && (
-          <h2 id="roles-title" className="text-[15px] font-semibold text-ink">
-            Roles you&apos;re open to
-          </h2>
-        )}
-        <Button size="sm" variant="outline" icon={<Plus className="size-3.5" aria-hidden />} disabled={atLimit} onClick={() => setEditing("new")}>
-          Add a role
-        </Button>
-      </div>
-      {atLimit && plan !== "max" && <PlanGate className="mb-2" reason={`${plans[plan].label} includes ${limits.roles} role${limits.roles === 1 ? "" : "s"}.`} needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.roles > roles.length)} plans={plans} />}
-      {!bare && (
-      <p className="mb-3 text-[12px] text-ink-3">
-        Open to more than one kind of job — say, roles you&apos;ve held before? Add each as a role with its own search terms, goal and résumé, then choose it under &ldquo;Search as&rdquo; when you search. Matching still uses your whole Career Profile. Up to {limits.roles} on {plans[plan].label}.
-      </p>
-      )}
-      {roles.length === 0 ? (
-        <p className="text-[13px] text-ink-4">No roles yet — searches use your Career Profile.</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {roles.map((r) => {
-            const search = roleSearch(r, defaultSearchQuery);
-            return (
-              <li key={r.id} className="rounded-[14px] border border-line p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-semibold text-ink">{r.title}</p>
-                    <p className="text-[12px] text-ink-3">Searches for {search.query ? `“${search.query}”` : "— add search terms"} · goal: {search.careerGoal}</p>
-                    <p className="text-[12px] text-ink-4">Résumé: {label(r)}</p>
-                  </div>
-                  {actions(r)}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {dialogs}
-    </Wrap>
-  );
-}
-
-/** Add/Edit and the delete confirmation, shared by both layouts. */
-function RoleDialogs({ editing, setEditing, confirmDelete, setConfirmDelete, roles, choices, addRole, updateRole, removeRole }: { editing: CareerRole | "new" | null; setEditing: (r: CareerRole | "new" | null) => void; confirmDelete: CareerRole | null; setConfirmDelete: (r: CareerRole | null) => void; roles: CareerRole[]; choices: { key: string; label: string }[]; addRole: (input: RoleInput) => unknown; updateRole: (id: string, input: RoleInput) => unknown; removeRole: (id: string) => unknown }) {
   return (
     <>
-      {editing && (
-        <RoleEditor
-          key={editing === "new" ? "new" : editing.id}
-          initial={editing === "new" ? undefined : editing}
-          others={roles.filter((r) => editing === "new" || r.id !== editing.id)}
-          choices={choices}
-          onClose={() => setEditing(null)}
-          onSave={(input) => {
-            if (editing === "new") addRole(input);
-            else updateRole(editing.id, input);
-            toast.success(editing === "new" ? "Role added" : "Role updated", "Choose it under “Search as” when you search.");
-            setEditing(null);
+      {roles.map((r) => {
+        const v = drafts[r.id] ?? roleFieldsOf(r);
+        const words = roleSearch({ title: r.title, query: v.searchWords, goal: v.goal }, defaultSearchQuery).query;
+        return (
+          <ProfileItem
+            key={r.id}
+            id={r.id}
+            title={r.title}
+            hint={words ? `Searches for “${words}”` : "Add search words"}
+            open={open === r.id}
+            onToggle={() => onToggle(r.id)}
+            action={
+              <button type="button" aria-label={`Rename ${r.title}`} onClick={() => setRenaming({ id: r.id, title: r.title })} className="inline-flex size-8 items-center justify-center rounded-full text-ink-4 hover:bg-surface-2 hover:text-ink">
+                <Pencil className="size-3.5" aria-hidden />
+              </button>
+            }
+            editor={
+              renaming?.id === r.id && (
+                <form
+                  className="flex flex-wrap items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    rename(r, renaming.title);
+                  }}
+                >
+                  <Input autoFocus aria-label="Profile name" value={renaming.title} maxLength={80} onChange={(e) => setRenaming({ id: r.id, title: e.target.value })} onKeyDown={(e) => e.key === "Escape" && setRenaming(null)} className="h-9 min-w-0 flex-1" />
+                  <Button size="sm" type="submit">
+                    Save
+                  </Button>
+                  <Button size="sm" variant="ghost" type="button" onClick={() => setRenaming(null)}>
+                    Cancel
+                  </Button>
+                  {renaming.problem && (
+                    <p role="alert" className="w-full text-[12px] text-danger-600">
+                      {renaming.problem}
+                    </p>
+                  )}
+                </form>
+              )
+            }
+          >
+            <ProfileFields id={r.id} value={v} onChange={(patch) => setDraft(r.id, patch)} follow={follow} derivedWords={defaultSearchQuery({ headline: r.title, careerGoal: v.goal })} choices={choices} />
+            <div className="mt-4 flex gap-2">
+              <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} href={`/app/jobs?role=${encodeURIComponent(r.id)}`} aria-label={`Search as ${r.title}`}>
+                Search
+              </Button>
+              <Button size="sm" variant="ghost" icon={<Trash2 className="size-3.5" aria-hidden />} onClick={() => setConfirmDelete(r)}>
+                Delete
+              </Button>
+            </div>
+          </ProfileItem>
+        );
+      })}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+        <p className="min-w-0 flex-1 text-[12px] text-ink-3">{roles.length ? "Another kind of job you'd take?" : "Open to another kind of job? Add it as its own profile."}</p>
+        <Button
+          size="sm"
+          variant="outline"
+          icon={<Plus className="size-3.5" aria-hidden />}
+          disabled={atLimit}
+          onClick={() => {
+            const added = addRole(prefilledRole(dna, newProfileTitle(roles)));
+            if (!added) return;
+            onOpen(added.id);
+            setRenaming({ id: added.id, title: added.title });
           }}
-        />
-      )}
-
+        >
+          Add a role
+        </Button>
+        {atLimit && plan !== "max" && <PlanGate className="w-full" reason={`${plans[plan].label} includes ${limits.roles} role${limits.roles === 1 ? "" : "s"}.`} needs={planThatAllows({ plans, priceRefs: { pro: {}, max: {} } }, (l) => l.roles > roles.length)} plans={plans} />}
+      </div>
       <Modal
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
-        title="Delete this role?"
+        title="Delete this profile?"
         description={confirmDelete?.title}
         size="sm"
         footer={
@@ -178,75 +148,17 @@ function RoleDialogs({ editing, setEditing, confirmDelete, setConfirmDelete, rol
                 onClick={() => {
                   removeRole(confirmDelete.id);
                   setConfirmDelete(null);
-                  toast.success("Role deleted");
+                  toast.success("Profile deleted");
                 }}
               >
-                Delete role
+                Delete profile
               </Button>
             </>
           )
         }
       >
-        <p className="text-[14px] text-ink-2">Your past searches and the jobs they found are kept. Scheduled searches set up as this role keep running with the terms and goal they were saved with.</p>
+        <p className="text-[14px] text-ink-2">Your past searches and the jobs they found are kept. Scheduled searches set up as this profile keep running with the words and goal they were saved with.</p>
       </Modal>
     </>
-  );
-}
-
-function RoleEditor({ initial, others, choices, onClose, onSave }: { initial?: CareerRole; others: CareerRole[]; choices: { key: string; label: string }[]; onClose: () => void; onSave: (input: RoleInput) => void }) {
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [query, setQuery] = useState(initial?.query ?? "");
-  const [goal, setGoal] = useState(initial?.goal ?? "");
-  const [resume, setResume] = useState(refKey(initial?.baseResume));
-  const [tried, setTried] = useState(false);
-  const input: RoleInput = { title, query, goal, baseResume: refOf(resume) };
-  const problem = roleProblem(input, others);
-  const derived = defaultSearchQuery({ headline: title, careerGoal: goal });
-  const save = () => {
-    setTried(true);
-    if (!problem) onSave(input);
-  };
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      title={initial ? "Edit role" : "Add a role"}
-      size="md"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={save}>{initial ? "Save role" : "Add role"}</Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <Field label="Role" htmlFor="role-title" required hint="What you'd call it, e.g. “Data Analyst”.">
-          <Input id="role-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} autoFocus />
-        </Field>
-        <Field label="Search terms" htmlFor="role-query" hint={query.trim() ? "Sent to job sources as written." : derived ? `Optional. Leave empty to search for “${derived}”, read from the role and goal.` : "Optional. Leave empty to use terms read from the role name."}>
-          <Input id="role-query" value={query} onChange={(e) => setQuery(e.target.value)} maxLength={120} placeholder="e.g. data analyst OR business analyst" />
-        </Field>
-        <Field label="Goal for this role" htmlFor="role-goal" hint="Optional. What fit is scored against when you search as this role; empty uses the role name. Your Career Profile's goal is unchanged.">
-          <Textarea id="role-goal" value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={300} className="min-h-20" placeholder="e.g. Senior data analyst roles in fintech" />
-        </Field>
-        <Field label="Résumé for this role" htmlFor="role-resume" hint="Offered first when you apply to jobs this role's searches found.">
-          <Select id="role-resume" value={resume} onChange={(e) => setResume(e.target.value)}>
-            <option value="">Your base résumé</option>
-            {choices.map((c) => (
-              <option key={c.key} value={c.key}>
-                {c.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        {tried && problem && (
-          <p role="alert" className="text-[13px] text-danger-600">
-            {problem}
-          </p>
-        )}
-      </div>
-    </Modal>
   );
 }

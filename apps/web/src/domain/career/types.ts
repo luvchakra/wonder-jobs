@@ -18,6 +18,8 @@ export interface CareerDNA {
   history?: CareerHistory;
   /** What the candidate calls this profile among their profiles (e.g. "IAM"); unset reads "My profile". */
   profileName?: string;
+  /** My profile's own search words, as a role has; unset reads them from Role you want (`profileSearchQuery`). */
+  searchWords?: string;
   updatedAt: string;
 }
 

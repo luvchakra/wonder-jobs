@@ -112,6 +112,21 @@ function relearn(s: Pick<CareerState, "rejectionHistory" | "interactionHistory" 
   return { rejectionHistory: s.rejectionHistory, interactionHistory: s.interactionHistory ?? [], searchHistory: s.searchHistory ?? [], learnedSignals };
 }
 
+/** A role as saved: its words tidied, and each preference kept only when set (unset follows My profile). */
+function roleFields(input: RoleInput) {
+  return {
+    title: input.title.trim(),
+    query: input.query.trim(),
+    goal: input.goal.trim(),
+    ...(input.baseResume ? { baseResume: input.baseResume } : {}),
+    ...(input.seniority ? { seniority: input.seniority } : {}),
+    ...(input.skills?.length ? { skills: input.skills.slice(0, 60) } : {}),
+    ...(input.preferredLocations?.length ? { preferredLocations: input.preferredLocations.slice(0, 10) } : {}),
+    ...(input.workModes?.length ? { workModes: input.workModes } : {}),
+    ...(input.minSalary ? { minSalary: input.minSalary } : {}),
+  };
+}
+
 export const useCareerStore = create<CareerState>()(
   persist(
     (set) => ({
@@ -195,12 +210,12 @@ export const useCareerStore = create<CareerState>()(
         set((s) => {
           if ((s.roles ?? []).length >= MAX_ROLES) return {};
           const at = new Date().toISOString();
-          added = { id: newId("role"), title: input.title.trim(), query: input.query.trim(), goal: input.goal.trim(), baseResume: input.baseResume, createdAt: at, updatedAt: at };
+          added = { ...roleFields(input), id: newId("role"), createdAt: at, updatedAt: at };
           return { roles: [...(s.roles ?? []), added] };
         });
         return added;
       },
-      updateRole: (id, input) => set((s) => ({ roles: (s.roles ?? []).map((r) => (r.id === id ? { ...r, title: input.title.trim(), query: input.query.trim(), goal: input.goal.trim(), baseResume: input.baseResume, updatedAt: new Date().toISOString() } : r)) })),
+      updateRole: (id, input) => set((s) => ({ roles: (s.roles ?? []).map((r) => (r.id === id ? { id: r.id, createdAt: r.createdAt, ...roleFields(input), updatedAt: new Date().toISOString() } : r)) })),
       removeRole: (id) => set((s) => ({ roles: (s.roles ?? []).filter((r) => r.id !== id) })),
       forgetResumeFile: (id) => set((s) => ({ baseResume: s.baseResume?.kind === "upload" && s.baseResume.id === id ? undefined : s.baseResume, roles: withoutResume(s.roles ?? [], { kind: "upload", id }) })),
       answerMemory: [],

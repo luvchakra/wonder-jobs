@@ -9,6 +9,7 @@ import { JOB_SOURCES, reconcileSources } from "@/domain/jobs/sources";
 import { computeMatch } from "@/services/jobs/matching";
 import { blendAiFit, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { roleKey, scopeForJob } from "@/services/jobs/roleScope";
+import { effectiveProfile } from "@/domain/career/profiles";
 import { applyAiRelevance, relevanceKey, type AiRelevance } from "@/domain/jobs/aiMatch";
 import type { CareerDNA } from "@/domain/career/types";
 import type { LearnedSignal } from "@/domain/career/learning";
@@ -131,10 +132,12 @@ const matchScope = (f: JobFilters, dna: { preferredLocations: string[] }) => ({ 
 /** A job's match: a job a role's search found is judged on that role's words and goal (its AI read keyed to the role); others on the search shown. */
 function scoreJob(job: CanonicalJob, ai: AiFit | undefined, rel: AiRelevance | undefined, c: { dna: CareerDNA; learnedSignals: LearnedSignal[]; searchQuery: string | undefined; scope: ReturnType<typeof matchScope>; roles: CareerRole[] | undefined }): JobMatch {
   const role = scopeForJob(job, c.roles);
-  const m = computeMatch(job, { dna: c.dna, learnedSignals: c.learnedSignals, ...c.scope, ...(role ? { searchQuery: role.query, careerGoal: role.careerGoal, forRole: true } : { searchQuery: c.searchQuery }) });
+  // A role's own level, skills, places and pay where set (domain/career/profiles.ts).
+  const dna = effectiveProfile(c.dna, job.foundAs ? c.roles?.find((r) => r.id === job.foundAs!.id) : undefined);
+  const m = computeMatch(job, { dna, learnedSignals: c.learnedSignals, ...c.scope, ...(role ? { searchQuery: role.query, careerGoal: role.careerGoal, forRole: true } : { searchQuery: c.searchQuery }) });
   // The AI relevance check, for the words the job is judged on (the role's, or those typed).
   const words = role ? role.query : c.searchQuery;
-  return applyAiRelevance(blendAiFit(m, ai, profileKey(c.dna, roleKey(role))), rel, words ? relevanceKey(words) : undefined);
+  return applyAiRelevance(blendAiFit(m, ai, profileKey(dna, roleKey(role))), rel, words ? relevanceKey(words) : undefined);
 }
 
 /** New filters or sort, and what they set in Refine kept for their mode (the same object while nothing in it changed). */

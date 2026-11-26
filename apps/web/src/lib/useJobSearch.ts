@@ -211,7 +211,9 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       if (!role) return null;
       const { query, careerGoal } = roleSearch(role, defaultSearchQuery);
       await stopRunningSearch();
-      return sayBusy(search({ query, careerGoal, role: { id: role.id, title: role.title }, origin: "words", ...(places ? { locations: places } : {}) }));
+      // The role's own places and work modes where set; places picked in Refine for this search win.
+      const where = places ?? (role.preferredLocations?.length ? role.preferredLocations : undefined);
+      return sayBusy(search({ query, careerGoal, role: { id: role.id, title: role.title }, origin: "words", ...(where ? { locations: where } : {}), ...(role.workModes?.length ? { workModes: role.workModes } : {}) }));
     },
     [roles, search],
   );

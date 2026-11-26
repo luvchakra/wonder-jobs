@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronDown, FileUp, Pencil, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, FileUp, Pencil } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
@@ -10,14 +10,16 @@ import { Button } from "@/components/common/Button";
 import { Badge } from "@/components/common/Badge";
 import { Chip, Field, Input, Textarea } from "@/components/common/Input";
 import { ResumeImport } from "@/components/career/ResumeImport";
-import { RolesCard } from "@/components/career/RolesCard";
+import { RolesCard, useResumeChoices } from "@/components/career/RolesCard";
+import { ProfileFields, type ProfileFieldsValue } from "@/components/career/ProfileFields";
+import { fieldsChanged, mainFields, refKey, refOf, roleFieldsOf, roleInputOf, withMainFields } from "@/components/career/profileForm";
 import { ProfileItem } from "@/components/career/ProfileItem";
 import { MAIN_PROFILE, openedProfile, profileAnchor } from "@/components/career/profiles";
 import { CareerHistoryEditor } from "@/components/career/CareerHistoryEditor";
 import { MissingRoles } from "@/components/career/MissingRoles";
 import { RememberedAnswers } from "@/components/career/RememberedAnswers";
 import { historyOf, sortExperience } from "@/domain/career/history";
-import { stripHeadlineLabel } from "@/services/jobs/normalize";
+import { profileSearchQuery, stripHeadlineLabel } from "@/services/jobs/normalize";
 import { profileChanged } from "@/domain/career/profileEdit";
 import { cleanProfileName, DEFAULT_PROFILE_NAME, PROFILE_NAME_MAX, profileNameOf } from "@/domain/career/profileName";
 import { LearnedPreferences } from "@/components/career/LearnedPreferences";
@@ -38,8 +40,28 @@ export default function CareerDNAPage() {
   const targetInHeadline = stripHeadlineLabel(draft.headline) !== draft.headline;
   // The history editor's contact and summary fields are uncontrolled: remount it to show imported values.
   const [importRev, setImportRev] = useState(0);
-  const [newSkill, setNewSkill] = useState("");
-  const dirty = profileChanged(draft, dna);
+  // My profile's résumé is kept with the rest of the account (the base résumé); each role's with the role.
+  const baseResume = useCareerStore((s) => s.baseResume);
+  const setBaseResume = useCareerStore((s) => s.setBaseResume);
+  const [mainResume, setMainResume] = useState(refKey(baseResume));
+  const mainValue = { ...mainFields(draft), resume: mainResume };
+  const setMain = (patch: Partial<ProfileFieldsValue>) => {
+    if (patch.resume !== undefined) setMainResume(patch.resume);
+    setDraft((d) => withMainFields(d, { ...mainFields(d), ...patch }));
+  };
+  // Each role's edits, kept until Save changes (which saves every profile that has some).
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, ProfileFieldsValue>>({});
+  const storedRoles = useCareerStore((s) => s.roles ?? []);
+  const changedRoles = storedRoles.filter((r) => roleDrafts[r.id] && fieldsChanged(roleDrafts[r.id], roleFieldsOf(r)));
+  const dirty = profileChanged(draft, dna) || mainResume !== refKey(baseResume) || changedRoles.length > 0;
+  const choices = useResumeChoices();
+  /** Saves every profile with edits: My profile (and its résumé), then each changed role. */
+  const saveAll = () => {
+    updateDNA(draft);
+    if (mainResume !== refKey(baseResume)) setBaseResume(refOf(mainResume));
+    for (const r of changedRoles) useCareerStore.getState().updateRole(r.id, roleInputOf(r.title, roleDrafts[r.id]));
+    setRoleDrafts({});
+  };
   // The saved profile can change under an untouched form (it loads from your account, or another tab
   // saves): follow it then, but never over edits not yet saved.
   const seen = useRef(dna);
@@ -56,7 +78,7 @@ export default function CareerDNAPage() {
   const fromFind = params.get("from") === "find";
   const arrived = useRef({ dna, roles: JSON.stringify(useCareerStore.getState().roles ?? []) });
   const backToFind = () => {
-    if (dirty) updateDNA(draft);
+    if (dirty) saveAll();
     const now = useCareerStore.getState();
     const changed = profileChanged(now.dna, arrived.current.dna) || JSON.stringify(now.roles ?? []) !== arrived.current.roles;
     router.push(changed ? "/app/jobs?refresh=1" : "/app/jobs");
@@ -129,7 +151,7 @@ export default function CareerDNAPage() {
         <Button
           disabled={!dirty}
           onClick={() => {
-            updateDNA(draft);
+            saveAll();
             // Opened from Find (Change): saving goes back there, and Find searches with what was saved.
             if (fromFind) return backToFind();
             // Saving stamps a new time on the stored profile; take it, so the form matches what was saved.
@@ -176,7 +198,7 @@ export default function CareerDNAPage() {
           <ProfileItem
             id={MAIN_PROFILE}
             title={profileNameOf(draft)}
-            hint={draft.careerGoal.trim() || "Name the role you want"}
+            hint={profileSearchQuery(draft) ? `Searches for “${profileSearchQuery(draft)}”` : "Latest jobs, ranked by fit"}
             open={openProfile === MAIN_PROFILE}
             onToggle={() => toggleProfile(MAIN_PROFILE)}
             action={
@@ -215,10 +237,15 @@ export default function CareerDNAPage() {
               )
             }
           >
+            <ProfileFields id="main" value={mainValue} onChange={setMain} derivedWords={profileSearchQuery({ ...draft, searchWords: undefined })} choices={choices} />
+          </ProfileItem>
+          <RolesCard open={openProfile} onToggle={toggleProfile} onOpen={setOpenProfile} drafts={roleDrafts} setDraft={(id, patch) => setRoleDrafts((d) => ({ ...d, [id]: { ...(d[id] ?? roleFieldsOf(roles.find((r) => r.id === id)!)), ...patch } }))} follow={mainValue} choices={choices} />
+        </Card>
+
+        {/* What every profile shares: who you are today. Skills, places and pay are each profile's own, above. */}
+        <Card padding="sm" aria-label="Shared by all your profiles">
+          <p className="mb-3 text-[12px] text-ink-3">Shared by all your profiles, with the sections below.</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Role you want" htmlFor="goal" hint="What Wonder searches for, e.g. “Director, identity and access management”.">
-              <Input id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} />
-            </Field>
             <Field label="Current role" htmlFor="headline">
               <Input id="headline" value={draft.headline} onChange={(e) => set("headline", e.target.value)} />
               {targetInHeadline && (
@@ -252,39 +279,6 @@ export default function CareerDNAPage() {
               />
             </Field>
           </div>
-
-          <div className="mt-4 border-t border-line pt-3">
-            <p className="text-[13px] font-medium text-ink-2">
-              Skills <span className="font-normal text-ink-3">· tap one to mark it a strength (weighs more)</span>
-            </p>
-            <ul className="mt-2 flex flex-wrap gap-1.5">
-              {draft.skills.map((s, i) => (
-                <li key={s.name} className={cn("inline-flex items-center rounded-full border text-[13px]", s.level >= 4 ? "border-brand-400 bg-brand-50" : "border-line bg-surface")}>
-                  <button type="button" aria-pressed={s.level >= 4} aria-label={`${s.name}${s.level >= 4 ? ", a strength" : ""}`} onClick={() => set("skills", draft.skills.map((x, j) => (j === i ? { ...x, level: (x.level >= 4 ? 3 : 5) as 3 | 5 } : x)))} className={cn("py-1 pl-3 pr-1 font-medium", s.level >= 4 ? "text-brand-700" : "text-ink")}>
-                    {s.name}
-                  </button>
-                  <button type="button" aria-label={`Remove ${s.name}`} onClick={() => set("skills", draft.skills.filter((_, j) => j !== i))} className="flex size-7 items-center justify-center rounded-full text-ink-4 hover:text-ink">
-                    <X className="size-3.5" aria-hidden />
-                  </button>
-                </li>
-              ))}
-              <li>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const name = newSkill.trim();
-                    if (!name || draft.skills.some((s) => s.name.toLowerCase() === name.toLowerCase())) return;
-                    set("skills", [...draft.skills, { name, level: 3 }]);
-                    setNewSkill("");
-                  }}
-                >
-                  <Input value={newSkill} onChange={(e) => setNewSkill(e.target.value)} placeholder="+ Add a skill" aria-label="New skill" className="h-9 w-36 rounded-full" />
-                </form>
-              </li>
-            </ul>
-          </div>
-          </ProfileItem>
-          <RolesCard profiles={{ open: openProfile, onToggle: toggleProfile }} />
         </Card>
 
         {/* Everything else, one tap down. */}

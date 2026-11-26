@@ -544,7 +544,9 @@ export function defaultSearchQuery(dna: { headline: string; careerGoal: string }
  * held today still ranks matches; it just isn't added to the words searched. The current role is
  * searched only when no role is wanted.
  */
-export function profileSearchQuery(dna: { headline: string; careerGoal: string }): string {
+export function profileSearchQuery(dna: { headline: string; careerGoal: string; searchWords?: string }): string {
+  // The search words written on My profile win, as a role's do.
+  if (dna.searchWords?.trim()) return dna.searchWords.trim().slice(0, 120);
   const terms = (s: string) => queryTerms(s).filter((t) => !INDUSTRY_WORDS.has(t));
   const goal = terms(stripSelfReference(stripHeadlineLabel(dna.careerGoal)));
   // No role wanted: no words (owner, 2026-11-01: "if the search term is empty … it should just search for latest top

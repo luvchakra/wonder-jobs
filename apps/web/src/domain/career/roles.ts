@@ -1,4 +1,5 @@
 import type { BaseResumeRef } from "@/domain/resume/files";
+import type { CareerDNA } from "./types";
 
 /**
  * Roles: the different jobs a candidate is open to — usually ones they've held before ("Product
@@ -17,6 +18,15 @@ export interface CareerRole {
   goal: string;
   /** The résumé to offer first for jobs this role's searches found. */
   baseResume?: BaseResumeRef;
+  /**
+   * The role's own search preferences (owner, 2026-11-26: "make all profile options equivalent"): each unset one
+   * follows My profile's (`domain/career/profiles.ts::effectiveProfile`).
+   */
+  seniority?: CareerDNA["seniority"];
+  skills?: CareerDNA["skills"];
+  preferredLocations?: string[];
+  workModes?: CareerDNA["workModes"];
+  minSalary?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,7 +39,7 @@ export interface RoleRef {
 
 export const MAX_ROLES = 6;
 
-export type RoleInput = Pick<CareerRole, "title" | "query" | "goal"> & { baseResume?: BaseResumeRef };
+export type RoleInput = Pick<CareerRole, "title" | "query" | "goal"> & Partial<Pick<CareerRole, "baseResume" | "seniority" | "skills" | "preferredLocations" | "workModes" | "minSalary">>;
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
