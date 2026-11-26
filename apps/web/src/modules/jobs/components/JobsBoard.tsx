@@ -1,4 +1,5 @@
 "use client";
+import { fewFound, fewLine } from "@/domain/jobs/fewFound";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { wordsQuery } from "@/domain/jobs/latest";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -42,7 +43,7 @@ const ALSO_SHOWN = 3;
  * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist. `searched`
  * (the search behind the jobs on screen) gives the one line above them: how many, for what, where, from how many sources.
  */
-export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, sourceSearch, searched, searching, partTimeMiss, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; /** Full Time's role line, handed to the filter bar (JobFiltersBar's `lead`). */ lead?: React.ReactNode; refineTop?: React.ReactNode; searchAs?: { set: boolean; clear: () => void }; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; /** Part Time's last search found nothing: what it was for. */ partTimeMiss?: string | null; savedOnly?: boolean }) {
+export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, sourceSearch, searched, searching, partTimeMiss, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; /** Full Time's role line, handed to the filter bar (JobFiltersBar's `lead`). */ lead?: React.ReactNode; refineTop?: React.ReactNode; searchAs?: { set: boolean; clear: () => void }; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[]; /** A role's or typed search (not the profile's own). */ focused?: boolean; /** The sources it asked (empty: every enabled one). */ sourceIds?: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; /** Part Time's last search found nothing: what it was for. */ partTimeMiss?: string | null; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -153,7 +154,13 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
     return list;
   }, [filterResult, jobs, matches, sort, savedOnly, query, removedFromPipeline, hour]);
 
-  const visible = results.slice(0, limit);
+  // A role's or typed search with few jobs above a low fit: say so, and fold the low fits (Full Time).
+  const [unfoldedFor, setUnfoldedFor] = useState<string | null>(null);
+  const few = useMemo(() => (searched?.focused && !savedOnly && !effective.skipProfile && !effective.minFit ? fewFound(results, (id) => matches[id]?.fit) : null), [searched?.focused, savedOnly, effective.skipProfile, effective.minFit, results, matches]);
+  const foldKey = `${searched?.query ?? ""}|${results.length}`;
+  const folding = !!few && unfoldedFor !== foldKey;
+  const shownIds = folding ? few!.kept : results;
+  const visible = shownIds.slice(0, limit);
   // Size and H-1B filings for the companies on screen, one request per page of new ones.
   const alsoShown = useMemo(() => also?.ids.slice(0, ALSO_SHOWN) ?? [], [also]);
   const briefs = useCompanyBriefs(useMemo(() => [...visible, ...alsoShown].flatMap((id) => (jobs[id] ? [jobs[id]] : [])), [visible, alsoShown, jobs]));
@@ -174,12 +181,14 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
       // Part Time's empty box brought its latest jobs: say so, not “”.
       return `Showing ${results.length.toLocaleString("en-IN")} ${words ? `${results.length === 1 ? "job" : "jobs"} for “${words}”` : `latest part-time ${results.length === 1 ? "job" : "jobs"}`} from ${count} ${count === 1 ? "source" : "sources"}`;
     }
+    // Few fit what was searched: the real count, and how many sources were asked (the line under the list opens each one's count).
+    if (few) return fewLine(effective.query.trim() || searched.query, few.kept.length, searched.sourceIds?.length || sources.filter((s) => s.enabled).length);
     // Full Time: what is Looking for and where is the Location pill, both just above — the line counts.
     const what = effective.query.trim();
     const sourceCount = new Set(results.flatMap((id) => (jobs[id]?.lake?.sightings.length ? jobs[id].lake!.sightings.map((x) => x.sourceId) : (jobs[id]?.sourceIds ?? [])))).size;
     const n = results.length.toLocaleString("en-IN");
     return `Showing ${n} ${results.length === 1 ? "job" : "jobs"}${what ? ` for “${what}”` : ""} from ${sourceCount} ${sourceCount === 1 ? "source" : "sources"}`;
-  }, [savedOnly, header, searched, results, effective.query, jobs, isSearching, partTime, searchedFor]);
+  }, [savedOnly, header, searched, results, effective.query, jobs, isSearching, partTime, searchedFor, few, sources]);
   // Nothing on screen answers the words typed: the empty list offers to search every source (once — not again under the box).
   const typed = effective.query.trim();
   const searchInEmpty = !!sourceSearch && !!typed && results.length === 0 && !savedOnly && !!filterResult.hiddenByReason.search_text;
@@ -321,7 +330,15 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
               </Button>
             </div>
           )}
-          <ShowMore left={results.length - visible.length} shown={visible.length} onClick={() => setLimit((l) => l + PAGE)} />
+          {folding && visible.length === shownIds.length ? (
+            <div className="mt-5 flex justify-center">
+              <Button variant="outline" onClick={() => setUnfoldedFor(foldKey)}>
+                Show {few!.folded.toLocaleString("en-IN")} more
+              </Button>
+            </div>
+          ) : (
+            <ShowMore left={shownIds.length - visible.length} shown={visible.length} onClick={() => setLimit((l) => l + PAGE)} />
+          )}
         </>
       )}
       {showAlso && (
