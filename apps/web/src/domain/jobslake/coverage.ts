@@ -215,7 +215,7 @@ export function realSearches(runs: SearchRunLike[], limit = 40): RealSearchRow[]
     .slice(0, limit);
 }
 
-/** What the admin page reads (`/api/jobs-lake/admin/coverage`). */
+/** What the admin page reads (`/api/jobs-lake/admin/search-coverage`). */
 export interface CoverageView {
   report: { ranAt: string; finishedAt?: string; ranOn: string; durationMs: number; probes: number; planned: number } | null;
   places: readonly CoveragePlace[];
