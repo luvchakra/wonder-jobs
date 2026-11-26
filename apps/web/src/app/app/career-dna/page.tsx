@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronDown, FileUp, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, FileUp, Pencil, X } from "lucide-react";
 import { useCareerStore } from "@/store/career";
 import { INDUSTRIES, type CareerDNA } from "@/domain/career/types";
 import { PageHeader } from "@/wonderworks/chrome/PageHeader";
@@ -19,6 +19,7 @@ import { RememberedAnswers } from "@/components/career/RememberedAnswers";
 import { historyOf, sortExperience } from "@/domain/career/history";
 import { stripHeadlineLabel } from "@/services/jobs/normalize";
 import { profileChanged } from "@/domain/career/profileEdit";
+import { cleanProfileName, DEFAULT_PROFILE_NAME, PROFILE_NAME_MAX, profileNameOf } from "@/domain/career/profileName";
 import { LearnedPreferences } from "@/components/career/LearnedPreferences";
 import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
@@ -65,6 +66,15 @@ export default function CareerDNAPage() {
   const roles = useCareerStore((s) => s.roles ?? []);
   const [openProfile, setOpenProfile] = useState<string | null>(() => openedProfile(params.get("role"), useCareerStore.getState().roles ?? []));
   const toggleProfile = (id: string) => setOpenProfile((o) => (o === id ? null : id));
+  // Renaming My profile in place: the name being typed, or null when not renaming. Saved at once (with the
+  // rest of the form left as it is), so Search as and Find use it straight away.
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const saveName = () => {
+    const profileName = cleanProfileName(renaming ?? "");
+    updateDNA({ profileName });
+    setDraft((d) => ({ ...d, profileName }));
+    setRenaming(null);
+  };
   // Arriving for a role: it in view, under the Save bar.
   useEffect(() => {
     const id = openedProfile(params.get("role"), roles);
@@ -163,7 +173,48 @@ export default function CareerDNAPage() {
         {/* Your profiles: My profile (who you are and what you want: every job is matched against it) and each role you'd
             search as. One is open at a time; Find's Change opens the one it searched as. */}
         <Card className="p-0" aria-label="Your profiles">
-          <ProfileItem id={MAIN_PROFILE} title="My profile" hint={draft.careerGoal.trim() || "Name the role you want"} open={openProfile === MAIN_PROFILE} onToggle={() => toggleProfile(MAIN_PROFILE)}>
+          <ProfileItem
+            id={MAIN_PROFILE}
+            title={profileNameOf(draft)}
+            hint={draft.careerGoal.trim() || "Name the role you want"}
+            open={openProfile === MAIN_PROFILE}
+            onToggle={() => toggleProfile(MAIN_PROFILE)}
+            action={
+              <button type="button" aria-label={`Rename ${profileNameOf(draft)}`} onClick={() => setRenaming(draft.profileName ?? "")} className="inline-flex size-8 items-center justify-center rounded-full text-ink-4 hover:bg-surface-2 hover:text-ink">
+                <Pencil className="size-3.5" aria-hidden />
+              </button>
+            }
+            editor={
+              renaming !== null && (
+                <form
+                  className="flex flex-wrap items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    saveName();
+                  }}
+                >
+                  <Input
+                    autoFocus
+                    aria-label="Profile name"
+                    value={renaming}
+                    maxLength={PROFILE_NAME_MAX}
+                    placeholder={DEFAULT_PROFILE_NAME}
+                    onChange={(e) => setRenaming(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setRenaming(null);
+                    }}
+                    className="h-9 min-w-0 flex-1"
+                  />
+                  <Button size="sm" type="submit">
+                    Save
+                  </Button>
+                  <Button size="sm" variant="ghost" type="button" onClick={() => setRenaming(null)}>
+                    Cancel
+                  </Button>
+                </form>
+              )
+            }
+          >
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Role you want" htmlFor="goal" hint="What Wonder searches for, e.g. “Director, identity and access management”.">
               <Input id="goal" value={draft.careerGoal} onChange={(e) => set("careerGoal", e.target.value)} />

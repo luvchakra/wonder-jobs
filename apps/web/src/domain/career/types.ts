@@ -16,6 +16,8 @@ export interface CareerDNA {
   growthAreas: string[];
   /** Work history, education and contact details — what a résumé is rendered from. Optional: older profiles have none. */
   history?: CareerHistory;
+  /** What the candidate calls this profile among their profiles (e.g. "IAM"); unset reads "My profile". */
+  profileName?: string;
   updatedAt: string;
 }
 
