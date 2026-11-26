@@ -78,6 +78,18 @@ test.describe("Hiring — employer, recruiter, hiring manager and job seeker", (
 
   test("HIRE-001 a new account has no workspace, and is hidden from recruiters by default", async ({ browser }) => {
     const seeker = (people.seeker = await signedIn(browser, "hire-seeker", accounts));
+    // A first read that fails says so, with Try again, instead of loading forever (WJ-874).
+    let failOnce = true;
+    await seeker.page.route("**/api/hiring", (r) => {
+      if (!failOnce || r.request().method() !== "GET") return r.fallback();
+      failOnce = false;
+      return r.fulfill({ status: 503, json: { error: "The database is busy; try again in a moment." } });
+    });
+    await seeker.page.goto("/app/hiring?tab=jobs");
+    await expect(seeker.page.getByRole("heading", { name: "Couldn't load Hiring" })).toBeVisible({ timeout: 20_000 });
+    await seeker.page.getByRole("button", { name: "Try again" }).click();
+    await expect(seeker.page.getByRole("heading", { name: "Couldn't load Hiring" })).toHaveCount(0);
+    await seeker.page.unroute("**/api/hiring");
     await openHiring(seeker.page);
     await expect(seeker.page.getByRole("button", { name: "Create workspace" })).toBeDisabled();
     await seeker.page.goto("/app/recruiters");

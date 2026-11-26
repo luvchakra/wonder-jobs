@@ -31,7 +31,19 @@ const OVERLOAD = new Set([408, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524]
 
 const busy = (message: string) => new Response(JSON.stringify({ message, code: "DB_BUSY", details: null, hint: null }), { status: 503, headers: { "content-type": "application/json" } });
 
-export function createDbGuard(limits: Partial<DbGuardLimits> = {}, base: typeof fetch = (...a) => fetch(...a), clock: () => number = Date.now) {
+/** A wait for a slot at least this long is worth a line in the server log. */
+const SLOW_WAIT_MS = 2_000;
+/** At most one log line per this many ms, so a stall can't flood the log. */
+const REPORT_EVERY_MS = 10_000;
+
+/**
+ * Says in the server log when the guard is holding requests back (WJ-874): a deadline missed, a refusal, the
+ * breaker opening, or a long wait for a slot. One line of counts only (no URL, query, key or tenant), at most once
+ * every 10 seconds; in the E2E server's output it confirms or rules out a database stall behind a failed step.
+ */
+const logToConsole = (line: string) => console.warn(line);
+
+export function createDbGuard(limits: Partial<DbGuardLimits> = {}, base: typeof fetch = (...a) => fetch(...a), clock: () => number = Date.now, report: (line: string) => void = logToConsole) {
   const L = { ...DB_GUARD_DEFAULTS, ...limits };
   let active = 0;
   const waiting: (() => void)[] = [];
@@ -39,6 +51,15 @@ export function createDbGuard(limits: Partial<DbGuardLimits> = {}, base: typeof 
   let openUntil = 0;
   let probing = false;
   const stats = { refusedBusy: 0, refusedBreaker: 0, timedOut: 0 };
+  let lastReport = -Infinity;
+  const say = (why: string) => {
+    const t = clock();
+    if (t - lastReport < REPORT_EVERY_MS) return;
+    lastReport = t;
+    const s = state();
+    report(`[dbGuard] ${why}: active=${s.active} waiting=${s.waiting} open=${s.open} failures=${s.failures} timedOut=${s.timedOut} refusedBusy=${s.refusedBusy} refusedBreaker=${s.refusedBreaker}`);
+  };
+  const state = () => ({ active, waiting: waiting.length, failures, open: openUntil > 0 && clock() < openUntil, ...stats });
 
   const release = () => {
     active--;
@@ -61,16 +82,21 @@ export function createDbGuard(limits: Partial<DbGuardLimits> = {}, base: typeof 
     if (openUntil) {
       if (clock() < openUntil || probing) {
         stats.refusedBreaker++;
+        say("refused, breaker open");
         return busy("The database is recovering; try again in a moment.");
       }
       probing = probe = true;
     }
     if (active >= L.maxConcurrent && waiting.length >= L.maxQueue) {
       stats.refusedBusy++;
+      say("refused, queue full");
       if (probe) probing = false;
       return busy("The database is busy; try again in a moment.");
     }
+    const asked = clock();
     await acquire();
+    const waited = clock() - asked;
+    if (waited >= SLOW_WAIT_MS) say(`waited ${waited} ms for a slot`);
     const ac = new AbortController();
     const outer = init?.signal;
     const onAbort = () => ac.abort(outer?.reason);
@@ -90,6 +116,7 @@ export function createDbGuard(limits: Partial<DbGuardLimits> = {}, base: typeof 
       if (!outer?.aborted) record(false);
       if (timedOut) {
         stats.timedOut++;
+        say(`no answer in ${L.timeoutMs} ms`);
         return busy("The database didn't answer in time.");
       }
       throw e;
@@ -108,13 +135,17 @@ export function createDbGuard(limits: Partial<DbGuardLimits> = {}, base: typeof 
       return;
     }
     failures++;
-    if (failures >= L.failuresToOpen) openUntil = clock() + L.coolDownMs;
+    if (failures >= L.failuresToOpen) {
+      const opened = !openUntil;
+      openUntil = clock() + L.coolDownMs;
+      if (opened) say(`breaker opened after ${failures} failures`);
+    }
   }
 
   return {
     fetch: guarded,
     /** What the guard is doing now (for the admin and tests). */
-    state: () => ({ active, waiting: waiting.length, failures, open: openUntil > 0 && clock() < openUntil, ...stats }),
+    state,
   };
 }
 

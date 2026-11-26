@@ -72,4 +72,39 @@ describe("database guard", () => {
     await expect(p).rejects.toThrow();
     expect(g.state()).toMatchObject({ failures: 0, open: false });
   });
+
+  it("says in the server log when it holds requests back: counts only, at most once every 10 seconds (WJ-874)", async () => {
+    let now = 1_000;
+    const lines: string[] = [];
+    const base = vi.fn(async () => new Response("", { status: 522 }));
+    const g = createDbGuard({ failuresToOpen: 2, coolDownMs: 60_000 }, base as unknown as typeof fetch, () => now, (l) => lines.push(l));
+    await g.fetch("https://db.example.test/rest/v1/hiring_messages?tenant_id=eq.u-secret");
+    expect(lines).toEqual([]); // one failure is not a stall
+    await g.fetch("https://db.example.test/rest/v1/hiring_messages?tenant_id=eq.u-secret");
+    expect(lines).toEqual(["[dbGuard] breaker opened after 2 failures: active=1 waiting=0 open=true failures=2 timedOut=0 refusedBusy=0 refusedBreaker=0"]);
+    await g.fetch("u"); // refused while open, within 10 s of the last line: not logged again
+    expect(lines).toHaveLength(1);
+    now += 10_000;
+    await g.fetch("u");
+    expect(lines[1]).toMatch(/^\[dbGuard\] refused, breaker open: active=0 waiting=0 open=true .*refusedBreaker=2$/);
+    for (const l of lines) expect(l).not.toMatch(/example|hiring|tenant|secret/);
+  });
+
+  it("logs a request that waited long for a slot", async () => {
+    let now = 0;
+    const lines: string[] = [];
+    let release!: () => void;
+    const base = vi.fn(() => new Promise<Response>((ok) => (release = () => ok(new Response("", { status: 200 })))));
+    const g = createDbGuard({ maxConcurrent: 1 }, base as unknown as typeof fetch, () => now, (l) => lines.push(l));
+    const first = g.fetch("a");
+    const second = g.fetch("b");
+    await Promise.resolve();
+    now = 2_500;
+    release();
+    await first;
+    await Promise.resolve();
+    release();
+    await second;
+    expect(lines).toEqual([expect.stringMatching(/^\[dbGuard\] waited 2500 ms for a slot: active=1 waiting=0 /)]);
+  });
 });
