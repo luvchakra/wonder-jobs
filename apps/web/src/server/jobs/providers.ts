@@ -434,6 +434,26 @@ export const CAREER_BOARDS: { ats: "greenhouse" | "lever" | "ashby"; slug: strin
   { ats: "lever", slug: "fampay", company: "Fam", domain: "famapp.in" },
   { ats: "ashby", slug: "spotdraft", company: "SpotDraft", domain: "spotdraft.com" },
   { ats: "ashby", slug: "bureau", company: "Bureau", domain: "bureau.id" },
+  // Insurance (owner, 2026-11-26: "check why it's not able to look for job in insurance domain"), checked live
+  // 2026-11-26: each board answered with the named insurer's or insurtech's own jobs. Same-named boards of other
+  // companies (ethos, atbay, branch, ditto, ladder) were left out; Hippo, Next Insurance, Root, Acko, Digit,
+  // Policybazaar, Plum, Ditto Insurance and the brokers (Marsh McLennan, Aon, WTW, Gallagher, Howden) aren't on
+  // these public APIs.
+  { ats: "greenhouse", slug: "coalition", company: "Coalition", domain: "coalitioninc.com" },
+  { ats: "greenhouse", slug: "counterpart", company: "Counterpart", domain: "yourcounterpart.com" },
+  { ats: "greenhouse", slug: "federato", company: "Federato", domain: "federato.ai" },
+  { ats: "greenhouse", slug: "sixfold", company: "Sixfold", domain: "sixfold.ai" },
+  { ats: "ashby", slug: "lemonade", company: "Lemonade", domain: "lemonade.com" },
+  { ats: "ashby", slug: "kin", company: "Kin Insurance", domain: "kin.com" },
+  { ats: "ashby", slug: "openly", company: "Openly", domain: "openly.com" },
+  { ats: "ashby", slug: "bestow", company: "Bestow", domain: "bestow.com" },
+  { ats: "ashby", slug: "zego", company: "Zego", domain: "zego.com" },
+  { ats: "ashby", slug: "marshmallow", company: "Marshmallow", domain: "marshmallow.com" },
+  { ats: "ashby", slug: "alan", company: "Alan", domain: "alan.com" },
+  { ats: "ashby", slug: "flock", company: "Flock", domain: "flockcover.com" },
+  { ats: "ashby", slug: "akur8", company: "Akur8", domain: "akur8.com" },
+  { ats: "ashby", slug: "tractable", company: "Tractable", domain: "tractable.ai" },
+  { ats: "lever", slug: "sure", company: "Sure", domain: "sure.com" },
 ];
 
 export interface GreenhouseJob { id: number; absolute_url: string; title: string; location?: { name?: string }; updated_at: string; first_published?: string; content?: string; departments?: { name: string }[]; metadata?: { name?: string; value?: unknown }[] | null }
