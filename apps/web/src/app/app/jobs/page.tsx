@@ -157,7 +157,7 @@ function JobsHome() {
         searching={search.active ? <SearchingPanel search={search} /> : null}
         // Part Time's own words found nothing: say so, rather than asking for words again.
         partTimeMiss={search.last && search.last.config.origin === "words" && !search.last.config.role && foundNothing(search.last) ? search.last.config.searchCriteria.query : null}
-        searched={search.last ? { query: search.last.config.searchCriteria.query, locations: search.last.config.searchCriteria.locations } : null}
+        searched={search.last ? { query: search.last.config.searchCriteria.query, locations: search.last.config.searchCriteria.locations, focused: search.last.config.origin === "words" || !!search.last.config.role, sourceIds: search.last.config.sourceIds } : null}
         sourceSearch={{
           run: (text, places) => {
             // The candidate's own search shows everything it finds, best answer first — not only profile fits.
