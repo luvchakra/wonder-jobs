@@ -19,6 +19,7 @@ import { applyJobFilters } from "@/domain/jobs/filterExplain";
 import { findModeOf } from "@/domain/jobs/findMode";
 import { JOB_TYPE_LABEL, jobTypeOf } from "@/domain/jobs/jobType";
 import { alsoInOtherMode, otherModeCopy, otherModeFilters } from "@/domain/jobs/otherMode";
+import { hiddenTag, revealedIds, showHiddenLabel } from "@/domain/jobs/showHidden";
 import { placesOnly } from "@/domain/jobs/searchScope";
 import { fieldTerms } from "@/services/jobs/matching";
 import { deriveSearchIntent } from "@/services/jobs/searchIntent";
@@ -200,6 +201,13 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
   const closed = useJobsStore((s) => s.closed);
   // "Wonder found N opportunities" — the real catalog Wonder has, minus what the candidate set aside.
   const showAnyway = () => setFilters(CLEAR_FILTERS_PATCH);
+  // "Show hidden" is for this search in this mode only: a new search or a mode switch hides them again.
+  const mode = findModeOf(effective);
+  const revealKey = `${searchedFor}|${mode}`;
+  const [revealedFor, setRevealedFor] = useState<string | null>(null);
+  const revealOn = revealedFor === revealKey;
+  const [hiddenLimit, setHiddenLimit] = useState(PAGE);
+  const hiddenShown = useMemo(() => (revealOn ? revealedIds(filterResult, (id) => matches[id]?.score ?? 0) : []), [revealOn, filterResult, matches]);
 
   return (
     // Under the page's 20px top padding, the search box sits 8px from the top bar: the same gap as between it and the chips.
@@ -348,7 +356,21 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
             showAnyway();
             setLimit(PAGE);
           }}
+          reveal={{ label: showHiddenLabel(filterResult, mode), on: revealOn, toggle: () => setRevealedFor(revealOn ? null : revealKey) }}
         />
+      )}
+      {/* "Show hidden": the hidden jobs in place, each tagged with why — nothing in Refine or the profile changes. */}
+      {revealOn && results.length > 0 && !savedOnly && !partTimeIdle && hiddenShown.length > 0 && (
+        <section className="mt-4" aria-label="Hidden jobs">
+          <ResultsGrid label="Hidden jobs">
+            {hiddenShown.slice(0, hiddenLimit).map((id) => (
+              <li key={id}>
+                <JobResult id={id} job={jobs[id]} match={matches[id]} brief={briefs.get(jobBriefKey(jobs[id]))} saved={!!saved[id]} onToggleSave={toggleSave} status={hiddenTag(filterResult.hiddenReason[id], mode)} statusTone="neutral" compareSelected={false} />
+              </li>
+            ))}
+          </ResultsGrid>
+          <ShowMore left={hiddenShown.length - Math.min(hiddenLimit, hiddenShown.length)} shown={Math.min(hiddenLimit, hiddenShown.length)} onClick={() => setHiddenLimit((l) => l + PAGE)} />
+        </section>
       )}
     </div>
   );
