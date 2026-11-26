@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, Check, ShieldAlert } from "lucide-react";
 import { Modal } from "@/components/common/Modal";
@@ -11,7 +11,8 @@ import { Button } from "@/components/common/Button";
 import { Card } from "@/components/common/Card";
 import { Field, Input, Select } from "@/components/common/Input";
 import { Tabs } from "@/components/common/Tabs";
-import { PageLoading } from "@/components/common/States";
+import { ErrorState, PageLoading } from "@/components/common/States";
+import { hiringLoadState } from "@/components/hiring/loadState";
 import { toast } from "@/components/feedback/Toast";
 import { JobsTab } from "@/components/hiring/JobsTab";
 import { TalentTab } from "@/components/hiring/TalentTab";
@@ -47,14 +48,22 @@ function HiringPage() {
   const [deleting, setDeleting] = useState<Organization | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [failed, setFailed] = useState<string | null>(null);
+  const loaded = useRef(false);
   const load = useCallback(() => {
     hiringApi
       .workspaces()
       .then((d) => {
+        loaded.current = true;
+        setFailed(null);
         setData(d);
         setOrgId((cur) => (cur && d.workspaces.some((w) => w.org.id === cur) ? cur : (d.workspaces[0]?.org.id ?? null)));
       })
-      .catch((e: Error) => toast.error("Couldn't load Hiring", e.message));
+      .catch((e: Error) => {
+        // Before anything loaded, the page says so with Try again (below); once loaded, a toast is enough.
+        setFailed(e.message);
+        if (loaded.current) toast.error("Couldn't load Hiring", e.message);
+      });
   }, []);
   useEffect(load, [load]);
 
@@ -83,6 +92,8 @@ function HiringPage() {
     router.replace(`/app/hiring?org=${encodeURIComponent(id)}`);
   };
 
+  const state = hiringLoadState(!!data, failed);
+  if (state === "failed") return <ErrorState className="mt-4" title="Couldn't load Hiring" body={failed || undefined} actions={[{ label: "Try again", onClick: () => (setFailed(null), load()) }]} />;
   if (!data) return <PageLoading />;
   // With no workspace named in the address, Hiring opens on the table of workspaces.
   const listView = !params.get("org") && !params.get("tab") && data.workspaces.length > 0;
