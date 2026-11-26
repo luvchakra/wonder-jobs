@@ -9,7 +9,7 @@ import { describeApplicationPack, PACK_ITEM_LABEL } from "@/domain/applications/
 import { describeDecision } from "@/domain/jobs/decision";
 import { resumeOptionsFor } from "@/domain/jobs-apply/resumeOptions";
 import { baseResumeFor, roleFor } from "@/domain/career/roles";
-import { draftingProfile } from "@/domain/career/profiles";
+import { jobProfile, roleFileLine, useRoleFile } from "@/lib/useRoleFile";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { useApplicationsStore } from "@/store/applications";
 import { useJobsStore } from "@/store/jobs";
@@ -71,6 +71,8 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
     const { ref, role } = baseResumeFor(roles, job?.foundAs, accountBase);
     return resumeOptionsFor({ jobId: app.jobId, hasTailored: false, saved: savedResumes, uploads, base: ref, baseRoleTitle: role?.title })[0];
   }, [app, job?.foundAs, roles, accountBase, savedResumes, uploads]);
+  const jobRole = roleFor(roles, job?.foundAs);
+  const jobRoleFile = useRoleFile(jobRole);
   const [resumeChoice, setResumeChoice] = useState<"current" | "generate">("current");
 
   if (!app || !job) {
@@ -102,8 +104,11 @@ export default function PrepareApplicationPage({ params }: { params: Promise<{ i
     track("application_preparation_started", { applicationId: app.id, artifact: type });
     try {
       const svc = ai();
-      // Drafted from the profile whose search found the job (its goal, level and skills), else My profile.
-      const input = { job, dna: draftingProfile(dna, roleFor(roles, job.foundAs)) };
+      // Drafted from the profile whose search found the job (its goal, level and skills), else My profile; a role with
+      // its own résumé is that résumé's person.
+      const profile = jobProfile(dna, jobRole, jobRoleFile);
+      if (!profile) throw new Error(roleFileLine(jobRoleFile) ?? "The role's résumé isn't read yet.");
+      const input = { job, dna: profile };
       let content = "";
       // One provider request is the whole job, so the UI shows one honest "drafting…" state for it
       // rather than a list of sub-steps that never actually ran separately.
