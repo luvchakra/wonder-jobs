@@ -32,7 +32,7 @@ const MODES: { value: CareerDNA["workModes"][number]; label: string }[] = [
   { value: "onsite", label: "On-site" },
 ];
 
-export function ProfileFields({ id, value, onChange, typedSkill, onTypedSkill, follow, derivedWords, choices }: { id: string; value: ProfileFieldsValue; onChange: (patch: Partial<ProfileFieldsValue>) => void; typedSkill: string; onTypedSkill: (text: string) => void; /** My profile's own values, for a role: what each empty field follows. */ follow?: ProfileFieldsValue; /** The words searched when Search words is empty. */ derivedWords: string; choices: { key: string; label: string }[] }) {
+export function ProfileFields({ id, value, onChange, typedSkill, onTypedSkill, follow, derivedWords, choices, skillsFrom }: { /** Where a role's skills come from when its own résumé gives them (“from Deepak_CV.docx”). */ skillsFrom?: string; id: string; value: ProfileFieldsValue; onChange: (patch: Partial<ProfileFieldsValue>) => void; typedSkill: string; onTypedSkill: (text: string) => void; /** My profile's own values, for a role: what each empty field follows. */ follow?: ProfileFieldsValue; /** The words searched when Search words is empty. */ derivedWords: string; choices: { key: string; label: string }[] }) {
   const skills = value.skills.length ? value.skills : (follow?.skills ?? []);
   const modes = value.workModes.length ? value.workModes : (follow?.workModes ?? []);
   const setSkills = (next: CareerDNA["skills"]) => onChange({ skills: next });
@@ -85,7 +85,7 @@ export function ProfileFields({ id, value, onChange, typedSkill, onTypedSkill, f
       </div>
       <div className="border-t border-line pt-3">
         <p className="text-[13px] font-medium text-ink-2">
-          Skills <span className="font-normal text-ink-3">· {follow && !value.skills.length ? "same as My profile until you change them; " : ""}tap one to mark it a strength (weighs more)</span>
+          Skills <span className="font-normal text-ink-3">· {skillsFrom ? `${skillsFrom}, plus any you add; ` : follow && !value.skills.length ? "same as My profile until you change them; " : ""}tap one to mark it a strength (weighs more)</span>
         </p>
         <SkillsInput skills={skills} onChange={setSkills} typed={typedSkill} onTyped={onTypedSkill} />
       </div>

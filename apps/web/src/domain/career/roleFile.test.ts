@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dnaFromDocument, dnaFromReading, type FileReading } from "./roleFile";
+import { dnaFromDocument, dnaFromReading, fileRoleSkills, type FileReading } from "./roleFile";
 import { EMPTY_DNA, type CareerDNA } from "./types";
 import { buildResumeDocument } from "@/domain/resume/document";
 import { jobProfile, roleFileLine } from "@/lib/useRoleFile";
@@ -56,5 +56,31 @@ describe("a role with its own résumé is that résumé's person", () => {
     const back = dnaFromDocument(doc);
     expect(back).toMatchObject({ name: "Deepak Poojari", history: { contact: { email: "deepak@example.com" } } });
     expect(back.history?.experience[0]).toMatchObject({ employer: "ReCo" });
+  });
+});
+
+describe("a role with its own résumé takes its skills from that file", () => {
+  const deepak = dnaFromReading(deepakFile, "2026-11-26T00:00:00.000Z");
+  const file = { state: "ready" as const, file: "Deepak_Poojari_CV_Sample.docx", dna: deepak };
+  // Made with Add a role: My profile's skills were copied in.
+  const copied = { ...reinsurance, skills: [{ name: "IAM", level: 5 as const }] };
+
+  it("Reinsurance with Deepak's file shows only the file's skills, never Kunal's copied IAM", () => {
+    expect(fileRoleSkills(deepak.skills, copied.skills, kunal.skills).map((s) => s.name)).toEqual(["Treaty reinsurance"]);
+    const p = jobProfile(kunal, copied, file)!;
+    expect(p.skills.map((s) => s.name)).toEqual(["Treaty reinsurance"]);
+    expect(JSON.stringify(buildResumeDocument(p, { target: job }))).not.toContain("IAM");
+  });
+
+  it("skills added to the role by hand are kept, and win over the file's own", () => {
+    const byHand = { ...copied, skills: [...copied.skills, { name: "Catastrophe modelling", level: 3 as const }, { name: "treaty reinsurance", level: 5 as const }] };
+    expect(fileRoleSkills(deepak.skills, byHand.skills, kunal.skills)).toEqual([
+      { name: "Catastrophe modelling", level: 3 },
+      { name: "treaty reinsurance", level: 5 },
+    ]);
+  });
+
+  it("a role without a file keeps its own skills as before", () => {
+    expect(jobProfile(kunal, { ...copied, baseResume: undefined }, { state: "none" })!.skills.map((s) => s.name)).toEqual(["IAM"]);
   });
 });
