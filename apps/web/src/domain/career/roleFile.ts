@@ -52,3 +52,17 @@ export function dnaFromDocument(doc: ResumeDocument): CareerDNA {
   }
   return { ...EMPTY_DNA, name: c.name, headline: c.headline ?? "", skills, strengths, history: h, updatedAt: doc.metadata.builtAt };
 }
+
+const key = (s: string) => s.trim().toLowerCase();
+
+/**
+ * A role with its own résumé takes its skills from that file (owner, 2026-11-27: "Use the file's skills"). The role's
+ * own skills count only where added by hand: ones My profile also has were copied in when the role was made and are
+ * dropped (so roles made before this need no change). A hand-added skill wins over the file's same skill.
+ */
+export function fileRoleSkills(fileSkills: CareerDNA["skills"], roleSkills: CareerDNA["skills"] | undefined, mySkills: CareerDNA["skills"]): CareerDNA["skills"] {
+  const mine = new Set(mySkills.map((s) => key(s.name)));
+  const added = (roleSkills ?? []).filter((s) => !mine.has(key(s.name)));
+  const byHand = new Set(added.map((s) => key(s.name)));
+  return [...fileSkills.filter((s) => !byHand.has(key(s.name))), ...added];
+}

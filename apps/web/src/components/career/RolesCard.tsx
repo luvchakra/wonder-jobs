@@ -17,7 +17,9 @@ import { toast } from "@/components/feedback/Toast";
 import { formatDate } from "@/lib/format";
 import { ProfileItem } from "./ProfileItem";
 import { ProfileFields, type ProfileFieldsValue } from "./ProfileFields";
-import { refKey, roleFieldsOf, roleInputOf } from "./profileForm";
+import { refKey, refOf, roleFieldsOf, roleInputOf } from "./profileForm";
+import { fileRoleSkills } from "@/domain/career/roleFile";
+import { useRoleFile } from "@/lib/useRoleFile";
 
 /** The résumés a profile can use, labelled the way Resume Studio shows them. */
 export function useResumeChoices() {
@@ -101,7 +103,7 @@ export function RolesCard({ open, onToggle, onOpen, onSearch, drafts, setDraft, 
               )
             }
           >
-            <ProfileFields id={r.id} value={v} onChange={(patch) => setDraft(r.id, patch)} typedSkill={typed[r.id] ?? ""} onTypedSkill={(t) => setTyped(r.id, t)} follow={follow} derivedWords={defaultSearchQuery({ headline: r.title, careerGoal: v.goal })} choices={choices} />
+            <RoleFields id={r.id} value={v} onChange={(patch) => setDraft(r.id, patch)} typedSkill={typed[r.id] ?? ""} onTypedSkill={(t) => setTyped(r.id, t)} follow={follow} derivedWords={defaultSearchQuery({ headline: r.title, careerGoal: v.goal })} choices={choices} />
             <div className="mt-4 flex gap-2">
               <Button size="sm" variant="outline" icon={<Search className="size-3.5" aria-hidden />} onMouseDown={(e) => e.preventDefault() /* keep the skill box's text as typed: a chip added on blur would move this button from under the press */} onClick={() => onSearch(r.id)} aria-label={`Search as ${r.title}`}>
                 Search
@@ -160,5 +162,29 @@ export function RolesCard({ open, onToggle, onOpen, onSearch, drafts, setDraft, 
         <p className="text-[14px] text-ink-2">Your past searches and the jobs they found are kept. Scheduled searches set up as this profile keep running with the words and goal they were saved with.</p>
       </Modal>
     </>
+  );
+}
+
+/**
+ * A role's form. With its own résumé the role's skills are that file's (owner, 2026-11-27: "Use the file's skills"):
+ * shown as the file's plus any added by hand, never My profile's copied in. What's kept for the role is only what was
+ * added or changed by hand; the file's own come back from the file.
+ */
+function RoleFields(props: React.ComponentProps<typeof ProfileFields>) {
+  const { id, value, onChange, follow } = props;
+  const file = useRoleFile({ id, baseResume: refOf(value.resume) });
+  if (file.state === "none") return <ProfileFields {...props} />;
+  const fromFile = file.state === "ready" ? file.dna.skills : [];
+  const shown = fileRoleSkills(fromFile, value.skills, follow?.skills ?? []);
+  const same = (a: { name: string; level: number }) => fromFile.some((f) => f.name.toLowerCase() === a.name.toLowerCase() && f.level === a.level);
+  const skillsFrom = file.state === "ready" ? `from ${file.file}` : file.state === "reading" ? `reading ${file.file}…` : `couldn't read ${file.file}`;
+  return (
+    <ProfileFields
+      {...props}
+      value={{ ...value, skills: shown }}
+      follow={follow && { ...follow, skills: [] }}
+      skillsFrom={skillsFrom}
+      onChange={(patch) => onChange(patch.skills ? { ...patch, skills: patch.skills.filter((s) => !same(s)) } : patch)}
+    />
   );
 }

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import type { CareerRole } from "@/domain/career/roles";
 import type { CareerDNA } from "@/domain/career/types";
-import { dnaFromDocument, dnaFromReading, type FileReading } from "@/domain/career/roleFile";
+import { dnaFromDocument, dnaFromReading, fileRoleSkills, type FileReading } from "@/domain/career/roleFile";
 import { getTemplate } from "@/domain/resume/templates";
 import { draftingProfile } from "@/domain/career/profiles";
 import { useCareerStore } from "@/store/career";
@@ -80,7 +80,8 @@ export function useRoleFile(role: Pick<CareerRole, "id" | "baseResume"> | undefi
  */
 export function jobProfile(dna: CareerDNA, role: CareerRole | undefined, file: RoleFile): CareerDNA | null {
   if (file.state === "none") return draftingProfile(dna, role);
-  return file.state === "ready" ? draftingProfile(file.dna, role) : null;
+  // The file's skills, plus any added to the role by hand (never ones copied in from My profile).
+  return file.state === "ready" ? draftingProfile(file.dna, role && { ...role, skills: fileRoleSkills(file.dna.skills, role.skills, dna.skills) }) : null;
 }
 
 /** What to say about the file a role's things are built from, one short line. */
