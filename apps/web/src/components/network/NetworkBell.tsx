@@ -57,7 +57,7 @@ function NetworkBell({ compact }: { compact?: boolean }) {
     <div ref={ref} className="relative">
       <button type="button" aria-expanded={open} aria-haspopup="dialog" aria-label={`Network notifications${n ? `, ${n} invitation${n === 1 ? "" : "s"}` : ""}`} title="Invitations" onClick={() => setOpen((o) => !o)} className={cn("relative flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
         <Bell className="size-5" aria-hidden />
-        {n > 0 && <span className="absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white" aria-hidden>{n > 9 ? "9+" : n}</span>}
+        {n > 0 && <span className="wj-count absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white" aria-hidden>{n > 9 ? "9+" : n}</span>}
       </button>
       {open && (
         <div role="dialog" aria-label="Invitations" className="absolute right-0 top-full z-50 mt-2 w-[min(92vw,360px)] overflow-hidden rounded-[16px] border border-line bg-surface shadow-xl">

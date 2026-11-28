@@ -10,12 +10,12 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function EmptyState({ icon, title, body, action, className }: { icon?: ReactNode; title: string; body?: string; action?: { label: string; href?: string; onClick?: () => void }; className?: string }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong bg-gradient-to-b from-surface/70 to-transparent px-6 py-12 text-center", className)}>
-      <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-8 ring-brand-50/50">{icon ?? <Inbox className="size-5" aria-hidden />}</div>
+    <div className={cn("wj-empty flex flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong bg-gradient-to-b from-surface/70 to-transparent px-6 py-12 text-center", className)}>
+      <div className="wj-empty-icon mb-4 flex size-12 items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-8 ring-brand-50/50">{icon ?? <Inbox className="size-5" aria-hidden />}</div>
       <h2 className="text-base font-semibold text-ink">{title}</h2>
       {body && <p className="mt-1 max-w-sm text-sm text-ink-3">{body}</p>}
       {action && (
-        <Button className="mt-5" size="sm" href={action.href} onClick={action.onClick}>
+        <Button className="wj-empty-action mt-5" size="sm" href={action.href} onClick={action.onClick}>
           {action.label}
         </Button>
       )}
@@ -54,8 +54,25 @@ export function ErrorState({ title, body, actions, className }: { title: string;
 export function PageLoading({ rows = 4, label = "Loading…" }: { rows?: number; label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 text-center" style={{ minHeight: `${Math.min(8 + rows * 6, 32)}rem` }} role="status" aria-busy="true" aria-label={label}>
-      <WonderSearching size={56} />
-      <p className="text-[13px] font-medium text-ink-3">{label}</p>
+      <div className="wj-ui1-only flex flex-col items-center gap-3">
+        <WonderSearching size={56} />
+        <p className="text-[13px] font-medium text-ink-3">{label}</p>
+      </div>
+      {/* The second UI (domain/platform/ui.ts): grey blocks in the page's shape, no spinner. Chosen in CSS, so it is
+          right before the page hydrates. */}
+      <div aria-hidden className="wj-ui2-only w-full flex-col gap-3 self-start text-left">
+        <div className="wj-skeleton h-5 w-2/5" />
+        {Array.from({ length: Math.max(2, Math.min(rows, 4)) }, (_, i) => (
+          <div key={i} className="flex gap-3 rounded-[12px] border border-line p-4">
+            <div className="wj-skeleton size-10 shrink-0 rounded-full" />
+            <div className="flex flex-1 flex-col gap-2">
+              <div className="wj-skeleton h-3.5 w-3/5" />
+              <div className="wj-skeleton h-3 w-2/5" />
+              <div className="wj-skeleton h-3 w-4/5" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

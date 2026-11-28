@@ -223,13 +223,14 @@ export function MobileNav() {
       {!onNetwork && floating && (
         <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(calc(var(--wj-bottom-hidden, 0px) * 2))", bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }} className="fixed inset-x-3 z-40 mx-auto max-w-md rounded-full border border-line/80 bg-surface/85 shadow-lg backdrop-blur-xl transition-transform duration-200 ease-out motion-reduce:transition-none md:hidden">
           <ul className="grid grid-flow-col auto-cols-fr items-center p-1.5">
-            {places.map((item) => {
+            {places.map((item, i) => {
               const active = isActivePath(pathname, item);
               const Icon = item.icon;
               return (
                 <li key={item.href} className="min-w-0">
                   <Link href={item.href} aria-current={active ? "page" : undefined} className={cn("flex h-12 flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[11px] leading-none transition-colors duration-150", active ? "bg-brand-50 font-semibold text-brand-700" : "font-medium text-ink-3")}>
-                    <Icon aria-hidden className={cn("size-5", active && "text-brand-600")} strokeWidth={active ? 2.3 : 1.8} />
+                    {/* Active is the filled icon, not only a colour; a magnifier has nothing to fill, so Find's gets a heavier line. */}
+                    <Icon aria-hidden className={cn("size-6", active && "text-brand-600")} strokeWidth={active && i === 0 ? 2.6 : 1.8} fill={active && i > 0 ? "currentColor" : "none"} />
                     <span className="max-w-full truncate">{item.label}</span>
                   </Link>
                 </li>

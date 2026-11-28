@@ -26,7 +26,7 @@ export function NotificationBell({ compact }: { /** The sidebar's smaller bell, 
     <Link href="/app/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}${tasks ? `, ${tasks} need attention` : ""}`} title="Notifications" className={cn("relative flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-8" : "size-10")}>
       <Bell className={compact ? "size-[18px]" : "size-5"} aria-hidden />
       {tasks > 0 ? (
-        <span className={cn("absolute grid min-w-4", compact ? "-right-1 -top-1" : "right-1 top-1", "place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white")} aria-hidden>
+        <span className={cn("absolute grid min-w-4", compact ? "-right-1 -top-1" : "right-1 top-1", "wj-count place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white")} aria-hidden>
           {tasks > 9 ? "9+" : tasks}
         </span>
       ) : (

@@ -109,13 +109,17 @@
   --wj-surface: #ffffff;
   --wj-surface-2: #fafafa;
   --wj-glass: rgba(255, 255, 255, 0.82);
-  --wj-line: #e5e5e5;
-  --wj-line-strong: #d4d4d4;
+  /* Hairlines, and the light grey that fills secondary buttons (owner, 2026-11-28: "take the inputs that make the ui
+     look more professional and polished"). */
+  --wj-line: #dbdbdb;
+  --wj-line-strong: #c7c7c7;
+  --wj-fill: #efefef;
+  --wj-fill-hover: #e2e2e2;
 
-  --wj-ink: #1a1a1a;
-  --wj-ink-2: #3d3d3d;
-  --wj-ink-3: #6b6b6b;
-  --wj-ink-4: #6b6b6b; /* 5.3:1 on white */
+  --wj-ink: #0f0f0f;
+  --wj-ink-2: #363636;
+  --wj-ink-3: #737373;
+  --wj-ink-4: #737373; /* 4.7:1 on white */
 
   /* One accent: what was indigo, sky blue or magenta is the brand purple here. Status colours stay. */
   --wj-indigo-500: var(--wj-brand-500);
@@ -144,8 +148,8 @@
   --wj-radius-2xl: 12px;
   --wj-radius-3xl: 16px;
 
-  --wj-ease: ease;
-  --wj-dur: 180ms;
+  --wj-ease: ease-out;
+  --wj-dur: 200ms;
 
   /* The floating bottom bar: its pill (3.75rem), the gap under it (0.75rem) and the safe area. */
   --wj-mobile-nav-h: calc(4.5rem + env(safe-area-inset-bottom, 0px) - var(--wj-bottom-hidden, 0px));
@@ -670,4 +674,157 @@ html[data-ui="2"],
   .wj-skeleton {
     animation: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   The second UI's polish (owner, 2026-11-28): one type scale, two weights, three kinds of button, a visible focus
+   ring, red only for counts and destructive actions, quiet empty states and skeleton loading.
+   ------------------------------------------------------------------------ */
+/* Four sizes: 12 meta, 14 body, 16 subtitle, 20 title. The first UI's in-between sizes land on the nearest one, at
+   each breakpoint they were written for. Counters under 11px, in badges and rings, keep theirs; so do the landing
+   page's display sizes. */
+[data-ui="2"] :is(.text-\[11px\], .text-\[11\.5px\], .text-\[12\.5px\]) {
+  font-size: 12px;
+}
+[data-ui="2"] :is(.text-\[13px\], .text-\[13\.5px\], .text-\[14\.5px\], .text-\[15px\], .text-\[15\.5px\]) {
+  font-size: 14px;
+}
+[data-ui="2"] :is(.text-\[17px\], .text-\[18px\], .text-\[19px\], .text-lg) {
+  font-size: 16px;
+}
+[data-ui="2"] :is(.text-\[22px\], .text-\[23px\], .text-\[24px\], .text-\[26px\], .text-\[28px\]) {
+  font-size: 20px;
+}
+[data-ui="2"] [class*="[&_label]:text-"] label {
+  font-size: 12px;
+}
+@media (max-width: 430px) {
+  [data-ui="2"] :is(.max-\[430px\]\:text-\[12\.5px\], .max-\[380px\]\:text-\[11\.5px\]) {
+    font-size: 12px;
+  }
+}
+@media (min-width: 640px) {
+  [data-ui="2"] :is(.sm\:text-\[11px\], .sm\:text-\[11\.5px\], .sm\:text-\[12\.5px\]) {
+    font-size: 12px;
+  }
+  [data-ui="2"] :is(.sm\:text-\[13px\], .sm\:text-\[13\.5px\], .sm\:text-\[14\.5px\], .sm\:text-\[15px\], .sm\:text-\[15\.5px\]) {
+    font-size: 14px;
+  }
+  [data-ui="2"] :is(.sm\:text-\[17px\], .sm\:text-\[18px\], .sm\:text-\[19px\]) {
+    font-size: 16px;
+  }
+  [data-ui="2"] :is(.sm\:text-\[22px\], .sm\:text-\[23px\], .sm\:text-\[24px\], .sm\:text-\[26px\], .sm\:text-\[28px\]) {
+    font-size: 20px;
+  }
+  [data-ui="2"] [class*="[&_label]:text-"] label {
+    font-size: 14px;
+  }
+}
+@media (min-width: 768px) {
+  [data-ui="2"] :is(.md\:text-\[11px\], .md\:text-\[11\.5px\], .md\:text-\[12\.5px\]) {
+    font-size: 12px;
+  }
+  [data-ui="2"] :is(.md\:text-\[13px\], .md\:text-\[13\.5px\], .md\:text-\[14\.5px\], .md\:text-\[15px\], .md\:text-\[15\.5px\]) {
+    font-size: 14px;
+  }
+  [data-ui="2"] :is(.md\:text-\[17px\], .md\:text-\[18px\], .md\:text-\[19px\]) {
+    font-size: 16px;
+  }
+  [data-ui="2"] :is(.md\:text-\[22px\], .md\:text-\[23px\], .md\:text-\[24px\], .md\:text-\[26px\], .md\:text-\[28px\]) {
+    font-size: 20px;
+  }
+}
+@media (min-width: 1024px) {
+  [data-ui="2"] :is(.lg\:text-\[11px\], .lg\:text-\[11\.5px\], .lg\:text-\[12\.5px\]) {
+    font-size: 12px;
+  }
+  [data-ui="2"] :is(.lg\:text-\[13px\], .lg\:text-\[13\.5px\], .lg\:text-\[14\.5px\], .lg\:text-\[15px\], .lg\:text-\[15\.5px\]) {
+    font-size: 14px;
+  }
+  [data-ui="2"] :is(.lg\:text-\[17px\], .lg\:text-\[18px\], .lg\:text-\[19px\]) {
+    font-size: 16px;
+  }
+  [data-ui="2"] :is(.lg\:text-\[22px\], .lg\:text-\[23px\], .lg\:text-\[24px\], .lg\:text-\[26px\], .lg\:text-\[28px\]) {
+    font-size: 20px;
+  }
+}
+/* Two weights: 400 and 600. */
+[data-ui="2"] :is(.font-bold, .font-extrabold, .font-black) {
+  font-weight: 600;
+}
+[data-ui="2"] .font-medium {
+  font-weight: 400;
+}
+/* Buttons: 600, and a press that gives a little. Primary is the solid accent (above); secondary is a light grey fill
+   with black text, never an outline. */
+[data-ui="2"] .wj-press {
+  font-weight: 600;
+}
+[data-ui="2"] .wj-press:active {
+  transform: scale(0.97);
+}
+[data-ui="2"] .wj-btn-fill {
+  background: var(--wj-fill);
+  border-color: transparent;
+  color: var(--wj-ink);
+}
+@media (hover: hover) {
+  [data-ui="2"] .wj-btn-fill:hover {
+    background: var(--wj-fill-hover);
+    border-color: transparent;
+  }
+}
+/* Keyboard focus is always visible. */
+[data-ui="2"] :is(a, button, summary, [role="button"], [role="tab"], [role="menuitem"], [tabindex]):focus-visible {
+  outline: 2px solid var(--wj-brand-500);
+  outline-offset: 2px;
+}
+/* Red is for counts that want attention (and destructive actions, which were red already). */
+[data-ui="2"] .wj-count {
+  background: var(--wj-danger-600);
+}
+/* Empty states: one outline icon in a circle, a bold line, a grey line, a text button. No dashed box. */
+[data-ui="2"] .wj-empty {
+  border: 0;
+  background: none;
+}
+[data-ui="2"] .wj-empty-icon {
+  width: 4rem;
+  height: 4rem;
+  background: none;
+  border: 1.5px solid var(--wj-ink);
+  color: var(--wj-ink);
+  box-shadow: none;
+}
+[data-ui="2"] .wj-empty-icon svg {
+  width: 1.75rem;
+  height: 1.75rem;
+  stroke-width: 1.5;
+}
+[data-ui="2"] .wj-empty-action {
+  background: none;
+  color: var(--wj-brand-600);
+  min-height: 2.75rem;
+}
+/* Sheets and dialogs: 12px. */
+[data-ui="2"] dialog.wj-sheet {
+  border-radius: 12px 12px 0 0;
+}
+[data-ui="2"] dialog.wj-sheet-top {
+  border-radius: 0 0 12px 12px;
+}
+@media (min-width: 640px) {
+  [data-ui="2"] dialog:is(.wj-sheet, .wj-sheet-top) {
+    border-radius: 12px;
+  }
+}
+/* A part only one UI shows, chosen here so it is right before the page hydrates (PageLoading, a sheet's handle). */
+.wj-ui2-only {
+  display: none;
+}
+[data-ui="2"] .wj-ui2-only {
+  display: flex;
+}
+[data-ui="2"] .wj-ui1-only {
+  display: none;
 }
