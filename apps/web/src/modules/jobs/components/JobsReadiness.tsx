@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileUp, MapPin, RefreshCw, Sparkles, X } from "lucide-react";
+import { FileUp, MapPin, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
 import type { ReadinessBlocker, RelevanceNote } from "@/domain/jobs/readiness";
 import { STAGES } from "@/domain/workflow/stages";
 import type { JobSearch } from "@/lib/useJobSearch";
@@ -266,13 +266,13 @@ function NoteBody({ note }: { note: RelevanceNote }) {
 
 /** One line: what Wonder is doing now, or what the list is from — with the per-source detail a tap away. */
 /**
- * The role Wonder searches for, said up front with one tap to change it: Change opens the Career Profile
+ * The role Wonder searches for, said up front with one tap to change it: the pencil (Change profile) opens the Career Profile
  * at "Role you want" (Back to Find there searches again when it changed).
  */
 export function WantedRole({ className, as }: { className?: string; /** The role searched as ("Search as"), shown in the profile's place. */ as?: CareerRole }) {
   const goal = useCareerStore((s) => s.dna.careerGoal);
   const role = wantedLine(goal, as);
-  // One pill: the role and Change (the label is for screen readers). As tall as Part Time's search box,
+  // One pill: the role and a pencil to change it (the label is for screen readers). As tall as Part Time's search box,
   // so switching modes doesn't move what's below.
   return (
     <div className={cn("mb-2 flex h-10 items-center gap-2 rounded-full border border-line bg-surface pl-4 pr-1 shadow-xs sm:gap-3", className)}>
@@ -282,8 +282,9 @@ export function WantedRole({ className, as }: { className?: string; /** The role
           {role || "No role yet"}
         </p>
       </div>
-      <Link href={changeHref(as?.id)} className="inline-flex min-h-8 shrink-0 items-center self-center rounded-full px-3 text-[14px] font-semibold text-brand-600 hover:bg-brand-50">
-        Change
+      {/* A pencil, not the word (owner, 2026-11-28: "instead of change, show pencil icon"): the whole 40px circle is the tap target. */}
+      <Link href={changeHref(as?.id)} aria-label="Change profile" title="Change profile" className="-my-px inline-flex size-10 shrink-0 items-center justify-center self-center rounded-full text-brand-600 hover:bg-brand-50">
+        <Pencil className="size-4" aria-hidden />
       </Link>
     </div>
   );

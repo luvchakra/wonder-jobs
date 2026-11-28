@@ -512,7 +512,7 @@ test.describe("Golden journey — search", () => {
     await expect(main.getByRole("link", { name: "Edit Career Profile" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Search based on Career Profile" })).toBeVisible();
     // Change opens the Career Profile at Role you want, with Back to Find.
-    await expect(main.getByRole("link", { name: "Change", exact: true })).toHaveAttribute("href", "/app/career-dna?from=find&focus=role");
+    await expect(main.getByRole("link", { name: "Change profile", exact: true })).toHaveAttribute("href", "/app/career-dna?from=find&focus=role");
     const views = async () => (await main.getByRole("button", { name: /^(All|Strong|For you)$/ }).allInnerTexts()).map((t) => t.trim());
     expect(await views()).toEqual([]);
     await expect(main.getByRole("button", { name: "Contract", exact: true })).toHaveCount(0);
