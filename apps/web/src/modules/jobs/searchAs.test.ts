@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changeHref, fullTimeSearchAs, roleArrival, wantedLine } from "./searchAs";
+import { changeHref, fullTimeSearchAs, profileSwitch, roleArrival, wantedLine } from "./searchAs";
 
 const reinsurance = { id: "r1", title: "Reinsurance", query: "Insurance operations", goal: "Senior management" };
 
@@ -39,5 +39,20 @@ describe("Full Time's Search runs as the profile the Looking for pill shows", ()
     expect(fullTimeSearchAs(undefined, "gone", roles)).toBeNull();
     expect(fullTimeSearchAs("gone", undefined, roles)).toBeNull();
     expect(fullTimeSearchAs(undefined, undefined, roles)).toBeNull();
+  });
+});
+
+describe("picking another profile never leaves the last one's results under its name", () => {
+  it("role → My profile: its own results come back when kept, else Press Search", () => {
+    expect(profileSwitch(null, "re", true)).toBe("restore_profile");
+    expect(profileSwitch(null, "re", false)).toBe("press_search");
+  });
+  it("My profile → a role, or role → another role: Press Search", () => {
+    expect(profileSwitch("re", null, true)).toBe("press_search");
+    expect(profileSwitch("sd", "re", false)).toBe("press_search");
+  });
+  it("the profile already on screen (or after a reload, nothing picked): unchanged", () => {
+    expect(profileSwitch("re", "re", false)).toBe("same");
+    expect(profileSwitch(null, null, true)).toBe("same");
   });
 });
