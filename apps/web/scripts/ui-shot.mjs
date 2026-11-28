@@ -32,7 +32,12 @@ await openApp(page, path, { empty: args.includes("--empty") });
 await page.waitForURL((u) => u.pathname === path.split("?")[0], { timeout: 120_000 });
 await page.waitForLoadState("networkidle").catch(() => {});
 // The dev server's own badge isn't part of the product.
-await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+// A dev server that has just rebuilt may reload the page once: try again after it settles.
+const hideBadge = () => page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+await hideBadge().catch(async () => {
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await hideBadge();
+});
 await page.waitForTimeout(800);
 // How far down the page to be when the picture is taken (what sticks, what slides away).
 const scroll = Number(opt("scroll", "0"));

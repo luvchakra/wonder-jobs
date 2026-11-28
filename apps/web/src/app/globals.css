@@ -633,6 +633,24 @@ html[data-ui="2"],
 [data-ui="2"] :is(.text-\[\#2563eb\], .text-\[\#1d4ed8\], .text-\[\#c2410c\], .text-\[\#047857\], .text-\[\#be185d\], .text-star-purple) {
   color: var(--wj-brand-600);
 }
+/* The server renders the first UI's bars; a browser showing the second swaps them as it hydrates (lib/ui.tsx). Until
+   then they keep their room but stay unseen, so the first UI's bars never flash by. */
+[data-ui="2"] .wj-ui1 {
+  visibility: hidden;
+}
+/* Find's pills and round Search button (wonderworks/find/parts.tsx): 44px tap targets, no shadow. */
+[data-ui="2"] .wj-pill {
+  height: 2.75rem;
+  box-shadow: none;
+}
+[data-ui="2"] .wj-search-submit {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+/* A card's Apply button: a button, so 8px (pills are for chips and the bars). */
+[data-ui="2"] .wj-apply {
+  border-radius: 8px;
+}
 /* Loading is grey skeleton blocks with a shimmer (wonderworks/ui2/Skeleton.tsx). */
 @keyframes wj-shimmer {
   from {

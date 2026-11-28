@@ -10,6 +10,7 @@ import { DictateButton } from "@/components/common/DictateButton";
 import { PlaceInput } from "@/components/common/PlaceInput";
 import type { Dictation } from "@/lib/dictation";
 import { cn } from "@/lib/cn";
+import { useUi } from "@/lib/ui";
 
 /**
  * Find's building blocks, shared by every WonderWorks module (docs/WONDERWORKS_PLATFORM.md §4.1): the search box, the
@@ -21,7 +22,7 @@ import { cn } from "@/lib/cn";
 /** Refine's chips: small enough that each group fits one line on a phone. */
 export const REFINE_CHIP = "h-7 px-2.5 text-[12px] max-[430px]:px-2 max-[380px]:px-1.5 max-[380px]:text-[11.5px]";
 
-export const PILL = "relative flex h-10 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
+export const PILL = "wj-pill relative flex h-10 min-w-0 items-center rounded-full border border-line bg-surface text-[15px] text-ink shadow-xs transition-colors hover:border-ink-4/40";
 
 /** What's typed, against a history: the ones containing it, not itself. */
 export const historyFor = (items: string[], text: string) => {
@@ -212,10 +213,14 @@ export function DictationNotes({ dictation, hint }: { dictation: Dictation; hint
   );
 }
 
+/** The second UI's action pills (Refine, a place or salary pill, Sort): outlined in the accent. */
+const ACCENT_PILL = "border-brand-300 text-brand-700 hover:border-brand-500";
+
 /** Opens and closes Refine: the first control in the row under the search box. */
 export function RefineToggle({ open, count, onToggle, className }: { open: boolean; count: number; onToggle: () => void; className?: string }) {
+  const second = useUi() === 2;
   return (
-    <button type="button" onClick={onToggle} aria-expanded={open} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold max-[380px]:px-3", open && "border-brand-200 bg-brand-50", className)}>
+    <button type="button" onClick={onToggle} aria-expanded={open} aria-label={`Refine${count ? `, ${count} set` : ""}`} title="Refine" className={cn(PILL, "shrink-0 gap-2.5 px-4 font-semibold max-[380px]:px-3", second && ACCENT_PILL, open && "border-brand-200 bg-brand-50", className)}>
       <SlidersHorizontal className="size-4" aria-hidden />
       {count ? <span>{count}</span> : null}
     </button>
@@ -224,10 +229,11 @@ export function RefineToggle({ open, count, onToggle, className }: { open: boole
 
 /** A pill that opens Refine at its own section, labelled with what's picked there. */
 export function PillButton({ label, shown, open, onClick, className }: { label: string; shown: string; open: boolean; onClick: () => void; className?: string }) {
+  const second = useUi() === 2;
   return (
-    <button type="button" onClick={onClick} aria-label={`${label}: ${shown}`} aria-expanded={open} className={cn(PILL, "gap-1 pl-3.5 pr-2.5 text-left text-[14px] max-[430px]:pl-2.5 max-[430px]:pr-1.5 max-[430px]:text-[12.5px]", className)}>
+    <button type="button" onClick={onClick} aria-label={`${label}: ${shown}`} aria-expanded={open} className={cn(PILL, "gap-1 pl-3.5 pr-2.5 text-left text-[14px] max-[430px]:pl-2.5 max-[430px]:pr-1.5 max-[430px]:text-[12.5px]", second && ACCENT_PILL, className)}>
       <span className="min-w-0 flex-1 truncate">{shown}</span>
-      <ChevronDown className="size-4 shrink-0 text-ink-2 max-[430px]:size-3.5" aria-hidden />
+      <ChevronDown className={cn("size-4 shrink-0 max-[430px]:size-3.5", second ? "text-brand-600" : "text-ink-2")} aria-hidden />
     </button>
   );
 }
@@ -235,7 +241,7 @@ export function PillButton({ label, shown, open, onClick, className }: { label: 
 /** The round Search button that ends the row. */
 export function SearchSubmit({ label, className }: { label: string; className?: string }) {
   return (
-    <button type="submit" aria-label={label} title={label} className={cn("wj-gradient-bg grid size-10 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600", className)}>
+    <button type="submit" aria-label={label} title={label} className={cn("wj-gradient-bg wj-search-submit grid size-10 shrink-0 place-items-center rounded-full text-white shadow-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600", className)}>
       <ArrowRight className="size-5" aria-hidden />
     </button>
   );
@@ -339,10 +345,12 @@ export function RefinePlaces({ places, onChange }: { places: string[]; onChange:
 
 /** "Sort by Relevance ▾": a select that reads as a line of text. */
 export function SortSelect<T extends string>({ value, labels, onChange, className }: { value: T; labels: Record<T, string>; onChange: (v: T) => void; className?: string }) {
+  // The second UI: an outlined accent pill, like Refine's.
+  const second = useUi() === 2;
   return (
-    <label className={cn("relative inline-flex shrink-0 items-center gap-1 text-[13px] text-ink-3 [&_select]:outline-none", className)}>
-      Sort by <span className="font-semibold text-ink">{labels[value]}</span>
-      <ChevronDown className="size-4 text-ink-2" aria-hidden />
+    <label className={cn("relative inline-flex shrink-0 items-center gap-1 text-[13px] [&_select]:outline-none", second ? "h-9 rounded-full border border-brand-300 px-3 text-brand-700" : "text-ink-3", className)}>
+      Sort by <span className={cn("font-semibold", second ? "text-brand-700" : "text-ink")}>{labels[value]}</span>
+      <ChevronDown className={cn("size-4", second ? "text-brand-600" : "text-ink-2")} aria-hidden />
       <select aria-label="Sort by" value={value} onChange={(e) => onChange(e.target.value as T)} className="absolute inset-0 cursor-pointer opacity-0">
         {(Object.keys(labels) as T[]).map((k) => (
           <option key={k} value={k}>
@@ -428,7 +436,7 @@ export function SearchingBanner({ aside, children }: { aside: React.ReactNode; c
 /* ------------------------------------------------------------------ Result card */
 
 /** The small Apply button under a card's logo. */
-export const APPLY_BTN = "wj-gradient-bg wj-press shadow-brand relative z-10 mt-1.5 inline-flex h-8 items-center gap-0.5 rounded-full px-3 text-[12px] font-semibold text-white";
+export const APPLY_BTN = "wj-gradient-bg wj-press wj-apply shadow-brand relative z-10 mt-1.5 inline-flex h-8 items-center gap-0.5 rounded-full px-3 text-[12px] font-semibold text-white";
 
 /** A card title's link or button: the whole card is its tap target. */
 export const CARD_TARGET = "after:absolute after:inset-0 after:content-['']";
@@ -493,6 +501,69 @@ export function SaveButton({ saved, onToggle, noun }: { saved: boolean; onToggle
 
 export function ResultCard({ className, premium = true, cover, aside, title, facts, tags = [], reasons = [], summary, summaryTitle, trailing, status, footnote, share, actions, children }: { className?: string; /** The roomier, bolder look (owner, 2026-11-12: Jobs first, then every module); false for the old flat card. */ premium?: boolean; /** Share, in the footer beside Save: what to share, or null where the module draws its own (Jobs). */ share: ListingShareProps | null; aside: React.ReactNode; title: React.ReactNode; facts: React.ReactNode[]; tags?: string[]; reasons?: string[]; summary?: string; summaryTitle?: string; trailing?: React.ReactNode; status?: React.ReactNode; footnote: React.ReactNode; actions?: React.ReactNode; /** A picture across the top of the card (Events' cover), full width; none for most modules. */ cover?: React.ReactNode; children?: React.ReactNode }) {
   const shown = facts.filter((f) => f !== null && f !== undefined && f !== false && f !== "");
+  const second = useUi() === 2;
+  // The second UI's info card (domain/platform/ui.ts): flat, white and bordered. The same slots in the same order:
+  // the title, a grey line of facts, skills as pills, why it fits as one highlighted line, then the footer.
+  if (second) {
+    return (
+      <article className={cn("relative flex flex-col rounded-[12px] border border-line bg-surface p-4 transition-colors duration-150 hover:border-line-strong", className)}>
+        {cover}
+        <div className="flex flex-1 items-stretch gap-3">
+          <div className="flex shrink-0 flex-col items-center gap-1.5">{aside}</div>
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div>
+              <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-ink">{title}</h3>
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12.5px] text-ink-3">
+                {shown.map((f, i) => (
+                  <span key={i} className="line-clamp-3 min-w-0 break-words">
+                    {f}
+                  </span>
+                ))}
+              </p>
+            </div>
+            {tags.length > 0 && (
+              <ul className="flex flex-wrap gap-1.5" aria-label="Skills">
+                {tags.map((t) => (
+                  <li key={t} className="rounded-full border border-line px-2.5 py-0.5 text-[12px] text-ink-2">
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {reasons.length > 0 && (
+              <ul className="flex flex-wrap gap-x-3 gap-y-0.5 rounded-[8px] bg-brand-50 px-2.5 py-1.5" aria-label="Why it fits">
+                {reasons.map((r) => (
+                  <li key={r} className="flex items-center gap-1 text-[12.5px] font-medium text-brand-700">
+                    <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
+                    {r}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {summary && (
+              <div className="wj-fill min-h-0 flex-1" title={summaryTitle}>
+                <p className="wj-fill-text text-[12.5px] leading-[1.4] text-ink-3">{summary}</p>
+              </div>
+            )}
+          </div>
+          {trailing}
+        </div>
+        <div className="mt-3 flex items-center gap-2 border-t border-line pt-2.5">
+          {status}
+          <span className="min-w-0 flex-1 truncate text-[12px] text-ink-3" title={typeof footnote === "string" && footnote !== shortSourceNames(footnote) ? footnote : undefined}>
+            {typeof footnote === "string" ? shortSourceNames(footnote) : footnote}
+          </span>
+          {(share || actions) && (
+            <div className="relative z-10 -my-1 -mr-1.5 flex shrink-0 items-center">
+              {share && <ListingShare {...share} post={share.url.startsWith("/s/")} />}
+              {actions}
+            </div>
+          )}
+        </div>
+        {children}
+      </article>
+    );
+  }
   return (
     <article className={cn("relative flex flex-col", premium ? "wj-card-premium p-4 sm:p-5" : "wj-card wj-elevate px-4 py-3", className)}>
       {cover}
