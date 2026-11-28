@@ -13,10 +13,10 @@ export function OutcomeButtons({ outcome, onMark }: { outcome: "applied" | "with
   const btn = "inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-[12px] border px-2 text-[12.5px] font-medium wj-press";
   return (
     <div className="grid grid-cols-2 gap-2" role="group" aria-label="How did this application go?">
-      <button type="button" aria-pressed={done} onClick={() => !done && onMark("applied")} className={cn(btn, done ? "border-success-600 bg-success-100 text-success-600" : "border-line bg-surface text-ink hover:bg-surface-2")}>
+      <button type="button" aria-pressed={done} onClick={() => !done && onMark("applied")} className={cn(btn, done ? "border-success-600 bg-success-100 text-success-600" : "wj-btn-fill border-line bg-surface text-ink hover:bg-surface-2")}>
         <CheckCircle2 className="size-4" aria-hidden /> {done ? "Applied" : "Mark as applied"}
       </button>
-      <button type="button" aria-pressed={dropped} onClick={() => !dropped && onMark("withdrawn")} className={cn(btn, dropped ? "border-line-strong bg-bg-soft text-ink-2" : "border-line bg-surface text-ink hover:bg-surface-2")}>
+      <button type="button" aria-pressed={dropped} onClick={() => !dropped && onMark("withdrawn")} className={cn(btn, dropped ? "border-line-strong bg-bg-soft text-ink-2" : "wj-btn-fill border-line bg-surface text-ink hover:bg-surface-2")}>
         <XCircle className="size-4" aria-hidden /> {dropped ? "Withdrawn" : "Mark as withdrawn"}
       </button>
     </div>

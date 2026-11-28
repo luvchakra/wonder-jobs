@@ -1,4 +1,6 @@
 "use client";
+import { useUi } from "@/lib/ui";
+import { FeatureCard } from "@/wonderworks/ui2/cards";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -126,9 +128,11 @@ export function ResumeButton({ target: job, primary = false, noun = "job", onMad
   const before = useMemo(() => (existing ? renderSaved(existing.document, existing.templateId) : null), [existing]);
   const fromBefore = phase.kind === "idle" ? before : null;
 
+  const second = useUi() === 2;
   const base = "relative inline-flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-[12px] px-4 text-sm font-medium wj-press transition-colors";
   const filled = "wj-gradient-bg text-white shadow-brand hover:brightness-105";
-  const plain = primary ? filled : "border border-line bg-surface text-ink hover:border-line-strong hover:bg-surface-2";
+  // wj-btn-fill: the second UI's secondary button (a light grey fill, no outline); it changes nothing in the first.
+  const plain = primary ? filled : "wj-btn-fill border border-line bg-surface text-ink hover:border-line-strong hover:bg-surface-2";
 
   if (phase.kind === "generating") {
     return (
@@ -150,7 +154,56 @@ export function ResumeButton({ target: job, primary = false, noun = "job", onMad
     // The saved copy (with any edits) once there is one; the result just made until then.
     const resume = before ?? (phase.kind === "ready" ? phase.resume : fromBefore!);
     const file = resumeFilename(resume, "docx", existing?.name);
-    const small = "inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-line bg-surface px-3 text-[13px] font-medium text-ink wj-press hover:bg-surface-2";
+    const small = "wj-btn-fill inline-flex h-10 items-center justify-center gap-1.5 rounded-[12px] border border-line bg-surface px-3 text-[13px] font-medium text-ink wj-press hover:bg-surface-2";
+    const sheet = preview && (
+      <ResumePreviewSheet
+        resume={resume}
+        file={file}
+        subtitle={`For ${job.title} at ${job.company}`}
+        downloading={downloading}
+        startEditing
+        onClose={() => setPreview(false)}
+        onDownload={download}
+        onSave={(doc) => {
+          const next = renderSaved(doc, resume.template.id);
+          if (!next) return null;
+          if (existing) updateResume(existing.id, doc, next.layout.pages.length);
+          track("custom_resume_edited", { jobId: job.id });
+          return next;
+        }}
+      />
+    );
+    // The second UI (domain/platform/ui.ts): the résumé is a feature card — the file, its template, Edit and Download —
+    // with Re-generate as a quiet text button under it. The same actions as below.
+    if (second) {
+      return (
+        <div className="flex flex-col gap-2">
+          {chooser && <div className="wj-chooser">{chooser}</div>}
+          <FeatureCard
+            media={<FileText className="size-7" strokeWidth={1.5} aria-hidden />}
+            title={file}
+            meta={`Résumé · ${getTemplate(resume.template.id)?.name ?? "your"} template`}
+            action={
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setPreview(true)} className={cn(small, "h-11")}>
+                  <Pencil className="size-4" aria-hidden /> Edit
+                </button>
+                <button type="button" onClick={() => download(resume)} disabled={downloading} aria-busy={downloading} className={cn(small, "h-11")}>
+                  {downloading ? <Loader2 className="size-4 wj-animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />} Download
+                </button>
+              </div>
+            }
+          />
+          <p className="text-[12px] leading-snug text-ink-3">
+            Download this résumé and attach it when you apply for this {noun} — it&apos;s made for {job.company}. It&apos;s also <Link href="/app/resume-studio" className="text-brand-600 hover:underline">saved in My Resume</Link>.
+          </p>
+          <button type="button" onClick={() => void generate()} className="wj-press inline-flex min-h-11 items-center justify-center gap-2 self-center px-3 text-sm text-brand-600">
+            <RefreshCw className="size-4" aria-hidden /> Re-generate Resume
+          </button>
+          {sheet}
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-2">
         {chooser}
@@ -178,24 +231,7 @@ export function ResumeButton({ target: job, primary = false, noun = "job", onMad
         <p className="text-[12px] leading-snug text-ink-3">
           Download this résumé and attach it when you apply for this {noun} — it&apos;s made for {job.company}. It&apos;s also <Link href="/app/resume-studio" className="text-brand-600 hover:underline">saved in My Resume</Link>.
         </p>
-        {preview && (
-          <ResumePreviewSheet
-            resume={resume}
-            file={file}
-            subtitle={`For ${job.title} at ${job.company}`}
-            downloading={downloading}
-            startEditing
-            onClose={() => setPreview(false)}
-            onDownload={download}
-            onSave={(doc) => {
-              const next = renderSaved(doc, resume.template.id);
-              if (!next) return null;
-              if (existing) updateResume(existing.id, doc, next.layout.pages.length);
-              track("custom_resume_edited", { jobId: job.id });
-              return next;
-            }}
-          />
-        )}
+        {sheet}
       </div>
     );
   }
@@ -206,7 +242,8 @@ export function ResumeButton({ target: job, primary = false, noun = "job", onMad
   );
   return chooser ? (
     <div className="flex flex-col gap-2">
-      {chooser}
+      {/* wj-chooser: the second UI draws the picker inside as a pill (globals.css). */}
+      {second ? <div className="wj-chooser">{chooser}</div> : chooser}
       {button}
     </div>
   ) : (
