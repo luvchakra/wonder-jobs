@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { TINTS } from "@/wonderworks/brand/tiles";
 import { useUi } from "@/lib/ui";
 import { useHydration } from "@/store/hydration";
 import { useChromeSlots } from "./slots";
@@ -13,7 +14,9 @@ const COLLAPSE_AT = 28;
 
 /**
  * The second UI's module row (domain/platform/ui.ts), under the header on a module's Find page: the modules that are
- * open as line icons with their names; once the page scrolls it collapses into a sticky row of outlined pills. Picking
+ * open as their tinted icon tiles with their names (owner, 2026-11-28: "this portion looks really basic, make it polished,
+ * modern, professional"), the selected one ringed in the accent; once the page scrolls it collapses into a sticky row
+ * of slim chips, the selected one solid. Picking
  * one does exactly what picking it in the module menu does (the same `select` the sidebar's Modules list uses).
  * Phones and tablets only: from 1024px the sidebar lists the modules. Nothing renders in the first UI.
  */
@@ -59,16 +62,28 @@ export function ModuleRow() {
     }
     placed.current = true;
   }, [show, onId]);
+  // The header and this row are one surface: the header drops its own hairline while the row is under it (globals.css).
+  useEffect(() => {
+    if (!show) return;
+    const root = document.documentElement;
+    root.dataset.moduleRow = "";
+    return () => {
+      delete root.dataset.moduleRow;
+    };
+  }, [show]);
   if (!show) return null;
   return (
     // Sticks under the header, and follows it up when the header slides away on scroll (useScrollBars).
-    <nav aria-label="Modules" style={{ top: "calc(4.5rem - var(--wj-top-hidden, 0px))" }} className={cn("sticky z-20 overflow-hidden border-b border-line bg-surface/90 backdrop-blur transition-[height] duration-200 ease-out motion-reduce:transition-none lg:hidden", compact ? "h-[3.75rem]" : "h-[5.5rem]")}>
+    <nav aria-label="Modules" style={{ top: "calc(4.5rem - var(--wj-top-hidden, 0px))" }} className={cn("sticky z-20 overflow-hidden border-b border-line bg-surface/90 backdrop-blur transition-[height] duration-200 ease-out motion-reduce:transition-none lg:hidden", compact ? "h-[3.25rem]" : "h-[6.25rem]")}>
       {/* The two rows cross-fade; only the one showing can be reached. */}
-      <ul ref={icons} inert={compact} aria-hidden={compact} className={cn("wj-scrollbar-none absolute inset-x-0 top-0 flex snap-x gap-1 overflow-x-auto px-3 py-2 transition-opacity duration-200 motion-reduce:transition-none", compact ? "opacity-0" : "opacity-100")}>
+      <ul ref={icons} inert={compact} aria-hidden={compact} className={cn("wj-scrollbar-none absolute inset-x-0 top-0 flex snap-x gap-1 overflow-x-auto px-3 pb-2 pt-1 transition-opacity duration-200 motion-reduce:transition-none", compact ? "opacity-0" : "opacity-100")}>
         {items.map((m) => (
           <li key={m.id} data-module={m.id} className="shrink-0 snap-center">
-            <button type="button" aria-pressed={m.on} onClick={m.select} className={cn("flex h-[4.5rem] w-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-[12px] px-1 text-[11.5px] leading-tight transition-colors duration-150", m.on ? "font-semibold text-brand-700" : "font-medium text-ink-3")}>
-              <m.icon aria-hidden className={cn("size-6", m.on && "text-brand-600")} strokeWidth={m.on ? 2 : 1.6} />
+            <button type="button" aria-pressed={m.on} onClick={m.select} className={cn("group flex w-[4.5rem] flex-col items-center gap-1.5 px-0.5 pt-1.5 text-[12px] leading-[1.2] transition-colors duration-150", m.on ? "font-semibold text-ink" : "font-normal text-ink-3")}>
+              {/* The module's own tint, as in its menu; the selected one carries the accent ring. */}
+              <span className={cn("grid size-12 place-items-center rounded-[16px] transition-[box-shadow,transform] duration-150 group-active:scale-95", TINTS[m.tint].tile, TINTS[m.tint].icon, m.on && "shadow-[0_0_0_2px_var(--wj-surface),0_0_0_4px_var(--wj-brand-600)]")}>
+                <m.icon aria-hidden className="size-6" strokeWidth={m.on ? 2 : 1.7} />
+              </span>
               <span className="line-clamp-2 max-w-full text-center">{m.label}</span>
             </button>
           </li>
@@ -77,8 +92,8 @@ export function ModuleRow() {
       <ul ref={pills} inert={!compact} aria-hidden={!compact} className={cn("wj-scrollbar-none absolute inset-x-0 top-0 flex snap-x gap-2 overflow-x-auto px-4 py-2 transition-opacity duration-200 motion-reduce:transition-none", compact ? "opacity-100" : "opacity-0")}>
         {items.map((m) => (
           <li key={m.id} data-module={m.id} className="shrink-0 snap-center">
-            <button type="button" aria-pressed={m.on} onClick={m.select} className={cn("inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-[13px] font-medium transition-colors duration-150", m.on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink")}>
-              <m.icon aria-hidden className="size-4" strokeWidth={1.8} />
+            <button type="button" aria-pressed={m.on} onClick={m.select} className={cn("inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors duration-150", m.on ? "bg-brand-600 font-semibold text-white" : "bg-bg-soft font-normal text-ink")}>
+              <m.icon aria-hidden className={cn("size-4", !m.on && TINTS[m.tint].icon)} strokeWidth={1.9} />
               {m.label}
             </button>
           </li>

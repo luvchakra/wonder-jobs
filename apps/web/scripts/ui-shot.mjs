@@ -2,7 +2,7 @@
 /**
  * A screenshot of one screen in the first or the second UI (domain/platform/ui.ts), for before/after checks.
  *
- *   node scripts/ui-shot.mjs <path> --ui 1|2 --out shot.png [--width 390] [--height 844] [--scale 2] [--full] [--scroll 300]
+ *   node scripts/ui-shot.mjs <path> --ui 1|2 --out shot.png [--width 390] [--height 844] [--scale 2] [--full] [--scroll 300] [--click "text"]…
  *
  * Same server and sample candidate as scripts/ui-check.mjs. For pictures, prefer a production build (`next build &&
  * next start -p 3123`, with the same environment): on `next dev` a listing's page can reload itself over and over (hot
@@ -41,6 +41,13 @@ await hideBadge().catch(async () => {
   await hideBadge();
 });
 await page.waitForTimeout(800);
+// Things to press first, by their visible text (repeatable): --click "Work history" --click "Industries".
+for (let i = 0; i < args.length; i++) {
+  if (args[i] !== "--click") continue;
+  // A direct click: a sticky bar over the target mustn't stop it.
+  await page.getByText(args[i + 1], { exact: false }).first().evaluate((el) => (el.closest("button, a, summary, label") ?? el).click());
+  await page.waitForTimeout(400);
+}
 // How far down the page to be when the picture is taken (what sticks, what slides away).
 const scroll = Number(opt("scroll", "0"));
 if (scroll) {

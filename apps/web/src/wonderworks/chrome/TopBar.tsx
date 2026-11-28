@@ -207,7 +207,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   // the same icons as the first UI and the profile button, round and outlined, on the right. Nothing else differs.
   if (second) {
     return (
-      <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-[4.5rem] items-center gap-1 border-b border-line bg-surface/90 pl-4 pr-2 backdrop-blur transition-transform duration-200 ease-out motion-reduce:transition-none md:px-6 lg:hidden">
+      <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-[4.5rem] items-center gap-2 border-b border-line bg-surface/90 px-4 backdrop-blur transition-transform duration-200 ease-out motion-reduce:transition-none md:px-6 lg:hidden">
         <div className="flex min-w-0 flex-1 flex-col justify-center">
           {onNetwork ? (
             <h1 className="truncate text-[22px] font-bold leading-tight text-ink">
@@ -225,20 +225,19 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
         </div>
         {/* The + (CreateButton), then Network. Wrapped: both network buttons carry the first UI's own flex order. */}
         <CreateButton />
-        <div className="flex shrink-0">{onNetwork ? <LeaveNetwork /> : <OpenNetwork />}</div>
+        <div className="flex shrink-0">{onNetwork ? <LeaveNetwork /> : <OpenNetwork second />}</div>
         {onNetwork ? (
           <NetworkBar />
         ) : (
-          <div className="flex items-center gap-0.5">
+          <div className="wj-top-icons flex items-center gap-0.5">
             <MessagesLink />
             <NotificationBell />
           </div>
         )}
-        <div className="relative" ref={profileRef}>
-          <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="grid size-11 place-items-center rounded-full">
-            <span className="grid size-10 place-items-center overflow-hidden rounded-full border border-line-strong p-0.5">
-              <FlipAvatar name={displayName} />
-            </span>
+        <div className="relative ml-0.5" ref={profileRef}>
+          {/* The avatar in a thin ring of its own, set off from the bar; an accent ring while its menu is open. */}
+          <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="wj-top-avatar grid size-9 place-items-center rounded-full">
+            <FlipAvatar name={displayName} />
           </button>
           {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
         </div>
@@ -296,7 +295,13 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
 
 
 /** Opens network mode from the top bar, right of the avatar. Phones only; from 768px the sidebar lists Network. */
-function OpenNetwork() {
+function OpenNetwork({ second = false }: { /** The second UI: one of the bar's round grey buttons, the mark in the accent. */ second?: boolean }) {
+  if (second)
+    return (
+      <Link href={NETWORK_HREF} aria-label="Open my network" title="My network" className="wj-top-icon grid size-10 shrink-0 place-items-center rounded-full md:hidden">
+        <NetworkMark className="size-[22px] text-brand-600" />
+      </Link>
+    );
   return (
     <Link href={NETWORK_HREF} aria-label="Open my network" title="My network" className="order-[-2] grid size-10 shrink-0 place-items-center rounded-full hover:bg-bg-soft md:hidden">
       <span aria-hidden className="grid size-8 place-items-center rounded-full border border-line bg-surface text-brand-600 shadow-sm">

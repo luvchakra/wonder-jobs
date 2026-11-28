@@ -349,7 +349,8 @@ function MoreRow({ title, hint, open, last, children }: { title: string; hint?: 
         </span>
         <ChevronDown className="size-4 shrink-0 text-ink-4 transition-transform group-open:rotate-180" aria-hidden />
       </summary>
-      <div className="px-4 pb-4">{children}</div>
+      {/* wj-fold-body: the second UI flattens a card nested here (globals.css). */}
+      <div className="wj-fold-body px-4 pb-4">{children}</div>
     </details>
   );
 }

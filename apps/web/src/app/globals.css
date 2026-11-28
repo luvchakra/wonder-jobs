@@ -953,3 +953,74 @@ html[data-splash] body {
 [data-ui="2"] [data-top-bar] a {
   transition: background-color 0.15s, color 0.15s;
 }
+
+/* Career Profile's folds (app/career-dna): what a fold opens is already inside the page's card and under the fold's own
+   title, so a card nested in it loses its frame, and a heading that only repeats the fold's title isn't shown twice. */
+[data-ui="2"] .wj-fold-body > .wj-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+[data-ui="2"] .wj-fold-body > .wj-card[aria-labelledby="wj-remembered"] > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+/* A plain <select> inside a fold reads like the page's other fields. */
+[data-ui="2"] .wj-fold-body > .wj-card select {
+  appearance: none;
+  height: 2.75rem;
+  padding: 0 2.25rem 0 0.875rem;
+  border-radius: 12px;
+  background: var(--wj-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.75rem center;
+  font-size: 14px;
+}
+/* A fold with nothing in it yet says so, rather than opening onto nothing. */
+[data-ui="2"] .wj-fold-body:empty::after {
+  content: "Nothing yet.";
+  font-size: 14px;
+  color: var(--wj-ink-3);
+}
+
+/* The second UI's header (owner, 2026-11-28: "this portion looks really basic, make it polished, modern, professional"):
+   its icons are one set of round grey buttons, evenly spaced, with the avatar in a thin ring; a pressed one turns to
+   the accent (above). Over the module row the header has no line of its own, so the two read as one surface. */
+[data-ui="2"] [data-top-bar] .wj-top-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  background-color: var(--wj-bg-soft);
+  color: var(--wj-ink);
+  box-shadow: none;
+  transition: background-color 0.15s, color 0.15s, transform 0.15s;
+}
+[data-ui="2"] [data-top-bar] .wj-top-icon:active {
+  transform: scale(0.94);
+}
+[data-ui="2"] [data-top-bar] .wj-top-icon > svg {
+  stroke-width: 1.9;
+}
+[data-ui="2"] [data-top-bar] .wj-top-icons {
+  gap: 0.5rem;
+}
+/* A count sits on the button's rim, with a ring of the bar's own colour around it. */
+[data-ui="2"] [data-top-bar] .wj-top-icon .wj-count {
+  top: -0.25rem;
+  right: -0.25rem;
+  box-shadow: 0 0 0 2px var(--wj-surface);
+}
+[data-ui="2"] [data-top-bar] .wj-top-avatar {
+  box-shadow: 0 0 0 2px var(--wj-surface), 0 0 0 3px var(--wj-line-strong);
+  transition: box-shadow 0.15s;
+}
+[data-ui="2"] [data-top-bar] .wj-top-avatar[aria-expanded="true"] {
+  background-color: transparent;
+  box-shadow: 0 0 0 2px var(--wj-surface), 0 0 0 4px var(--wj-brand-600);
+}
+[data-ui="2"][data-module-row] [data-top-bar] {
+  border-bottom-color: transparent;
+}

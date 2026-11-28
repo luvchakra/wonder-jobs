@@ -24,7 +24,7 @@ export function useLeaveNetwork(): { label: string; leave: () => void } {
 export function LeaveNetwork() {
   const { label, leave } = useLeaveNetwork();
   return (
-    <button type="button" aria-label={label} title={label} onClick={leave} className="order-[-2] grid size-10 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink-2 hover:bg-bg-soft hover:text-ink active:scale-95 md:hidden">
+    <button type="button" aria-label={label} title={label} onClick={leave} className="wj-top-icon order-[-2] grid size-10 shrink-0 place-items-center rounded-full border border-line bg-surface text-ink-2 hover:bg-bg-soft hover:text-ink active:scale-95 md:hidden">
       <Undo2 className="size-5" strokeWidth={2.2} aria-hidden />
     </button>
   );
