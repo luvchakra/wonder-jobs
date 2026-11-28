@@ -47,9 +47,9 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
   return (
     <div ref={ref} className={cn("relative min-w-0", context ? "w-fit max-w-full" : "w-full md:max-w-[22rem]")}>
       {context ? (
-        <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${now.label}`} title={now.label} onClick={() => setOpen((v) => !v)} className="-my-2.5 flex min-h-11 max-w-full items-center gap-0.5 text-left text-[13px] font-medium text-brand-600">
+        <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${now.label}`} title={now.label} onClick={() => setOpen((v) => !v)} className="-my-2.5 flex min-h-11 max-w-full items-center gap-0.5 text-left text-[13px] font-semibold text-brand-600">
           <span className="truncate">{now.label}</span>
-          <ChevronDown className={cn("size-4 shrink-0 transition-transform duration-150", open && "rotate-180")} aria-hidden />
+          <ChevronDown className={cn("size-3.5 shrink-0 transition-transform duration-150", open && "rotate-180")} strokeWidth={2.4} aria-hidden />
         </button>
       ) : (
       <button

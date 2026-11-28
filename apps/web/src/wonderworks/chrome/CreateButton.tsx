@@ -30,13 +30,13 @@ export function CreateButton() {
   const [sheet, setSheet] = useState<"post" | "message" | null>(null);
   if (!signedIn) return null;
   const entry = onNetwork ? null : (slots.postFor?.(selected) ?? null);
-  const button = "grid size-10 shrink-0 place-items-center rounded-full text-ink hover:bg-bg-soft active:scale-95";
+  const button = "wj-top-icon grid size-10 shrink-0 place-items-center rounded-full text-ink hover:bg-bg-soft active:scale-95";
   if (entry) {
     // Already on the entry's page: nothing new to open.
     if (pathname === entry.href.split("?")[0]) return null;
     return (
       <Link href={entry.href} aria-label={entry.label} title={entry.label} className={button}>
-        <Plus className="size-6" strokeWidth={2} aria-hidden />
+        <Plus className="size-5" strokeWidth={2.2} aria-hidden />
       </Link>
     );
   }
@@ -46,7 +46,7 @@ export function CreateButton() {
   return (
     <>
       <button type="button" aria-label={label} title={label} onClick={() => setSheet(onMessages ? "message" : "post")} className={button}>
-        <Plus className="size-6" strokeWidth={2} aria-hidden />
+        <Plus className="size-5" strokeWidth={2.2} aria-hidden />
       </button>
       {sheet === "post" && <PostSheet onClose={() => setSheet(null)} />}
       {sheet === "message" && <NewMessageSheet onClose={() => setSheet(null)} />}

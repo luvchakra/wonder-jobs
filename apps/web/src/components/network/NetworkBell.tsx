@@ -15,7 +15,7 @@ import { MemberAvatar, memberHref, mutualLine } from "./parts";
  */
 export function NetworkBar({ compact }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="wj-top-icons flex items-center gap-0.5">
       <MessagesLink compact={compact} />
       <NetworkBell compact={compact} />
     </div>
@@ -28,7 +28,7 @@ export function MessagesLink({ compact }: { compact?: boolean }) {
   // On Messages (or a conversation) the icon reads as pressed (second UI, globals.css).
   const here = usePathname()?.startsWith("/app/network/messages") ?? false;
   return (
-    <Link href="/app/network/messages" aria-current={here ? "page" : undefined} aria-label="Messages" title="Messages" className={cn("flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
+    <Link href="/app/network/messages" aria-current={here ? "page" : undefined} aria-label="Messages" title="Messages" className={cn("wj-top-icon flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
       <MessagesSquare className="size-5" aria-hidden />
     </Link>
   );
@@ -58,7 +58,7 @@ function NetworkBell({ compact }: { compact?: boolean }) {
   };
   return (
     <div ref={ref} className="relative">
-      <button type="button" aria-expanded={open} aria-haspopup="dialog" aria-label={`Network notifications${n ? `, ${n} invitation${n === 1 ? "" : "s"}` : ""}`} title="Invitations" onClick={() => setOpen((o) => !o)} className={cn("relative flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
+      <button type="button" aria-expanded={open} aria-haspopup="dialog" aria-label={`Network notifications${n ? `, ${n} invitation${n === 1 ? "" : "s"}` : ""}`} title="Invitations" onClick={() => setOpen((o) => !o)} className={cn("wj-top-icon relative flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
         <Bell className="size-5" aria-hidden />
         {n > 0 && <span className="wj-count absolute right-1 top-1 grid min-w-4 place-items-center rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white" aria-hidden>{n > 9 ? "9+" : n}</span>}
       </button>
