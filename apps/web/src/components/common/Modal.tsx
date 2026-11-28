@@ -83,13 +83,15 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       aria-labelledby={titleId}
       className={cn(
         "m-0 w-full max-w-full max-h-[92dvh] overflow-y-auto border-0 bg-surface p-0 text-ink shadow-lg ring-1 ring-ink/5 backdrop:bg-ink/40 backdrop:backdrop-blur-sm",
-        placement === "top" ? "fixed inset-x-0 top-0 bottom-auto rounded-b-[24px] sm:inset-0 sm:m-auto sm:h-fit sm:rounded-[24px]" : "fixed inset-x-0 bottom-0 top-auto rounded-t-[24px] sm:inset-0 sm:m-auto sm:h-fit sm:rounded-[24px]",
+        placement === "top" ? "wj-sheet-top fixed inset-x-0 top-0 bottom-auto rounded-b-[24px] sm:inset-0 sm:m-auto sm:h-fit sm:rounded-[24px]" : "wj-sheet fixed inset-x-0 bottom-0 top-auto rounded-t-[24px] sm:inset-0 sm:m-auto sm:h-fit sm:rounded-[24px]",
         widths[size],
       )}
       onClick={(e) => {
         if (dismissible && e.target === ref.current) onClose();
       }}
     >
+      {/* The second UI's bottom sheet has a handle at its top on a phone (decoration: it closes as it always did). */}
+      {placement === "sheet" && <span aria-hidden className="wj-ui2-only mx-auto mt-2 h-1 w-9 rounded-full bg-line-strong sm:!hidden" />}
       <div className={placement === "top" ? "p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6" : "p-6"}>
         <div className="flex items-start justify-between gap-4">
           <div>
