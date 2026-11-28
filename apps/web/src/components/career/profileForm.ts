@@ -10,30 +10,34 @@ export const refOf = (k: string): BaseResumeRef | undefined => {
   return (kind === "upload" || kind === "saved") && id ? { kind, id } : undefined;
 };
 
-const places = (list: string[]) => list.map((p) => p.trim()).filter(Boolean);
-
-/** My profile's own fields, as the form shows them. */
+/**
+ * My profile's own fields, as the form shows them. Level, places, salary and work mode aren't a profile's any more:
+ * they're Refine's (owner, 2026-11-28), kept for each profile there (`domain/jobs/profileRefine.ts`).
+ */
 export function mainFields(dna: CareerDNA, baseResume?: BaseResumeRef): ProfileFieldsValue {
-  return { searchWords: dna.searchWords ?? "", goal: dna.careerGoal, seniority: dna.seniority, resume: refKey(baseResume), places: dna.preferredLocations, workModes: dna.workModes, minSalary: dna.minSalary, skills: dna.skills };
+  return { searchWords: dna.searchWords ?? "", goal: dna.careerGoal, resume: refKey(baseResume), skills: dna.skills };
 }
 
 /** My profile with the form's fields put back (its shared parts untouched). */
 export function withMainFields(dna: CareerDNA, v: ProfileFieldsValue): CareerDNA {
-  return { ...dna, searchWords: v.searchWords.trim() || undefined, careerGoal: v.goal, seniority: v.seniority ?? dna.seniority, preferredLocations: places(v.places), workModes: v.workModes, minSalary: v.minSalary, skills: v.skills };
+  return { ...dna, searchWords: v.searchWords.trim() || undefined, careerGoal: v.goal, skills: v.skills };
 }
 
 /** A role's own fields, as the form shows them: what isn't set is empty (it follows My profile). */
 export function roleFieldsOf(role: CareerRole): ProfileFieldsValue {
-  return { searchWords: role.query, goal: role.goal, seniority: role.seniority, resume: refKey(role.baseResume), places: role.preferredLocations ?? [], workModes: role.workModes ?? [], minSalary: role.minSalary, skills: role.skills ?? [], ...(role.skillsOwn ? { skillsOwn: true } : {}), ...(role.skillsRemoved?.length ? { skillsRemoved: role.skillsRemoved } : {}) };
+  return { searchWords: role.query, goal: role.goal, resume: refKey(role.baseResume), skills: role.skills ?? [], ...(role.skillsOwn ? { skillsOwn: true } : {}), ...(role.skillsRemoved?.length ? { skillsRemoved: role.skillsRemoved } : {}) };
 }
 
-/** What Save writes for a role: its name and the form's fields. */
-export function roleInputOf(title: string, v: ProfileFieldsValue): RoleInput {
-  return { title, query: v.searchWords, goal: v.goal, baseResume: refOf(v.resume), seniority: v.seniority, skills: v.skills, preferredLocations: places(v.places), workModes: v.workModes, minSalary: v.minSalary, skillsOwn: v.skillsOwn, skillsRemoved: v.skillsRemoved };
+/**
+ * What Save writes for a role: its name and the form's fields. A level, places, salary or work mode it was saved
+ * with before they moved to Refine are kept as they were, until they're moved into its Refine choices.
+ */
+export function roleInputOf(title: string, v: ProfileFieldsValue, before?: Pick<CareerRole, "seniority" | "preferredLocations" | "workModes" | "minSalary">): RoleInput {
+  return { title, query: v.searchWords, goal: v.goal, baseResume: refOf(v.resume), skills: v.skills, skillsOwn: v.skillsOwn, skillsRemoved: v.skillsRemoved, seniority: before?.seniority, preferredLocations: before?.preferredLocations, workModes: before?.workModes, minSalary: before?.minSalary };
 }
 
 /** Whether a form's fields differ from what's saved. */
-export const fieldsChanged = (a: ProfileFieldsValue, b: ProfileFieldsValue) => JSON.stringify({ ...a, places: places(a.places), searchWords: a.searchWords.trim() }) !== JSON.stringify({ ...b, places: places(b.places), searchWords: b.searchWords.trim() });
+export const fieldsChanged = (a: ProfileFieldsValue, b: ProfileFieldsValue) => JSON.stringify({ ...a, searchWords: a.searchWords.trim() }) !== JSON.stringify({ ...b, searchWords: b.searchWords.trim() });
 
 /**
  * The skills with what was typed in the add box put in (owner, 2026-11-26: "clicking outside should add the new

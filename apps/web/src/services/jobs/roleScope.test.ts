@@ -62,7 +62,8 @@ describe("scoring a role's search", () => {
 describe("a role's words are the search, not any one of them", () => {
   const r = roleScope(reinsurance);
   const skills = ["Product Management", "Growth", "Agile", "Strategy", "Roadmap", "Automation"].map((name) => ({ name, level: 4 as const }));
-  const ctx = { dna: { ...dna, skills, seniority: "senior" as const }, searchQuery: r.query, careerGoal: r.careerGoal, forRole: true };
+  // Senior picked in Refine (the one place for level since 2026-11-28).
+  const ctx = { dna: { ...dna, skills }, levels: ["senior" as const], searchQuery: r.query, careerGoal: r.careerGoal, forRole: true };
   const perks = "Benefits: health insurance, dental & vision insurance, a learning budget.";
   const ta = job({ id: "ta", title: "Senior Specialist, TA Operations (Fixed-term)", company: "Delivery Hero", location: "Berlin", workMode: "hybrid", seniority: "senior", tags: ["Product Management", "Growth", "Agile"], description: `Run talent acquisition operations: roadmap, automation, strategy. ${perks}` });
   const it_ = job({ id: "it", title: "Sr. Manager of IT & Operations", company: "Osano", seniority: "senior", tags: ["Strategy", "Automation"], description: `Lead IT and business operations. Group insurance coverage included.` });
@@ -84,5 +85,23 @@ describe("a role's words are the search, not any one of them", () => {
 
   it("insurance only in passing in the description is at most a stretch", () => {
     expect(computeMatch(inPassing, ctx).score).toBeLessThanOrEqual(64);
+  });
+});
+
+// Owner, 2026-11-28: Refine is the one place for level and pay; a stored profile value is never read for scoring.
+describe("scoring reads Refine's level and salary, not the profile's stored ones", () => {
+  const j = job({ id: "lv", title: "Senior Claims Manager", seniority: "senior", salaryMax: 40_000, currency: "USD" });
+  it("level: Refine's Level, else the Current role's, never the stored one", () => {
+    const stored = { ...dna, seniority: "senior" as const };
+    const level = (ctx: Parameters<typeof computeMatch>[1]) => computeMatch(j, ctx).reasons.find((x) => x.dimension === "seniority")!;
+    expect(level({ dna: stored, levels: ["senior"] })).toMatchObject({ score: 1, summary: "A level you picked in Refine." });
+    // The Current role says director: a senior job is a step down, whatever the stored level says.
+    expect(level({ dna: stored }).summary).toBe("Below your current role.");
+    expect(level({ dna: { ...stored, headline: "Claims and operations" } })).toMatchObject({ score: 0.8, summary: "No level picked in Refine." });
+  });
+  it("salary: Refine's Salary only", () => {
+    const pay = (ctx: Parameters<typeof computeMatch>[1]) => computeMatch(j, ctx).reasons.find((x) => x.dimension === "compensation")!.summary;
+    expect(pay({ dna: { ...dna, minSalary: 50_000_000 } })).toBe("No minimum salary picked in Refine.");
+    expect(pay({ dna, minSalary: 50_000_000 })).toBe("Range is below your minimum.");
   });
 });

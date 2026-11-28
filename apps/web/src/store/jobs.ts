@@ -25,6 +25,7 @@ export function interactionFor(job: CanonicalJob, kind: InteractionRecord["kind"
 }
 import { track } from "@/lib/analytics";
 import { placesOnly } from "@/domain/jobs/searchScope";
+import { MY_PROFILE, readProfileRefines, switchProfileRefine, type ProfileRefines } from "@/domain/jobs/profileRefine";
 import { FIND_MODE_PATCH, findModeOf, readRefine, refineDefaults, refineOf, sameRefine, type FindMode, type RefineSettings } from "@/domain/jobs/findMode";
 
 export const DEFAULT_FILTERS: JobFilters = { query: "", workModes: [], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
@@ -102,6 +103,11 @@ interface JobsState {
   setSort: (sort: JobSort) => void;
   /** Each Find mode's own Refine settings, kept between sessions (findMode.ts). */
   refine: Partial<Record<FindMode, RefineSettings>>;
+  /** Full Time's level, places, salary and work mode for each profile ("" is My profile), and whose are in Refine now (profileRefine.ts). */
+  profileRefine: ProfileRefines;
+  refineProfile: string;
+  /** Full Time: put that profile's level, places, salary and work mode in Refine, keeping the ones on screen for the profile they were. */
+  pickProfileRefine: (profileId: string) => void;
   /** Find's slider: that mode's filters, with its own Refine settings back. */
   /** `words`: keep these in the box in the new mode ("See all N in Full Time Jobs"), instead of the mode's own. */
   switchFindMode: (mode: FindMode, words?: string) => void;
@@ -128,7 +134,7 @@ const PERSISTED_DESCRIPTION = 1500;
 const PERSISTED_ASIDE = 150;
 
 /** What a job is scored against for place and pay: the mode's Refine (as every search is), not the Career Profile's. */
-const matchScope = (f: JobFilters, dna: { preferredLocations: string[] }) => ({ preferredLocations: placesOnly(f.locations ?? (f.skipProfile ? [] : dna.preferredLocations)) ?? [], minSalary: f.minSalary });
+const matchScope = (f: JobFilters, dna: { preferredLocations: string[] }) => ({ preferredLocations: placesOnly(f.locations ?? (f.skipProfile ? [] : dna.preferredLocations)) ?? [], minSalary: f.minSalary, levels: f.levels });
 
 /** A job's match: a job a role's search found is judged on that role's words and goal (its AI read keyed to the role); others on the search shown. */
 function scoreJob(job: CanonicalJob, ai: AiFit | undefined, rel: AiRelevance | undefined, c: { dna: CareerDNA; learnedSignals: LearnedSignal[]; searchQuery: string | undefined; scope: ReturnType<typeof matchScope>; roles: CareerRole[] | undefined }): JobMatch {
@@ -357,6 +363,16 @@ export const useJobsStore = create<JobsState>()(
       setFilters: (patch) => set((s) => withRefine(s, { ...s.filters, ...patch }, s.sort)),
       setSort: (sort) => set((s) => withRefine(s, s.filters, sort)),
       refine: {},
+      profileRefine: {},
+      refineProfile: MY_PROFILE,
+      pickProfileRefine: (to) =>
+        set((s) => {
+          // Part Time keeps one Refine; the profile already in use changes nothing (and writes nothing).
+          if (findModeOf(s.filters) !== "full_time" || to === s.refineProfile) return {};
+          const { dna, roles } = useCareerStore.getState();
+          const next = switchProfileRefine(s, to, { dna, roles: roles ?? [] });
+          return { profileRefine: next.profileRefine, refineProfile: next.refineProfile, ...(next.patch ? withRefine(s, { ...s.filters, ...next.patch }, s.sort) : {}) };
+        }),
       partTimeQuery: "",
       switchFindMode: (mode, keepWords) =>
         set((s) => {
@@ -387,7 +403,7 @@ export const useJobsStore = create<JobsState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<JobsState> & { hideInPipeline?: boolean; savedEasyApply?: boolean; skipProfile?: boolean };
         // Each mode's Refine settings, and the last-used mode's applied to the filters (before WJ-355 only Hide Pipeline was kept).
-        return { ...current, ...p, aiFits: p.aiFits ?? {}, aiRelevance: p.aiRelevance ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, applyOpenedAt: p.applyOpenedAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters) };
+        return { ...current, ...p, aiFits: p.aiFits ?? {}, aiRelevance: p.aiRelevance ?? {}, sources: reconcileSources(p.sources, Object.fromEntries(current.sources.map((x) => [x.id, x.available]))), jobs: p.jobs ?? {}, order: p.order ?? [], matches: p.matches ?? {}, quality: p.quality ?? {}, closed: p.closed ?? {}, removedFromPipeline: p.removedFromPipeline ?? {}, linkOpenAt: p.linkOpenAt ?? {}, applyOpenedAt: p.applyOpenedAt ?? {}, origins: p.origins ?? {}, recentSearches: readHistory(p.recentSearches), recentSavedSearches: readHistory(p.recentSavedSearches), ...restoredRefine(p, current.filters), profileRefine: readProfileRefines(p.profileRefine), refineProfile: typeof p.refineProfile === "string" ? p.refineProfile.slice(0, 80) : MY_PROFILE };
       },
       // The best of the last discovery persists too, so the product remembers real jobs between sessions.
       partialize: (s) => {
@@ -397,7 +413,7 @@ export const useJobsStore = create<JobsState>()(
         const applyOpenedAt = lastEntries(s.applyOpenedAt, 300);
         // Hide Pipeline is the one filter kept between sessions (owner, 2026-10-17); the rest start fresh.
         const removedFromPipeline = lastEntries(s.removedFromPipeline, 300);
-        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, applyOpenedAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
+        const base = { removedFromPipeline, saved: s.saved, rejected: s.rejected, sources: s.sources, sort: s.sort, closed, linkOpenAt, applyOpenedAt, origins, searchedFor: s.searchedFor, recentSearches: s.recentSearches, recentSavedSearches: s.recentSavedSearches, refine: s.refine, profileRefine: s.profileRefine, refineProfile: s.refineProfile, hideInPipeline: !!s.filters.hideInPipeline, savedEasyApply: !!s.filters.savedEasyApply, skipProfile: !!s.filters.skipProfile, partTimeQuery: findModeOf(s.filters) === "part_time" ? s.filters.query : s.partTimeQuery };
         return { ...base, ...persistedCatalog(s) };
       },
     },

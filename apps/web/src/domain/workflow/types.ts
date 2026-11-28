@@ -141,6 +141,8 @@ export interface RunConfig {
     locations: string[];
     workModes: ("remote" | "hybrid" | "onsite")[];
     minSalary?: number;
+    /** Refine's Level for the search (the one place for level, 2026-11-28): matches are judged against it. */
+    levels?: ("junior" | "mid" | "senior" | "lead" | "director")[];
     /** Job types the words asked for ("part time"): WorksLake asks the sources that list them first. */
     jobTypes?: JobType[];
   };

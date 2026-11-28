@@ -53,7 +53,7 @@ export function RolesCard({ open, onToggle, onOpen, onSearch, drafts, setDraft, 
 
   const rename = (role: CareerRole, title: string) => {
     // The name only: the role's other fields stay as saved (any unsaved edits stay in the form).
-    const input = { ...roleInputOf(role.title, roleFieldsOf(role)), title };
+    const input = { ...roleInputOf(role.title, roleFieldsOf(role), role), title };
     const problem = roleProblem(input, roles.filter((r) => r.id !== role.id));
     if (problem) return setRenaming({ id: role.id, title, problem });
     updateRole(role.id, input);

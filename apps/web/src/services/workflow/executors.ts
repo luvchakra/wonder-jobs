@@ -84,15 +84,16 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       await ctx.checkpoint();
       ctx.setProgress(1, 1);
       ctx.addEvidence({ label: "Skills", value: `${dna.skills.length} skills · ${dna.skills.filter((s) => s.level >= 4).length} strong` });
-      ctx.addEvidence({ label: "Target", value: `${dna.seniority} · ${dna.industries.slice(0, 3).join(", ")}` });
-      // Places and pay are the search's own (Refine's, for a Find search), not the Career Profile's.
+      // Places, pay and level are the search's own (Refine's, for a Find search), not the Career Profile's.
       const criteria = ctx.run.config.searchCriteria;
+      ctx.addEvidence({ label: "Target", value: `${criteria.levels?.length ? criteria.levels.join(", ") : "Any level"} · ${dna.industries.slice(0, 3).join(", ")}` });
       ctx.addEvidence({ label: "Locations", value: criteria.locations.join(", ") || "Anywhere" });
       return {
         provenance: "SYSTEM_DERIVED",
         data: {
           preferredLocations: criteria.locations,
           minSalary: criteria.minSalary,
+          levels: criteria.levels,
           careerGoal: ctx.run.config.careerGoal || dna.careerGoal,
           seniority: dna.seniority,
           skillCount: dna.skills.length,
@@ -179,7 +180,7 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const matches: JobMatch[] = [];
       ctx.setProgress(0, jobs.length);
       for (let i = 0; i < jobs.length; i += CHUNK) {
-        for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals, searchQuery: typedQuery(ctx.run.config), forRole: !!ctx.run.config.role }));
+        for (const j of jobs.slice(i, i + CHUNK)) matches.push(computeMatch(j, { dna, preferredLocations, minSalary, levels: ctx.get<("junior" | "mid" | "senior" | "lead" | "director")[]>("levels"), careerGoal, learnedSignals, searchQuery: typedQuery(ctx.run.config), forRole: !!ctx.run.config.role }));
         ctx.setProgress(matches.length, jobs.length);
         await ctx.sleep(0);
         await ctx.checkpoint();
@@ -560,7 +561,7 @@ function showArriving(ctx: StageContext, jobs: CanonicalJob[], first: boolean) {
   else store.appendCatalog(list);
   const { learnedSignals } = useCareerStore.getState();
   const dna = runProfile(ctx.run.config);
-  const opts = { dna, preferredLocations: ctx.get<string[]>("preferredLocations"), minSalary: ctx.get<number>("minSalary"), careerGoal: ctx.get<string>("careerGoal"), learnedSignals, searchQuery: typedQuery(ctx.run.config), forRole: !!role };
+  const opts = { dna, preferredLocations: ctx.get<string[]>("preferredLocations"), minSalary: ctx.get<number>("minSalary"), levels: ctx.get<("junior" | "mid" | "senior" | "lead" | "director")[]>("levels"), careerGoal: ctx.get<string>("careerGoal"), learnedSignals, searchQuery: typedQuery(ctx.run.config), forRole: !!role };
   store.setMatches(list.map((j) => computeMatch(j, opts)));
 }
 

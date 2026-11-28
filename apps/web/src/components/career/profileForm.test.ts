@@ -7,23 +7,30 @@ const role = { id: "r1", title: "Reinsurance", query: "insurance operations", go
 
 describe("saving the open profile", () => {
   it("My profile saves its own fields and leaves the shared ones", () => {
-    const v = { ...mainFields(dna, { kind: "upload", id: "f1" }), searchWords: " identity governance ", places: ["Mumbai", " Pune ", ""], seniority: "lead" as const };
+    const v = { ...mainFields(dna, { kind: "upload", id: "f1" }), searchWords: " identity governance " };
+    expect(Object.keys(v).sort()).toEqual(["goal", "resume", "searchWords", "skills"]);
     const saved = withMainFields(dna, v);
-    expect(saved).toMatchObject({ searchWords: "identity governance", preferredLocations: ["Mumbai", "Pune"], seniority: "lead", name: "A", headline: "Director, IAM" });
+    // Level, places and work mode are Refine's now: saving the form leaves the stored ones as they were.
+    expect(saved).toMatchObject({ searchWords: "identity governance", preferredLocations: ["Mumbai"], seniority: "director", workModes: ["remote"], name: "A", headline: "Director, IAM" });
     expect(v.resume).toBe(refKey({ kind: "upload", id: "f1" }));
     expect(withMainFields(dna, { ...v, searchWords: "  " }).searchWords).toBeUndefined();
   });
 
   it("a role saves its own fields, empty ones left to follow My profile", () => {
     const v = roleFieldsOf(role);
-    expect(v).toMatchObject({ searchWords: "insurance operations", places: [], skills: [], seniority: undefined });
-    const input = roleInputOf("Reinsurance", { ...v, seniority: "lead", places: ["London", ""], resume: "saved:s1" });
-    expect(input).toMatchObject({ title: "Reinsurance", query: "insurance operations", seniority: "lead", preferredLocations: ["London"], baseResume: { kind: "saved", id: "s1" } });
+    expect(v).toEqual({ searchWords: "insurance operations", goal: "Senior management", resume: "", skills: [] });
+    const input = roleInputOf("Reinsurance", { ...v, resume: "saved:s1" });
+    expect(input).toMatchObject({ title: "Reinsurance", query: "insurance operations", baseResume: { kind: "saved", id: "s1" } });
+  });
+
+  it("a role saved before Refine took its level, places, pay and work mode keeps them until they move there", () => {
+    const old = { ...role, seniority: "lead" as const, preferredLocations: ["London"], workModes: ["onsite" as const], minSalary: 3_000_000 };
+    expect(roleInputOf("Reinsurance", { ...roleFieldsOf(old), goal: "Head of reinsurance" }, old)).toMatchObject({ goal: "Head of reinsurance", seniority: "lead", preferredLocations: ["London"], workModes: ["onsite"], minSalary: 3_000_000 });
   });
 
   it("only a real edit counts as unsaved", () => {
     const v = mainFields(dna);
-    expect(fieldsChanged(v, { ...v, places: ["Mumbai", ""] })).toBe(false);
+    expect(fieldsChanged(v, { ...v, searchWords: `${v.searchWords} ` })).toBe(false);
     expect(fieldsChanged(v, { ...v, goal: "CISO" })).toBe(true);
   });
 });
