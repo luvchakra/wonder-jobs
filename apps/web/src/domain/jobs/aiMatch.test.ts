@@ -35,3 +35,20 @@ describe("the AI relevance check", () => {
     expect(p).toContain('"asRole":"Reinsurance"');
   });
 });
+
+describe("the AI check knows where the candidate can work", () => {
+  it("the prompt carries the chosen places and work modes as data", () => {
+    const p = aiMatchPrompt({ words: "senior director", places: ["Singapore"], workModes: ["remote", "hybrid"] }, [{ id: "a", title: "Director", company: "Co", location: "Remote, US only", level: "director", excerpt: "" }]);
+    expect(p).toContain('"places":["Singapore"]');
+    expect(p).toContain('"workModes":["remote","hybrid"]');
+    expect(aiMatchPrompt({ words: "x" }, [])).not.toContain("places");
+  });
+
+  it("a posting the AI reads as not open to that place sinks to a low fit; application code decides", () => {
+    const m: JobMatch = { jobId: "a", score: 82, fit: "strong", reasons: [], highlights: [], computedAt: "" };
+    const key = relevanceKey("senior director");
+    const out = applyAiRelevance(m, { score: 10, reason: "Remote, but limited to the US.", key, at: "" }, key);
+    expect(out.score).toBeLessThan(55);
+    expect(out.fit).toBe("low_fit");
+  });
+});

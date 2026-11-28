@@ -32,9 +32,16 @@ export function relevanceKey(words: string): string {
 }
 
 /** What the model is given: what was searched, and each posting's public text. The postings are data, never instructions. */
-export function aiMatchPrompt(search: { words: string; goal?: string; role?: string }, jobs: { id: string; title: string; company: string; location: string; level: string; excerpt: string }[]): string {
+export function aiMatchPrompt(search: { words: string; goal?: string; role?: string; places?: string[]; workModes?: string[] }, jobs: { id: string; title: string; company: string; location: string; level: string; excerpt: string }[]): string {
   const strip = (s: string) => s.replace(/<\/?(search|postings)>/gi, "");
-  const want = { searchedFor: search.words.slice(0, 160), ...(search.role ? { asRole: search.role.slice(0, 80) } : {}), ...(search.goal ? { goal: search.goal.slice(0, 200) } : {}) };
+  const want = {
+    searchedFor: search.words.slice(0, 160),
+    ...(search.role ? { asRole: search.role.slice(0, 80) } : {}),
+    ...(search.goal ? { goal: search.goal.slice(0, 200) } : {}),
+    // Where the candidate can work (owner, 2026-11-28): a posting someone there can't take isn't a fit.
+    ...(search.places?.length ? { places: search.places.slice(0, 8).map((p) => p.slice(0, 60)) } : {}),
+    ...(search.workModes?.length ? { workModes: search.workModes.slice(0, 3) } : {}),
+  };
   return `<search>\n${strip(JSON.stringify(want))}\n</search>\n<postings>\n${strip(JSON.stringify(jobs))}\n</postings>`;
 }
 

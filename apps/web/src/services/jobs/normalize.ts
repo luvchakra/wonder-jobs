@@ -169,7 +169,17 @@ export function inferIndustry(text: string, hint?: string | null): string {
 }
 
 const INDIA_PLACES = /\b(india|bengaluru|bangalore|mumbai|pune|hyderabad|chennai|delhi|new delhi|gurugram|gurgaon|noida|kolkata|ahmedabad|jaipur|kochi|indore|chandigarh)\b/i;
-const WORLDWIDE = /\b(worldwide|anywhere|global|remote[- ]first|apac|asia|india|asia[- ]pacific|utc\+5)/i;
+/** A remote posting open to anyone anywhere ("Anywhere in the World", "Worldwide", "Global"). */
+const WORLDWIDE = /\b(worldwide|anywhere|global|remote[- ]first)/i;
+/**
+ * Regions a remote posting may name, and the places in them (owner, 2026-11-28: "Remote – APAC" is for Singapore,
+ * "Remote, US only" is not). A place counts when the region's list names it.
+ */
+const REGIONS: [RegExp, RegExp][] = [
+  [/\b(apac|asia[- ]?pacific|asia|south[- ]?east asia|sea|south asia|utc\+5(:30)?|utc\+8|ist)\b/i, /\b(india|bengaluru|bangalore|mumbai|pune|hyderabad|chennai|delhi|gurugram|gurgaon|noida|kolkata|singapore|malaysia|kuala lumpur|indonesia|jakarta|philippines|manila|thailand|bangkok|vietnam|japan|tokyo|korea|seoul|hong kong|china|taiwan|australia|sydney|melbourne|new zealand|sri lanka|bangladesh|pakistan)\b/i],
+  [/\b(emea|europe|eu|european union)\b/i, /\b(uk|united kingdom|england|london|ireland|dublin|germany|berlin|munich|france|paris|spain|madrid|portugal|lisbon|netherlands|amsterdam|belgium|switzerland|zurich|italy|poland|sweden|denmark|norway|finland|austria|czech|romania|uae|dubai|abu dhabi|israel|south africa|egypt|nigeria|kenya)\b/i],
+  [/\b(americas|north america|latam|latin america|south america)\b/i, /\b(usa|us|united states|canada|toronto|mexico|brazil|argentina|chile|colombia|peru)\b/i],
+];
 
 export function inferCountry(location: string): string {
   const l = location.toLowerCase();
@@ -479,7 +489,7 @@ const PLACE_ALIASES: Record<string, string[]> = {
   delhi: ["new delhi", "ncr", "delhi ncr"], "new delhi": ["delhi", "ncr"], ncr: ["delhi", "gurugram", "gurgaon", "noida"], chennai: ["madras"], kolkata: ["calcutta"],
   usa: ["united states", "us"], us: ["united states", "usa"], uk: ["united kingdom", "england", "london"], uae: ["united arab emirates", "dubai", "abu dhabi"],
 };
-const isRemotePlace = (p: string) => /^(remote|anywhere|worldwide|work from home|wfh)$/i.test(p.trim());
+export const isRemotePlace = (p: string) => /^(remote|anywhere|worldwide|work from home|wfh)$/i.test(p.trim());
 
 /** Whether a location text names the place (or one of its other names), as whole words. */
 export function placeNamed(location: string, place: string): boolean {
@@ -491,12 +501,26 @@ export function placeNamed(location: string, place: string): boolean {
 /** A remote posting that names only "remote" (or nothing) says nothing about who may apply. */
 const saysWhere = (location: string) => /[a-z]/i.test(location.toLowerCase().replace(/\b(remote|job|jobs|position|fully|100%)\b/g, ""));
 
-/** Whether a remote posting is open to someone in the given places (Worldwide/APAC/India vs. "US only"). */
+/** Only specific places were chosen (a country or city, no "Anywhere"/"Remote"): worldwide remote postings aren't for them. */
+export const strictPlaces = (places: string[] | undefined) => !!places?.length && places.every((p) => !isRemotePlace(p));
+
+/** A remote posting that names no country or region ("Anywhere in the World", "Worldwide", or just "Remote"). */
+export function worldwideRemote(job: Pick<Job, "location" | "workMode">): boolean {
+  const jl = job.location.toLowerCase();
+  return job.workMode === "remote" && (WORLDWIDE.test(jl) || !saysWhere(jl));
+}
+
+/** Whether a remote posting names the place itself or a region that includes it ("Remote, Singapore", "Remote – APAC"). */
+function remoteNames(jl: string, place: string): boolean {
+  return placeNamed(jl, place) || (INDIA_PLACES.test(place) && /india/.test(jl)) || REGIONS.some(([region, places]) => region.test(jl) && places.test(place));
+}
+
+/** Whether a remote posting is open to someone in the given places (worldwide, or naming the place or its region, vs. "US only"). */
 export function remoteOpenTo(job: Pick<Job, "location" | "workMode">, locations: string[]): boolean | null {
   if (job.workMode !== "remote") return null;
+  if (worldwideRemote(job)) return true;
   const jl = job.location.toLowerCase();
-  if (WORLDWIDE.test(jl) || !saysWhere(jl)) return true;
-  return locations.some((l) => !isRemotePlace(l) && (placeNamed(jl, l) || (INDIA_PLACES.test(l) && /india/.test(jl))));
+  return locations.some((l) => !isRemotePlace(l) && remoteNames(jl, l));
 }
 
 /**
@@ -512,10 +536,15 @@ export function matchesLocations(job: Pick<Job, "location" | "workMode" | "count
   return fixed.some((l) => placeNamed(job.location, l)) || (wantsIndia && job.country === "IN");
 }
 
-/** The list's Where filter: the posting is in one of these places, or remote and not restricted to somewhere else. */
+/**
+ * The list's Where filter: the posting is in one of these places, or remote naming one of them (or a region that
+ * includes it). A chosen country or city is strict (owner, 2026-11-28: "when a specific country is chosen, do not
+ * show anywhere options"): a worldwide remote posting is for "Anywhere"/"Remote", not for Singapore.
+ */
 export function inPlaces(job: Pick<Job, "location" | "workMode">, places: string[]): boolean {
   const fixed = places.filter((p) => !isRemotePlace(p));
-  if (job.workMode === "remote") return !fixed.length || remoteOpenTo(job, fixed) !== false;
+  // "Anywhere" or "Remote" among the places: worldwide remote postings are what was asked for.
+  if (job.workMode === "remote") return !fixed.length || (worldwideRemote(job) ? fixed.length < places.length : remoteOpenTo(job, fixed) === true);
   if (!fixed.length) return false; // "Remote" alone: on-site and hybrid roles are elsewhere
   return fixed.some((p) => placeNamed(job.location, p) || (/^india$/i.test(p.trim()) && INDIA_PLACES.test(job.location)));
 }
