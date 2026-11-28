@@ -105,7 +105,8 @@ export function CardRail({ label, width = "wide", rows = 1, children, className 
   return (
     <ul aria-label={label} className={cn("wj-scrollbar-none flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 pb-1", className)}>
       {children.map((c, i) => (
-        <li key={i} className={cn("shrink-0 snap-start", item)}>
+        // Cards in a rail share its height.
+        <li key={i} className={cn("flex shrink-0 snap-start [&>*]:min-w-0 [&>*]:flex-1", item)}>
           {c}
         </li>
       ))}

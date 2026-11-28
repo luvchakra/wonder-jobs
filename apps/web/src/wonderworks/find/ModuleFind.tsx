@@ -11,6 +11,10 @@ import { useUIStore } from "@/store/ui";
 import { moduleStore } from "@/wonderworks/store";
 import type { ModuleId } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
+import { useUi } from "@/lib/ui";
+import { useModuleNav } from "@/wonderworks/chrome/useModuleNav";
+import { CardRail, ChipRow, Section, SectionHeader, Sections } from "@/wonderworks/ui2/parts";
+import { SkeletonCard, SkeletonRegion } from "@/wonderworks/ui2/Skeleton";
 import { ChoiceChips, DictationNotes, FIND_AREA, FIND_FORM, FIND_PILL_WIDE, FIND_REFINE, FIND_ROW, FIND_SUBMIT, FIND_TOP_BOX, PillButton, closeKeyboard, RefineCheck, RefinePanel, RefinePlaces, RefineSelect, RefineToggle, ResultsGrid, ResultsLine, SearchBox, SearchSubmit, SearchingBanner, ShowMore, SortSelect, historyFor, refineSectionClass } from "./parts";
 
 /**
@@ -95,6 +99,23 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
   // The last search, as stored: opening Find shows it again and searches nothing.
   const stored = useStore(store, (s) => s.lastRun);
   const run = mounted ? (stored as FindRun<L> | null) : null;
+  // The second UI (domain/platform/ui.ts): before the first search, Find shows what this browser already holds — the
+  // recent searches and the saved listings — as sections, and skeleton cards while a first search runs. Nothing is
+  // fetched for it.
+  const second = useUi() === 2;
+  const savedAt = useStore(store, (s) => s.saved);
+  const savedItems = useStore(store, (s) => s.items);
+  const savedHref = useModuleNav().find((t) => t.label === "Saved")?.href;
+  const savedList = useMemo(
+    () =>
+      mounted && second
+        ? Object.entries(savedAt)
+            .filter(([id]) => savedItems[id])
+            .sort((a, b) => b[1].localeCompare(a[1]))
+            .map(([id]) => savedItems[id] as L)
+        : [],
+    [mounted, second, savedAt, savedItems],
+  );
   // The box shows the words the shown results were searched for: empty after a search without words (cleared with ×),
   // so a reload never brings back an older search. Before any search, the module's starting words (or the last ones).
   const draft = typed ?? (mounted ? (run ? run.searched.query : (recent[0] ?? startWords ?? "")) : "");
@@ -313,7 +334,45 @@ export function ModuleFind<L extends { id: string }>({ module, noun, placeholder
       {error ? (
         <ErrorState title="Couldn't search" body={error} />
       ) : !run ? (
-        busy ? null : <EmptyState icon={<Search className="size-5" aria-hidden />} title={idle.title} body={idle.body} />
+        busy ? (
+          second ? (
+            <SkeletonRegion label={`Searching ${noun.many}`} className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }, (_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </SkeletonRegion>
+          ) : null
+        ) : second && mounted && (recent.length > 0 || savedList.length > 0) ? (
+          // The parts carry their own 16px gutter, so the rail can run to the screen's edge.
+          <Sections className="-mx-4 pt-2 md:-mx-6 lg:-mx-8">
+            {recent.length > 0 && (
+              <Section>
+                <SectionHeader title="Recent searches" />
+                <ChipRow
+                  label="Recent searches"
+                  chips={recent.slice(0, 8).map((t) => ({ id: t, label: t }))}
+                  onPick={(t) => {
+                    setTyped(t);
+                    void go(t);
+                  }}
+                  className="py-0"
+                />
+              </Section>
+            )}
+            {savedList.length > 0 && (
+              <Section>
+                <SectionHeader title="Saved" subtitle={`${savedList.length.toLocaleString("en-IN")} saved ${savedList.length === 1 ? noun.one : noun.many}`} seeAllHref={savedHref} />
+                <CardRail label={`Saved ${noun.many}`}>
+                  {savedList.slice(0, 8).map((l) => (
+                    <Card key={l.id} item={l} onOpen={setOpen} />
+                  ))}
+                </CardRail>
+              </Section>
+            )}
+          </Sections>
+        ) : (
+          <EmptyState icon={<Search className="size-5" aria-hidden />} title={idle.title} body={idle.body} />
+        )
       ) : kept.length === 0 ? (
         <EmptyState
           icon={<Search className="size-5" aria-hidden />}
