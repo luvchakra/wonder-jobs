@@ -54,8 +54,54 @@ export interface PlansConfig {
   plans: Record<PlanId, PlanLimits>;
   /** The payment provider's price (Stripe) / plan (Razorpay) ids that map a paid subscription to a plan. */
   priceRefs: Record<PaidPlanId, PriceRefs>;
+  /** The launch gift (owner, 2026-11-28): every account's first month on a paid plan, free. See `launchGiftUntil`. */
+  launchGift?: LaunchGift;
   updatedAt?: string;
   updatedBy?: string;
+}
+
+/**
+ * The launch gift (owner, 2026-11-28: "let's not make it payable for first one month as a gift for users as a launch
+ * gift… keep default plan as maximum plan"): while it's on, an account that pays for nothing has `plan` for `days`
+ * from when it was created, or from `since` for accounts made before the gift began. No card, nothing to cancel;
+ * afterwards the account is on Free until it pays. A paid subscription always wins.
+ */
+export interface LaunchGift {
+  on: boolean;
+  plan: PaidPlanId;
+  days: number;
+  /** The day the gift began (YYYY-MM-DD): older accounts count their month from here. */
+  since: string;
+}
+
+export const DEFAULT_LAUNCH_GIFT: LaunchGift = { on: true, plan: "max", days: 30, since: "2026-11-28" };
+
+export const LaunchGiftSchema = z
+  .object({
+    on: z.boolean(),
+    plan: z.enum(["pro", "max"]),
+    days: z.number().int().min(1).max(365),
+    since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  })
+  .partial();
+
+/** When this account's gift ends, or null when it has none (the gift is off, or its month is over). */
+export function launchGiftUntil(gift: LaunchGift, accountCreatedAt: string | undefined, now = new Date()): string | null {
+  if (!gift.on) return null;
+  const since = Date.parse(`${gift.since}T00:00:00Z`);
+  const created = accountCreatedAt ? Date.parse(accountCreatedAt) : NaN;
+  // An account whose creation date isn't known counts from the gift's start, never from "now" (which would never end).
+  const start = Math.max(Number.isNaN(created) ? 0 : created, Number.isNaN(since) ? 0 : since);
+  const until = start + gift.days * 86_400_000;
+  return until > now.getTime() ? new Date(until).toISOString() : null;
+}
+
+/** The gift in one line, for the landing page and sign-up ("Launch gift: your first month of Max is free…"), or null when it's off. */
+export function launchGiftLine(cfg: Pick<PlansConfig, "plans" | "launchGift">): string | null {
+  const gift = cfg.launchGift ?? DEFAULT_LAUNCH_GIFT;
+  if (!gift.on) return null;
+  const span = gift.days === 30 ? "first month" : `first ${gift.days} days`;
+  return `Launch gift: your ${span} of ${cfg.plans[gift.plan].label} is free. No card needed.`;
 }
 
 export const DEFAULT_PLANS: PlansConfig = {
@@ -65,6 +111,7 @@ export const DEFAULT_PLANS: PlansConfig = {
     max: { label: "Max", tagline: "Senior, or several roles at once", priceMinor: 129_900, currency: "INR", scheduledSearches: 10, dailySearches: true, keepWatch: true, aiDraftsPerMonth: 300, roles: 6, resumeTemplates: 8, atsReport: true, applyWithWonder: true, highlights: [] },
   },
   priceRefs: { pro: {}, max: {} },
+  launchGift: DEFAULT_LAUNCH_GIFT,
 };
 
 export const LimitsSchema = z
@@ -89,6 +136,7 @@ const ConfigSchema = z
   .object({
     plans: z.object({ free: LimitsSchema, pro: LimitsSchema, max: LimitsSchema }).partial(),
     priceRefs: z.object({ pro: RefsSchema, max: RefsSchema }).partial(),
+    launchGift: LaunchGiftSchema,
     updatedAt: z.string().optional(),
     updatedBy: z.string().optional(),
   })
@@ -118,7 +166,13 @@ export function mergePlansConfig(stored: unknown): PlansConfig {
     return { ...(d.stripe ? { stripe: d.stripe } : {}), ...(d.razorpay ? { razorpay: d.razorpay } : {}), ...(d.previous?.length ? { previous: [...new Set(d.previous)] } : {}) };
   };
   const meta = ConfigSchema.pick({ updatedAt: true, updatedBy: true }).safeParse(s);
-  return { plans, priceRefs: { pro: clean(storedRefs.pro), max: clean(storedRefs.max) }, ...(meta.success && meta.data.updatedAt ? { updatedAt: meta.data.updatedAt } : {}), ...(meta.success && meta.data.updatedBy ? { updatedBy: meta.data.updatedBy } : {}) };
+  const storedGift = isRecord(s.launchGift) ? s.launchGift : {};
+  const launchGift: LaunchGift = { ...DEFAULT_LAUNCH_GIFT };
+  for (const key of Object.keys(LaunchGiftSchema.shape) as (keyof LaunchGift)[]) {
+    const r = LaunchGiftSchema.shape[key].safeParse(storedGift[key]);
+    if (r.success && r.data !== undefined) (launchGift as unknown as Record<string, unknown>)[key] = r.data;
+  }
+  return { plans, priceRefs: { pro: clean(storedRefs.pro), max: clean(storedRefs.max) }, launchGift, ...(meta.success && meta.data.updatedAt ? { updatedAt: meta.data.updatedAt } : {}), ...(meta.success && meta.data.updatedBy ? { updatedBy: meta.data.updatedBy } : {}) };
 }
 
 /**

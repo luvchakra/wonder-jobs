@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hmacSha256Hex } from "../crypto";
 import { GENESIS_HASH, ledgerHash, verifyLedgerChain } from "./ledger";
 import { MemoryBillingStore, setBillingStoreForTests } from "./store";
+import { stateStore } from "../state";
+import { PLATFORM_TENANT } from "./plansConfig";
 import { formEncode, verifyStripeSignature } from "./stripe";
 import { verifyRazorpaySignature } from "./razorpay";
 import { BillingError, cancelSubscription, clearPriceCacheForTests, entitlement, handleWebhook, providerAvailability, reconcileSubscriptions, startCheckout } from "./service";
@@ -19,13 +21,16 @@ const ENV = {
 };
 
 let store: MemoryBillingStore;
-beforeEach(() => {
+beforeEach(async () => {
+  // These tests are about what's paid for: the launch gift is off here (its own tests switch it on).
+  await stateStore.put(PLATFORM_TENANT, "wj.plans", { launchGift: { on: false } });
   store = new MemoryBillingStore();
   setBillingStoreForTests(store);
   clearPriceCacheForTests();
   for (const [k, v] of Object.entries(ENV)) vi.stubEnv(k, v);
 });
-afterEach(() => {
+afterEach(async () => {
+  await stateStore.remove(PLATFORM_TENANT, "wj.plans");
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -295,5 +300,18 @@ describe("testing plans (pre-launch)", () => {
     expect((await entitlement(tenant)).plan).toBe("pro");
     await writeTestPlan(tenant, null, false);
     expect((await entitlement(tenant)).plan).toBe("free");
+  });
+});
+
+describe("launch gift", () => {
+  it("gives an account that pays for nothing the gift's plan until its month ends, then Free", async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    await stateStore.put(PLATFORM_TENANT, "wj.plans", { launchGift: { on: true, plan: "max", days: 30, since: today } });
+    const ent = await entitlement("t-gift");
+    expect(ent).toMatchObject({ plan: "max", gift: true });
+    expect(ent.reason).toMatch(/^Launch gift — Max free until /);
+    const past = new Date(Date.now() - 40 * 86_400_000).toISOString().slice(0, 10);
+    await stateStore.put(PLATFORM_TENANT, "wj.plans", { launchGift: { on: true, plan: "max", days: 30, since: past } });
+    expect((await entitlement("t-gift")).plan).toBe("free");
   });
 });

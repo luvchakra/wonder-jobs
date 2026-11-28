@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_PLANS, draftQuota, mergePlansConfig, planAtLeast, planForRef, planThatAllows, scheduleAllowance } from "./plans";
+import { DEFAULT_LAUNCH_GIFT, DEFAULT_PLANS, launchGiftLine, launchGiftUntil, draftQuota, mergePlansConfig, planAtLeast, planForRef, planThatAllows, scheduleAllowance } from "./plans";
 
 describe("mergePlansConfig", () => {
   it("keeps every default the stored copy doesn't override, and ignores garbage", () => {
@@ -89,5 +89,26 @@ describe("scheduled searches count across every module (2026-11-02)", () => {
     const keys = Object.keys(DEFAULT_PLANS.plans.free).filter((k) => !["label", "tagline", "priceMinor", "currency", "highlights"].includes(k));
     expect(PLAN_FEATURES.map((f) => f.key).sort()).toEqual(keys.sort());
     expect(PLAN_FEATURES.filter((f) => f.scope === "every").map((f) => f.key)).toEqual(["scheduledSearches", "dailySearches", "aiDraftsPerMonth"]);
+  });
+});
+
+describe("launch gift (owner, 2026-11-28)", () => {
+  const gift = { on: true, plan: "max" as const, days: 30, since: "2026-11-28" };
+  const now = new Date("2026-12-10T00:00:00Z");
+  it("runs a month from sign-up, or from the gift's start for older accounts", () => {
+    expect(launchGiftUntil(gift, "2026-12-05T10:00:00Z", now)).toBe("2027-01-04T10:00:00.000Z");
+    expect(launchGiftUntil(gift, "2025-01-01T00:00:00Z", now)).toBe("2026-12-28T00:00:00.000Z");
+    // Unknown creation date: from the gift's start, never an endless "from now".
+    expect(launchGiftUntil(gift, undefined, now)).toBe("2026-12-28T00:00:00.000Z");
+  });
+  it("ends, and is nothing when switched off", () => {
+    expect(launchGiftUntil(gift, "2026-11-01T00:00:00Z", new Date("2026-12-29T00:00:00Z"))).toBeNull();
+    expect(launchGiftUntil({ ...gift, on: false }, "2026-12-05T00:00:00Z", now)).toBeNull();
+  });
+  it("is kept field by field from the stored config, defaults on", () => {
+    expect(mergePlansConfig({}).launchGift).toEqual(DEFAULT_LAUNCH_GIFT);
+    expect(mergePlansConfig({ launchGift: { on: false, days: 0, plan: "gold" } }).launchGift).toEqual({ ...DEFAULT_LAUNCH_GIFT, on: false });
+    expect(launchGiftLine(mergePlansConfig({}))).toBe("Launch gift: your first month of Max is free. No card needed.");
+    expect(launchGiftLine(mergePlansConfig({ launchGift: { on: false } }))).toBeNull();
   });
 });

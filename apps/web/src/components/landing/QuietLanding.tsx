@@ -16,7 +16,7 @@ const WAYS = [
   "Spend less time searching. Wonder reads the sources, names each one, and leaves the choices to you.",
 ];
 
-export function QuietLanding() {
+export function QuietLanding({ gift = null }: { gift?: string | null }) {
   return (
     <div className="flex min-h-dvh flex-col bg-white text-ink">
       <header className="mx-auto flex w-full max-w-[640px] items-center justify-between px-6 pt-6">
@@ -49,6 +49,8 @@ export function QuietLanding() {
             Get started →
           </Link>
         </p>
+        {/* The launch gift (owner, 2026-11-28), one quiet line under the link. */}
+        {gift && <p className="mt-2 text-[14px] text-ink-3">{gift}</p>}
       </main>
 
       <footer className="mx-auto w-full max-w-[640px] px-6 pb-6 text-[13px] text-ink-4">

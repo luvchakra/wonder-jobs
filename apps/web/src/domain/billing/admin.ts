@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LimitsSchema, PLAN_IDS, type PlanLimits, type PlansConfig } from "./plans";
+import { DEFAULT_LAUNCH_GIFT, LaunchGiftSchema, LimitsSchema, PLAN_IDS, type LaunchGift, type PlanLimits, type PlansConfig } from "./plans";
 
 /**
  * What a billing admin may send, validated before anything reaches Stripe or Razorpay, and the
@@ -88,7 +88,7 @@ export const FEATURE_KEYS = ["label", "tagline", "scheduledSearches", "dailySear
 
 const Features = LimitsSchema.pick({ label: true, tagline: true, scheduledSearches: true, dailySearches: true, keepWatch: true, aiDraftsPerMonth: true, roles: true, resumeTemplates: true, atsReport: true, applyWithWonder: true, highlights: true });
 /** Plans & features: per plan, only the feature fields (anything else sent is dropped). */
-export const PlanFeaturesInput = z.object({ plans: z.object({ free: Features, pro: Features, max: Features }).partial() });
+export const PlanFeaturesInput = z.object({ plans: z.object({ free: Features, pro: Features, max: Features }).partial(), launchGift: LaunchGiftSchema.optional() });
 export type PlanFeaturesInput = z.infer<typeof PlanFeaturesInput>;
 
 export interface FieldChange {
@@ -105,6 +105,11 @@ export function diffPlans(before: PlansConfig, after: PlansConfig): FieldChange[
       // Lists (highlights) compare by content, not identity.
       if (JSON.stringify(before.plans[id][key]) !== JSON.stringify(after.plans[id][key])) out.push({ field: `${id}.${key}`, from: before.plans[id][key], to: after.plans[id][key] });
     }
+  }
+  const giftBefore = before.launchGift ?? DEFAULT_LAUNCH_GIFT;
+  const giftAfter = after.launchGift ?? DEFAULT_LAUNCH_GIFT;
+  for (const key of Object.keys(giftAfter) as (keyof LaunchGift)[]) {
+    if (giftBefore[key] !== giftAfter[key]) out.push({ field: `launchGift.${key}`, from: giftBefore[key], to: giftAfter[key] });
   }
   for (const id of ["pro", "max"] as const) {
     for (const p of ["stripe", "razorpay"] as const) {

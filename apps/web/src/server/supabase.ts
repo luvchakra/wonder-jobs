@@ -40,7 +40,24 @@ export async function touchTenant(tenantId: string) {
   touched.set(tenantId, Date.now());
 }
 
+/** When each account was created, as read: it never changes, so it's kept for the life of the instance. */
+const createdAt = new Map<string, string | null>();
+
+/** When the account was created (its tenant row), or null when there's no row or no database. Throws if the read fails. */
+export async function tenantCreatedAt(tenantId: string): Promise<string | null> {
+  if (createdAt.has(tenantId)) return createdAt.get(tenantId) ?? null;
+  const sb = getSupabaseAdmin();
+  if (!sb) return null;
+  const { data, error } = await sb.from("tenants").select("created_at").eq("id", tenantId).maybeSingle();
+  if (error) throw error;
+  const at = (data as { created_at?: string } | null)?.created_at ?? null;
+  // Not cached when missing: the row is created on the account's first write.
+  if (at) createdAt.set(tenantId, at);
+  return at;
+}
+
 /** The tenant row is gone (account erased): the next write must create it again, not assume it's there. */
 export function forgetTenant(tenantId: string) {
   touched.delete(tenantId);
+  createdAt.delete(tenantId);
 }

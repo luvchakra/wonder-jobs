@@ -105,4 +105,6 @@ export interface Entitlement {
   /** Until when Pro is paid for, when known. */
   until?: string;
   subscription?: Subscription;
+  /** The plan is the launch gift (domain/billing/plans.ts::launchGiftUntil), free until `until`. */
+  gift?: boolean;
 }
