@@ -24,7 +24,7 @@ export interface MenuItem {
  * live modules and "Coming soon". A soft pulse invites the first tap, then stops for good. What a pick does is the
  * composition root's (`modules/chrome.tsx`): each tile is in its module's tint (§9 "Icons").
  */
-export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onModule }: { /** The menu's name, e.g. "Module". */ label: string; /** The current value, shown as its own row. */ now: Pick<MenuItem, "label" | "icon" | "tint">; choices: MenuItem[]; /** Modules that are open, picked like a choice. */ live: MenuItem[]; /** Modules still to come, shown under "Coming soon". */ upcoming: Omit<MenuItem, "on">[]; onChoice: (id: string, on: boolean) => void; onModule: (id: string, on: boolean) => void }) {
+export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onModule }: { /** The menu's name, e.g. "Module". */ label: string; /** The current value, shown as its own row. */ now: Pick<MenuItem, "label" | "icon" | "tint"> & { /** Its one line, under its name in the second UI's header. */ hint?: string }; choices: MenuItem[]; /** Modules that are open, picked like a choice. */ live: MenuItem[]; /** Modules still to come, shown under "Coming soon". */ upcoming: Omit<MenuItem, "on">[]; onChoice: (id: string, on: boolean) => void; onModule: (id: string, on: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -41,15 +41,18 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
     };
   }, [open]);
 
-  // The second UI (domain/platform/ui.ts): the menu is the header's context line, the current value as accent text
-  // with a chevron under the page's title. The same menu opens, from the line's own left edge.
+  // The second UI (domain/platform/ui.ts): the menu is the header's second row, the current value in bold with a
+  // chevron and its one line under it (owner's mock, 2026-11-28). The same menu opens, from the row's own left edge.
   const context = useUi() === 2;
   return (
     <div ref={ref} className={cn("relative min-w-0", context ? "w-fit max-w-full" : "w-full md:max-w-[22rem]")}>
       {context ? (
-        <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${now.label}`} title={now.label} onClick={() => setOpen((v) => !v)} className="-my-2.5 flex min-h-11 max-w-full items-center gap-0.5 text-left text-[13px] font-semibold text-brand-600">
-          <span className="truncate">{now.label}</span>
-          <ChevronDown className={cn("size-3.5 shrink-0 transition-transform duration-150", open && "rotate-180")} strokeWidth={2.4} aria-hidden />
+        <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${now.label}`} title={now.label} onClick={() => setOpen((v) => !v)} className="flex h-[2.875rem] max-w-full flex-col justify-center text-left">
+          <span className="flex max-w-full items-center gap-1 text-[16px] font-semibold leading-tight text-ink">
+            <span className="truncate">{now.label}</span>
+            <ChevronDown className={cn("size-4 shrink-0 transition-transform duration-150", open && "rotate-180")} strokeWidth={2.4} aria-hidden />
+          </span>
+          {now.hint && <span className="block max-w-full truncate text-[12px] leading-snug text-ink-3">{now.hint}</span>}
         </button>
       ) : (
       <button
@@ -70,7 +73,7 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
       </button>
       )}
       {open && (
-        <div role="menu" aria-label={label} className={cn("absolute z-40 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[19.5rem] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", context ? "left-0 top-8" : "left-1/2 top-11 -translate-x-1/2")}>
+        <div role="menu" aria-label={label} className={cn("absolute z-40 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[19.5rem] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", context ? "left-0 top-full mt-1" : "left-1/2 top-11 -translate-x-1/2")}>
           {choices.map((m) => {
             const on = m.on;
             const I = m.icon;

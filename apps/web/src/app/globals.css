@@ -986,40 +986,62 @@ html[data-splash] body {
   color: var(--wj-ink-3);
 }
 
-/* The second UI's header (owner, 2026-11-28: "this portion looks really basic, make it polished, modern, professional"):
-   its icons are one set of round grey buttons, evenly spaced, with the avatar in a thin ring; a pressed one turns to
-   the accent (above). Over the module row the header has no line of its own, so the two read as one surface. */
+/* The second UI's header (owner's mock, 2026-11-28: "use this for top portion"): a large title; plain icons, the same
+   size and evenly spaced, a pressed one in a soft accent circle (above); the avatar in a thin ring. Over the module row
+   the header has no line of its own, so the two read as one surface. --wj-top-h is the header's height, which the
+   module row sticks under. */
+[data-ui="2"] {
+  --wj-top-h: 6.5rem;
+}
+[data-ui="2"] [data-top-bar] .wj-top-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+[data-ui="2"] [data-top-bar] .wj-top-title-long {
+  font-size: 1.25rem;
+  line-height: 1.6;
+}
 [data-ui="2"] [data-top-bar] .wj-top-icon {
   width: 2.25rem;
-  height: 2.25rem;
+  height: 2.5rem;
   border: 0;
-  background-color: var(--wj-bg-soft);
+  background-color: transparent;
   color: var(--wj-ink);
   box-shadow: none;
   transition: background-color 0.15s, color 0.15s, transform 0.15s;
 }
 [data-ui="2"] [data-top-bar] .wj-top-icon:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
 }
 [data-ui="2"] [data-top-bar] .wj-top-icon > svg {
-  stroke-width: 1.9;
+  width: 1.5rem;
+  height: 1.5rem;
+  stroke-width: 1.8;
 }
 [data-ui="2"] [data-top-bar] .wj-top-icons {
-  gap: 0.5rem;
+  gap: 0;
 }
-/* A count sits on the button's rim, with a ring of the bar's own colour around it. */
+/* A count has a ring of the bar's own colour around it. */
 [data-ui="2"] [data-top-bar] .wj-top-icon .wj-count {
-  top: -0.25rem;
-  right: -0.25rem;
+  top: 0;
+  right: 0;
   box-shadow: 0 0 0 2px var(--wj-surface);
 }
 [data-ui="2"] [data-top-bar] .wj-top-avatar {
-  box-shadow: 0 0 0 2px var(--wj-surface), 0 0 0 3px var(--wj-line-strong);
-  transition: box-shadow 0.15s;
+  border: 1px solid var(--wj-line-strong);
+  transition: box-shadow 0.15s, border-color 0.15s;
 }
 [data-ui="2"] [data-top-bar] .wj-top-avatar[aria-expanded="true"] {
   background-color: transparent;
-  box-shadow: 0 0 0 2px var(--wj-surface), 0 0 0 4px var(--wj-brand-600);
+  border-color: var(--wj-brand-600);
+  box-shadow: 0 0 0 1px var(--wj-brand-600);
+}
+/* The module row's selected circle (wonderworks/chrome/ModuleRow.tsx): the accent, lit from above, inside its ring. */
+[data-ui="2"] .wj-module-on {
+  background: linear-gradient(160deg, var(--wj-brand-500), var(--wj-brand-700));
+  box-shadow: 0 0 0 2.5px var(--wj-surface), 0 0 0 4.5px var(--wj-brand-500);
 }
 [data-ui="2"][data-module-row] [data-top-bar] {
   border-bottom-color: transparent;

@@ -211,24 +211,24 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
     );
   }
   if (wide) return null;
-  // The second UI: a bold title on the left with the module as an accent line under it (the same module menu), then
-  // the same icons as the first UI and the profile button, round and outlined, on the right. Nothing else differs.
+  // The second UI (owner's mock, 2026-11-28: "use this for top portion"): the place's name large on the left with the
+  // bar's icons, plain, on its right and the avatar in a thin ring; under them the module (the same module menu) in
+  // bold with its one-line description. Network's pages have the first row only.
   if (second) {
     return (
-      <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-[4.5rem] items-center gap-2 border-b border-line bg-surface/90 px-4 backdrop-blur transition-transform duration-200 ease-out motion-reduce:transition-none md:px-6 lg:hidden">
-        <div className="flex min-w-0 flex-1 flex-col justify-center">
+      <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className={cn("sticky top-0 z-30 border-b border-line bg-surface/90 px-4 pt-2 backdrop-blur transition-transform duration-200 ease-out motion-reduce:transition-none md:px-6 lg:hidden", onNetwork ? "h-[3.75rem]" : "h-[var(--wj-top-h)]")}>
+       <div className="flex h-11 items-center gap-0.5">
+        <div className="min-w-0 flex-1">
           {onNetwork ? (
-            <h1 className="truncate text-[22px] font-bold leading-tight text-ink">
+            <h1 className="wj-top-title wj-top-title-long truncate text-ink">
               <Link href={NETWORK_HREF} className="rounded-md hover:text-brand-700">
                 My network
               </Link>
             </h1>
           ) : (
-            <>
-              {/* The page keeps its own <h1>; this names the place it belongs to. */}
-              <p className="truncate text-[22px] font-bold leading-tight text-ink">{place2?.label ?? "WonderWorks"}</p>
-              {hydrated && slots.FindMenu && <slots.FindMenu />}
-            </>
+            // The page keeps its own <h1>; this names the place it belongs to.
+            // A long name ("Applications", "Connections") is set smaller, so it fits beside the icons on a phone.
+            <p className={cn("wj-top-title truncate text-ink", (place2?.label ?? "WonderWorks").length > 9 && "wj-top-title-long")}>{place2?.label ?? "WonderWorks"}</p>
           )}
         </div>
         {/* The + (CreateButton), then Network. Wrapped: both network buttons carry the first UI's own flex order. */}
@@ -242,13 +242,16 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
             <NotificationBell />
           </div>
         )}
-        <div className="relative ml-0.5" ref={profileRef}>
+        <div className="relative ml-1.5" ref={profileRef}>
           {/* The avatar in a thin ring of its own, set off from the bar; an accent ring while its menu is open. */}
-          <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="wj-top-avatar grid size-9 place-items-center rounded-full">
+          <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="wj-top-avatar grid size-10 place-items-center rounded-full">
             <FlipAvatar name={displayName} />
           </button>
           {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
         </div>
+       </div>
+        {/* The module and its line. */}
+        {!onNetwork && hydrated && slots.FindMenu && <slots.FindMenu />}
         {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
       </header>
     );
@@ -336,7 +339,7 @@ function OpenNetwork({ second = false }: { /** The second UI: one of the bar's r
   if (second)
     return (
       <Link href={NETWORK_HREF} aria-label="Open my network" title="My network" className="wj-top-icon grid size-10 shrink-0 place-items-center rounded-full md:hidden">
-        <NetworkMark className="size-[22px] text-brand-600" />
+        <NetworkMark className="size-6 text-brand-600" />
       </Link>
     );
   return (
