@@ -642,14 +642,22 @@ html[data-ui="2"],
 [data-ui="2"] .wj-ui1 {
   visibility: hidden;
 }
-/* Find's pills and round Search button (wonderworks/find/parts.tsx): 44px tap targets, no shadow. */
+/* Find's pills and round Search button (wonderworks/find/parts.tsx): slim, 36px (owner, 2026-11-28: "make height of
+   these elements lesser and sleek"), no shadow; an invisible margin keeps each tap target 44px tall. */
 [data-ui="2"] .wj-pill {
-  height: 2.75rem;
+  height: 2.25rem;
   box-shadow: none;
 }
 [data-ui="2"] .wj-search-submit {
-  width: 2.75rem;
-  height: 2.75rem;
+  position: relative;
+  width: 2.25rem;
+  height: 2.25rem;
+}
+[data-ui="2"] .wj-pill::after,
+[data-ui="2"] .wj-search-submit::after {
+  content: "";
+  position: absolute;
+  inset: -0.25rem 0;
 }
 /* A card's Apply button: a button, so 8px (pills are for chips and the bars). */
 [data-ui="2"] .wj-apply {
