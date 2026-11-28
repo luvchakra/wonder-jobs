@@ -21,6 +21,7 @@ export const MENUS = {
       { id: "notifications", label: "Notifications" },
       { id: "automation", label: "Automation" },
       { id: "analytics", label: "Analytics" },
+      { id: "helper", label: "Browser helper" },
       { id: "help", label: "Get Help" },
     ],
     alwaysShown: ["account"],

@@ -2,7 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Bell, Bot, ChartNoAxesColumn, Database, Download, KeyRound, LifeBuoy, LogOut, Sparkles, User } from "lucide-react";
+import { Bell, Bot, ChartNoAxesColumn, Database, Download, KeyRound, LifeBuoy, LogOut, Puzzle, Sparkles, User } from "lucide-react";
+import { EXTENSION_STORE_URL } from "@/content/extensionRelease";
+import { useExtensionInstalled } from "@/lib/useExtensionInstalled";
 import { cn } from "@/lib/cn";
 import { FlipAvatar } from "./FlipAvatar";
 import { useCareerStore } from "@/store/career";
@@ -135,6 +137,8 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
             { id: "automation", href: "/app/automation/settings", label: "Automation", icon: Bot },
             // The sidebar's Analytics, for phones (no sidebar there).
             { id: "analytics", href: "/app/analytics", label: "Analytics", icon: ChartNoAxesColumn },
+            // The WonderWorks helper (owner, 2026-11-28: "for the extension, create quick link to install in menu").
+            { id: "helper", href: "/extension", label: "Install browser helper", icon: Puzzle },
             { id: "help", href: "/help", label: "Get Help", icon: LifeBuoy },
           ],
           // The order and hidden items a platform admin set for everyone (Admin → Settings → App menus).
@@ -142,11 +146,15 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
         ),
         // Platform admins only, after the rest; never hidden from them.
         ...(isAdmin ? [{ id: "admin", href: "/platform/jobs-lake", label: "Admin", icon: Database }] : []),
-      ].map((m) => (
-        <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
-          <m.icon className="size-4" aria-hidden /> {m.label}
-        </Link>
-      ))}
+      ].map((m) =>
+        m.id === "helper" ? (
+          <HelperLink key={m.id} onPick={() => setProfileOpen(false)} />
+        ) : (
+          <Link key={m.href} role="menuitem" href={m.href} onClick={() => setProfileOpen(false)} className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink">
+            <m.icon className="size-4" aria-hidden /> {m.label}
+          </Link>
+        ),
+      )}
       {canInstall && (
         <button
           type="button"
@@ -293,6 +301,35 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   );
 }
 
+
+/**
+ * The account menu's link to the WonderWorks helper (the browser extension that fills employers' forms on a computer).
+ * Not installed in this browser: "Install browser helper", straight to its Chrome Web Store listing once it has one,
+ * else to /extension (the download and its steps). Installed: it says so, and opens /extension (its version and
+ * updates). It asks the helper only while the menu is open.
+ */
+function HelperLink({ onPick }: { onPick: () => void }) {
+  const installed = useExtensionInstalled(800);
+  const row = "flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm text-ink-2 hover:bg-bg-soft hover:text-ink";
+  if (installed !== true && EXTENSION_STORE_URL)
+    return (
+      <a role="menuitem" href={EXTENSION_STORE_URL} target="_blank" rel="noopener noreferrer" onClick={onPick} className={row}>
+        <Puzzle className="size-4" aria-hidden /> Install browser helper
+      </a>
+    );
+  return (
+    <Link role="menuitem" href="/extension" onClick={onPick} className={row}>
+      <Puzzle className="size-4" aria-hidden />
+      {installed === true ? (
+        <>
+          Browser helper <span className="ml-auto text-[11px] font-medium text-success-600">Installed</span>
+        </>
+      ) : (
+        "Install browser helper"
+      )}
+    </Link>
+  );
+}
 
 /** Opens network mode from the top bar, right of the avatar. Phones only; from 768px the sidebar lists Network. */
 function OpenNetwork({ second = false }: { /** The second UI: one of the bar's round grey buttons, the mark in the accent. */ second?: boolean }) {
