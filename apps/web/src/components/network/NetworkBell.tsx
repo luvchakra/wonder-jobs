@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Bell, MessagesSquare } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -24,8 +25,10 @@ export function NetworkBar({ compact }: { compact?: boolean }) {
 /** Messages, in the same spot on the top bar in and out of network mode (owner, 2026-11-23: "messages icon should also
  * appear at same place in non network mode"). */
 export function MessagesLink({ compact }: { compact?: boolean }) {
+  // On Messages (or a conversation) the icon reads as pressed (second UI, globals.css).
+  const here = usePathname()?.startsWith("/app/network/messages") ?? false;
   return (
-    <Link href="/app/network/messages" aria-label="Messages" title="Messages" className={cn("flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
+    <Link href="/app/network/messages" aria-current={here ? "page" : undefined} aria-label="Messages" title="Messages" className={cn("flex shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-bg-soft", compact ? "size-9" : "size-10")}>
       <MessagesSquare className="size-5" aria-hidden />
     </Link>
   );
