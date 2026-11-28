@@ -110,6 +110,32 @@ describe("canonicalize — dedupe and provenance", () => {
     expect(locationFamily("Remote - EMEA")).toBe("remote");
   });
 
+  it("merges one posting a source that aggregates several origins holds twice, but not two requisitions", () => {
+    const gateway = { ...agg, id: "gateway_jobs", name: "WorksLake Data Gateway · Jobs", aggregates: true };
+    const ping = (over: Partial<Job>) => job({ sourceId: "gateway_jobs", title: "Principal Technical Account Manager", company: "Ping Identity", location: "Anywhere in the World", workMode: "remote", ...over });
+    // The same posting collected from two boards: different ids and URLs, the same description.
+    const twice = canonicalize([
+      { source: gateway, job: ping({ id: "g1", externalId: "jobs_a", applyUrl: "https://board-one.example/jobs/1" }) },
+      { source: gateway, job: ping({ id: "g2", externalId: "jobs_b", applyUrl: "https://board-two.example/listing/9" }) },
+    ]);
+    expect(twice.opportunities).toHaveLength(1);
+    expect(twice.duplicates).toBe(1);
+    expect(twice.opportunities[0].sourceRecords.map((r) => r.sourceJobId).sort()).toEqual(["jobs_a", "jobs_b"]);
+    // Same title, employer and place but different descriptions and URLs: two requisitions, kept apart.
+    const other = "A different team is hiring for this role. You will lead onboarding and support programmes for strategic customers in a new region, work with sales engineering and product, travel to customer sites and report on adoption every quarter to leadership";
+    const two = canonicalize([
+      { source: gateway, job: ping({ id: "g1", externalId: "jobs_a", applyUrl: "https://board-one.example/jobs/1" }) },
+      { source: gateway, job: ping({ id: "g3", externalId: "jobs_c", applyUrl: "https://board-one.example/jobs/2", description: other }) },
+    ]);
+    expect(two.opportunities).toHaveLength(2);
+    // A source with one origin keeps its two ids apart even with the same description (the test below).
+    const single = canonicalize([
+      { source: { ...gateway, aggregates: false }, job: ping({ id: "g1", externalId: "jobs_a", applyUrl: "https://board-one.example/jobs/1" }) },
+      { source: { ...gateway, aggregates: false }, job: ping({ id: "g2", externalId: "jobs_b", applyUrl: "https://board-two.example/listing/9" }) },
+    ]);
+    expect(single.opportunities).toHaveLength(2);
+  });
+
   it("never merges two postings from the same source — the same title opened twice is two jobs", () => {
     const r = canonicalize([
       { source: ats, job: job({ id: "c1", externalId: "gh:acme:1", applyUrl: "https://boards.greenhouse.io/acme/jobs/1" }) },

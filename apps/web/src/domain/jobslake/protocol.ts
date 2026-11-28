@@ -66,6 +66,12 @@ export interface JobSourceDescriptor {
   category: SourceCategory;
   accessStrategy: AccessStrategy;
   protocolVersion: ProtocolVersion;
+  /**
+   * This one source holds postings collected from several origins (the WorksLake Data Gateway: many boards behind one
+   * source), so one posting can arrive twice under two ids. Canonicalisation may then merge two of its records when
+   * they share an apply URL or the same description; a single-origin source's two ids always stay two postings.
+   */
+  aggregates?: boolean;
 }
 
 /* ------------------------------------------------------------ opportunities */
