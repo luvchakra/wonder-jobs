@@ -239,7 +239,7 @@ export function MobileNav() {
         </nav>
       )}
       {!onNetwork && !floating && (
-        <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="fixed inset-x-0 bottom-0 z-40 rounded-t-[22px] border-t border-line/70 bg-surface/95 shadow-[0_-6px_24px_-12px_rgba(40,20,90,0.18)] backdrop-blur-xl transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
+        <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="wj-ui1 fixed inset-x-0 bottom-0 z-40 rounded-t-[22px] border-t border-line/70 bg-surface/95 shadow-[0_-6px_24px_-12px_rgba(40,20,90,0.18)] backdrop-blur-xl transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
           <ul className="grid grid-flow-col auto-cols-fr items-end px-1.5">
             {places.map((item) => {
               const active = isActivePath(pathname, item);
