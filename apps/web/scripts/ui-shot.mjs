@@ -4,7 +4,9 @@
  *
  *   node scripts/ui-shot.mjs <path> --ui 1|2 --out shot.png [--width 390] [--height 844] [--scale 2] [--full] [--scroll 300]
  *
- * Same server and sample candidate as scripts/ui-check.mjs. The UI is chosen with this browser's own preview key,
+ * Same server and sample candidate as scripts/ui-check.mjs. For pictures, prefer a production build (`next build &&
+ * next start -p 3123`, with the same environment): on `next dev` a listing's page can reload itself over and over (hot
+ * reload), which a production build never does. The UI is chosen with this browser's own preview key,
  * the way Admin → Settings → Look → This device does, so nothing on the server changes.
  */
 import { existsSync } from "node:fs";

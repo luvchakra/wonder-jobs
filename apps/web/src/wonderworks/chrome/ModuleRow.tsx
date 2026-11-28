@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useUi } from "@/lib/ui";
@@ -44,14 +44,29 @@ export function ModuleRow() {
       if (frame) cancelAnimationFrame(frame);
     };
   }, [show]);
+  // The selected module sits in the row's middle where the row can scroll that far (owner, 2026-11-28: "whatever is
+  // selected, try to keep it in middle as much as possible"): on arrival at once, after a pick smoothly.
+  const icons = useRef<HTMLUListElement>(null);
+  const pills = useRef<HTMLUListElement>(null);
+  const placed = useRef(false);
+  const onId = items.find((m) => m.on)?.id;
+  useEffect(() => {
+    if (!show || !onId) return;
+    const behavior: ScrollBehavior = placed.current && !window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "smooth" : "instant";
+    for (const row of [icons.current, pills.current]) {
+      const li = row?.querySelector<HTMLElement>(`[data-module="${CSS.escape(onId)}"]`);
+      if (row && li) row.scrollTo({ left: li.offsetLeft - (row.clientWidth - li.offsetWidth) / 2, behavior });
+    }
+    placed.current = true;
+  }, [show, onId]);
   if (!show) return null;
   return (
     // Sticks under the header, and follows it up when the header slides away on scroll (useScrollBars).
     <nav aria-label="Modules" style={{ top: "calc(4.5rem - var(--wj-top-hidden, 0px))" }} className={cn("sticky z-20 overflow-hidden border-b border-line bg-surface/90 backdrop-blur transition-[height] duration-200 ease-out motion-reduce:transition-none lg:hidden", compact ? "h-[3.75rem]" : "h-[5.5rem]")}>
       {/* The two rows cross-fade; only the one showing can be reached. */}
-      <ul inert={compact} aria-hidden={compact} className={cn("wj-scrollbar-none absolute inset-x-0 top-0 flex snap-x gap-1 overflow-x-auto px-3 py-2 transition-opacity duration-200 motion-reduce:transition-none", compact ? "opacity-0" : "opacity-100")}>
+      <ul ref={icons} inert={compact} aria-hidden={compact} className={cn("wj-scrollbar-none absolute inset-x-0 top-0 flex snap-x gap-1 overflow-x-auto px-3 py-2 transition-opacity duration-200 motion-reduce:transition-none", compact ? "opacity-0" : "opacity-100")}>
         {items.map((m) => (
-          <li key={m.id} className="shrink-0 snap-start">
+          <li key={m.id} data-module={m.id} className="shrink-0 snap-center">
             <button type="button" aria-pressed={m.on} onClick={m.select} className={cn("flex h-[4.5rem] w-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-[12px] px-1 text-[11.5px] leading-tight transition-colors duration-150", m.on ? "font-semibold text-brand-700" : "font-medium text-ink-3")}>
               <m.icon aria-hidden className={cn("size-6", m.on && "text-brand-600")} strokeWidth={m.on ? 2 : 1.6} />
               <span className="line-clamp-2 max-w-full text-center">{m.label}</span>
@@ -59,9 +74,9 @@ export function ModuleRow() {
           </li>
         ))}
       </ul>
-      <ul inert={!compact} aria-hidden={!compact} className={cn("wj-scrollbar-none absolute inset-x-0 top-0 flex snap-x gap-2 overflow-x-auto px-4 py-2 transition-opacity duration-200 motion-reduce:transition-none", compact ? "opacity-100" : "opacity-0")}>
+      <ul ref={pills} inert={!compact} aria-hidden={!compact} className={cn("wj-scrollbar-none absolute inset-x-0 top-0 flex snap-x gap-2 overflow-x-auto px-4 py-2 transition-opacity duration-200 motion-reduce:transition-none", compact ? "opacity-100" : "opacity-0")}>
         {items.map((m) => (
-          <li key={m.id} className="shrink-0 snap-start">
+          <li key={m.id} data-module={m.id} className="shrink-0 snap-center">
             <button type="button" aria-pressed={m.on} onClick={m.select} className={cn("inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-[13px] font-medium transition-colors duration-150", m.on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line bg-surface text-ink")}>
               <m.icon aria-hidden className="size-4" strokeWidth={1.8} />
               {m.label}

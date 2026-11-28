@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { ChevronUp, MessageSquarePlus, MoreHorizontal, Plus, Undo2, Users } from "lucide-react";
+import { ArrowUp, ChevronUp, MessageSquarePlus, MoreHorizontal, Plus, Undo2, Users } from "lucide-react";
 import { useUIStore } from "@/store/ui";
 import { cn } from "@/lib/cn";
 import { NETWORK_HREF, NETWORK_TAB, isActivePath, rememberAppPath } from "./nav";
@@ -161,7 +161,10 @@ export function MobileNav() {
     <>
       {/* The quick actions: one small, plain round up arrow (owner, 2026-11-22: "should not have any colour to it, should
           be smaller"); pressed, the actions rise from it one after another, each with its name. */}
-      {!barShown && (
+      {/* The second UI: the + lives in the top bar (CreateButton) and the account menu behind the avatar, so the round
+          arrow only takes the page back to its top (owner, 2026-11-28), and shows only once there is a way up. */}
+      {!barShown && floating && <ToTop />}
+      {!barShown && !floating && (
         <div ref={dial} className="pointer-events-none fixed bottom-[calc(var(--wj-mobile-nav-h)+1rem)] right-4 z-40 flex flex-col items-end gap-3 md:hidden">
           <div inert={!open} aria-hidden={!open} className="flex flex-col items-end gap-3">
             {actions.map((a, i) => (
@@ -260,5 +263,41 @@ export function MobileNav() {
         </nav>
       )}
     </>
+  );
+}
+
+/** Back to the top of the page, shown once the page has scrolled past a screen's worth. */
+function ToTop() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      setShown(window.scrollY > window.innerHeight * 0.75);
+    };
+    const onScroll = () => {
+      frame ||= requestAnimationFrame(read);
+    };
+    read();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+  return (
+    <button
+      type="button"
+      aria-label="Back to top"
+      inert={!shown}
+      aria-hidden={!shown}
+      onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" })}
+      className={cn(
+        "fixed bottom-[calc(var(--wj-mobile-nav-h)+1rem)] right-4 z-40 grid size-11 place-items-center rounded-full border border-line bg-surface/95 text-ink-2 shadow-md backdrop-blur transition-all duration-200 active:scale-95 motion-reduce:transition-none md:hidden",
+        shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
+      )}
+    >
+      <ArrowUp className="size-5" strokeWidth={2.4} aria-hidden />
+    </button>
   );
 }
