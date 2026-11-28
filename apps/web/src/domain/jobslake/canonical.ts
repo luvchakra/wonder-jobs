@@ -100,19 +100,25 @@ function keysFor(j: Job): string[] {
  * A source never lists one posting twice under two ids, so two observations from the same source
  * with different source job ids are different postings — e.g. the same title opened for two teams.
  * Merging only ever joins observations from different sources (or the same record seen twice).
+ *
+ * The exception is a source that `aggregates` several origins (the gateway): the same posting, collected from two
+ * boards, arrives as two of its records (owner, 2026-11-28: one Ping Identity job listed twice "via WorksLakeDG").
+ * Two of its records merge when they share an apply URL or the same description in the same place — never on title,
+ * employer and place alone, which two requisitions also share.
  */
 function groupObservations(obs: Observation[]): Observation[][] {
   const parent = obs.map((_, i) => i);
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
   // Per group root: sourceId → the one source job id that group holds for it.
   const ids = obs.map((o) => new Map([[o.source.id, o.job.externalId]]));
-  const union = (a: number, b: number) => {
+  const aggregating = new Set(obs.filter((o) => o.source.aggregates).map((o) => o.source.id));
+  const union = (a: number, b: number, strong: boolean) => {
     const ra = find(a);
     const rb = find(b);
     if (ra === rb) return;
     for (const [src, id] of ids[rb]) {
       const mine = ids[ra].get(src);
-      if (mine !== undefined && mine !== id) return; // would merge two postings of one source
+      if (mine !== undefined && mine !== id && !(strong && aggregating.has(src))) return; // would merge two postings of one source
     }
     for (const [src, id] of ids[rb]) ids[ra].set(src, id);
     parent[rb] = ra;
@@ -123,7 +129,7 @@ function groupObservations(obs: Observation[]): Observation[][] {
       const seen = byKey.get(k);
       if (!seen) byKey.set(k, [i]);
       else {
-        for (const j of seen) union(j, i);
+        for (const j of seen) union(j, i, !k.startsWith("id:"));
         seen.push(i);
       }
     }

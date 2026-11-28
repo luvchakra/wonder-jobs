@@ -57,6 +57,8 @@ export const GATEWAY_SOURCES: SourceRecord[] = enabled() ? MODULE_IDS.map((modul
   // Named with the module's own name; candidates see it in a search's source line. The id never changes.
   name: "WorksLake Data Gateway · " + (MODULES.find((m) => m.id === module)?.label ?? module),
   provider: "WorksLake Data Gateway",
+  // Many boards behind one source: the same posting from two of them is one listing (canonical.ts).
+  aggregates: true,
   category: "aggregator",
   accessStrategy: "official_api",
   geography: ["global", "IN"],
