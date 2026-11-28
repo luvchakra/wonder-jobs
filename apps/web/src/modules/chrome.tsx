@@ -38,7 +38,7 @@ function useFindMenu() {
   const liveKinds = kinds.filter((k) => LIVE[k.id]);
   const liveNow = onModule && onModule !== "jobs" ? liveKinds.find((k) => LIVE[k.id]!.id === onModule) : undefined;
   return {
-    now: liveNow ? { label: liveNow.label, ...LOOK[liveNow.id] } : JOBS_MENU_CHOICES.find((c) => c.id === current)!,
+    now: liveNow ? { label: liveNow.label, hint: liveNow.hint, ...LOOK[liveNow.id] } : JOBS_MENU_CHOICES.find((c) => c.id === current)!,
     choices: JOBS_MENU_CHOICES.map((c) => ({ ...c, on: !liveNow && c.id === current })),
     live: liveKinds.map((k) => ({ ...k, ...LOOK[k.id], on: liveNow?.id === k.id })),
     upcoming: kinds.filter((k) => !LIVE[k.id]).map((k) => ({ ...k, ...LOOK[k.id] })),
