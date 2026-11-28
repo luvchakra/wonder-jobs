@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
+import { SquarePlus } from "lucide-react";
 import { NETWORK_HREF } from "./nav";
 import { getClientMode } from "@/lib/mode";
 import { useHydration } from "@/store/hydration";
@@ -36,7 +36,7 @@ export function CreateButton() {
     if (pathname === entry.href.split("?")[0]) return null;
     return (
       <Link href={entry.href} aria-label={entry.label} title={entry.label} className={button}>
-        <Plus className="size-5" strokeWidth={2.2} aria-hidden />
+        <SquarePlus className="size-6" aria-hidden />
       </Link>
     );
   }
@@ -46,7 +46,7 @@ export function CreateButton() {
   return (
     <>
       <button type="button" aria-label={label} title={label} onClick={() => setSheet(onMessages ? "message" : "post")} className={button}>
-        <Plus className="size-5" strokeWidth={2.2} aria-hidden />
+        <SquarePlus className="size-6" aria-hidden />
       </button>
       {sheet === "post" && <PostSheet onClose={() => setSheet(null)} />}
       {sheet === "message" && <NewMessageSheet onClose={() => setSheet(null)} />}
