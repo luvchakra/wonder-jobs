@@ -9,6 +9,7 @@ import { hashKey } from "@/lib/ids";
 import { hasTermOrSynonym, INDUSTRY_WORDS, levelOfQuery, placeNamed, queryTerms, remoteOpenTo, SENIORITY_WORDS, strictPlaces, stripHeadlineLabel, stripSelfReference, worldwideRemote } from "./normalize";
 import { relevance } from "./relevance";
 import { learnedRankingEffect, type LearnedSignal } from "@/domain/career/learning";
+import { targetLevel } from "@/domain/jobs/profileRefine";
 
 const DAY = 86_400_000;
 const memo = new Map<string, RegExp>();
@@ -88,6 +89,8 @@ export interface MatchContext {
   searchQuery?: string;
   /** A role's search (searchQuery is its words): a role has no industries of its own, so the profile's aren't weighed. */
   forRole?: boolean;
+  /** Refine's Level for the search (Refine is the one place for level): the job is judged against the nearest one. */
+  levels?: Job["seniority"][];
 }
 
 /** Field words so widespread ("AI", "digital", "data") that on their own they don't place a posting in the candidate's field. */
@@ -109,7 +112,8 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
   const { dna } = ctx;
   const goal = (ctx.careerGoal ?? dna.careerGoal).toLowerCase();
   const locations = (ctx.preferredLocations ?? dna.preferredLocations).map((l) => l.toLowerCase());
-  const minSalary = ctx.minSalary ?? dna.minSalary;
+  // Refine's Salary only (owner, 2026-11-28: Refine is the one place for pay); none picked is no minimum.
+  const minSalary = ctx.minSalary;
 
   // the candidate's field: is this posting the kind of role they're after? Field terms come from their
   // headline, goal and the search's goal (seniority and industry words aside — scored separately) and are
@@ -146,10 +150,12 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
     ? 0.5
     : Math.min(1, 0.5 * (weighted / Math.min(Math.max(job.skills.length, 3), 6)) + 0.5 * (effective / Math.min(dna.skills.length, 6)) + (effective >= 4 ? 0.08 : 0));
 
-  // seniority: against the level the search names ("senior director …"), else the candidate's own level.
-  const target = (typed && levelOfQuery(ctx.searchQuery!)) || dna.seniority;
-  const delta = SENIORITY_RANK[job.seniority] - SENIORITY_RANK[target];
-  const seniorityScore = delta === 0 ? 1 : delta === 1 ? 0.8 : delta === -1 ? 0.65 : delta > 1 ? 0.35 : 0.3;
+  // seniority: against the level the search names ("senior director …"), else Refine's Level, else your Current
+  // role's level; none of them is no preference (owner, 2026-11-28: Refine is the one place for level).
+  const target = targetLevel(job, (typed && levelOfQuery(ctx.searchQuery!)) || undefined, ctx.levels, levelOfQuery(dna.headline ?? ""));
+  const delta = target ? SENIORITY_RANK[job.seniority] - SENIORITY_RANK[target.level] : 0;
+  const seniorityScore = !target ? 0.8 : delta === 0 ? 1 : delta === 1 ? 0.8 : delta === -1 ? 0.65 : delta > 1 ? 0.35 : 0.3;
+  const levelWord = target?.from === "current_role" ? "your current role" : target?.from === "refine" ? "the level you picked" : "the level you searched for";
 
   // industry
   const industryScore = ctx.forRole ? 0.7 : dna.industries.some((i) => i.toLowerCase() === job.industry.toLowerCase()) ? 1 : 0.55;
@@ -201,11 +207,11 @@ export function computeMatch(job: CanonicalJob | Job, ctx: MatchContext, now = D
 
   const reasons: AlignmentReason[] = [
     { dimension: "skills", label: "Skill alignment", score: skillScore, summary: overlap.length ? `${overlap.length} of your skills appear in this posting (${overlap.slice(0, 3).join(", ")}).` : "Few of your skills appear in this posting." },
-    { dimension: "seniority", label: "Seniority alignment", score: seniorityScore, summary: delta === 0 ? (target === dna.seniority ? "Same level as your current role." : "The level you searched for.") : delta === 1 ? "One step up — a growth move." : delta > 1 ? "Two or more levels above what you're after." : target === dna.seniority ? "Below your current level." : "Below the level you searched for." },
+    { dimension: "seniority", label: "Seniority alignment", score: seniorityScore, summary: !target ? "No level picked in Refine." : delta === 0 ? (target.from === "current_role" ? "Same level as your current role." : target.from === "refine" ? "A level you picked in Refine." : "The level you searched for.") : delta === 1 ? "One step up — a growth move." : delta > 1 ? "Two or more levels above what you're after." : `Below ${levelWord}.` },
     { dimension: "industry", label: "Industry alignment", score: industryScore, summary: ctx.forRole ? "Not weighed when searching as a role." : industryScore === 1 ? `${job.industry} is one of your target industries.` : `${job.industry} is outside your listed industries.` },
     { dimension: "career_goal", label: typed ? "Search match" : "Career-goal alignment", score: goalScore, summary: typed ? (typed.inTitle ? `The role title matches your search (${typed.matched.slice(0, 3).join(", ")}).` : typed.complete ? `Your search (${typed.matched.slice(0, 3).join(", ")}) appears in the posting, not in its title.` : `The posting doesn't mention ${typed.missing.slice(0, 3).join(", ")}.`) : !field.length ? "Add a headline or career goal to your Career Profile to sharpen this." : inTitle.length ? `The role title is in your field (${inTitle.slice(0, 3).join(", ")}).` : inHead.length ? `Your field (${inHead.slice(0, 2).join(", ")}) appears in the posting's requirements or tags, not in its title.` : inBody.length ? `Your field (${inBody.slice(0, 2).join(", ")}) is only mentioned in the description.` : `The posting doesn't mention your field (${field.slice(0, 3).join(", ")}).` },
     { dimension: "location", label: "Location alignment", score: locationScore, summary: locationScore === 1 ? `${job.location} (${job.workMode}) fits your preferences.` : anywhereOnly ? `${job.location}: remote anywhere, not in the places you picked.` : openTo === false ? `${job.location}: remote, but the employer restricts hiring to that region.` : locations.length === 0 ? "Pick places in Refine's Location to sharpen this." : `${job.location} is outside your preferred locations.` },
-    { dimension: "compensation", label: "Compensation alignment", score: compScore, summary: job.salaryMax == null ? "Salary not disclosed." : compScore >= 0.85 ? "Range meets or exceeds your minimum." : "Range is below your minimum." },
+    { dimension: "compensation", label: "Compensation alignment", score: compScore, summary: job.salaryMax == null ? "Salary not disclosed." : minSalary == null ? "No minimum salary picked in Refine." : compScore >= 0.85 ? "Range meets or exceeds your minimum." : "Range is below your minimum." },
   ];
 
   const highlights: string[] = [];

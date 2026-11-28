@@ -335,3 +335,32 @@ describe("Part Time's search words", () => {
     expect(useJobsStore.getState().filters.query).toBe("database admin");
   });
 });
+
+describe("each profile's own Refine choices (Full Time)", () => {
+  const f = { query: "", workModes: [] as ("remote" | "hybrid" | "onsite")[], sourceIds: [], minFit: null, freshnessDays: null, onlySaved: false };
+  beforeEach(async () => {
+    const { useCareerStore } = await import("./career");
+    useCareerStore.setState({ roles: [{ id: "re", title: "Reinsurance", query: "insurance operations", goal: "", seniority: "senior", preferredLocations: ["London"], createdAt: "", updatedAt: "" }] });
+    useJobsStore.setState({ refine: {}, profileRefine: {}, refineProfile: "", sort: "best_match", filters: { ...f, workModes: ["remote"] } });
+  });
+
+  it("picking a role brings its moved level and places into Refine; picking My profile again brings back My profile's", () => {
+    useJobsStore.getState().pickProfileRefine("re");
+    expect(useJobsStore.getState().filters).toMatchObject({ levels: ["senior"], locations: ["London"], workModes: ["remote"] });
+    expect(useJobsStore.getState().refineProfile).toBe("re");
+    useJobsStore.getState().setFilters({ workModes: ["onsite"] });
+    useJobsStore.getState().pickProfileRefine("");
+    expect(useJobsStore.getState().filters).toMatchObject({ levels: [], locations: undefined, workModes: ["remote"] });
+    useJobsStore.getState().pickProfileRefine("re");
+    expect(useJobsStore.getState().filters).toMatchObject({ levels: ["senior"], workModes: ["onsite"] });
+  });
+
+  it("the profile in use again writes nothing; Part Time is left alone", () => {
+    const before = useJobsStore.getState().profileRefine;
+    useJobsStore.getState().pickProfileRefine("");
+    expect(useJobsStore.getState().profileRefine).toBe(before);
+    useJobsStore.setState({ filters: { ...f, skipProfile: true } });
+    useJobsStore.getState().pickProfileRefine("re");
+    expect(useJobsStore.getState().refineProfile).toBe("");
+  });
+});

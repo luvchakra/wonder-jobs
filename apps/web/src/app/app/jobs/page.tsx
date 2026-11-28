@@ -14,6 +14,7 @@ import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/modules/jobs/components/JobsBoard";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
 import { fullTimeSearchAs, profileSwitch, roleArrival } from "@/modules/jobs/searchAs";
+import { MY_PROFILE } from "@/domain/jobs/profileRefine";
 import { profileNameOf } from "@/domain/career/profileName";
 import { loadRoleFile } from "@/lib/useRoleFile";
 import { switchFindMode } from "@/lib/switchFindMode";
@@ -128,6 +129,8 @@ function JobsHome() {
   const profileName = (id: string | null) => (id === null ? profileNameOf(dna) : (roles.find((r) => r.id === id)?.title ?? profileNameOf(dna)));
   const switchedTo = mode === "full_time" && !search.active && !!search.last && typeof searchAs !== "boolean" && searchAs !== onScreen ? { name: profileName(searchAs), was: profileName(onScreen) } : undefined;
   const pickSearchAs = (id: string | null | false) => {
+    // Refine follows the profile picked: its own level, places, salary and work mode (profileRefine.ts).
+    if (mode === "full_time" && id !== false) useJobsStore.getState().pickProfileRefine(id ?? MY_PROFILE);
     if (mode === "full_time" && id !== false && profileSwitch(id, onScreen, !!useJobsStore.getState().beforeWords) === "restore_profile" && useJobsStore.getState().restoreProfileCatalog()) {
       setPickedRole(undefined);
       return;
@@ -138,6 +141,11 @@ function JobsHome() {
   // Opening Find in Part Time shows Part Time's last results (kept, even after the app was closed), never a
   // new search: with the profile's list on screen, the words' list set aside comes back.
   const hydrated = useHydration((h) => h.hydrated);
+  // Refine shows the choices of the profile whose results are on screen (after a reload too).
+  const rolesKnown = roles.length;
+  useEffect(() => {
+    if (hydrated && mode === "full_time" && pickedRole === undefined) useJobsStore.getState().pickProfileRefine(onScreen ?? MY_PROFILE);
+  }, [hydrated, mode, pickedRole, onScreen, rolesKnown]);
   useEffect(() => {
     if (!hydrated) return;
     const s = useJobsStore.getState();

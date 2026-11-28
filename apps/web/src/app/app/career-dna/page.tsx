@@ -65,7 +65,7 @@ export default function CareerDNAPage() {
     if (mainResume !== refKey(baseResume)) setBaseResume(refOf(mainResume));
     for (const r of storedRoles) {
       const v = withTypedSkill(roleDrafts[r.id] ?? roleFieldsOf(r), typedSkills[r.id], mainFields(main));
-      if (fieldsChanged(v, roleFieldsOf(r))) useCareerStore.getState().updateRole(r.id, roleInputOf(r.title, v));
+      if (fieldsChanged(v, roleFieldsOf(r))) useCareerStore.getState().updateRole(r.id, roleInputOf(r.title, v, r));
     }
     setRoleDrafts({});
     setTypedSkills({});

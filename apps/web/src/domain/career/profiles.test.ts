@@ -17,16 +17,17 @@ describe("each profile's own fields", () => {
     expect(p.minSalary).toBe(5_000_000);
   });
 
-  it("a role's own level, skills, places, work modes and pay win", () => {
-    const p = effectiveProfile(dna, { ...role, seniority: "lead", skills: [{ name: "Underwriting", level: 4 }], preferredLocations: ["London"], workModes: ["onsite"], minSalary: 3_000_000 });
-    expect([p.seniority, p.skills[0].name, p.preferredLocations[0], p.workModes[0], p.minSalary]).toEqual(["lead", "Underwriting", "London", "onsite", 3_000_000]);
+  it("a role's own skills win; a level, places, work modes or pay stored on it are Refine's now and not read", () => {
+    const stored = { ...role, seniority: "lead" as const, skills: [{ name: "Underwriting", level: 4 as const }], preferredLocations: ["London"], workModes: ["onsite" as const], minSalary: 3_000_000 };
+    const p = effectiveProfile(dna, stored);
+    expect([p.seniority, p.skills[0].name, p.preferredLocations[0], p.workModes[0], p.minSalary]).toEqual(["director", "Underwriting", "Mumbai", "remote", 5_000_000]);
     // What's shared stays My profile's.
     expect(p.headline).toBe(dna.headline);
     expect(effectiveProfile(dna)).toBe(dna);
   });
 
   it("a new profile starts from My profile's fields, under a name not yet used", () => {
-    expect(prefilledRole(dna, "New profile")).toMatchObject({ title: "New profile", query: "", seniority: "director", skills: dna.skills, preferredLocations: ["Mumbai"] });
+    expect(prefilledRole(dna, "New profile")).toEqual({ title: "New profile", query: "", goal: "", skills: dna.skills });
     expect(newProfileTitle([{ title: "New profile" }, { title: "new profile 2" }])).toBe("New profile 3");
   });
 
@@ -41,9 +42,9 @@ describe("the profile a job's résumé is drafted from", () => {
   const re = { title: "Reinsurance", query: "insurance operations", goal: "Head of Reinsurance Operations", seniority: "senior" as const, skills: [{ name: "Reinsurance", level: 5 as const }, { name: "Underwriting", level: 4 as const }] };
   const job = { id: "j", title: "Claims Operations Manager", company: "Coalition", description: "Run claims and reinsurance operations", skills: ["Underwriting"] };
 
-  it("a job found as Reinsurance builds from Reinsurance's goal, level and skills", () => {
+  it("a job found as Reinsurance builds from Reinsurance's goal and skills", () => {
     const p = draftingProfile(me, re);
-    expect(p).toMatchObject({ headline: "Head of Reinsurance Operations", careerGoal: "Head of Reinsurance Operations", seniority: "senior", name: "K", strengths: ["Leads large teams"] });
+    expect(p).toMatchObject({ headline: "Head of Reinsurance Operations", careerGoal: "Head of Reinsurance Operations", seniority: "director", name: "K", strengths: ["Leads large teams"] });
     const doc = buildResumeDocument(p, { target: job });
     expect(doc.header.headline).toBe("Head of Reinsurance Operations");
     const skills = doc.sections.find((s) => s.type === "skills");

@@ -9,6 +9,7 @@ import { getWorkflowService } from "@/services/workflow/service";
 import { useCareerStore } from "@/store/career";
 import { useJobsStore } from "@/store/jobs";
 import { searchScope } from "@/domain/jobs/searchScope";
+import { MY_PROFILE } from "@/domain/jobs/profileRefine";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 import { selectActiveRun, useWorkflowStore } from "@/store/workflow";
 import { useAuthStore } from "@/store/auth";
@@ -143,10 +144,13 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       // The profile's search may have no words (no role wanted): it brings the latest listings. Typed words never run
       // empty, except Part Time's empty box, which asks for the latest listings on purpose (`latest`).
       if ((!query && (opts.origin ?? "profile") !== "profile" && !opts.latest) || (readiness.blocker && (opts.origin ?? "profile") === "profile" && !opts.role)) return null;
-      // Refine's places, work modes and pay first; the Career Profile's only for what Refine leaves open.
+      // Full Time's Refine holds each profile's own level, places, pay and work mode: My profile's for its search.
+      if (!opts.role && (opts.origin ?? "profile") === "profile") useJobsStore.getState().pickProfileRefine(MY_PROFILE);
+      // Refine's places, work modes and pay first; the Career Profile's places only while Refine shows them (none picked).
       const { locations, workModes, minSalary } = searchScope(useJobsStore.getState().filters, { locations: readiness.locations, workModes: dna.workModes, minSalary: dna.minSalary }, opts);
       // Job types asked for (words like "part time", or the pills under the search box): the sources that list them go first.
       const jobTypes = opts.jobTypes?.length ? opts.jobTypes : (useJobsStore.getState().filters.jobTypes ?? []);
+      const levels = useJobsStore.getState().filters.levels ?? [];
       try {
         const run = getWorkflowService().startRun({
           workflowName: opts.role ? `Search as ${opts.role.title}` : query ? `Jobs for you — ${query}` : "Latest jobs",
@@ -156,7 +160,7 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
             automationLevel: level,
             provider: { provider: ai.activeProvider, model: ai.activeModel, billing: AI_PROVIDERS[ai.activeProvider].billing },
             sourceIds: sources.filter((s) => s.enabled).map((s) => s.id),
-            searchCriteria: { query, locations, workModes, ...(minSalary != null ? { minSalary } : {}), ...(jobTypes.length ? { jobTypes } : {}) },
+            searchCriteria: { query, locations, workModes, ...(minSalary != null ? { minSalary } : {}), ...(jobTypes.length ? { jobTypes } : {}), ...(levels.length ? { levels } : {}) },
             minMatchThreshold: 60,
             maxResults: 100,
             notify: "never",
@@ -211,9 +215,9 @@ export function useJobSearch(opts: { auto?: boolean } = {}): JobSearch {
       if (!role) return null;
       const { query, careerGoal } = roleSearch(role, defaultSearchQuery);
       await stopRunningSearch();
-      // The role's own places and work modes where set; places picked in Refine for this search win.
-      const where = places ?? (role.preferredLocations?.length ? role.preferredLocations : undefined);
-      return sayBusy(search({ query, careerGoal, role: { id: role.id, title: role.title }, origin: "words", ...(where ? { locations: where } : {}), ...(role.workModes?.length ? { workModes: role.workModes } : {}) }));
+      // The role's own level, places, pay and work mode are its Refine choices (profileRefine.ts); places given win.
+      useJobsStore.getState().pickProfileRefine(role.id);
+      return sayBusy(search({ query, careerGoal, role: { id: role.id, title: role.title }, origin: "words", ...(places ? { locations: places } : {}) }));
     },
     [roles, search],
   );

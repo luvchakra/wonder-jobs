@@ -49,15 +49,16 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       const dna = snapshot.career.dna;
       ctx.setProgress(1, 1);
       ctx.addEvidence({ label: "Skills", value: `${dna.skills.length} skills · ${dna.skills.filter((s) => s.level >= 4).length} strong` });
-      ctx.addEvidence({ label: "Target", value: `${dna.seniority} · ${dna.industries.slice(0, 3).join(", ")}` });
-      // Places and pay are the search's own (Refine's, for a Find search), not the Career Profile's.
+      // Places, pay and level are the search's own (Refine's, for a Find search), not the Career Profile's.
       const criteria = ctx.run.config.searchCriteria;
+      ctx.addEvidence({ label: "Target", value: `${criteria.levels?.length ? criteria.levels.join(", ") : "Any level"} · ${dna.industries.slice(0, 3).join(", ")}` });
       ctx.addEvidence({ label: "Locations", value: criteria.locations.join(", ") || "Anywhere" });
       return {
         provenance: "SYSTEM_DERIVED",
         data: {
           preferredLocations: criteria.locations,
           minSalary: criteria.minSalary,
+          levels: criteria.levels,
           careerGoal: ctx.run.config.careerGoal || dna.careerGoal,
           seniority: dna.seniority,
           skillCount: dna.skills.length,
@@ -154,7 +155,7 @@ export function createServerExecutors(snapshot: TenantSnapshot, outcome: ServerR
       // A role's search is judged on the role's words, as a typed one is on its own.
       const searchQuery = searchWordsOf(ctx.run.config);
       const role = ctx.run.config.role ? { title: ctx.run.config.role.title, query: ctx.run.config.searchCriteria.query, careerGoal: careerGoal ?? ctx.run.config.role.title } : undefined;
-      matches = canonical.map((j) => computeMatch(j, { dna, preferredLocations, minSalary, careerGoal, learnedSignals, searchQuery, forRole: !!role }));
+      matches = canonical.map((j) => computeMatch(j, { dna, preferredLocations, minSalary, levels: ctx.get<("junior" | "mid" | "senior" | "lead" | "director")[]>("levels"), careerGoal, learnedSignals, searchQuery, forRole: !!role }));
       // A model reads the leading postings against the profile; its score nudges the rules' within a band.
       const byId = new Map(canonical.map((j) => [j.id, j]));
       const top = [...matches].filter((m) => m.score >= 20).sort((a, b) => b.score - a.score).slice(0, 30).map((m) => byId.get(m.jobId)!).filter(Boolean);
