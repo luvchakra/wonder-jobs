@@ -35,3 +35,15 @@ export function fullTimeSearchAs(picked: string | null | false | undefined, last
   const known = (id: string | null | false | undefined) => (typeof id === "string" && roles.some((r) => r.id === id) ? id : null);
   return picked !== undefined ? known(picked) : known(lastRoleId);
 }
+
+/**
+ * What picking a profile under "Search as" does to the list (owner, 2026-11-28: "my profile is selected … still it's
+ * showing result for reinsurance, fix properly"): the page never shows one profile's results under another's name.
+ * `same`: the list is already that profile's. `restore_profile`: back to My profile, whose own results are kept aside
+ * (set aside by the role's search) — they come back at once. `press_search`: anything else — the list is set aside and
+ * the page says to press Search, which searches as the picked profile.
+ */
+export function profileSwitch(picked: string | null, onScreen: string | null, hasProfileCatalog: boolean): "same" | "restore_profile" | "press_search" {
+  if (picked === onScreen) return "same";
+  return picked === null && hasProfileCatalog ? "restore_profile" : "press_search";
+}

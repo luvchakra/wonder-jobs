@@ -43,7 +43,7 @@ const ALSO_SHOWN = 3;
  * everything else (what was searched, roles, notes). `savedOnly` makes it the Saved shortlist. `searched`
  * (the search behind the jobs on screen) gives the one line above them: how many, for what, where, from how many sources.
  */
-export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, sourceSearch, searched, searching, partTimeMiss, savedOnly = false }: { header?: React.ReactNode; footer?: React.ReactNode; /** Full Time's role line, handed to the filter bar (JobFiltersBar's `lead`). */ lead?: React.ReactNode; refineTop?: React.ReactNode; searchAs?: { set: boolean; clear: () => void }; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[]; /** A role's or typed search (not the profile's own). */ focused?: boolean; /** The sources it asked (empty: every enabled one). */ sourceIds?: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; /** Part Time's last search found nothing: what it was for. */ partTimeMiss?: string | null; savedOnly?: boolean }) {
+export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, sourceSearch, searched, searching, partTimeMiss, savedOnly = false, switchedTo }: { /** Another profile was picked under "Search as" than the one the list was found as: its name, and the list is set aside until Search. */ switchedTo?: { name: string; was: string }; header?: React.ReactNode; footer?: React.ReactNode; /** Full Time's role line, handed to the filter bar (JobFiltersBar's `lead`). */ lead?: React.ReactNode; refineTop?: React.ReactNode; searchAs?: { set: boolean; clear: () => void }; empty: React.ReactNode; sourceSearch?: SourceSearch; searched?: { query: string; locations: string[]; /** A role's or typed search (not the profile's own). */ focused?: boolean; /** The sources it asked (empty: every enabled one). */ sourceIds?: string[] } | null; /** Shown in place of an empty list while a search runs. */ searching?: React.ReactNode; /** Part Time's last search found nothing: what it was for. */ partTimeMiss?: string | null; savedOnly?: boolean }) {
   const params = useSearchParams();
   const jobs = useJobsStore((s) => s.jobs);
   const order = useJobsStore((s) => s.order);
@@ -242,7 +242,10 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
         shortlist={savedOnly ? { text: savedText, onText: setSavedText } : undefined}
         className="mb-3"
       />
-      {partTimeIdle ? (
+      {switchedTo && !savedOnly ? (
+        // Never one profile's results under another's name (owner, 2026-11-28): the list waits for Search.
+        <EmptyState icon={<Search className="size-5" aria-hidden />} title={`Press Search to search as ${switchedTo.name}`} body={`The last results were found as ${switchedTo.was}; pick it again to see them.`} />
+      ) : partTimeIdle ? (
         partTimeMiss ? (
           <EmptyState icon={<Search className="size-5" aria-hidden />} title={`Nothing found for “${partTimeMiss}”`} body="No source lists that right now. Try other words, or fewer of them." />
         ) : partTimeMiss === "" ? (
@@ -341,7 +344,7 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
           )}
         </>
       )}
-      {showAlso && (
+      {showAlso && !switchedTo && (
         <section className="mt-6" aria-label={alsoCopy!.divider}>
           <div className="mb-3 flex items-center gap-3">
             <h2 className="shrink-0 text-[13px] font-semibold text-ink-2">{alsoCopy!.divider}</h2>
@@ -366,7 +369,7 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
       )}
       {footer}
       {/* What's hidden and why — below the jobs, so nothing stands between the candidate and the first one. */}
-      {results.length > 0 && !savedOnly && !partTimeIdle && (
+      {results.length > 0 && !savedOnly && !partTimeIdle && !switchedTo && (
         <FilteredBreakdown
           result={filterResult}
           onShowAnyway={() => {
@@ -377,7 +380,7 @@ export function JobsBoard({ header, footer, lead, refineTop, searchAs, empty, so
         />
       )}
       {/* "Show hidden": the hidden jobs in place, each tagged with why — nothing in Refine or the profile changes. */}
-      {revealOn && results.length > 0 && !savedOnly && !partTimeIdle && hiddenShown.length > 0 && (
+      {revealOn && results.length > 0 && !savedOnly && !partTimeIdle && !switchedTo && hiddenShown.length > 0 && (
         <section className="mt-4" aria-label="Hidden jobs">
           <ResultsGrid label="Hidden jobs">
             {hiddenShown.slice(0, hiddenLimit).map((id) => (

@@ -13,7 +13,8 @@ import { describeWords, foundNothing, useJobSearch } from "@/lib/useJobSearch";
 import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/modules/jobs/components/JobsBoard";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
-import { fullTimeSearchAs, roleArrival } from "@/modules/jobs/searchAs";
+import { fullTimeSearchAs, profileSwitch, roleArrival } from "@/modules/jobs/searchAs";
+import { profileNameOf } from "@/domain/career/profileName";
 import { loadRoleFile } from "@/lib/useRoleFile";
 import { switchFindMode } from "@/lib/switchFindMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/modules/jobs/components/JobsReadiness";
@@ -121,7 +122,16 @@ function JobsHome() {
           : false
         : false
       : fullTimeSearchAs(pickedRole, search.active?.config.role?.id ?? search.last?.config.role?.id, roles);
+  // The profile the list on screen was found as (Full Time). A different pick sets the list aside until Search, or
+  // (back to My profile) brings My profile's own results back: the page never says one profile and shows another's.
+  const onScreen = fullTimeSearchAs(undefined, search.active?.config.role?.id ?? search.last?.config.role?.id, roles);
+  const profileName = (id: string | null) => (id === null ? profileNameOf(dna) : (roles.find((r) => r.id === id)?.title ?? profileNameOf(dna)));
+  const switchedTo = mode === "full_time" && !search.active && !!search.last && typeof searchAs !== "boolean" && searchAs !== onScreen ? { name: profileName(searchAs), was: profileName(onScreen) } : undefined;
   const pickSearchAs = (id: string | null | false) => {
+    if (mode === "full_time" && id !== false && profileSwitch(id, onScreen, !!useJobsStore.getState().beforeWords) === "restore_profile" && useJobsStore.getState().restoreProfileCatalog()) {
+      setPickedRole(undefined);
+      return;
+    }
     setPickedRole(id);
     if (mode === "part_time") useJobsStore.getState().setFilters({ query: id === false ? "" : roleWords(id) });
   };
@@ -161,11 +171,12 @@ function JobsHome() {
           <div className="mt-6">
             <h1 className="wj-sr-only">Find jobs</h1>
             {/* What the list is from — every source's count a tap away — under the jobs, out of the way. */}
-            {!search.active && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
+            {!search.active && !switchedTo && <SearchStatusLine search={search} monitoring={attention.isMonitoring} />}
             <RelevanceNoteBar notes={search.readiness.notes} />
           </div>
         }
         empty={<JobsEmpty search={search} />}
+        switchedTo={switchedTo}
         searching={search.active ? <SearchingPanel search={search} /> : null}
         // Part Time's own words found nothing: say so, rather than asking for words again.
         partTimeMiss={search.last && search.last.config.origin === "words" && !search.last.config.role && foundNothing(search.last) ? search.last.config.searchCriteria.query : null}
