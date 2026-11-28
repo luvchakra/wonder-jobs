@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hmacSha256Hex } from "../crypto";
 import { MemoryBillingStore, setBillingStoreForTests } from "./store";
+import { stateStore } from "../state";
+import { PLATFORM_TENANT } from "./plansConfig";
 import { missingBillingEnv, razorpayConfig, razorpayMode } from "./config";
 import { __resetBillingKeys, billingKeyStatus, setBillingKeys } from "./credentials";
 import { clearRazorpaySubscriptionsCache, verifyRazorpayCheckout, verifyRazorpayOrder } from "./razorpay";
@@ -15,7 +17,9 @@ const SUPA = { NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co", NEXT_PUB
 const KEYS = { RAZORPAY_KEY_ID: "rzp_test_abcdef123", RAZORPAY_KEY_SECRET: "secret_abcdef", RAZORPAY_WEBHOOK_SECRET: "whsec_abcdef" };
 
 let store: MemoryBillingStore;
-beforeEach(() => {
+beforeEach(async () => {
+  // These tests are about what's paid for: the launch gift is off here (its own tests switch it on).
+  await stateStore.put(PLATFORM_TENANT, "wj.plans", { launchGift: { on: false } });
   store = new MemoryBillingStore();
   setBillingStoreForTests(store);
   clearPriceCacheForTests();
@@ -24,6 +28,7 @@ beforeEach(() => {
   for (const [k, v] of Object.entries(SUPA)) vi.stubEnv(k, v);
 });
 afterEach(async () => {
+  await stateStore.remove(PLATFORM_TENANT, "wj.plans");
   await setBillingKeys({ RAZORPAY_KEY_ID: null, RAZORPAY_KEY_SECRET: null, RAZORPAY_WEBHOOK_SECRET: null });
   vi.restoreAllMocks();
   vi.unstubAllEnvs();

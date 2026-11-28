@@ -5,6 +5,7 @@ import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { INSTALL_EARLY_CAPTURE } from "@/lib/installBanner";
 import { siteUrl } from "@/lib/siteUrl";
 import { UI_EARLY_APPLY } from "@/domain/platform/ui";
+import { LaunchSplash, SPLASH_EARLY } from "@/components/pwa/LaunchSplash";
 import { UiSync } from "@/lib/ui";
 import "./globals.css";
 
@@ -59,8 +60,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: INSTALL_EARLY_CAPTURE }} />
         {/* The first or the second UI, as this browser last knew it, before anything paints. */}
         <script dangerouslySetInnerHTML={{ __html: UI_EARLY_APPLY }} />
+        {/* Opened from the home screen: the launch splash, before anything paints (components/pwa/LaunchSplash.tsx). */}
+        <script dangerouslySetInnerHTML={{ __html: SPLASH_EARLY }} />
       </head>
       <body className="min-h-full flex flex-col">
+        <LaunchSplash />
         {/* Phones and tablets only, when this browser can install the app and it isn't installed. */}
         <InstallBanner />
         <UiSync />

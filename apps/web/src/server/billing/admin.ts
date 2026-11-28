@@ -17,7 +17,7 @@ import type { z } from "zod";
 import { diffPlans, AutomaticDiscountInput, ApiPlanInput, PaidPlan, PlanFeaturesInput, PriceChangeInput, PriceOverrideInput, PromoDeactivateInput, PromoInput } from "@/domain/billing/admin";
 import { couponFromStripe, type Coupon, type PlanDiscount } from "@/domain/billing/discounts";
 import { formatMoney } from "@/domain/billing/format";
-import { PLAN_IDS, type PaidPlanId, type PlansConfig } from "@/domain/billing/plans";
+import { DEFAULT_LAUNCH_GIFT, PLAN_IDS, type PaidPlanId, type PlansConfig } from "@/domain/billing/plans";
 import { apiPlanConfig } from "@/domain/jobslake/apiPlan";
 import { jobsLakeStore } from "@/server/jobslake/store";
 import { listSources } from "@/server/jobslake/registry";
@@ -186,6 +186,7 @@ export async function savePlanFeatures(raw: unknown, actor: string): Promise<{ c
     const patch = input.plans[id];
     if (patch) next.plans[id] = { ...before.plans[id], ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) };
   }
+  if (input.launchGift) next.launchGift = { ...(before.launchGift ?? DEFAULT_LAUNCH_GIFT), ...Object.fromEntries(Object.entries(input.launchGift).filter(([, v]) => v !== undefined)) };
   const changes = diffPlans(before, next);
   if (!changes.length) return { config: await getPlansConfig(), changes };
   await savePlansConfig(next, actor);

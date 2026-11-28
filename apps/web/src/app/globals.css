@@ -849,3 +849,93 @@ html[data-ui="2"],
   color: var(--wj-brand-700);
   font-size: 14px;
 }
+
+/* The launch splash (components/pwa/LaunchSplash.tsx): only when the installed app opens, about a second. */
+#wj-splash {
+  display: none;
+}
+html[data-splash] #wj-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: #f6f6fb;
+  transition: opacity 0.35s ease-out;
+}
+html[data-splash="out"] #wj-splash {
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-splash] body {
+  overflow: hidden;
+}
+.wj-splash-mark {
+  position: relative;
+  height: 88px;
+  width: auto;
+  animation: wj-splash-mark 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+.wj-splash-word {
+  position: relative;
+  font-family: var(--font-poppins), system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #1b1f3b;
+  animation: wj-splash-word 0.5s ease-out 0.35s both;
+}
+.wj-splash-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 220px;
+  height: 220px;
+  margin: -131px 0 0 -110px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(124 92 255 / 0.28), rgb(124 92 255 / 0) 70%);
+  animation: wj-splash-glow 1.3s ease-out both;
+}
+@keyframes wj-splash-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.55) rotate(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes wj-splash-word {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes wj-splash-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(1.15);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wj-splash-mark,
+  .wj-splash-word,
+  .wj-splash-glow {
+    animation: none;
+  }
+}

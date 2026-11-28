@@ -1,5 +1,5 @@
 import { applyBillingEvent, entitlementFor } from "@/domain/billing/subscription";
-import { limitsFor, PLAN_RANK, planForRef, type PaidPlanId, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
+import { DEFAULT_LAUNCH_GIFT, launchGiftUntil, limitsFor, PLAN_RANK, planForRef, type PaidPlanId, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
 import { readTestPlan, getPlansConfig } from "./plansConfig";
 import { authConfigured } from "@/lib/auth/config";
 import { fromRazorpayEvent, fromStripeEvent } from "@/domain/billing/events";
@@ -7,6 +7,7 @@ import type { BillingEvent, BillingProviderId, Entitlement, PlanPrice, ProviderA
 import { sha256Hex } from "../crypto";
 import { recordServerAudit } from "../audit";
 import { isErased } from "../privacy/records";
+import { tenantCreatedAt } from "../supabase";
 import { BILLING_PROVIDER_IDS, missingBillingEnv, razorpayConfig, stripeConfig } from "./config";
 import { loadBillingKeys } from "./credentials";
 import { entryFor } from "./ledger";
@@ -103,6 +104,12 @@ export async function entitlement(tenantId: string): Promise<Entitlement> {
     const test = await readTestPlan(tenantId).catch(() => undefined);
     // A real subscription always wins; a testing plan only fills in where nothing is paid for.
     if (test && paid.plan === "free" && !paid.subscription && (test.byAdmin || !(await paymentsLive(config)))) return { plan: test.plan, reason: `Testing ${config.plans[test.plan]?.label ?? test.plan} — no payment` };
+    // The launch gift: nothing paid for (or a paid plan ended), so the first month is on the gift's plan, free.
+    if (paid.plan === "free") {
+      const gift = config.launchGift ?? DEFAULT_LAUNCH_GIFT;
+      const until = gift.on ? launchGiftUntil(gift, (await tenantCreatedAt(tenantId)) ?? undefined) : null;
+      if (until) return { plan: gift.plan, reason: `Launch gift — ${config.plans[gift.plan].label} free until ${new Date(until).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })}`, until, gift: true };
+    }
     return paid;
   } catch {
     // Fail closed: if the record can't be read, nothing paid is unlocked, and we say why.

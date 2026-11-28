@@ -40,6 +40,7 @@ export async function GET() {
       discounts,
       reason: ent.reason,
       until: ent.until ?? null,
+      gift: !!ent.gift,
       subscription: sub ? { provider: sub.provider, status: sub.status, cancelAtPeriodEnd: sub.cancelAtPeriodEnd, currentPeriodEnd: sub.currentPeriodEnd ?? null, canManage: sub.provider === "stripe" ? !!sub.customerId : sub.status !== "canceled", prepaid: isPrepaid(sub) } : null,
       payments,
       // Pre-launch: switch plans without paying, to try each plan's limits.

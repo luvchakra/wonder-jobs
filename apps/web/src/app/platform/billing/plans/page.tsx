@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { PLAN_FEATURES, PLAN_IDS, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
+import { DEFAULT_LAUNCH_GIFT, PLAN_FEATURES, PLAN_IDS, type LaunchGift, type PlanId, type PlanLimits, type PlansConfig } from "@/domain/billing/plans";
 import { MODULES } from "@/modules/registry";
 import { Card } from "@/components/common/Card";
 import { Button } from "@/components/common/Button";
@@ -35,12 +35,14 @@ export default function BillingPlansPage() {
 function Editor({ data }: { data: Data }) {
   const [draft, setDraft] = useState<PlansConfig>(data.config);
   const [busy, setBusy] = useState(false);
+  const gift = draft.launchGift ?? DEFAULT_LAUNCH_GIFT;
+  const setGift = (patch: Partial<LaunchGift>) => setDraft((d) => ({ ...d, launchGift: { ...(d.launchGift ?? DEFAULT_LAUNCH_GIFT), ...patch } }));
   const setPlan = (id: PlanId, patch: Partial<PlanLimits>) => setDraft((d) => ({ ...d, plans: { ...d.plans, [id]: { ...d.plans[id], ...patch } } }));
   const save = async () => {
     setBusy(true);
     // Blank feature lines are dropped rather than saved.
     const plans = Object.fromEntries(PLAN_IDS.map((id) => [id, Object.fromEntries(FEATURE_KEYS.map((k) => [k, k === "highlights" ? draft.plans[id].highlights.map((h) => h.trim()).filter(Boolean) : draft.plans[id][k]]))]));
-    const r = await adminFetch<{ config: PlansConfig; changes: unknown[] }>("/api/billing/admin/plans", { method: "PUT", body: JSON.stringify({ plans }) });
+    const r = await adminFetch<{ config: PlansConfig; changes: unknown[] }>("/api/billing/admin/plans", { method: "PUT", body: JSON.stringify({ plans, launchGift: { on: gift.on, plan: gift.plan, days: gift.days } }) });
     setBusy(false);
     if (!r.ok) return toast.error("Couldn't save", r.error.message);
     setDraft(r.data.config);
@@ -59,6 +61,35 @@ function Editor({ data }: { data: Data }) {
           </Button>
         }
       />
+      {/* The launch gift (owner, 2026-11-28): each account's first month on a paid plan, free; named on the landing page and in Plan & billing. */}
+      <Card className="mb-4 flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-[13px] text-ink-2">
+            <span className="block text-[14px] font-semibold text-ink">Launch gift</span>
+            Every account that pays for nothing gets {draft.plans[gift.plan].label} free for {gift.days} days from sign-up (accounts made before {gift.since} count from then). A paid plan always wins.
+          </span>
+          <Switch checked={gift.on} onChange={(on) => setGift({ on })} label="Launch gift on" />
+        </div>
+        {gift.on && (
+          <div className="flex flex-wrap gap-3">
+            <div>
+              <label className={`${label} block`} htmlFor="gift-plan">
+                Plan
+              </label>
+              <select id="gift-plan" value={gift.plan} onChange={(e) => setGift({ plan: e.target.value as LaunchGift["plan"] })} className="h-10 rounded-[10px] border border-line bg-surface px-3 text-[14px]">
+                <option value="max">{draft.plans.max.label}</option>
+                <option value="pro">{draft.plans.pro.label}</option>
+              </select>
+            </div>
+            <div>
+              <label className={label} htmlFor="gift-days">
+                Days
+              </label>
+              <Input id="gift-days" type="number" inputMode="numeric" min={1} max={365} value={gift.days} onChange={(e) => setGift({ days: Math.min(365, Math.max(1, Math.round(Number(e.target.value || 1)))) })} />
+            </div>
+          </div>
+        )}
+      </Card>
       <div className="grid gap-4 md:grid-cols-3">
         {PLAN_IDS.map((id) => {
           const l = draft.plans[id];
