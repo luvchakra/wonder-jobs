@@ -19,6 +19,7 @@ import { useChromeSlots } from "./slots";
 import { useNetworkMode } from "./networkMode";
 import { useLeaveNetwork } from "./LeaveNetwork";
 import { NetworkMark } from "@/wonderworks/brand/NetworkMark";
+import { useUi } from "@/lib/ui";
 
 /** The bottom bar: the module's four places, nothing else. Each place's own pages are tabs at its top (or rows
  * on You); help, account and sign-out are in the account menu (the top-bar avatar, or ⋯ in the quick actions). Above the
@@ -69,6 +70,8 @@ export function MobileNav() {
     };
   }, [onNetwork, pathname]);
   const away = useLeaveNetwork();
+  // The second UI's bar floats: a pill off the screen's edge (domain/platform/ui.ts). Same places, same links.
+  const floating = useUi() === 2;
   // The quick actions are open on the page they were opened on; going to another page folds them away.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const open = openOn === pathname;
@@ -217,7 +220,25 @@ export function MobileNav() {
       {create === "message" && <NewMessageSheet onClose={() => setCreate(null)} />}
       {/* The bottom bar (owner, 2026-11-22: "make the bottom bar little more modern"): the four places share one look, a
           soft pill behind the current one's icon. In network mode it isn't there at all. */}
-      {!onNetwork && (
+      {!onNetwork && floating && (
+        <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(calc(var(--wj-bottom-hidden, 0px) * 2))", bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }} className="fixed inset-x-3 z-40 mx-auto max-w-md rounded-full border border-line/80 bg-surface/85 shadow-lg backdrop-blur-xl transition-transform duration-200 ease-out motion-reduce:transition-none md:hidden">
+          <ul className="grid grid-flow-col auto-cols-fr items-center p-1.5">
+            {places.map((item) => {
+              const active = isActivePath(pathname, item);
+              const Icon = item.icon;
+              return (
+                <li key={item.href} className="min-w-0">
+                  <Link href={item.href} aria-current={active ? "page" : undefined} className={cn("flex h-12 flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[11px] leading-none transition-colors duration-150", active ? "bg-brand-50 font-semibold text-brand-700" : "font-medium text-ink-3")}>
+                    <Icon aria-hidden className={cn("size-5", active && "text-brand-600")} strokeWidth={active ? 2.3 : 1.8} />
+                    <span className="max-w-full truncate">{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
+      {!onNetwork && !floating && (
         <nav aria-label="Primary" data-bottom-bar style={{ transform: "translateY(var(--wj-bottom-hidden, 0px))" }} className="fixed inset-x-0 bottom-0 z-40 rounded-t-[22px] border-t border-line/70 bg-surface/95 shadow-[0_-6px_24px_-12px_rgba(40,20,90,0.18)] backdrop-blur-xl transition-transform duration-300 ease-out motion-reduce:transition-none md:hidden wj-safe-bottom">
           <ul className="grid grid-flow-col auto-cols-fr items-end px-1.5">
             {places.map((item) => {

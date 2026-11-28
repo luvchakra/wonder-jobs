@@ -1,15 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Poppins } from "next/font/google";
+import { Geist_Mono, Inter, Poppins } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/pwa/RegisterServiceWorker";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { INSTALL_EARLY_CAPTURE } from "@/lib/installBanner";
 import { siteUrl } from "@/lib/siteUrl";
+import { UI_EARLY_APPLY } from "@/domain/platform/ui";
+import { UiSync } from "@/lib/ui";
 import "./globals.css";
 
 // The WonderWorks typeface (docs/WONDERWORKS_PLATFORM.md §9). Not a variable font, so the four weights the UI
 // uses are listed: normal, medium, semibold, bold.
 const poppins = Poppins({ variable: "--font-poppins", subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+// The second UI's typeface (domain/platform/ui.ts). Not preloaded: only a browser showing the second UI fetches it.
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap", preload: false });
 
 const TITLE = "WonderWorks — Your next opportunity is out there. Wonder finds it.";
 const DESCRIPTION =
@@ -45,17 +49,21 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}>
+    // data-ui is set by the early script before React hydrates, so its mismatch on <html> is expected.
+    <html lang="en" suppressHydrationWarning className={`${poppins.variable} ${geistMono.variable} ${inter.variable} h-full antialiased`}>
       <head>
         {/* impact.com affiliate site verification (owner, 2026-11-05). It reads a `value` attribute, which Next's metadata
             API can't write (it writes `content`), so the tag is plain markup. */}
         <meta name="impact-site-verification" {...{ value: "e7bc1d92-3f06-475c-bd7d-2d308db27727" }} />
         {/* Holds Chromium's install prompt if it fires before the app's JavaScript loads (WJ-301). */}
         <script dangerouslySetInnerHTML={{ __html: INSTALL_EARLY_CAPTURE }} />
+        {/* The first or the second UI, as this browser last knew it, before anything paints. */}
+        <script dangerouslySetInnerHTML={{ __html: UI_EARLY_APPLY }} />
       </head>
       <body className="min-h-full flex flex-col">
         {/* Phones and tablets only, when this browser can install the app and it isn't installed. */}
         <InstallBanner />
+        <UiSync />
         {children}
         <RegisterServiceWorker />
       </body>

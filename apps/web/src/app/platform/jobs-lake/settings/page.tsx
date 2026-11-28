@@ -3,7 +3,11 @@ import type { JobsLakeFlags } from "@/server/jobslake/flags";
 import type { StoreStatus } from "@/server/jobslake/store";
 import Link from "next/link";
 import { StatusPill } from "@/components/common/Badge";
-import { LoadError, Loading, Note, PageTitle, Panel, useAdmin } from "@/components/jobslake/ui";
+import { useState } from "react";
+import { LoadError, Loading, Note, PageTitle, Panel, adminFetch, useAdmin } from "@/components/jobslake/ui";
+import { Segmented } from "@/components/common/Input";
+import { UI_LABEL, type UiConfig, type UiVersion } from "@/domain/platform/ui";
+import { platformUiChanged, setUiPreview, uiPreview } from "@/lib/ui";
 
 type Settings = {
   actor: string;
@@ -22,13 +26,70 @@ const FLAG_INFO: { key: keyof JobsLakeFlags; env: string; label: string; off: st
   { key: "jobsLakeAdminEnabled", env: "JOBSLAKE_ADMIN_ENABLED", label: "Admin portal", off: "This portal and the admin API answer 404." },
 ];
 
+/**
+ * Which UI everyone sees (domain/platform/ui.ts; owner, 2026-11-28). The one switch on this page an admin sets here
+ * rather than in the deployment: it changes only the look, and switching back is the same press.
+ */
+function LookPanel() {
+  const { data, error, reload } = useAdmin<{ ui: UiConfig }>("ui");
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  // null follows the platform; read once on mount (this panel only renders in the browser, after the fetch).
+  const [preview, setPreview] = useState<UiVersion | null>(() => (typeof window === "undefined" ? null : uiPreview()));
+  const choose = async (version: UiVersion) => {
+    setSaving(true);
+    setFailed(null);
+    const r = await adminFetch<{ ui: UiConfig }>("ui", { method: "PUT", body: JSON.stringify({ version }) });
+    setSaving(false);
+    if (!r.ok) return setFailed(r.error.message);
+    platformUiChanged(r.data.ui.version);
+    void reload();
+  };
+  return (
+    <Panel title="Look">
+      {error && <LoadError error={error} onRetry={reload} />}
+      {data && (
+        <div className="flex flex-col gap-3 text-[13px]">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              <span className="font-medium text-ink">Everyone sees</span>
+              <span className="block text-[12px] text-ink-3">
+                Switches every user within about a minute. Only the look changes; switch back the same way.
+                {data.ui.updatedBy && data.ui.updatedAt ? ` Last set by ${data.ui.updatedBy}, ${new Date(data.ui.updatedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.` : ""}
+              </span>
+            </span>
+            <Segmented value={String(data.ui.version)} onChange={(v) => !saving && Number(v) !== data.ui.version && void choose(Number(v) as UiVersion)} label="Everyone sees" options={[{ value: "1", label: UI_LABEL[1] }, { value: "2", label: UI_LABEL[2] }]} />
+          </div>
+          <div className="flex flex-col gap-2 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              <span className="font-medium text-ink">This device</span>
+              <span className="block text-[12px] text-ink-3">Try a UI here, in this browser only, before switching everyone.</span>
+            </span>
+            <Segmented
+              value={preview === null ? "0" : String(preview)}
+              onChange={(v) => {
+                const next = v === "0" ? null : (Number(v) as UiVersion);
+                setUiPreview(next);
+                setPreview(next);
+              }}
+              label="This device"
+              options={[{ value: "0", label: "As everyone" }, { value: "1", label: UI_LABEL[1] }, { value: "2", label: UI_LABEL[2] }]}
+            />
+          </div>
+          {failed && <Note tone="danger">Not switched: {failed}</Note>}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 export default function SettingsPage() {
   const { data, error, reload } = useAdmin<Settings>("settings");
   return (
     <>
       <PageTitle
         title="Feature switches"
-        subtitle="Read-only: every switch is an environment variable, so each change is a deploy-time decision and is reversible without code."
+        subtitle="Look is set here. Every other switch is read-only: an environment variable, so each change is a deploy-time decision and is reversible without code."
         actions={
           <Link href="/platform/jobs-lake/protocols" className="text-[13px] font-medium text-brand-600 hover:underline">
             WorksLake protocol
@@ -39,6 +100,7 @@ export default function SettingsPage() {
       {!data && !error && <Loading />}
       {data && (
         <div className="flex flex-col gap-4">
+          <LookPanel />
           <Panel title="Feature flags">
             <ul className="divide-y divide-line">
               {FLAG_INFO.map((f) => (

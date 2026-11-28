@@ -95,6 +95,66 @@
   --wj-mobile-nav-h: env(safe-area-inset-bottom, 0px);
 }
 
+/* ---------------------------------------------------------------------------
+   The second UI (owner, 2026-11-28; domain/platform/ui.ts). A platform admin switches every user between the first
+   UI above and this one in Admin → Settings; <html data-ui="2"> carries the choice. Only tokens change here, so
+   every screen follows without its own code: white surfaces, near-black text, hairline borders, ONE accent (the
+   brand purple, no gradient, no blue or magenta), Inter, 12px cards, 8px buttons, flat cards with a shadow only on
+   what floats. Layouts that differ are components reading useUi() (src/lib/ui.tsx, src/wonderworks/ui2/).
+   Removing this block and the [data-ui="2"] rules below restores the first UI everywhere.
+   ------------------------------------------------------------------------ */
+:root[data-ui="2"] {
+  --wj-bg: #ffffff;
+  --wj-bg-soft: #f5f5f5;
+  --wj-surface: #ffffff;
+  --wj-surface-2: #fafafa;
+  --wj-glass: rgba(255, 255, 255, 0.82);
+  --wj-line: #e5e5e5;
+  --wj-line-strong: #d4d4d4;
+
+  --wj-ink: #1a1a1a;
+  --wj-ink-2: #3d3d3d;
+  --wj-ink-3: #6b6b6b;
+  --wj-ink-4: #6b6b6b; /* 5.3:1 on white */
+
+  /* One accent: what was indigo, sky blue or magenta is the brand purple here. Status colours stay. */
+  --wj-indigo-500: var(--wj-brand-500);
+  --wj-light-blue: var(--wj-brand-50);
+  --wj-blue-100: var(--wj-brand-100);
+  --wj-blue-500: var(--wj-brand-500);
+  --wj-blue-600: var(--wj-brand-600);
+  --wj-info-100: var(--wj-brand-50);
+  --wj-info-600: var(--wj-brand-700);
+  --wj-pink-500: var(--wj-brand-500);
+  --wj-gradient-brand: linear-gradient(var(--wj-brand-500), var(--wj-brand-500));
+  --wj-gradient-text: linear-gradient(var(--wj-brand-600), var(--wj-brand-600));
+
+  /* Flat cards: the two card shadows go; md and lg stay for what floats (menus, sheets, the bottom bar). */
+  --wj-shadow-xs: 0 0 #0000;
+  --wj-shadow-sm: 0 0 #0000;
+  --wj-shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.12);
+  --wj-shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.18);
+  --wj-shadow-brand: 0 0 #0000;
+  --wj-shadow-brand-hover: 0 0 #0000;
+
+  --wj-radius-sm: 8px;
+  --wj-radius-md: 8px;
+  --wj-radius-lg: 12px;
+  --wj-radius-xl: 12px;
+  --wj-radius-2xl: 12px;
+  --wj-radius-3xl: 16px;
+
+  --wj-ease: ease;
+  --wj-dur: 180ms;
+
+  /* The floating bottom bar: its pill (3.75rem), the gap under it (0.75rem) and the safe area. */
+  --wj-mobile-nav-h: calc(4.5rem + env(safe-area-inset-bottom, 0px) - var(--wj-bottom-hidden, 0px));
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+:root[data-ui="2"][data-network-mode] {
+  --wj-mobile-nav-h: env(safe-area-inset-bottom, 0px);
+}
+
 @theme inline {
   --color-bg: var(--wj-bg);
   --color-bg-soft: var(--wj-bg-soft);
@@ -526,5 +586,63 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The second UI: the first UI's hard-coded shapes, brought to its radii (12px cards, 8px buttons; pills stay pills)
+   until each screen is laid out with the ui2 parts. Unlayered on purpose, so they win over the utilities.
+   ------------------------------------------------------------------------ */
+/* Inter everywhere (the theme inlines Poppins into the font-sans utility, so the variable alone isn't enough). */
+html[data-ui="2"],
+[data-ui="2"] body,
+[data-ui="2"] .font-sans {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+[data-ui="2"] :is(.rounded-\[13px\], .rounded-\[14px\], .rounded-\[16px\], .rounded-\[18px\], .rounded-\[20px\], .rounded-\[22px\], .rounded-\[24px\], .rounded-\[28px\]) {
+  border-radius: 12px;
+}
+[data-ui="2"] :is(.rounded-\[9px\], .rounded-\[10px\]) {
+  border-radius: 8px;
+}
+/* Buttons (components/common/Button.tsx carries wj-press): 8px whatever their size; round ones stay round. */
+[data-ui="2"] .wj-press:not(.rounded-full) {
+  border-radius: 8px;
+}
+[data-ui="2"] .wj-gradient-bg {
+  background: var(--wj-brand-500);
+}
+[data-ui="2"] .wj-card-premium {
+  border-radius: 12px;
+  box-shadow: none;
+  background: var(--wj-surface);
+  border: 1px solid var(--wj-line);
+}
+@media (hover: hover) {
+  [data-ui="2"] .wj-card-premium:hover {
+    background: var(--wj-surface);
+    border-color: var(--wj-line-strong);
+    box-shadow: none;
+    transform: none;
+  }
+}
+/* Loading is grey skeleton blocks with a shimmer (wonderworks/ui2/Skeleton.tsx). */
+@keyframes wj-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.wj-skeleton {
+  border-radius: 8px;
+  background: linear-gradient(90deg, #ececec 25%, #f6f6f6 37%, #ececec 63%);
+  background-size: 400% 100%;
+  animation: wj-shimmer 1.4s ease infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wj-skeleton {
+    animation: none;
   }
 }

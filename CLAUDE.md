@@ -33,6 +33,13 @@ The product is **WonderWorks** (owner, 2026-10-29; formerly WonderJobs, then Won
 - **Brand:** the brand identity (logo with the WonderWorks wordmark, colours, type, icon tiles) applies across the whole app (owner, 2026-10-28).
 - **Sessions:** Each module has its own Claude session. All work for a module happens in that one session, never in another module's session, and never across several sessions for the same module. WonderWorks shared-layer work has its own session too.
 
+## Two UIs (owner, 2026-11-28: "the new ui should be optional, keep a config in platform level to switch to second ui. if i don't like it, i should be able to change to first ui")
+
+- **The product has a first UI (the default) and a second UI.** A platform admin switches everyone in Admin → Settings → Look, and can try either on one device first (`domain/platform/ui.ts`, `server/platform/ui.ts`, `/api/ui`, `lib/ui.tsx`). `<html data-ui="2">` carries the second UI.
+- **The second UI changes only look and layout.** Never a route, what is fetched, who may do what, or what an action does. "Real data only" and "Minimal UI" apply to it as to the first.
+- **Where it lives:** its tokens are under `:root[data-ui="2"]` in `globals.css`; a layout that differs is a component reading `useUi()`, built from the parts in `src/wonderworks/ui2/` (Header, ChipRow, SectionHeader, CardRail, the four cards, Skeleton). The shared-layer session owns these; a module that needs a second-UI variant of its own card asks that session first.
+- **The first UI never changes when the second is worked on,** and every other change must work in both. Look at both: `node apps/web/scripts/ui-shot.mjs <path> --ui 1|2 --out x.png`.
+
 ## Merging across sessions (owner, 2026-11-01: "coordinate the merges across the sessions properly, avoid any conflicts")
 
 Several sessions merge into `main` at once. Every session follows this so their PRs don't collide:
