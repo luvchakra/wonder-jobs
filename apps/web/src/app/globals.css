@@ -939,3 +939,17 @@ html[data-splash] body {
     animation: none;
   }
 }
+
+/* The second UI's top-bar icons show when they're pressed (owner, 2026-11-28: "once a top navbar icon is pressed, show
+   that it's pressed"): the page an icon opens (Messages, Notifications), or the menu or panel it has open (the
+   avatar's menu, Network's invitations), gets a soft accent circle and a filled icon, as the bottom bar's places do. */
+[data-ui="2"] [data-top-bar] :is(a[aria-current="page"], button[aria-expanded="true"]).rounded-full {
+  background-color: var(--color-brand-50);
+  color: var(--color-brand-700);
+}
+[data-ui="2"] [data-top-bar] :is(a[aria-current="page"], button[aria-haspopup="dialog"][aria-expanded="true"]) > svg {
+  fill: currentColor;
+}
+[data-ui="2"] [data-top-bar] a {
+  transition: background-color 0.15s, color 0.15s;
+}
