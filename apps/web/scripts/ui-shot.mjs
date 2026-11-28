@@ -2,7 +2,7 @@
 /**
  * A screenshot of one screen in the first or the second UI (domain/platform/ui.ts), for before/after checks.
  *
- *   node scripts/ui-shot.mjs <path> --ui 1|2 --out shot.png [--width 390] [--height 844] [--scale 2] [--full]
+ *   node scripts/ui-shot.mjs <path> --ui 1|2 --out shot.png [--width 390] [--height 844] [--scale 2] [--full] [--scroll 300]
  *
  * Same server and sample candidate as scripts/ui-check.mjs. The UI is chosen with this browser's own preview key,
  * the way Admin → Settings → Look → This device does, so nothing on the server changes.
@@ -34,6 +34,12 @@ await page.waitForLoadState("networkidle").catch(() => {});
 // The dev server's own badge isn't part of the product.
 await page.addStyleTag({ content: "nextjs-portal{display:none!important}" });
 await page.waitForTimeout(800);
+// How far down the page to be when the picture is taken (what sticks, what slides away).
+const scroll = Number(opt("scroll", "0"));
+if (scroll) {
+  await page.mouse.wheel(0, scroll);
+  await page.waitForTimeout(600);
+}
 console.log(`data-ui=${await page.evaluate(() => document.documentElement.getAttribute("data-ui"))} font=${await page.evaluate(() => getComputedStyle(document.body).fontFamily.split(",")[0])} bg=${await page.evaluate(() => getComputedStyle(document.body).backgroundColor)}`);
 await page.screenshot({ path: out, fullPage: args.includes("--full") });
 console.log(`saved ${out}`);

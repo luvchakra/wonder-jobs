@@ -27,6 +27,10 @@ import { MessagesLink, NetworkBar } from "@/components/network/NetworkBell";
 import { useMediaQuery } from "@/lib/motion";
 import { arrangeMenu } from "@/domain/navigation/menus";
 import { useMenu } from "@/lib/menus";
+import { usePathname } from "next/navigation";
+import { useUi } from "@/lib/ui";
+import { isActivePath } from "./nav";
+import { useModuleNav } from "./useModuleNav";
 
 function useOutside(ref: React.RefObject<HTMLElement | null>, onOut: () => void) {
   useEffect(() => {
@@ -69,6 +73,11 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
   const profileRef = useRef<HTMLDivElement>(null);
   useOutside(profileRef, () => setProfileOpen(false));
 
+  // The second UI's header (domain/platform/ui.ts): the place's name as the title, the module as its context line.
+  const second = useUi() === 2;
+  const pathname = usePathname();
+  const place2 = useModuleNav().find((item) => isActivePath(pathname, item));
+
   const menuConfig = useMenu("account");
   // Platform admins get an Admin link (the WorksLake portal); everyone else never sees it.
   const [isAdmin, setIsAdmin] = useState(false);
@@ -100,7 +109,7 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
 
   // One menu, opened from the avatar or the phone's floating button (then on the page itself, by the button).
   const accountMenu = (
-    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4rem)] right-4 z-50" : place === "side" ? "fixed bottom-20 left-4 z-50" : "absolute left-0 top-12 md:left-auto md:right-0")}>
+    <div role="menu" className={cn("w-60 rounded-[16px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", menu === "fab" ? "fixed bottom-[calc(var(--wj-mobile-nav-h)+4rem)] right-4 z-50" : place === "side" ? "fixed bottom-20 left-4 z-50" : second ? "absolute right-0 top-12" : "absolute left-0 top-12 md:left-auto md:right-0")}>
       {/* Who's signed in, and their career status (from their applications). */}
       <div className="px-3 pb-2 pt-1.5">
         <p className="truncate text-[13px] font-semibold leading-tight text-ink">{displayName}</p>
@@ -193,6 +202,48 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
     );
   }
   if (wide) return null;
+  // The second UI: a bold title on the left with the module as an accent line under it (the same module menu), then
+  // the same icons as the first UI and the profile button, round and outlined, on the right. Nothing else differs.
+  if (second) {
+    return (
+      <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-[4.5rem] items-center gap-1 border-b border-line bg-surface/90 pl-4 pr-2 backdrop-blur transition-transform duration-200 ease-out motion-reduce:transition-none md:px-6 lg:hidden">
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          {onNetwork ? (
+            <h1 className="truncate text-[22px] font-bold leading-tight text-ink">
+              <Link href={NETWORK_HREF} className="rounded-md hover:text-brand-700">
+                My network
+              </Link>
+            </h1>
+          ) : (
+            <>
+              {/* The page keeps its own <h1>; this names the place it belongs to. */}
+              <p className="truncate text-[22px] font-bold leading-tight text-ink">{place2?.label ?? "WonderWorks"}</p>
+              {hydrated && slots.FindMenu && <slots.FindMenu />}
+            </>
+          )}
+        </div>
+        {/* Wrapped: both carry the first UI's own flex order. */}
+        <div className="flex shrink-0">{onNetwork ? <LeaveNetwork /> : <OpenNetwork />}</div>
+        {onNetwork ? (
+          <NetworkBar />
+        ) : (
+          <div className="flex items-center gap-0.5">
+            <MessagesLink />
+            <NotificationBell />
+          </div>
+        )}
+        <div className="relative" ref={profileRef}>
+          <button type="button" aria-expanded={profileOpen} aria-label="Profile menu" onClick={() => setProfileOpen((v) => !v)} className="grid size-11 place-items-center rounded-full">
+            <span className="grid size-10 place-items-center overflow-hidden rounded-full border border-line-strong p-0.5">
+              <FlipAvatar name={displayName} />
+            </span>
+          </button>
+          {profileOpen && (menu === "fab" ? createPortal(<div data-menu-trigger>{accountMenu}</div>, document.body) : accountMenu)}
+        </div>
+        {cmd && <CommandPalette open onClose={() => setCmd(false)} />}
+      </header>
+    );
+  }
   return (
     <header data-top-bar style={{ transform: "translateY(calc(var(--wj-top-hidden, 0px) * -1))" }} className="sticky top-0 z-30 flex h-16 lg:hidden items-center gap-1 border-b md:gap-3 border-line bg-surface/85 px-3 md:px-6 backdrop-blur transition-transform duration-300 ease-out motion-reduce:transition-none">
       {/* Phones (owner, 2026-10-29): the avatar on the left (it turns over to the WonderWorks mark now and then; there's no

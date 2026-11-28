@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "@/wonderworks/chrome/Sidebar";
 import { TopBar } from "@/wonderworks/chrome/TopBar";
+import { ModuleRow } from "@/wonderworks/chrome/ModuleRow";
 import { MobileNav } from "@/wonderworks/chrome/MobileNav";
 import { SectionTabs } from "@/wonderworks/chrome/SectionTabs";
 import { Toaster } from "@/components/feedback/Toast";
@@ -51,6 +52,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">
             <TopBar />
+            {/* The second UI's module row, on a module's Find page only (nothing in the first UI). */}
+            <ModuleRow />
             <main id="main" className="mx-auto w-full max-w-[1400px] flex-1 px-4 pb-24 pt-5 md:px-6 md:pb-10 lg:px-8">
               <Gate>
                 <SectionTabs />
