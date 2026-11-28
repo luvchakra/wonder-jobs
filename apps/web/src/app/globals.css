@@ -626,6 +626,13 @@ html[data-ui="2"],
     transform: none;
   }
 }
+/* One accent: the module tiles' own tints (wonderworks/brand/tiles.tsx) are the brand's here. */
+[data-ui="2"] :is(.bg-\[\#dbeafe\], .bg-\[\#ffedd5\], .bg-\[\#d1fae5\], .bg-\[\#fce7f3\], .bg-soft-lavender) {
+  background-color: var(--wj-brand-50);
+}
+[data-ui="2"] :is(.text-\[\#2563eb\], .text-\[\#1d4ed8\], .text-\[\#c2410c\], .text-\[\#047857\], .text-\[\#be185d\], .text-star-purple) {
+  color: var(--wj-brand-600);
+}
 /* Loading is grey skeleton blocks with a shimmer (wonderworks/ui2/Skeleton.tsx). */
 @keyframes wj-shimmer {
   from {

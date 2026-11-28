@@ -5,6 +5,7 @@ import { toast } from "@/components/feedback/Toast";
 import { TINTS } from "@/wonderworks/brand/tiles";
 import type { ModuleTint } from "@/wonderworks/manifest";
 import { cn } from "@/lib/cn";
+import { useUi } from "@/lib/ui";
 
 /** One entry in the menu: the active module's own choices (WonderJobs: Full Time Jobs, Part Time Jobs), or a module. */
 export interface MenuItem {
@@ -40,8 +41,17 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
     };
   }, [open]);
 
+  // The second UI (domain/platform/ui.ts): the menu is the header's context line, the current value as accent text
+  // with a chevron under the page's title. The same menu opens, from the line's own left edge.
+  const context = useUi() === 2;
   return (
-    <div ref={ref} className="relative w-full min-w-0 md:max-w-[22rem]">
+    <div ref={ref} className={cn("relative min-w-0", context ? "w-fit max-w-full" : "w-full md:max-w-[22rem]")}>
+      {context ? (
+        <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${now.label}`} title={now.label} onClick={() => setOpen((v) => !v)} className="-my-2.5 flex min-h-11 max-w-full items-center gap-0.5 text-left text-[13px] font-medium text-brand-600">
+          <span className="truncate">{now.label}</span>
+          <ChevronDown className={cn("size-4 shrink-0 transition-transform duration-150", open && "rotate-180")} aria-hidden />
+        </button>
+      ) : (
       <button
         type="button"
         aria-haspopup="menu"
@@ -58,8 +68,9 @@ export function ModuleMenu({ label, now, choices, live, upcoming, onChoice, onMo
         {/* The chevron says it opens. */}
         <ChevronDown className={cn("size-3.5 shrink-0 text-ink-3 transition-transform md:size-4", open && "rotate-180")} strokeWidth={2.5} aria-hidden />
       </button>
+      )}
       {open && (
-        <div role="menu" aria-label={label} className="absolute left-1/2 top-11 z-40 -translate-x-1/2 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[19.5rem] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up">
+        <div role="menu" aria-label={label} className={cn("absolute z-40 max-h-[calc(100dvh-var(--wj-mobile-nav-h,4.5rem)-5.5rem)] md:max-h-[min(75dvh,34rem)] w-[19.5rem] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-[18px] border border-line bg-surface p-1.5 shadow-lg wj-animate-fade-up", context ? "left-0 top-8" : "left-1/2 top-11 -translate-x-1/2")}>
           {choices.map((m) => {
             const on = m.on;
             const I = m.icon;
