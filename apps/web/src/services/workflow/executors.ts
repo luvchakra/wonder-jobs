@@ -40,7 +40,7 @@ const CHUNK = 96;
  * resolves to "run": "ask" can't be answered in the middle of a search and "skip" is Off, so both leave the rules'
  * ranking as it is, as does no model, an unusable reply or any error (it fails closed).
  */
-export async function aiRelevanceFor(gate: "run" | "ask" | "skip", ai: Pick<AIService, "matchJobs">, jobs: CanonicalJob[], matches: JobMatch[], search: { words: string; goal?: string; role?: string }): Promise<Record<string, AiRelevance> | null> {
+export async function aiRelevanceFor(gate: "run" | "ask" | "skip", ai: Pick<AIService, "matchJobs">, jobs: CanonicalJob[], matches: JobMatch[], search: { words: string; goal?: string; role?: string; places?: string[]; workModes?: string[] }): Promise<Record<string, AiRelevance> | null> {
   if (gate !== "run") return null;
   const byId = new Map(jobs.map((j) => [j.id, j]));
   const top = [...matches].sort((a, b) => b.score - a.score).slice(0, AI_MATCH_TOP).map((m) => byId.get(m.jobId)).filter((j): j is CanonicalJob => !!j);
@@ -195,7 +195,8 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
         const words = typedQuery(ctx.run.config);
         if (words) {
           const started = Date.now();
-          const reads = await aiRelevanceFor(ctx.policy("ai_match"), deps.ai(ctx.run.id), jobs, matches, { words, goal: role?.careerGoal, role: role?.title });
+          const where = ctx.run.config.searchCriteria;
+          const reads = await aiRelevanceFor(ctx.policy("ai_match"), deps.ai(ctx.run.id), jobs, matches, { words, goal: role?.careerGoal, role: role?.title, places: where.locations, workModes: where.workModes });
           if (reads) {
             const key = relevanceKey(words);
             for (let i = 0; i < matches.length; i++) matches[i] = applyAiRelevance(matches[i], reads[matches[i].jobId], key);

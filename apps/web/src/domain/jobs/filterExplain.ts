@@ -13,11 +13,11 @@ import type { CanonicalJob, JobFilters, JobMatch } from "@/domain/jobs/types";
 import { readPay } from "@/domain/jobs/payWords";
 import { jobTypeOf, readJobTypeWords } from "@/domain/jobs/jobType";
 import { relevance } from "@/services/jobs/relevance";
-import { hasTermOrSynonym, inPlaces } from "@/services/jobs/normalize";
+import { hasTermOrSynonym, inPlaces, strictPlaces, worldwideRemote } from "@/services/jobs/normalize";
 import { postingTooOld } from "@/domain/jobs/age";
 import { findModeOf, inMode } from "@/domain/jobs/findMode";
 
-export type FilterReason = "rejected" | "not_saved" | "too_old" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "job_type" | "other_mode" | "company" | "location" | "profile" | "in_pipeline" | "search_text";
+export type FilterReason = "rejected" | "not_saved" | "too_old" | "work_mode" | "source" | "min_fit" | "freshness" | "min_salary" | "no_salary" | "level" | "job_type" | "other_mode" | "company" | "location" | "profile" | "in_pipeline" | "search_text" | "worldwide_remote" | "duplicate";
 
 export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   rejected: "marked not for me",
@@ -37,6 +37,8 @@ export const FILTER_REASON_LABEL: Record<FilterReason, string> = {
   profile: "outside your Career Profile",
   in_pipeline: "already in your Pipeline",
   search_text: "doesn't match your search text",
+  worldwide_remote: "remote anywhere, not in the places you picked",
+  duplicate: "the same posting as one already listed",
 };
 
 const FIT_RANK: Record<JobMatch["fit"], number> = { strong: 3, worth_considering: 2, stretch: 1, low_fit: 0 };
@@ -88,6 +90,8 @@ function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejec
     return "other_mode";
   }
   if (filters.company?.trim() && !job.company.toLowerCase().includes(filters.company.trim().toLowerCase())) return "company";
+  // A chosen country or city is strict: a worldwide remote posting is counted on its own, so the hidden count says why.
+  if (strictPlaces(filters.locations) && worldwideRemote(job)) return "worldwide_remote";
   if (filters.locations?.length && !inPlaces(job, filters.locations)) return "location";
   if (filters.strictProfile && !inProfileField(job, field)) return "profile";
   if (filters.hideInPipeline && inPipeline) return "in_pipeline";
@@ -98,6 +102,16 @@ function firstFailedReason(job: CanonicalJob, match: JobMatch | undefined, rejec
     rel?.(r.score);
   }
   return null;
+}
+
+const flat = (s: string | undefined) => (s ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+/**
+ * One posting however many records carry it: its title, company, place, work mode and the start of its description.
+ * Null when the description is too short to tell two openings with the same title apart.
+ */
+export function samePostingKey(j: Pick<CanonicalJob, "title" | "company" | "location" | "workMode" | "description">): string | null {
+  const text = flat(j.description);
+  return text.length < 80 ? null : [flat(j.title), flat(j.company), flat(j.location), j.workMode, text.slice(0, 240)].join("|");
 }
 
 export function applyJobFilters(
@@ -120,12 +134,19 @@ export function applyJobFilters(
   const hiddenByReason: Partial<Record<FilterReason, number>> = {};
   const hiddenReason: Record<string, FilterReason> = {};
   let totalCatalog = 0;
+  // The same posting twice (two records of one job the sources didn't merge): only the first is listed.
+  const listed = new Set<string>();
 
   for (const id of order) {
     const j = jobs[id];
     if (!j) continue; // not a catalog gap the candidate can act on — the id is simply stale
     totalCatalog++;
-    const reason = firstFailedReason(j, matches[id], rejected[id], !!saved[id], filters, query, now, (r) => (scores[id] = r), field, inPipeline.has(id));
+    let reason = firstFailedReason(j, matches[id], rejected[id], !!saved[id], filters, query, now, (r) => (scores[id] = r), field, inPipeline.has(id));
+    if (!reason) {
+      const key = samePostingKey(j);
+      if (key && listed.has(key)) reason = "duplicate";
+      else if (key) listed.add(key);
+    }
     if (reason) {
       hiddenByReason[reason] = (hiddenByReason[reason] ?? 0) + 1;
       hiddenReason[id] = reason;
@@ -178,4 +199,6 @@ export const FILTER_REASON_FIX: Record<FilterReason, { showAnyway: Partial<JobFi
   profile: { showAnyway: { strictProfile: false }, preference: { label: "Edit your Career Profile", href: "/app/career-dna" } },
   in_pipeline: { showAnyway: { hideInPipeline: false }, preference: { label: "Open your Pipeline", href: "/app/applications" } },
   search_text: { showAnyway: { query: "" }, preference: { label: "Change the search", href: "/app/jobs" } },
+  worldwide_remote: { showAnyway: { locations: [] }, preference: { label: "Change your places", href: "/app/career-dna" } },
+  duplicate: { showAnyway: {}, preference: { label: "See all jobs", href: "/app/jobs" } },
 };

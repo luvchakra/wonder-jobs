@@ -29,9 +29,9 @@ const ONE_FIX: Partial<Record<FilterReason, { patch: Record<string, unknown>; la
 };
 
 /** Hidden for reasons "Show me anyway" doesn't lift: the candidate's own "not for me", the other mode's kind of job (Part Time leaves out full-time jobs, and the other way round), and the words searched. */
-const KEPT_HIDDEN: FilterReason[] = ["rejected", "other_mode", "search_text"];
+const KEPT_HIDDEN: FilterReason[] = ["rejected", "other_mode", "search_text", "duplicate"];
 
-const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_mode", "source", "min_fit", "freshness", "min_salary", "no_salary", "level", "job_type", "other_mode", "company", "location", "profile", "in_pipeline", "search_text"];
+const REASON_ORDER: FilterReason[] = ["rejected", "not_saved", "too_old", "work_mode", "source", "min_fit", "freshness", "min_salary", "no_salary", "level", "job_type", "other_mode", "company", "location", "worldwide_remote", "profile", "in_pipeline", "search_text", "duplicate"];
 
 /**
  * "Why Was This Filtered" (spec §11): whenever the candidate's active filters are hiding catalog jobs,

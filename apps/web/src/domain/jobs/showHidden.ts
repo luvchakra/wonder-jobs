@@ -26,23 +26,25 @@ export const HIDDEN_TAG: Record<FilterReason, string> = {
   profile: "Outside your field",
   in_pipeline: "Already in Pipeline",
   search_text: "Doesn't match your words",
+  worldwide_remote: "Worldwide remote",
+  duplicate: "Duplicate",
 };
 
 /** Reasons the Career Profile's preferences control: only these make "Update Career Profile preferences" useful. */
-const PREFERENCE_REASONS: FilterReason[] = ["work_mode", "location", "min_salary", "no_salary", "level", "min_fit", "profile", "freshness", "job_type"];
+const PREFERENCE_REASONS: FilterReason[] = ["work_mode", "location", "worldwide_remote", "min_salary", "no_salary", "level", "min_fit", "profile", "freshness", "job_type"];
 
 /** The hidden jobs "Show hidden" brings back, best match first (never the ones marked not for me). */
 export function revealedIds(result: FilterResult, score: (id: string) => number): string[] {
   return Object.keys(result.hiddenReason)
-    .filter((id) => result.hiddenReason[id] !== "rejected")
+    .filter((id) => result.hiddenReason[id] !== "rejected" && result.hiddenReason[id] !== "duplicate")
     .sort((a, b) => score(b) - score(a));
 }
 
 /** The button's words: the one reason when there's one ("Show 19 part-time"), else how many are hidden. */
 export function showHiddenLabel(result: FilterResult, mode: FindMode): string | null {
-  const n = Object.values(result.hiddenReason).filter((r) => r !== "rejected").length;
+  const n = Object.values(result.hiddenReason).filter((r) => r !== "rejected" && r !== "duplicate").length;
   if (!n) return null;
-  const reasons = Object.keys(result.hiddenByReason).filter((r) => r !== "rejected" && result.hiddenByReason[r as FilterReason]);
+  const reasons = Object.keys(result.hiddenByReason).filter((r) => r !== "rejected" && r !== "duplicate" && result.hiddenByReason[r as FilterReason]);
   if (reasons.length === 1 && reasons[0] === "other_mode") return `Show ${n} ${mode === "full_time" ? "part-time" : "full-time"}`;
   return `Show ${n} hidden`;
 }

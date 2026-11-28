@@ -288,3 +288,29 @@ describe("each mode's All (WJ-367: freelance gigs were showing in Full Time)", (
     expect(explainJobVisibility(jobs.gig, {}, {}, {}, { ...DEFAULT_FILTERS, skipProfile: false }, NOW).reason).toBe("other_mode");
   });
 });
+
+// The owner's case (2026-11-28): Singapore chosen; "Anywhere in the World" remote jobs led the list, the same one twice.
+describe("a chosen place, and the same posting twice", () => {
+  const long = "Lead technical account management for enterprise customers across the region, owning onboarding, renewals and escalations.";
+  const jobs = {
+    sg: job("sg", { location: "Singapore", workMode: "onsite", description: long + " SG" }),
+    apac: job("apac", { location: "Remote – APAC", workMode: "remote", description: long + " APAC" }),
+    world: job("world", { title: "Principal Technical Account Manager", company: "Ping Identity", location: "Anywhere in the World", workMode: "remote", description: long }),
+    worldAgain: job("worldAgain", { title: "Principal Technical Account Manager", company: "Ping Identity", location: "Anywhere in the World", workMode: "remote", description: long }),
+    us: job("us", { location: "Remote, US only", workMode: "remote", description: long + " US" }),
+  };
+  const ids = Object.keys(jobs);
+  const matches = Object.fromEntries(ids.map((id) => [id, match(id)]));
+
+  it("worldwide remote is hidden for Singapore, with its own reason; in-country and APAC remote stay", () => {
+    const r = applyJobFilters(ids, jobs, matches, {}, {}, { ...DEFAULT_FILTERS, locations: ["Singapore"] }, NOW);
+    expect(r.visibleIds).toEqual(["sg", "apac"]);
+    expect(r.hiddenByReason).toEqual({ worldwide_remote: 2, location: 1 });
+  });
+
+  it("“Anywhere” chosen shows worldwide remote, listed once: the second record is a duplicate", () => {
+    const r = applyJobFilters(ids, jobs, matches, {}, {}, { ...DEFAULT_FILTERS, locations: ["Anywhere"] }, NOW);
+    expect(r.visibleIds).toEqual(["apac", "world", "us"]);
+    expect(r.hiddenReason.worldAgain).toBe("duplicate");
+  });
+});

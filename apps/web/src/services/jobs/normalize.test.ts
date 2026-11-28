@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { corePhrase, defaultSearchQuery, profileSearchQuery, extractRequirements, extractSkills, hasTerm, htmlToText, inferSeniority, inPlaces, matchesLocations, matchesQuery, normalizePosting, parseSalary, placeNamed, queryTerms, remoteOpenTo, sameFamily, stripSelfReference } from "./normalize";
+import { corePhrase, defaultSearchQuery, profileSearchQuery, extractRequirements, extractSkills, hasTerm, htmlToText, inferSeniority, inPlaces, matchesLocations, matchesQuery, normalizePosting, parseSalary, placeNamed, queryTerms, remoteOpenTo, sameFamily, stripSelfReference, strictPlaces, worldwideRemote } from "./normalize";
 
 describe("normalize", () => {
   it("strips HTML into readable text", () => {
@@ -164,8 +164,30 @@ describe("word families and places", () => {
     expect(inPlaces(at("Pune, India"), ["Mumbai"])).toBe(false);
     expect(inPlaces(at("Remote - USA", "remote"), ["Mumbai", "Remote"])).toBe(false);
     expect(inPlaces(at("Remote (India)", "remote"), ["Mumbai", "Remote"])).toBe(true);
-    expect(inPlaces(at("Remote", "remote"), ["Mumbai"])).toBe(true);
+    // A chosen city or country is strict (owner, 2026-11-28): remote naming no place is for "Anywhere"/"Remote".
+    expect(inPlaces(at("Remote", "remote"), ["Mumbai"])).toBe(false);
+    expect(inPlaces(at("Remote", "remote"), ["Mumbai", "Remote"])).toBe(true);
     expect(inPlaces(at("Pune, India"), ["Remote"])).toBe(false);
     expect(placeNamed("Navi Mumbai, Maharashtra", "Mumbai")).toBe(true);
+  });
+
+  // The owner's case (2026-11-28): Singapore chosen, "Anywhere in the World" remote jobs on top.
+  it("a chosen country is strict: in it, remote in it or its region, never worldwide remote", () => {
+    const at = (location: string, workMode: "remote" | "onsite" | "hybrid" = "onsite") => ({ location, workMode });
+    expect(inPlaces(at("Singapore"), ["Singapore"])).toBe(true);
+    expect(inPlaces(at("Remote, Singapore", "remote"), ["Singapore"])).toBe(true);
+    expect(inPlaces(at("Remote – APAC", "remote"), ["Singapore"])).toBe(true);
+    expect(inPlaces(at("Remote - EMEA", "remote"), ["Singapore"])).toBe(false);
+    expect(inPlaces(at("Remote, US only", "remote"), ["Singapore"])).toBe(false);
+    expect(inPlaces(at("Remote (India)", "remote"), ["Singapore"])).toBe(false);
+    expect(inPlaces(at("Anywhere in the World", "remote"), ["Singapore"])).toBe(false);
+    expect(inPlaces(at("Worldwide", "remote"), ["Singapore"])).toBe(false);
+    // "Anywhere" or "Remote" chosen: worldwide remote is what was asked for.
+    expect(inPlaces(at("Anywhere in the World", "remote"), ["Anywhere"])).toBe(true);
+    expect(inPlaces(at("Anywhere in the World", "remote"), ["Remote"])).toBe(true);
+    expect(strictPlaces(["Singapore"])).toBe(true);
+    expect(strictPlaces(["Singapore", "Remote"])).toBe(false);
+    expect(worldwideRemote(at("Anywhere in the World", "remote"))).toBe(true);
+    expect(worldwideRemote(at("Remote – APAC", "remote"))).toBe(false);
   });
 });
