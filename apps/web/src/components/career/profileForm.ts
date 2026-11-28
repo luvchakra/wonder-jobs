@@ -24,12 +24,12 @@ export function withMainFields(dna: CareerDNA, v: ProfileFieldsValue): CareerDNA
 
 /** A role's own fields, as the form shows them: what isn't set is empty (it follows My profile). */
 export function roleFieldsOf(role: CareerRole): ProfileFieldsValue {
-  return { searchWords: role.query, goal: role.goal, seniority: role.seniority, resume: refKey(role.baseResume), places: role.preferredLocations ?? [], workModes: role.workModes ?? [], minSalary: role.minSalary, skills: role.skills ?? [] };
+  return { searchWords: role.query, goal: role.goal, seniority: role.seniority, resume: refKey(role.baseResume), places: role.preferredLocations ?? [], workModes: role.workModes ?? [], minSalary: role.minSalary, skills: role.skills ?? [], ...(role.skillsOwn ? { skillsOwn: true } : {}), ...(role.skillsRemoved?.length ? { skillsRemoved: role.skillsRemoved } : {}) };
 }
 
 /** What Save writes for a role: its name and the form's fields. */
 export function roleInputOf(title: string, v: ProfileFieldsValue): RoleInput {
-  return { title, query: v.searchWords, goal: v.goal, baseResume: refOf(v.resume), seniority: v.seniority, skills: v.skills, preferredLocations: places(v.places), workModes: v.workModes, minSalary: v.minSalary };
+  return { title, query: v.searchWords, goal: v.goal, baseResume: refOf(v.resume), seniority: v.seniority, skills: v.skills, preferredLocations: places(v.places), workModes: v.workModes, minSalary: v.minSalary, skillsOwn: v.skillsOwn, skillsRemoved: v.skillsRemoved };
 }
 
 /** Whether a form's fields differ from what's saved. */

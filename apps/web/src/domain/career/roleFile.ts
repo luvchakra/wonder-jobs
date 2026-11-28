@@ -55,14 +55,36 @@ export function dnaFromDocument(doc: ResumeDocument): CareerDNA {
 
 const key = (s: string) => s.trim().toLowerCase();
 
+/** A role's skill choices over its file's: what was added or changed by hand, and the file's skills taken off. */
+export interface RoleSkillChoices {
+  skills?: CareerDNA["skills"];
+  skillsOwn?: boolean;
+  skillsRemoved?: string[];
+}
+
 /**
- * A role with its own résumé takes its skills from that file (owner, 2026-11-27: "Use the file's skills"). The role's
- * own skills count only where added by hand: ones My profile also has were copied in when the role was made and are
- * dropped (so roles made before this need no change). A hand-added skill wins over the file's same skill.
+ * A role with its own résumé takes its skills from that file (owner, 2026-11-27: "Use the file's skills"), less the
+ * ones taken off, plus the ones added by hand; a hand-added skill wins over the file's same skill. A role saved before
+ * hand-added skills were recorded (`skillsOwn` unset) counts as hand-added only the skills My profile doesn't have:
+ * the rest were copied in when the role was made.
  */
-export function fileRoleSkills(fileSkills: CareerDNA["skills"], roleSkills: CareerDNA["skills"] | undefined, mySkills: CareerDNA["skills"]): CareerDNA["skills"] {
+export function fileRoleSkills(fileSkills: CareerDNA["skills"], role: RoleSkillChoices | undefined, mySkills: CareerDNA["skills"]): CareerDNA["skills"] {
   const mine = new Set(mySkills.map((s) => key(s.name)));
-  const added = (roleSkills ?? []).filter((s) => !mine.has(key(s.name)));
+  const added = role?.skillsOwn ? (role.skills ?? []) : (role?.skills ?? []).filter((s) => !mine.has(key(s.name)));
   const byHand = new Set(added.map((s) => key(s.name)));
-  return [...fileSkills.filter((s) => !byHand.has(key(s.name))), ...added];
+  const off = new Set((role?.skillsRemoved ?? []).map(key));
+  return [...fileSkills.filter((s) => !byHand.has(key(s.name)) && !off.has(key(s.name))), ...added];
+}
+
+/**
+ * What the form keeps for a role with its own résumé when its skills are edited (owner, 2026-11-28): the skills that
+ * aren't the file's own as it has them (added, or a file skill's strength changed) recorded as hand-added, and the
+ * file's skills no longer listed recorded as taken off, so a removal sticks. At most 60 of each.
+ */
+export function editFileRoleSkills(fileSkills: CareerDNA["skills"], next: CareerDNA["skills"], before: RoleSkillChoices | undefined): Required<RoleSkillChoices> {
+  const inNext = new Set(next.map((s) => key(s.name)));
+  const fromFile = (s: { name: string; level: number }) => fileSkills.some((f) => key(f.name) === key(s.name) && f.level === s.level);
+  const off = new Set([...(before?.skillsRemoved ?? []).map(key), ...fileSkills.map((s) => key(s.name)).filter((n) => !inNext.has(n))]);
+  for (const n of inNext) off.delete(n);
+  return { skills: next.filter((s) => !fromFile(s)).slice(0, 60), skillsOwn: true, skillsRemoved: [...off].slice(0, 60) };
 }

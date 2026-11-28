@@ -5,6 +5,7 @@ import type { CareerDNA } from "@/domain/career/types";
 import { dnaFromDocument, dnaFromReading, fileRoleSkills, type FileReading } from "@/domain/career/roleFile";
 import { getTemplate } from "@/domain/resume/templates";
 import { draftingProfile } from "@/domain/career/profiles";
+import { rememberRoleFile } from "./roleFileCache";
 import { useCareerStore } from "@/store/career";
 import { useResumeFilesStore } from "@/store/resumeFiles";
 
@@ -43,10 +44,12 @@ export async function loadRoleFile(role: Pick<CareerRole, "baseResume"> | undefi
   if (ref.kind === "saved") {
     const saved = useCareerStore.getState().savedResumes.find((r) => r.id === ref.id);
     const file = saved ? (saved.name ?? `${saved.document.header.name} — ${getTemplate(saved.templateId)?.name ?? "résumé"}`) : "the chosen résumé";
+    if (saved) rememberRoleFile(ref, dnaFromDocument(saved.document));
     return saved ? { state: "ready", file, dna: dnaFromDocument(saved.document) } : { state: "failed", file, error: "That résumé was deleted. Choose another one for this role in Career Profile." };
   }
   const file = useResumeFilesStore.getState().files.find((f) => f.id === ref.id)?.filename ?? "your file";
   const got = await readStored(ref.id);
+  if ("dna" in got) rememberRoleFile(ref, got.dna);
   return "dna" in got ? { state: "ready", file, dna: got.dna } : { state: "failed", file, error: got.error };
 }
 
@@ -81,7 +84,7 @@ export function useRoleFile(role: Pick<CareerRole, "id" | "baseResume"> | undefi
 export function jobProfile(dna: CareerDNA, role: CareerRole | undefined, file: RoleFile): CareerDNA | null {
   if (file.state === "none") return draftingProfile(dna, role);
   // The file's skills, plus any added to the role by hand (never ones copied in from My profile).
-  return file.state === "ready" ? draftingProfile(file.dna, role && { ...role, skills: fileRoleSkills(file.dna.skills, role.skills, dna.skills) }) : null;
+  return file.state === "ready" ? draftingProfile(file.dna, role && { ...role, skills: fileRoleSkills(file.dna.skills, role, dna.skills) }) : null;
 }
 
 /** What to say about the file a role's things are built from, one short line. */

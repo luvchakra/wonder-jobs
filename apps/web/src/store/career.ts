@@ -113,6 +113,7 @@ function relearn(s: Pick<CareerState, "rejectionHistory" | "interactionHistory" 
 }
 
 /** A role as saved: its words tidied, and each preference kept only when set (unset follows My profile). */
+const MAX_REMOVED_SKILLS = 60;
 function roleFields(input: RoleInput) {
   return {
     title: input.title.trim(),
@@ -124,6 +125,8 @@ function roleFields(input: RoleInput) {
     ...(input.preferredLocations?.length ? { preferredLocations: input.preferredLocations.slice(0, 10) } : {}),
     ...(input.workModes?.length ? { workModes: input.workModes } : {}),
     ...(input.minSalary ? { minSalary: input.minSalary } : {}),
+    ...(input.skillsOwn ? { skillsOwn: true } : {}),
+    ...(input.skillsRemoved?.length ? { skillsRemoved: input.skillsRemoved.slice(0, MAX_REMOVED_SKILLS) } : {}),
   };
 }
 

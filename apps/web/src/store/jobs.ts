@@ -10,6 +10,7 @@ import { computeMatch } from "@/services/jobs/matching";
 import { blendAiFit, profileKey, type AiFit } from "@/domain/jobs/aiFit";
 import { roleKey, scopeForJob } from "@/services/jobs/roleScope";
 import { effectiveProfile } from "@/domain/career/profiles";
+import { roleWithFileSkills } from "@/lib/roleFileCache";
 import { applyAiRelevance, relevanceKey, type AiRelevance } from "@/domain/jobs/aiMatch";
 import type { CareerDNA } from "@/domain/career/types";
 import type { LearnedSignal } from "@/domain/career/learning";
@@ -133,7 +134,8 @@ const matchScope = (f: JobFilters, dna: { preferredLocations: string[] }) => ({ 
 function scoreJob(job: CanonicalJob, ai: AiFit | undefined, rel: AiRelevance | undefined, c: { dna: CareerDNA; learnedSignals: LearnedSignal[]; searchQuery: string | undefined; scope: ReturnType<typeof matchScope>; roles: CareerRole[] | undefined }): JobMatch {
   const role = scopeForJob(job, c.roles);
   // A role's own level, skills, places and pay where set (domain/career/profiles.ts).
-  const dna = effectiveProfile(c.dna, job.foundAs ? c.roles?.find((r) => r.id === job.foundAs!.id) : undefined);
+  // A role with its own résumé ranks with its file's skills (once read), not its stored copy.
+  const dna = effectiveProfile(c.dna, roleWithFileSkills(job.foundAs ? c.roles?.find((r) => r.id === job.foundAs!.id) : undefined, c.dna.skills));
   const m = computeMatch(job, { dna, learnedSignals: c.learnedSignals, ...c.scope, ...(role ? { searchQuery: role.query, careerGoal: role.careerGoal, forRole: true } : { searchQuery: c.searchQuery }) });
   // The AI relevance check, for the words the job is judged on (the role's, or those typed).
   const words = role ? role.query : c.searchQuery;

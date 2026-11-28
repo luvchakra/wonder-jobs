@@ -17,6 +17,9 @@ export interface ProfileFieldsValue {
   workModes: CareerDNA["workModes"];
   minSalary?: number;
   skills: CareerDNA["skills"];
+  /** A role with its own résumé: its skills are the ones added by hand, and these the file's taken off (domain/career/roleFile.ts). */
+  skillsOwn?: boolean;
+  skillsRemoved?: string[];
 }
 
 const LEVELS: { value: CareerDNA["seniority"]; label: string }[] = [
