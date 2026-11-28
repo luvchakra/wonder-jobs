@@ -18,7 +18,7 @@ import { formatDate } from "@/lib/format";
 import { ProfileItem } from "./ProfileItem";
 import { ProfileFields, type ProfileFieldsValue } from "./ProfileFields";
 import { refKey, refOf, roleFieldsOf, roleInputOf } from "./profileForm";
-import { fileRoleSkills } from "@/domain/career/roleFile";
+import { editFileRoleSkills, fileRoleSkills } from "@/domain/career/roleFile";
 import { useRoleFile } from "@/lib/useRoleFile";
 
 /** The résumés a profile can use, labelled the way Resume Studio shows them. */
@@ -175,8 +175,7 @@ function RoleFields(props: React.ComponentProps<typeof ProfileFields>) {
   const file = useRoleFile({ id, baseResume: refOf(value.resume) });
   if (file.state === "none") return <ProfileFields {...props} />;
   const fromFile = file.state === "ready" ? file.dna.skills : [];
-  const shown = fileRoleSkills(fromFile, value.skills, follow?.skills ?? []);
-  const same = (a: { name: string; level: number }) => fromFile.some((f) => f.name.toLowerCase() === a.name.toLowerCase() && f.level === a.level);
+  const shown = fileRoleSkills(fromFile, value, follow?.skills ?? []);
   const skillsFrom = file.state === "ready" ? `from ${file.file}` : file.state === "reading" ? `reading ${file.file}…` : `couldn't read ${file.file}`;
   return (
     <ProfileFields
@@ -184,7 +183,7 @@ function RoleFields(props: React.ComponentProps<typeof ProfileFields>) {
       value={{ ...value, skills: shown }}
       follow={follow && { ...follow, skills: [] }}
       skillsFrom={skillsFrom}
-      onChange={(patch) => onChange(patch.skills ? { ...patch, skills: patch.skills.filter((s) => !same(s)) } : patch)}
+      onChange={(patch) => onChange(patch.skills ? { ...patch, ...editFileRoleSkills(fromFile, patch.skills, value) } : patch)}
     />
   );
 }

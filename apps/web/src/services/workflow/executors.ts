@@ -14,6 +14,7 @@ import { roleKey, searchWordsOf, type RoleScope } from "@/services/jobs/roleScop
 import { effectiveProfile } from "@/domain/career/profiles";
 import { roleFor } from "@/domain/career/roles";
 import { jobProfile, loadRoleFile } from "@/lib/useRoleFile";
+import { roleWithFileSkills } from "@/lib/roleFileCache";
 import { AI_MATCH_TOP, aiMatchPrompt, applyAiRelevance, parseAiMatch, relevanceKey, type AiRelevance } from "@/domain/jobs/aiMatch";
 import type { CareerDNA } from "@/domain/career/types";
 import type { AIService } from "@/services/ai/service";
@@ -169,6 +170,8 @@ export function createExecutors(deps: ExecutorDeps): Record<StageKey, StageExecu
       const jobs = canonicalCache.get(ctx.run.id) ?? [];
       const { learnedSignals } = useCareerStore.getState();
       // A role's search is scored with the role's own level and skills where set.
+      // A role searched as with its own résumé: its file read first, so it ranks with the file's skills.
+      if (ctx.run.config.role) await loadRoleFile(useCareerStore.getState().roles?.find((r) => r.id === ctx.run.config.role!.id));
       const dna = runProfile(ctx.run.config);
       const preferredLocations = ctx.get<string[]>("preferredLocations");
       const minSalary = ctx.get<number>("minSalary");
@@ -486,7 +489,8 @@ export function typedQuery(config: { origin?: "profile" | "words"; searchCriteri
 /** The profile a run scores with: My profile, or the role it searched as over it (domain/career/profiles.ts). */
 function runProfile(config: { role?: { id: string } }) {
   const { dna, roles } = useCareerStore.getState();
-  return effectiveProfile(dna, config.role ? roles?.find((r) => r.id === config.role!.id) : undefined);
+  // A role with its own résumé ranks with its file's skills (read before matching, `loadRoleFile`).
+  return effectiveProfile(dna, roleWithFileSkills(config.role ? roles?.find((r) => r.id === config.role!.id) : undefined, dna.skills));
 }
 
 /** The role a run searched as, with the words and goal it ran with. */

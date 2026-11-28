@@ -27,6 +27,13 @@ export interface CareerRole {
   preferredLocations?: string[];
   workModes?: CareerDNA["workModes"];
   minSalary?: number;
+  /**
+   * For a role with its own résumé (owner, 2026-11-28, "yes, to all recommendations"): `skills` holds exactly the skills
+   * added or changed by hand (recorded as they're added), and `skillsRemoved` the file's skills taken off. Unset on
+   * roles saved before: their hand-added skills are then the ones My profile doesn't have.
+   */
+  skillsOwn?: boolean;
+  skillsRemoved?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -39,7 +46,7 @@ export interface RoleRef {
 
 export const MAX_ROLES = 6;
 
-export type RoleInput = Pick<CareerRole, "title" | "query" | "goal"> & Partial<Pick<CareerRole, "baseResume" | "seniority" | "skills" | "preferredLocations" | "workModes" | "minSalary">>;
+export type RoleInput = Pick<CareerRole, "title" | "query" | "goal"> & Partial<Pick<CareerRole, "baseResume" | "seniority" | "skills" | "preferredLocations" | "workModes" | "minSalary" | "skillsOwn" | "skillsRemoved">>;
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 

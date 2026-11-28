@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dnaFromDocument, dnaFromReading, fileRoleSkills, type FileReading } from "./roleFile";
+import { dnaFromDocument, dnaFromReading, editFileRoleSkills, fileRoleSkills, type FileReading } from "./roleFile";
+import { rememberRoleFile, roleWithFileSkills } from "@/lib/roleFileCache";
 import { EMPTY_DNA, type CareerDNA } from "./types";
 import { buildResumeDocument } from "@/domain/resume/document";
 import { jobProfile, roleFileLine } from "@/lib/useRoleFile";
@@ -66,7 +67,7 @@ describe("a role with its own résumé takes its skills from that file", () => {
   const copied = { ...reinsurance, skills: [{ name: "IAM", level: 5 as const }] };
 
   it("Reinsurance with Deepak's file shows only the file's skills, never Kunal's copied IAM", () => {
-    expect(fileRoleSkills(deepak.skills, copied.skills, kunal.skills).map((s) => s.name)).toEqual(["Treaty reinsurance"]);
+    expect(fileRoleSkills(deepak.skills, copied, kunal.skills).map((s) => s.name)).toEqual(["Treaty reinsurance"]);
     const p = jobProfile(kunal, copied, file)!;
     expect(p.skills.map((s) => s.name)).toEqual(["Treaty reinsurance"]);
     expect(JSON.stringify(buildResumeDocument(p, { target: job }))).not.toContain("IAM");
@@ -74,7 +75,7 @@ describe("a role with its own résumé takes its skills from that file", () => {
 
   it("skills added to the role by hand are kept, and win over the file's own", () => {
     const byHand = { ...copied, skills: [...copied.skills, { name: "Catastrophe modelling", level: 3 as const }, { name: "treaty reinsurance", level: 5 as const }] };
-    expect(fileRoleSkills(deepak.skills, byHand.skills, kunal.skills)).toEqual([
+    expect(fileRoleSkills(deepak.skills, byHand, kunal.skills)).toEqual([
       { name: "Catastrophe modelling", level: 3 },
       { name: "treaty reinsurance", level: 5 },
     ]);
@@ -82,5 +83,36 @@ describe("a role with its own résumé takes its skills from that file", () => {
 
   it("a role without a file keeps its own skills as before", () => {
     expect(jobProfile(kunal, { ...copied, baseResume: undefined }, { state: "none" })!.skills.map((s) => s.name)).toEqual(["IAM"]);
+  });
+});
+
+// Owner, 2026-11-28 ("yes, to all recommendations"): the three limits of #818.
+describe("a role's skills over its own résumé", () => {
+  const deepak = dnaFromReading(deepakFile, "2026-11-26T00:00:00.000Z");
+  const file = [...deepak.skills, { name: "Claims", level: 3 as const }];
+
+  it("a skill added by hand that My profile also has is kept: it's recorded as added, not guessed", () => {
+    const shown = fileRoleSkills(file, { skills: [] }, kunal.skills);
+    const kept = editFileRoleSkills(file, [...shown, { name: "IAM", level: 3 }], undefined);
+    expect(kept).toEqual({ skills: [{ name: "IAM", level: 3 }], skillsOwn: true, skillsRemoved: [] });
+    expect(fileRoleSkills(file, kept, kunal.skills).map((s) => s.name)).toEqual(["Treaty reinsurance", "Claims", "IAM"]);
+  });
+
+  it("removing one of the file's skills sticks; adding it back undoes that", () => {
+    const shown = fileRoleSkills(file, undefined, kunal.skills);
+    const off = editFileRoleSkills(file, shown.filter((s) => s.name !== "Claims"), undefined);
+    expect(off.skillsRemoved).toEqual(["claims"]);
+    expect(fileRoleSkills(file, off, kunal.skills).map((s) => s.name)).toEqual(["Treaty reinsurance"]);
+    const back = editFileRoleSkills(file, [...fileRoleSkills(file, off, kunal.skills), { name: "Claims", level: 3 }], off);
+    expect(back.skillsRemoved).toEqual([]);
+    expect(fileRoleSkills(file, back, kunal.skills).map((s) => s.name)).toEqual(["Treaty reinsurance", "Claims"]);
+  });
+
+  it("a role-search ranks with the file's skills once the file is read, not the role's stored copy", () => {
+    const role = { ...reinsurance, skills: [{ name: "IAM", level: 5 as const }] };
+    expect(roleWithFileSkills(role, kunal.skills)?.skills?.map((s) => s.name)).toEqual(["IAM"]);
+    rememberRoleFile(reinsurance.baseResume, deepak);
+    expect(roleWithFileSkills(role, kunal.skills)?.skills?.map((s) => s.name)).toEqual(["Treaty reinsurance"]);
+    expect(roleWithFileSkills({ ...role, baseResume: undefined }, kunal.skills)?.skills?.map((s) => s.name)).toEqual(["IAM"]);
   });
 });

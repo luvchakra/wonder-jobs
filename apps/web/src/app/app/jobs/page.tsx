@@ -14,6 +14,7 @@ import { PageLoading } from "@/components/common/States";
 import { JobsBoard } from "@/modules/jobs/components/JobsBoard";
 import { findModeOf, type FindMode } from "@/domain/jobs/findMode";
 import { fullTimeSearchAs, roleArrival } from "@/modules/jobs/searchAs";
+import { loadRoleFile } from "@/lib/useRoleFile";
 import { switchFindMode } from "@/lib/switchFindMode";
 import { JobsEmpty, ReadinessBlockerCard, RelevanceNoteBar, RoleChips, SearchingPanel, SearchStatusLine, WantedRole } from "@/modules/jobs/components/JobsReadiness";
 
@@ -67,6 +68,17 @@ function JobsHome() {
     router.replace("/app/jobs");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, from the address the page was opened with
   }, [params, search, router]);
+  // Roles with their own résumé rank with their file's skills: read those files once, then rescore what's listed.
+  const fileRoles = roles.filter((r) => r.baseResume).map((r) => `${r.id}:${r.baseResume!.kind}:${r.baseResume!.id}`).join(",");
+  useEffect(() => {
+    if (!fileRoles) return;
+    let live = true;
+    const withFiles = useCareerStore.getState().roles?.filter((r) => r.baseResume) ?? [];
+    void Promise.all(withFiles.map((r) => loadRoleFile(r))).then(() => live && useJobsStore.getState().rescore());
+    return () => {
+      live = false;
+    };
+  }, [fileRoles]);
   // "Search as" picks a role without searching; Refine's Search runs it. undefined = nothing picked yet,
   // null = My profile, false = none (Part Time only, and its start: only the words typed).
   // The role picked under "Search as", for the mode it was picked in (switching Full Time / Part Time in the top bar forgets it).
