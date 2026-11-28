@@ -348,7 +348,7 @@ export function SortSelect<T extends string>({ value, labels, onChange, classNam
   // The second UI: an outlined accent pill, like Refine's.
   const second = useUi() === 2;
   return (
-    <label className={cn("relative inline-flex shrink-0 items-center gap-1 text-[13px] [&_select]:outline-none", second ? "h-9 rounded-full border border-brand-300 px-3 text-brand-700" : "text-ink-3", className)}>
+    <label className={cn("relative inline-flex shrink-0 items-center gap-1 text-[13px] [&_select]:outline-none", second ? "h-8 rounded-full border border-brand-300 px-3 text-brand-700" : "text-ink-3", className)}>
       Sort by <span className={cn("font-semibold", second ? "text-brand-700" : "text-ink")}>{labels[value]}</span>
       <ChevronDown className={cn("size-4", second ? "text-brand-600" : "text-ink-2")} aria-hidden />
       <select aria-label="Sort by" value={value} onChange={(e) => onChange(e.target.value as T)} className="absolute inset-0 cursor-pointer opacity-0">

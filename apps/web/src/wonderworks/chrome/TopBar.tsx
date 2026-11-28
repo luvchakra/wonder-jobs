@@ -22,6 +22,7 @@ import { useNetworkMode } from "./networkMode";
 import { NETWORK_HREF } from "./nav";
 import { NetworkMark } from "@/wonderworks/brand/NetworkMark";
 import { LeaveNetwork } from "./LeaveNetwork";
+import { CreateButton } from "./CreateButton";
 import { NotificationBell } from "./NotificationBell";
 import { MessagesLink, NetworkBar } from "@/components/network/NetworkBell";
 import { useMediaQuery } from "@/lib/motion";
@@ -222,7 +223,8 @@ export function TopBar({ place = "top" }: { place?: "top" | "side" }) {
             </>
           )}
         </div>
-        {/* Wrapped: both carry the first UI's own flex order. */}
+        {/* The + (CreateButton), then Network. Wrapped: both network buttons carry the first UI's own flex order. */}
+        <CreateButton />
         <div className="flex shrink-0">{onNetwork ? <LeaveNetwork /> : <OpenNetwork />}</div>
         {onNetwork ? (
           <NetworkBar />
